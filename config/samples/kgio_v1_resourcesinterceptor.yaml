@@ -1,0 +1,12 @@
+apiVersion: kgio.dams.kgio/v1
+kind: ResourcesInterceptor
+metadata:
+  labels:
+    app.kubernetes.io/name: resourcesinterceptor
+    app.kubernetes.io/instance: resourcesinterceptor-sample
+    app.kubernetes.io/part-of: operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: operator
+  name: resourcesinterceptor-sample
+spec:
+  # TODO(user): Add fields here

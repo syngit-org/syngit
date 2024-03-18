@@ -1,0 +1,6 @@
+## Append samples of your project ##
+resources:
+- kgio_v1_gituserbinding.yaml
+- kgio_v1_gitremote.yaml
+- kgio_v1_resourcesinterceptor.yaml
+#+kubebuilder:scaffold:manifestskustomizesamples
