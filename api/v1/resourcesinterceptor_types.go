@@ -20,6 +20,7 @@ import (
 	"regexp"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
@@ -65,7 +66,6 @@ type ResourcesInterceptorSpec struct {
 
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=3
-	// +kubebuilder:validation:UniqueItems=true
 	Operations []OperationType `json:"operations"`
 
 	CommitProcess CommitProcess `json:"commitProcess"`
@@ -74,19 +74,21 @@ type ResourcesInterceptorSpec struct {
 	RemoteRepository string `json:"remoteRepository"`
 
 	// +kubebuilder:validation:MinItems=1
-	// +kubebuilder:validation:UniqueItems=true
 	AuthorizedUsers []corev1.ObjectReference `json:"authorizedUsers"` // Ref to a list of GitUserBinding object
+
+	// +optional
+	BypassInterceptionSubjects []rbacv1.Subject `json:"bypassInterceptionSubjects,omitempty"`
 
 	DefaultUnauthorizedUserMode DefaultUnauthorizedUserMode `json:"defaultUnauthorizedUserMode"`
 
 	// +optional
-	DefaultUserBind *corev1.ObjectReference `json:"defaultUserBind"` // Ref to a GitUserBinding object
+	DefaultUserBind *corev1.ObjectReference `json:"defaultUserBind,omitempty"` // Ref to a GitUserBinding object
 
 	// +optional
-	ExcludedResources []NamespaceScopedResources `json:"excludedResources"`
+	ExcludedResources []NamespaceScopedResources `json:"excludedResources,omitempty"`
 
 	// +optional
-	ExcludedFields []string `json:"excludedFields"`
+	ExcludedFields []string `json:"excludedFields,omitempty"`
 }
 
 // Validate validates the ResourcesInterceptorSpec
@@ -124,12 +126,23 @@ type NamespaceScopedObject struct {
 	Name        string          `json:"name"`
 }
 
+type LastBypassedObjectState struct {
+	// +optional
+	LastBypassedObjectTime metav1.Time `json:"lastBypassObjectTime,omitempty"`
+
+	// +optional
+	LastBypassedObjectSubject rbacv1.Subject `json:"lastBypassObjectSubject,omitempty"`
+
+	// +optional
+	LastBypassedObject NamespaceScopedObject `json:"lastBypassObject,omitempty"`
+}
+
 type LastInterceptedObjectState struct {
 	// +optional
 	LastInterceptedObjectTime metav1.Time `json:"lastInterceptedObjectTime,omitempty"`
 
 	// +optional
-	LastInterceptedObjectKubernetesUserID string `json:"lastInterceptedObjectKubernetesUserID,omitempty"`
+	LastInterceptedObjectKubernetesUser rbacv1.Subject `json:"lastInterceptedObjectKubernetesUser,omitempty"`
 
 	// +optional
 	LastInterceptedObject NamespaceScopedObject `json:"lastInterceptedObject,omitempty"`
@@ -162,6 +175,9 @@ const (
 
 // ResourcesInterceptorStatus defines the observed state of ResourcesInterceptor
 type ResourcesInterceptorStatus struct {
+	// +optional
+	LastBypassedObjectState LastBypassedObjectState `json:"lastBypassedObjectState,omitempty"`
+
 	// +optional
 	LastInterceptedObjectState LastInterceptedObjectState `json:"lastInterceptedObjectState,omitempty"`
 

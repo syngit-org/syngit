@@ -8,5 +8,10 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: operator
   name: gitremote-sample
+  namespace: test
 spec:
-  # TODO(user): Add fields here
+  gitBaseDomainFQDN: "git.inpt.fr"
+  testAuthentication: true
+  gitProvider: "gitlab"
+  secretRef:
+    name: secret-basic-auth

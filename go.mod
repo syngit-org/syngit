@@ -11,6 +11,8 @@ require (
 	sigs.k8s.io/controller-runtime v0.17.0
 )
 
+require github.com/rogpeppe/go-internal v1.11.0 // indirect
+
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect

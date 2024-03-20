@@ -1,0 +1,82 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.14.0
+  name: gitremotes.kgio.dams.kgio
+spec:
+  group: kgio.dams.kgio
+  names:
+    kind: GitRemote
+    listKind: GitRemoteList
+    plural: gitremotes
+    singular: gitremote
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: GitRemote is the Schema for the gitremotes API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: GitRemoteSpec defines the desired state of GitRemote
+            properties:
+              gitBaseDomainFQDN:
+                type: string
+              gitProvider:
+                type: string
+              secretRef:
+                description: |-
+                  SecretReference represents a Secret Reference. It has enough information to retrieve secret
+                  in any namespace
+                properties:
+                  name:
+                    description: name is unique within a namespace to reference a
+                      secret resource.
+                    type: string
+                  namespace:
+                    description: namespace defines the space within which the secret
+                      name must be unique.
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+              testAuthentication:
+                type: boolean
+            required:
+            - gitBaseDomainFQDN
+            - secretRef
+            type: object
+          status:
+            description: GitRemoteStatus defines the observed state of GitRemote
+            properties:
+              connexionStatus:
+                type: string
+              gitUserID:
+                type: string
+              lastAuthTime:
+                format: date-time
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

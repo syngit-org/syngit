@@ -21,26 +21,46 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type GitProvider string
+
+const (
+	Gitlab    GitProvider = "gitlab"
+	Github    GitProvider = "github"
+	Bitbucket GitProvider = "bitbucket"
+)
+
 // GitRemoteSpec defines the desired state of GitRemote
 type GitRemoteSpec struct {
 	SecretRef corev1.SecretReference `json:"secretRef"`
 
-	// +kubebuilder:validation:Format=uri
-	GitBaseDomain string `json:"gitBaseDomain"`
+	GitBaseDomainFQDN string `json:"gitBaseDomainFQDN"`
+
+	// +optional
+	TestAuthentication bool `json:"testAuthentication,omitempty"`
+
+	// +optional
+	GitProvider GitProvider `json:"gitProvider,omitempty"`
 }
 
 type GitRemoteConnexionStatus string
 
 const (
-	Connected    GitRemoteConnexionStatus = "Connected"
-	Unauthorized GitRemoteConnexionStatus = "Unauthorized: bad credentials"
-	NotFound     GitRemoteConnexionStatus = "Not found: the git repository is not found"
+	Connected        GitRemoteConnexionStatus = "Connected"
+	Unauthorized     GitRemoteConnexionStatus = "Unauthorized: bad credentials"
+	Forbidden        GitRemoteConnexionStatus = "Forbidden : Not enough permission"
+	NotFound         GitRemoteConnexionStatus = "Not found: the git repository is not found"
+	ServerError      GitRemoteConnexionStatus = "Server error: a server error happened"
+	UnexpectedStatus GitRemoteConnexionStatus = "Unexpected response status code"
+	Disconnected     GitRemoteConnexionStatus = "Disconnected: The secret has been deleted"
 )
 
 // GitRemoteStatus defines the observed state of GitRemote
 type GitRemoteStatus struct {
 	// +optional
 	ConnexionStatus GitRemoteConnexionStatus `json:"connexionStatus,omitempty"`
+
+	// +optional
+	GitUserID string `json:"gitUserID,omitempty"`
 
 	// +optional
 	LastAuthTime metav1.Time `json:"lastAuthTime,omitempty"`
