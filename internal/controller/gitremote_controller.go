@@ -70,7 +70,7 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	gRNamespace := gitRemote.Namespace
 	gRName := gitRemote.Name
 	gitBaseDomainFQDN := gitRemote.Spec.GitBaseDomainFQDN
-	log.Log.Info("Reconciling GitRemote " + gRNamespace + "/" + gRName)
+	log.Log.Info("[" + gRNamespace + "/" + gRName + "] Reconciling request received")
 
 	// Get the referenced Secret
 	var secret corev1.Secret
@@ -79,7 +79,8 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		log.Log.Error(err, "["+gRNamespace+"/"+gRName+"] Secret not found with the name "+gitRemote.Spec.SecretRef.Name)
 		gitRemote.Status.ConnexionStatus = kgiov1.Disconnected
 		if err := r.Status().Update(ctx, &gitRemote); err != nil {
-			log.Log.Error(err, "["+gRNamespace+"/"+gRName+"] Failed to update status")
+			// log.Log.Error(err, "["+gRNamespace+"/"+gRName+"] Failed to update status")
+			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 		return ctrl.Result{}, err
 	}
@@ -121,7 +122,7 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		log.Log.Info("[" + gRNamespace + "/" + gRName + "] Process authentication checking on this endpoint : " + apiEndpoint)
 
 		// Perform Git provider authentication check
-		client := &http.Client{}
+		httpClient := &http.Client{}
 		gitReq, err := http.NewRequest("GET", apiEndpoint, nil)
 		if err != nil {
 			log.Log.Error(err, "["+gRNamespace+"/"+gRName+"] Failed to create Git Auth Test request")
@@ -129,7 +130,7 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 		gitReq.Header.Add("Private-Token", PAToken)
 
-		resp, err := client.Do(gitReq)
+		resp, err := httpClient.Do(gitReq)
 		if err != nil {
 			log.Log.Error(err, "["+gRNamespace+"/"+gRName+"] Failed to perform the Git Auth Test request; cannot communicate with the remote Git server (%s)", gitProvider)
 			return ctrl.Result{}, err
@@ -137,31 +138,31 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		defer resp.Body.Close()
 
 		// Check the response status code
+		connexionError := fmt.Errorf("status code : %d", resp.StatusCode)
 		if resp.StatusCode == http.StatusOK {
 			// Authentication successful
 			gitRemote.Status.ConnexionStatus = kgiov1.Connected
 			gitRemote.Status.LastAuthTime = metav1.Now()
-			log.Log.Info("[" + gRNamespace + "/" + gRName + "] Auth successed: " + username + " connected")
+			log.Log.Info("[" + gRNamespace + "/" + gRName + "] Auth successed - " + username + " connected")
 		} else if resp.StatusCode == http.StatusUnauthorized {
 			// Unauthorized: bad credentials
 			gitRemote.Status.ConnexionStatus = kgiov1.Unauthorized
-			log.Log.Info("[" + gRNamespace + "/" + gRName + "] Auth failed: Unauthorized")
+			log.Log.Error(connexionError, "["+gRNamespace+"/"+gRName+"] Auth failed - Unauthorized")
 		} else if resp.StatusCode == http.StatusForbidden {
 			// Forbidden : Not enough permission
 			gitRemote.Status.ConnexionStatus = forbiddenMessage
-			log.Log.Info("[" + gRNamespace + "/" + gRName + "] Auth failed: " + string(forbiddenMessage))
+			log.Log.Error(connexionError, "["+gRNamespace+"/"+gRName+"] Auth failed - "+string(forbiddenMessage))
 		} else if resp.StatusCode == http.StatusInternalServerError {
 			// Server error: a server error happened
 			gitRemote.Status.ConnexionStatus = kgiov1.ServerError
-			log.Log.Info("[" + gRNamespace + "/" + gRName + "] Auth failed: " + gitBaseDomainFQDN + " returns a Server Error")
+			log.Log.Error(connexionError, "["+gRNamespace+"/"+gRName+"] Auth failed - "+gitBaseDomainFQDN+" returns a Server Error")
 		} else {
 			// Handle other status codes if needed
-			log.Log.Info("[" + gRNamespace + "/" + gRName + "] Auth failed: Unexpected error occured")
 			gitRemote.Status.ConnexionStatus = kgiov1.UnexpectedStatus
-			err := fmt.Errorf("["+gRNamespace+"/"+gRName+"] Unexpected response status code: %d", resp.StatusCode)
-			log.Log.Error(err, "["+gRNamespace+"/"+gRName+"] Unexpected response from "+string(gitProvider))
+			log.Log.Error(connexionError, "["+gRNamespace+"/"+gRName+"] Auth failed - Unexpected response from "+string(gitProvider))
 			if err := r.Status().Update(ctx, &gitRemote); err != nil {
-				log.Log.Error(err, "["+gRNamespace+"/"+gRName+"] Failed to update status")
+				// log.Log.Error(err, "["+gRNamespace+"/"+gRName+"] Failed to update status")
+				return ctrl.Result{}, client.IgnoreNotFound(err)
 			}
 			return ctrl.Result{}, err
 		}
