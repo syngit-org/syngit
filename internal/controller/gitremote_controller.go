@@ -20,9 +20,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,6 +33,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -42,8 +45,9 @@ import (
 // GitRemoteReconciler reconciles a GitRemote object
 type GitRemoteReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
+	Scheme    *runtime.Scheme
+	Recorder  record.EventRecorder
+	Namespace string
 }
 
 // +kubebuilder:rbac:groups=kgio.dams.kgio,resources=gitremotes,verbs=get;list;watch;create;update;patch;delete
@@ -98,7 +102,7 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		// Fetch the ConfigMap
 		// controllerNamespace := ctx.Value("controllerNamespace").(string)
 		configMap := &corev1.ConfigMap{}
-		configMapName := types.NamespacedName{Namespace: "", Name: "git-providers-endpoints"}
+		configMapName := types.NamespacedName{Namespace: r.Namespace, Name: "git-providers-endpoints"}
 		if err := r.Get(ctx, configMapName, configMap); err != nil {
 			log.Log.Error(nil, "["+gRNamespace+"/"+gRName+"] ConfigMap not found with the name git-providers-endpoints in the operator's namespace")
 			return ctrl.Result{}, err
@@ -180,7 +184,7 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			gitRemote.Status.ConnexionStatus = kgiov1.UnexpectedStatus
 			log.Log.Error(connexionError, "["+gRNamespace+"/"+gRName+"] ❌ Auth failed - Unexpected response from "+string(gitProvider))
 			r.Recorder.Event(&gitRemote, "Warning", "AuthFailed",
-				fmt.Sprintf("Auth failed - unexpected response : %s", err))
+				fmt.Sprintf("Auth failed - unexpected response - %s", resp.Status))
 		}
 	}
 
@@ -232,49 +236,49 @@ func (r *GitRemoteReconciler) findObjectsForSecret(ctx context.Context, secret c
 	return requests
 }
 
-// func (r *GitRemoteReconciler) findObjectsForConfigMap(ctx context.Context, configMap client.Object) []reconcile.Request {
-// 	attachedGitRemotes := &kgiov1.GitRemoteList{}
-// 	listOps := &client.ListOptions{}
-// 	err := r.List(ctx, attachedGitRemotes, listOps)
-// 	if err != nil {
-// 		return []reconcile.Request{}
-// 	}
+func (r *GitRemoteReconciler) findObjectsForConfigMap(ctx context.Context, configMap client.Object) []reconcile.Request {
+	attachedGitRemotes := &kgiov1.GitRemoteList{}
+	listOps := &client.ListOptions{}
+	err := r.List(ctx, attachedGitRemotes, listOps)
+	if err != nil {
+		return []reconcile.Request{}
+	}
 
-// 	requests := make([]reconcile.Request, len(attachedGitRemotes.Items))
-// 	for i, item := range attachedGitRemotes.Items {
-// 		requests[i] = reconcile.Request{
-// 			NamespacedName: types.NamespacedName{
-// 				Name:      item.GetName(),
-// 				Namespace: item.GetNamespace(),
-// 			},
-// 		}
-// 	}
-// 	return requests
-// }
+	requests := make([]reconcile.Request, len(attachedGitRemotes.Items))
+	for i, item := range attachedGitRemotes.Items {
+		requests[i] = reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      item.GetName(),
+				Namespace: item.GetNamespace(),
+			},
+		}
+	}
+	return requests
+}
 
-// func (r *GitRemoteReconciler) gitEndpointsConfigCreation(e event.CreateEvent) bool {
-// 	configMap, ok := e.Object.(*v1.ConfigMap)
-// 	if !ok {
-// 		return false
-// 	}
-// 	return configMap.Namespace == "" && configMap.Name == "git-providers-endpoints"
-// }
+func (r *GitRemoteReconciler) gitEndpointsConfigCreation(e event.CreateEvent) bool {
+	configMap, ok := e.Object.(*v1.ConfigMap)
+	if !ok {
+		return false
+	}
+	return configMap.Namespace == r.Namespace && configMap.Name == "git-providers-endpoints"
+}
 
-// func (r *GitRemoteReconciler) gitEndpointsConfigUpdate(e event.UpdateEvent) bool {
-// 	configMap, ok := e.ObjectNew.(*v1.ConfigMap)
-// 	if !ok {
-// 		return false
-// 	}
-// 	return configMap.Namespace == "" && configMap.Name == "git-providers-endpoints"
-// }
+func (r *GitRemoteReconciler) gitEndpointsConfigUpdate(e event.UpdateEvent) bool {
+	configMap, ok := e.ObjectNew.(*v1.ConfigMap)
+	if !ok {
+		return false
+	}
+	return configMap.Namespace == r.Namespace && configMap.Name == "git-providers-endpoints"
+}
 
-// func (r *GitRemoteReconciler) gitEndpointsConfigDeletion(e event.DeleteEvent) bool {
-// 	configMap, ok := e.Object.(*v1.ConfigMap)
-// 	if !ok {
-// 		return false
-// 	}
-// 	return configMap.Namespace == "" && configMap.Name == "git-providers-endpoints"
-// }
+func (r *GitRemoteReconciler) gitEndpointsConfigDeletion(e event.DeleteEvent) bool {
+	configMap, ok := e.Object.(*v1.ConfigMap)
+	if !ok {
+		return false
+	}
+	return configMap.Namespace == r.Namespace && configMap.Name == "git-providers-endpoints"
+}
 
 const (
 	secretRefField = ".spec.secretRef.name"
@@ -295,11 +299,14 @@ func (r *GitRemoteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	recorder := mgr.GetEventRecorderFor("gitremote-controller")
 	r.Recorder = recorder
 
-	// configMapPredicates := predicate.Funcs{
-	// 	CreateFunc: r.gitEndpointsConfigCreation,
-	// 	UpdateFunc: r.gitEndpointsConfigUpdate,
-	// 	DeleteFunc: r.gitEndpointsConfigDeletion,
-	// }
+	managerNamespace := os.Getenv("MANAGER_NAMESPACE")
+	r.Namespace = managerNamespace
+
+	configMapPredicates := predicate.Funcs{
+		CreateFunc: r.gitEndpointsConfigCreation,
+		UpdateFunc: r.gitEndpointsConfigUpdate,
+		DeleteFunc: r.gitEndpointsConfigDeletion,
+	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kgiov1.GitRemote{}).
@@ -308,10 +315,10 @@ func (r *GitRemoteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSecret),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
-		// Watches(
-		// 	&corev1.ConfigMap{},
-		// 	handler.EnqueueRequestsFromMapFunc(r.findObjectsForConfigMap),
-		// 	builder.WithPredicates(predicate.GenerationChangedPredicate{}, configMapPredicates),
-		// ).
+		Watches(
+			&corev1.ConfigMap{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForConfigMap),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}, configMapPredicates),
+		).
 		Complete(r)
 }

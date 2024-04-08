@@ -1,2 +1,4 @@
 resources:
+- manager_namespace.yaml
 - manager.yaml
+- git-provider_configmap.yaml
