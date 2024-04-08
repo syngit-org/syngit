@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -49,6 +50,7 @@ type GitRemoteReconciler struct {
 // +kubebuilder:rbac:groups=kgio.dams.kgio,resources=gitremotes/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=kgio.dams.kgio,resources=gitremotes/finalizers,verbs=update
 // +kubebuilder:rbac:groups=corev1,resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=corev1,resources=configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
@@ -93,24 +95,44 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		gitRemote.Status.GitUserID = username
 		PAToken := string(secret.Data["password"])
 
+		// Fetch the ConfigMap
+		// controllerNamespace := ctx.Value("controllerNamespace").(string)
+		configMap := &corev1.ConfigMap{}
+		configMapName := types.NamespacedName{Namespace: "", Name: "git-providers-endpoints"}
+		if err := r.Get(ctx, configMapName, configMap); err != nil {
+			log.Log.Error(nil, "["+gRNamespace+"/"+gRName+"] ConfigMap not found with the name git-providers-endpoints in the operator's namespace")
+			return ctrl.Result{}, err
+		}
+
+		// Parse the ConfigMap
+		providers, err := parseConfigMap(*configMap)
+		if err != nil {
+			log.Log.Error(nil, "["+gRNamespace+"/"+gRName+"] Failed to parse ConfigMap")
+			return ctrl.Result{}, err
+		}
+
 		// Determine Git provider based on GitBaseDomainFQDN
 		var apiEndpoint string
 		var forbiddenMessage kgiov1.GitRemoteConnexionStatus
 		forbiddenMessage = kgiov1.Forbidden
 		gitProvider := gitRemote.Spec.GitProvider
-		switch gitProvider {
-		case kgiov1.Github:
-			apiEndpoint = "https://api." + gitBaseDomainFQDN + "/user"
-		case kgiov1.Gitlab:
-			apiEndpoint = "https://" + gitBaseDomainFQDN + "/api/v4/user"
-			forbiddenMessage = "Forbidden: the 'read_user' (or 'read_api' for the old version), the 'read_repository' and the 'write_repository' permissions need to be granted"
-		case kgiov1.Bitbucket:
-			apiEndpoint = "https://api." + gitBaseDomainFQDN + "/2.0/user"
-		default:
-			err := fmt.Errorf("unsupported git provider")
-			log.Log.Error(nil, "["+gRNamespace+"/"+gRName+"] Unsupported Git provider : "+string(gitRemote.Spec.GitProvider))
-			return ctrl.Result{}, err
+
+		for providerName, providerData := range providers {
+			if gitRemote.Spec.GitProvider == providerName {
+				apiEndpoint = providerData.Authentication
+				forbiddenMessage = kgiov1.Forbidden
+			}
 		}
+		if apiEndpoint == "" {
+			if gitRemote.Spec.CustomGitProvider.Authentication != "" {
+				apiEndpoint = gitRemote.Spec.CustomGitProvider.Authentication
+			} else {
+				err := fmt.Errorf("unsupported git provider")
+				log.Log.Error(nil, "["+gRNamespace+"/"+gRName+"] Unsupported Git provider : "+string(gitRemote.Spec.GitProvider))
+				return ctrl.Result{}, err
+			}
+		}
+
 		log.Log.Info("[" + gRNamespace + "/" + gRName + "] Process authentication checking on this endpoint : " + apiEndpoint)
 
 		// Perform Git provider authentication check
@@ -171,6 +193,22 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	return ctrl.Result{}, nil
 }
 
+func parseConfigMap(configMap corev1.ConfigMap) (map[string]kgiov1.GitProvider, error) {
+	providers := make(map[string]kgiov1.GitProvider)
+
+	for key, value := range configMap.Data {
+		var gitProvider kgiov1.GitProvider
+
+		if err := yaml.Unmarshal([]byte(value), &gitProvider); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal provider data for key %s: %w", key, err)
+		}
+
+		providers[key] = gitProvider
+	}
+
+	return providers, nil
+}
+
 func (r *GitRemoteReconciler) findObjectsForSecret(ctx context.Context, secret client.Object) []reconcile.Request {
 	attachedGitRemotes := &kgiov1.GitRemoteList{}
 	listOps := &client.ListOptions{
@@ -194,6 +232,50 @@ func (r *GitRemoteReconciler) findObjectsForSecret(ctx context.Context, secret c
 	return requests
 }
 
+// func (r *GitRemoteReconciler) findObjectsForConfigMap(ctx context.Context, configMap client.Object) []reconcile.Request {
+// 	attachedGitRemotes := &kgiov1.GitRemoteList{}
+// 	listOps := &client.ListOptions{}
+// 	err := r.List(ctx, attachedGitRemotes, listOps)
+// 	if err != nil {
+// 		return []reconcile.Request{}
+// 	}
+
+// 	requests := make([]reconcile.Request, len(attachedGitRemotes.Items))
+// 	for i, item := range attachedGitRemotes.Items {
+// 		requests[i] = reconcile.Request{
+// 			NamespacedName: types.NamespacedName{
+// 				Name:      item.GetName(),
+// 				Namespace: item.GetNamespace(),
+// 			},
+// 		}
+// 	}
+// 	return requests
+// }
+
+// func (r *GitRemoteReconciler) gitEndpointsConfigCreation(e event.CreateEvent) bool {
+// 	configMap, ok := e.Object.(*v1.ConfigMap)
+// 	if !ok {
+// 		return false
+// 	}
+// 	return configMap.Namespace == "" && configMap.Name == "git-providers-endpoints"
+// }
+
+// func (r *GitRemoteReconciler) gitEndpointsConfigUpdate(e event.UpdateEvent) bool {
+// 	configMap, ok := e.ObjectNew.(*v1.ConfigMap)
+// 	if !ok {
+// 		return false
+// 	}
+// 	return configMap.Namespace == "" && configMap.Name == "git-providers-endpoints"
+// }
+
+// func (r *GitRemoteReconciler) gitEndpointsConfigDeletion(e event.DeleteEvent) bool {
+// 	configMap, ok := e.Object.(*v1.ConfigMap)
+// 	if !ok {
+// 		return false
+// 	}
+// 	return configMap.Namespace == "" && configMap.Name == "git-providers-endpoints"
+// }
+
 const (
 	secretRefField = ".spec.secretRef.name"
 )
@@ -210,8 +292,14 @@ func (r *GitRemoteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}); err != nil {
 		return err
 	}
-	// recorder := mgr.GetEventRecorderFor("gitremote-controller")
-	// r.Recorder = recorder
+	recorder := mgr.GetEventRecorderFor("gitremote-controller")
+	r.Recorder = recorder
+
+	// configMapPredicates := predicate.Funcs{
+	// 	CreateFunc: r.gitEndpointsConfigCreation,
+	// 	UpdateFunc: r.gitEndpointsConfigUpdate,
+	// 	DeleteFunc: r.gitEndpointsConfigDeletion,
+	// }
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kgiov1.GitRemote{}).
@@ -220,5 +308,10 @@ func (r *GitRemoteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSecret),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
+		// Watches(
+		// 	&corev1.ConfigMap{},
+		// 	handler.EnqueueRequestsFromMapFunc(r.findObjectsForConfigMap),
+		// 	builder.WithPredicates(predicate.GenerationChangedPredicate{}, configMapPredicates),
+		// ).
 		Complete(r)
 }

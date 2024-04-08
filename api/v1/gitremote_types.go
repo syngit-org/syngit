@@ -21,14 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type GitProvider string
-
-const (
-	Gitlab    GitProvider = "gitlab"
-	Github    GitProvider = "github"
-	Bitbucket GitProvider = "bitbucket"
-)
-
 // GitRemoteSpec defines the desired state of GitRemote
 type GitRemoteSpec struct {
 	SecretRef corev1.SecretReference `json:"secretRef"`
@@ -39,7 +31,15 @@ type GitRemoteSpec struct {
 	TestAuthentication bool `json:"testAuthentication,omitempty"`
 
 	// +optional
-	GitProvider GitProvider `json:"gitProvider,omitempty"`
+	GitProvider string `json:"gitProvider,omitempty"`
+
+	// +optional
+	CustomGitProvider GitProvider `json:"customGitProvider,omitempty"`
+}
+
+type GitProvider struct {
+	FQDN           string `json:"fqdn"`
+	Authentication string `json:"authentication"`
 }
 
 type GitRemoteConnexionStatus string

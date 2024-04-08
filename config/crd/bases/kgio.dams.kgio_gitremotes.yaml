@@ -39,6 +39,16 @@ spec:
           spec:
             description: GitRemoteSpec defines the desired state of GitRemote
             properties:
+              customGitProvider:
+                properties:
+                  authentication:
+                    type: string
+                  fqdn:
+                    type: string
+                required:
+                - authentication
+                - fqdn
+                type: object
               gitBaseDomainFQDN:
                 type: string
               gitProvider:
