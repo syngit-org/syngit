@@ -8,5 +8,11 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: operator
   name: gituserbinding-sample
+  namespace: test
 spec:
-  # TODO(user): Add fields here
+  subject:
+    kind: User
+    name: kubernetes-admin
+  remoteRefs:
+    - name: gitremote-sample 
+  #namespace: test

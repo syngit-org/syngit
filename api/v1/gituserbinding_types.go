@@ -24,24 +24,32 @@ import (
 
 // GitUserBindingSpec defines the desired state of GitUserBinding
 type GitUserBindingSpec struct {
-	Subject   rbacv1.Subject         `json:"subject"`
-	RemoteRef corev1.ObjectReference `json:"remoteRef"` // Ref to a GitRemote object
+	Subject    rbacv1.Subject           `json:"subject"`
+	RemoteRefs []corev1.ObjectReference `json:"remoteRefs"` // Ref to the listed GitRemote objects
 }
 
 type GitUserBindingState string
 
 const (
-	Bound    GitUserBindingState = "Bound"
-	NotBound GitUserBindingState = "Not bound"
+	Bound          GitUserBindingState = "Bound"
+	PartiallyBound GitUserBindingState = "Partially Bound"
+	NotBound       GitUserBindingState = "Not bound"
 )
+
+type GitUserHost struct {
+	GitRemoteUsed string                 `json:"gitUserRemoteUsed,omitempty"`
+	SecretRef     corev1.SecretReference `json:"secretRef"`
+	GitFQDN       string                 `json:"gitFQDN,omitempty"`
+	State         GitUserBindingState    `json:"state,omitempty"`
+}
 
 // GitUserBindingStatus defines the observed state of GitUserBinding
 type GitUserBindingStatus struct {
 	// +optional
-	State GitUserBindingState `json:"state,omitempty"`
+	GlobalState GitUserBindingState `json:"state,omitempty"`
 
 	// +optional
-	UserGitID string `json:"userGitID,omitempty"`
+	GitUserHosts []GitUserHost `json:"gitUserHosts"`
 
 	// +optional
 	UserKubernetesID string `json:"userKubernetesID,omitempty"`
