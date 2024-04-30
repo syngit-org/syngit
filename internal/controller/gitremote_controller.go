@@ -58,6 +58,7 @@ type GitRemoteReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
+	var tabString = "\n 					"
 
 	// Get the GitRemote Object
 	var gitRemote kgiov1.GitRemote
@@ -68,30 +69,32 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	gRNamespace := gitRemote.Namespace
 	gRName := gitRemote.Name
 	gitBaseDomainFQDN := gitRemote.Spec.GitBaseDomainFQDN
-	log.Log.Info("[" + gRNamespace + "/" + gRName + "] Reconciling request received")
+	var prefixMsg = "[" + gRNamespace + "/" + gRName + "]" + tabString
+
+	log.Log.Info(prefixMsg + "Reconciling request received")
 
 	// Get the referenced Secret
 	var secret corev1.Secret
 	retrievedSecret := types.NamespacedName{Namespace: req.Namespace, Name: gitRemote.Spec.SecretRef.Name}
 	if err := r.Get(ctx, retrievedSecret, &secret); err != nil {
-		log.Log.Error(nil, "["+gRNamespace+"/"+gRName+"] Secret not found with the name "+gitRemote.Spec.SecretRef.Name)
+		log.Log.Error(nil, prefixMsg+"Secret not found with the name "+gitRemote.Spec.SecretRef.Name)
 		gitRemote.Status.ConnexionStatus = kgiov1.Disconnected
 		if err := r.Status().Update(ctx, &gitRemote); err != nil {
-			// log.Log.Error(err, "["+gRNamespace+"/"+gRName+"] Failed to update status")
+			// log.Log.Error(err, prefixMsg + "Failed to update status")
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 		return ctrl.Result{}, err
 	}
 	username := string(secret.Data["username"])
-	log.Log.Info("[" + gRNamespace + "/" + gRName + "] Secret found, username : " + username)
+	log.Log.Info(prefixMsg + "Secret found, username : " + username)
 
 	if gitRemote.Spec.TestAuthentication {
-		log.Log.Info("[" + gRNamespace + "/" + gRName + "] Auth check on " + gitBaseDomainFQDN + " using the token associated to " + username)
+		log.Log.Info(prefixMsg + "Auth check on " + gitBaseDomainFQDN + " using the token associated to " + username)
 
 		// Check if the referenced Secret is a basic-auth type
 		if secret.Type != corev1.SecretTypeBasicAuth {
 			err := fmt.Errorf("secret type is not BasicAuth")
-			log.Log.Error(nil, "["+gRNamespace+"/"+gRName+"] The secret type is not BasicAuth, found: "+string(secret.Type))
+			log.Log.Error(nil, prefixMsg+"The secret type is not BasicAuth, found: "+string(secret.Type))
 			return ctrl.Result{}, err
 		}
 
@@ -104,14 +107,14 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		configMap := &corev1.ConfigMap{}
 		configMapName := types.NamespacedName{Namespace: r.Namespace, Name: "git-providers-endpoints"}
 		if err := r.Get(ctx, configMapName, configMap); err != nil {
-			log.Log.Error(nil, "["+gRNamespace+"/"+gRName+"] ConfigMap not found with the name git-providers-endpoints in the operator's namespace")
+			log.Log.Error(nil, prefixMsg+"ConfigMap not found with the name git-providers-endpoints in the operator's namespace")
 			return ctrl.Result{}, err
 		}
 
 		// Parse the ConfigMap
 		providers, err := parseConfigMap(*configMap)
 		if err != nil {
-			log.Log.Error(nil, "["+gRNamespace+"/"+gRName+"] Failed to parse ConfigMap")
+			log.Log.Error(nil, prefixMsg+"Failed to parse ConfigMap")
 			return ctrl.Result{}, err
 		}
 
@@ -132,25 +135,25 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				apiEndpoint = gitRemote.Spec.CustomGitProvider.Authentication
 			} else {
 				err := fmt.Errorf("unsupported git provider")
-				log.Log.Error(nil, "["+gRNamespace+"/"+gRName+"] Unsupported Git provider : "+string(gitRemote.Spec.GitProvider))
+				log.Log.Error(nil, prefixMsg+"Unsupported Git provider : "+string(gitRemote.Spec.GitProvider))
 				return ctrl.Result{}, err
 			}
 		}
 
-		log.Log.Info("[" + gRNamespace + "/" + gRName + "] Process authentication checking on this endpoint : " + apiEndpoint)
+		var endpointCheckedMsg = tabString + "Process authentication checking on this endpoint : " + apiEndpoint
 
 		// Perform Git provider authentication check
 		httpClient := &http.Client{}
 		gitReq, err := http.NewRequest("GET", apiEndpoint, nil)
 		if err != nil {
-			log.Log.Error(nil, "["+gRNamespace+"/"+gRName+"] Failed to create Git Auth Test request")
+			log.Log.Error(nil, prefixMsg+"Failed to create Git Auth Test request"+endpointCheckedMsg)
 			return ctrl.Result{}, err
 		}
 		gitReq.Header.Add("Private-Token", PAToken)
 
 		resp, err := httpClient.Do(gitReq)
 		if err != nil {
-			log.Log.Error(nil, "["+gRNamespace+"/"+gRName+"] Failed to perform the Git Auth Test request; cannot communicate with the remote Git server (%s)", gitProvider)
+			log.Log.Error(nil, prefixMsg+"Failed to perform the Git Auth Test request; cannot communicate with the remote Git server (%s)", gitProvider+endpointCheckedMsg)
 			return ctrl.Result{}, err
 		}
 		defer resp.Body.Close()
@@ -162,27 +165,27 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			connexionError = nil
 			gitRemote.Status.ConnexionStatus = kgiov1.Connected
 			gitRemote.Status.LastAuthTime = metav1.Now()
-			log.Log.Info("[" + gRNamespace + "/" + gRName + "] ✅ Auth succeeded - " + username + " connected")
+			log.Log.Info(prefixMsg + "✅ Auth succeeded - " + username + " connected" + endpointCheckedMsg)
 			r.Recorder.Event(&gitRemote, "Normal", "Connected", "Auth succeeded")
 		} else if resp.StatusCode == http.StatusUnauthorized {
 			// Unauthorized: bad credentials
 			gitRemote.Status.ConnexionStatus = kgiov1.Unauthorized
-			log.Log.Error(connexionError, "["+gRNamespace+"/"+gRName+"] ❌ Auth failed - Unauthorized")
+			log.Log.Error(connexionError, prefixMsg+"❌ Auth failed - Unauthorized"+endpointCheckedMsg)
 			r.Recorder.Event(&gitRemote, "Warning", "AuthFailed", "Auth failed - unauthorized")
 		} else if resp.StatusCode == http.StatusForbidden {
 			// Forbidden : Not enough permission
 			gitRemote.Status.ConnexionStatus = forbiddenMessage
-			log.Log.Error(connexionError, "["+gRNamespace+"/"+gRName+"] ❌ Auth failed - "+string(forbiddenMessage))
+			log.Log.Error(connexionError, prefixMsg+"❌ Auth failed - "+string(forbiddenMessage)+endpointCheckedMsg)
 			r.Recorder.Event(&gitRemote, "Warning", "AuthFailed", "Auth failed - forbidden")
 		} else if resp.StatusCode == http.StatusInternalServerError {
 			// Server error: a server error happened
 			gitRemote.Status.ConnexionStatus = kgiov1.ServerError
-			log.Log.Error(connexionError, "["+gRNamespace+"/"+gRName+"] ❌ Auth failed - "+gitBaseDomainFQDN+" returns a Server Error")
+			log.Log.Error(connexionError, prefixMsg+"❌ Auth failed - "+gitBaseDomainFQDN+" returns a Server Error"+endpointCheckedMsg)
 			r.Recorder.Event(&gitRemote, "Warning", "AuthFailed", "Auth failed - server error")
 		} else {
 			// Handle other status codes if needed
 			gitRemote.Status.ConnexionStatus = kgiov1.UnexpectedStatus
-			log.Log.Error(connexionError, "["+gRNamespace+"/"+gRName+"] ❌ Auth failed - Unexpected response from "+string(gitProvider))
+			log.Log.Error(connexionError, prefixMsg+"❌ Auth failed - Unexpected response from "+string(gitProvider)+endpointCheckedMsg)
 			r.Recorder.Event(&gitRemote, "Warning", "AuthFailed",
 				fmt.Sprintf("Auth failed - unexpected response - %s", resp.Status))
 		}
@@ -190,7 +193,7 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	// Update the status of GitRemote
 	if err := r.Status().Update(ctx, &gitRemote); err != nil {
-		log.Log.Error(nil, "["+gRNamespace+"/"+gRName+"] Failed to update status")
+		log.Log.Error(nil, prefixMsg+"Failed to update status")
 		return ctrl.Result{}, err
 	}
 

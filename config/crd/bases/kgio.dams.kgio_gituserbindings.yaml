@@ -145,6 +145,9 @@ spec:
                       type: string
                     gitUserRemoteUsed:
                       type: string
+                    lastUsedTime:
+                      format: date-time
+                      type: string
                     secretRef:
                       description: |-
                         SecretReference represents a Secret Reference. It has enough information to retrieve secret
@@ -166,6 +169,9 @@ spec:
                   - secretRef
                   type: object
                 type: array
+              lastUsedTime:
+                format: date-time
+                type: string
               state:
                 type: string
               userKubernetesID:

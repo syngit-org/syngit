@@ -32,8 +32,8 @@ type GitUserBindingState string
 
 const (
 	Bound          GitUserBindingState = "Bound"
-	PartiallyBound GitUserBindingState = "Partially Bound"
-	NotBound       GitUserBindingState = "Not bound"
+	PartiallyBound GitUserBindingState = "PartiallyBound"
+	NotBound       GitUserBindingState = "NotBound"
 )
 
 type GitUserHost struct {
@@ -41,6 +41,7 @@ type GitUserHost struct {
 	SecretRef     corev1.SecretReference `json:"secretRef"`
 	GitFQDN       string                 `json:"gitFQDN,omitempty"`
 	State         GitUserBindingState    `json:"state,omitempty"`
+	LastUsedTime  metav1.Time            `json:"lastUsedTime,omitempty"`
 }
 
 // GitUserBindingStatus defines the observed state of GitUserBinding
@@ -53,6 +54,9 @@ type GitUserBindingStatus struct {
 
 	// +optional
 	UserKubernetesID string `json:"userKubernetesID,omitempty"`
+
+	// +optional
+	LastUsedTime metav1.Time `json:"lastUsedTime,omitempty"`
 }
 
 //+kubebuilder:object:root=true

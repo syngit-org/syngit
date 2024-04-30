@@ -1,0 +1,17 @@
+apiVersion: kgio.dams.kgio/v1
+kind: GitRemote
+metadata:
+  labels:
+    app.kubernetes.io/name: gitremote
+    app.kubernetes.io/instance: gitremote-sample
+    app.kubernetes.io/part-of: operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: operator
+  name: gitremote-sample2
+  namespace: test
+spec:
+  gitBaseDomainFQDN: "git.inpt.fr"
+  testAuthentication: true
+  gitProvider: "gitlab"
+  secretRef:
+    name: secret-basic-auth

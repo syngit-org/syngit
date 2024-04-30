@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -57,6 +56,7 @@ type GitUserBindingReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.0/pkg/reconcile
 func (r *GitUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
+	var tabString = "\n 					"
 
 	// Get the GitUserBinding Object
 	var gitUserBinding kgiov1.GitUserBinding
@@ -67,12 +67,17 @@ func (r *GitUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	gUBNamespace := gitUserBinding.Namespace
 	gUBName := gitUserBinding.Name
 	subject := gitUserBinding.Spec.Subject
-	log.Log.Info("[" + gUBNamespace + "/" + gUBName + "] Reconciling request received")
+	var prefixMsg = "[" + gUBNamespace + "/" + gUBName + "]" + tabString
+
+	log.Log.Info(prefixMsg + "Reconciling request received")
 
 	// Get the referenced GitRemotes
+	var isGloballyBound bool = false
+	var isGloballyNotBound bool = false
+	var msg = ""
+
 	var gitUserHosts []kgiov1.GitUserHost
 	for _, gitRemoteRef := range gitUserBinding.Spec.RemoteRefs {
-		fmt.Println(gitRemoteRef)
 
 		// Set already known values about this GitRemote
 		var gitUserHost kgiov1.GitUserHost = kgiov1.GitUserHost{}
@@ -84,34 +89,36 @@ func (r *GitUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 		// Get the concerned GitRemote
 		if err := r.Get(ctx, retrievedGitRemote, &gitRemote); err != nil {
-			log.Log.Error(nil, "["+gUBNamespace+"/"+gUBName+"] GitRemote not found with the name "+gitRemoteRef.Name)
+			log.Log.Error(nil, prefixMsg+"GitRemote not found with the name "+gitRemoteRef.Name)
+			msg += tabString + " ❌ " + gitUserHost.GitRemoteUsed + " Not Bound"
+			r.Recorder.Event(&gitUserBinding, "Warning", "NotBound", gitUserHost.GitRemoteUsed+" not bound")
+			isGloballyNotBound = true
 		} else {
 			gitUserHost.GitFQDN = gitRemote.Spec.GitBaseDomainFQDN
 			gitUserHost.SecretRef = gitRemote.Spec.SecretRef
 			gitUserHost.State = kgiov1.Bound
+			msg += tabString + " ✅ " + gitUserHost.GitRemoteUsed + " Bound"
+			r.Recorder.Event(&gitUserBinding, "Normal", "Bound", gitUserHost.GitRemoteUsed+" bound")
+			isGloballyBound = true
 		}
 
 		gitUserHosts = append(gitUserHosts, gitUserHost)
 
 	}
+	gitUserBinding.Status.GitUserHosts = gitUserHosts
 
-	var isGloballyBound bool = false
-	var isGloballyNotBound bool = false
-	for _, gitUserHost := range gitUserHosts {
-		if gitUserHost.State == kgiov1.NotBound {
-			isGloballyNotBound = true
-		}
-		if gitUserHost.State == kgiov1.Bound {
-			isGloballyBound = true
-		}
-	}
+	log.Log.Info(prefixMsg + "GitRemotes status list:" + msg)
 	if isGloballyBound && isGloballyNotBound {
 		gitUserBinding.Status.GlobalState = kgiov1.PartiallyBound
-	}
-	if isGloballyBound {
-		gitUserBinding.Status.GlobalState = kgiov1.Bound
+		r.Recorder.Event(&gitUserBinding, "Warning", "PartiallyBound", "Some of the git repos are not bound")
 	} else {
-		gitUserBinding.Status.GlobalState = kgiov1.NotBound
+		if isGloballyBound {
+			gitUserBinding.Status.GlobalState = kgiov1.Bound
+			r.Recorder.Event(&gitUserBinding, "Normal", "Bound", "Every git repos are bound")
+		} else {
+			gitUserBinding.Status.GlobalState = kgiov1.NotBound
+			r.Recorder.Event(&gitUserBinding, "Warning", "NotBound", "None of the git repos are bound")
+		}
 	}
 
 	gitUserBinding.Status.UserKubernetesID = subject.Name
@@ -124,18 +131,18 @@ func (r *GitUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 func (r *GitUserBindingReconciler) findObjectsForGitRemote(ctx context.Context, gitRemote client.Object) []reconcile.Request {
-	attachedGitRemotes := &kgiov1.GitRemoteList{}
+	attachedGitUserBindings := &kgiov1.GitUserBindingList{}
 	listOps := &client.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector(secretRefField, gitRemote.GetName()),
+		FieldSelector: fields.OneTermEqualSelector(remoteRefsField, gitRemote.GetName()),
 		Namespace:     gitRemote.GetNamespace(),
 	}
-	err := r.List(ctx, attachedGitRemotes, listOps)
+	err := r.List(ctx, attachedGitUserBindings, listOps)
 	if err != nil {
 		return []reconcile.Request{}
 	}
 
-	requests := make([]reconcile.Request, len(attachedGitRemotes.Items))
-	for i, item := range attachedGitRemotes.Items {
+	requests := make([]reconcile.Request, len(attachedGitUserBindings.Items))
+	for i, item := range attachedGitUserBindings.Items {
 		requests[i] = reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Name:      item.GetName(),
@@ -146,9 +153,13 @@ func (r *GitUserBindingReconciler) findObjectsForGitRemote(ctx context.Context, 
 	return requests
 }
 
+const (
+	remoteRefsField = ".spec.remoteRefs"
+)
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *GitUserBindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &kgiov1.GitUserBinding{}, ".spec.remoteRefs", func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &kgiov1.GitUserBinding{}, remoteRefsField, func(rawObj client.Object) []string {
 
 		gitRemoteRefsName := []string{}
 
@@ -160,9 +171,8 @@ func (r *GitUserBindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			if gitRemoteRef.Name == "" {
 				return nil
 			}
-			gitRemoteRefsName = append(gitRemoteRefsName, gitRemoteRef.Name)
+			gitRemoteRefsName = append(gitRemoteRefsName, gitRemoteRef.DeepCopy().Name)
 		}
-
 		return gitRemoteRefsName
 	}); err != nil {
 		return err
