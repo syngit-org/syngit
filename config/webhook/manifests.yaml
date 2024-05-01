@@ -24,3 +24,23 @@ webhooks:
     resources:
     - gitremotes
   sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-kgio-dams-kgio-v1-resourcesinterceptor
+  failurePolicy: Fail
+  name: vresourcesinterceptor.kb.io
+  rules:
+  - apiGroups:
+    - kgio.dams.kgio
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - resourcesinterceptors
+  sideEffects: None

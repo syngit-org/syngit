@@ -51,10 +51,10 @@ const (
 	UserDefaultUserBind DefaultUnauthorizedUserMode = "UseDefaultUserBind"
 )
 
-type NamespaceScopedResources struct {
-	APIGroups   []metav1.APIGroup `json:"apiGroups"`
-	APIVersions []string          `json:"apiVersions"`
-	Resources   []string          `json:"resources"`
+type NamespaceScopedKinds struct {
+	APIGroups   []string `json:"apiGroups"`
+	APIVersions []string `json:"apiVersions"`
+	Kinds       []string `json:"kinds"`
 }
 
 // ResourcesInterceptorSpec defines the desired state of ResourcesInterceptor
@@ -82,7 +82,10 @@ type ResourcesInterceptorSpec struct {
 	DefaultUserBind *corev1.ObjectReference `json:"defaultUserBind,omitempty"` // Ref to a GitUserBinding object
 
 	// +optional
-	ExcludedResources []NamespaceScopedResources `json:"excludedResources,omitempty"`
+	IncludedResources []NamespaceScopedKinds `json:"includedResources,omitempty"`
+
+	// +optional
+	ExcludedResources []NamespaceScopedKinds `json:"excludedResources,omitempty"`
 
 	// +optional
 	ExcludedFields []string `json:"excludedFields,omitempty"`

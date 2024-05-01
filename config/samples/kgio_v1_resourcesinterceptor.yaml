@@ -9,4 +9,17 @@ metadata:
     app.kubernetes.io/created-by: operator
   name: resourcesinterceptor-sample
 spec:
-  # TODO(user): Add fields here
+  remoteRepository: https://damiendassieu.fr
+  commitMode: Commit
+  commitProcess: CommitOnly
+  operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+  authorizedUsers:
+    - name: gituserbinding-sample
+  defaultUnauthorizedUserMode: Block
+  includedResources:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      kinds: ["Secret"] 

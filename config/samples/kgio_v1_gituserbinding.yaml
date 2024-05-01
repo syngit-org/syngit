@@ -16,4 +16,4 @@ spec:
   remoteRefs:
     - name: gitremote-sample3
     #- name: another-one
-    - name: gitremote-sample2
+    #- name: gitremote-sample2

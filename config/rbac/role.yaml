@@ -5,6 +5,22 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - '*'
+  resources:
+  - '*'
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - kgio.dams.kgio
+  resources:
+  - gitremote
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - kgio.dams.kgio
   resources:
   - gituserbindings

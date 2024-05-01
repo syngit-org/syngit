@@ -56,6 +56,11 @@ func (r *ResourcesInterceptorSpec) ValidateResourcesInterceptorSpec() field.Erro
 		errors = append(errors, field.Required(field.NewPath("defaultUserBind"), "should be set when defaultUnauthorizedUserMode is set to \"UseDefaultUserBind\""))
 	}
 
+	// Validate that ExcludedResources does not exists if IncludedResources exists
+	if r.IncludedResources != nil && r.ExcludedResources != nil {
+		errors = append(errors, field.Invalid(field.NewPath("excludedResources"), r.ExcludedResources, "should not be set when includedResources is set"))
+	}
+
 	// Validate the ExcludedFields to ensure that it is a YAML path
 	for _, fieldPath := range r.ExcludedFields {
 		if !isValidYAMLPath(fieldPath) {
