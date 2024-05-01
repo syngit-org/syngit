@@ -41,7 +41,7 @@ func (r *GitRemote) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &GitRemote{}
 
 // Validate validates the GitRemoteSpec
-func (r *GitRemoteSpec) validateGitRemoteSpec() field.ErrorList {
+func (r *GitRemoteSpec) ValidateGitRemoteSpec() field.ErrorList {
 	var errors field.ErrorList
 
 	// The GitProvider must be set if the TestAuthentication field is setted to true
@@ -52,9 +52,9 @@ func (r *GitRemoteSpec) validateGitRemoteSpec() field.ErrorList {
 	return errors
 }
 
-func (r *GitRemote) validateGitRemote() error {
+func (r *GitRemote) ValidateGitRemote() error {
 	var allErrs field.ErrorList
-	if err := r.Spec.validateGitRemoteSpec(); err != nil {
+	if err := r.Spec.ValidateGitRemoteSpec(); err != nil {
 		allErrs = append(allErrs, err...)
 	}
 	if len(allErrs) == 0 {
@@ -70,14 +70,14 @@ func (r *GitRemote) validateGitRemote() error {
 func (r *GitRemote) ValidateCreate() (admission.Warnings, error) {
 	gitremotelog.Info("validate create", "name", r.Name)
 
-	return nil, r.validateGitRemote()
+	return nil, r.ValidateGitRemote()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *GitRemote) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	gitremotelog.Info("validate update", "name", r.Name)
 
-	return nil, r.validateGitRemote()
+	return nil, r.ValidateGitRemote()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type

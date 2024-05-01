@@ -48,8 +48,20 @@ type ResourcesInterceptorReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.0/pkg/reconcile
 func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
+	var tabString = "\n 					"
 
-	// TODO(user): your logic here
+	// Get the ResourcesInterceptor Object
+	var resourcesInterceptor kgiov1.ResourcesInterceptor
+	if err := r.Get(ctx, req.NamespacedName, &resourcesInterceptor); err != nil {
+		// does not exists -> deleted
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+	rINamespace := resourcesInterceptor.Namespace
+	rIBName := resourcesInterceptor.Name
+
+	var prefixMsg = "[" + rINamespace + "/" + rIBName + "]" + tabString
+
+	log.Log.Info(prefixMsg + "Reconciling request received")
 
 	return ctrl.Result{}, nil
 }

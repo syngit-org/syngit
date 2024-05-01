@@ -17,12 +17,9 @@ limitations under the License.
 package v1
 
 import (
-	"regexp"
-
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 type CommitMode string
@@ -89,34 +86,6 @@ type ResourcesInterceptorSpec struct {
 
 	// +optional
 	ExcludedFields []string `json:"excludedFields,omitempty"`
-}
-
-// Validate validates the ResourcesInterceptorSpec
-func (r *ResourcesInterceptorSpec) Validate() field.ErrorList {
-	var errors field.ErrorList
-
-	// Validate DefaultUserBind based on DefaultUnauthorizedUserMode
-	if r.DefaultUnauthorizedUserMode == Block && r.DefaultUserBind != nil {
-		errors = append(errors, field.Invalid(field.NewPath("defaultUserBind"), r.DefaultUserBind, "should not be set when defaultUnauthorizedUserMode is set to \"Block\""))
-	} else if r.DefaultUnauthorizedUserMode == UserDefaultUserBind && r.DefaultUserBind == nil {
-		errors = append(errors, field.Required(field.NewPath("defaultUserBind"), "should be set when defaultUnauthorizedUserMode is set to \"UseDefaultUserBind\""))
-	}
-
-	// Validate the ExcludedFields to ensure that it is a YAML path
-	for _, fieldPath := range r.ExcludedFields {
-		if !isValidYAMLPath(fieldPath) {
-			errors = append(errors, field.Invalid(field.NewPath("excludedFields"), fieldPath, "must be a valid YAML path"))
-		}
-	}
-
-	return errors
-}
-
-// isValidYAMLPath checks if the given string is a valid YAML path
-func isValidYAMLPath(path string) bool {
-	// Regular expression to match a valid YAML path
-	yamlPathRegex := regexp.MustCompile(`^(\.([a-zA-Z0-9_]+|\*))+$`)
-	return yamlPathRegex.MatchString(path)
 }
 
 type NamespaceScopedObject struct {

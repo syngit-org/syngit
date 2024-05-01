@@ -24,7 +24,6 @@ import (
 
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -260,7 +259,7 @@ func (r *GitRemoteReconciler) findObjectsForConfigMap(ctx context.Context, confi
 }
 
 func (r *GitRemoteReconciler) gitEndpointsConfigCreation(e event.CreateEvent) bool {
-	configMap, ok := e.Object.(*v1.ConfigMap)
+	configMap, ok := e.Object.(*corev1.ConfigMap)
 	if !ok {
 		return false
 	}
@@ -268,7 +267,7 @@ func (r *GitRemoteReconciler) gitEndpointsConfigCreation(e event.CreateEvent) bo
 }
 
 func (r *GitRemoteReconciler) gitEndpointsConfigUpdate(e event.UpdateEvent) bool {
-	configMap, ok := e.ObjectNew.(*v1.ConfigMap)
+	configMap, ok := e.ObjectNew.(*corev1.ConfigMap)
 	if !ok {
 		return false
 	}
@@ -276,7 +275,7 @@ func (r *GitRemoteReconciler) gitEndpointsConfigUpdate(e event.UpdateEvent) bool
 }
 
 func (r *GitRemoteReconciler) gitEndpointsConfigDeletion(e event.DeleteEvent) bool {
-	configMap, ok := e.Object.(*v1.ConfigMap)
+	configMap, ok := e.Object.(*corev1.ConfigMap)
 	if !ok {
 		return false
 	}

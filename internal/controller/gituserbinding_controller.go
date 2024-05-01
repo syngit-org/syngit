@@ -44,6 +44,7 @@ type GitUserBindingReconciler struct {
 //+kubebuilder:rbac:groups=kgio.dams.kgio,resources=gituserbindings,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=kgio.dams.kgio,resources=gituserbindings/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kgio.dams.kgio,resources=gituserbindings/finalizers,verbs=update
+//+kubebuilder:rbac:groups=kgio.dams.kgio,resources=gitremote,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

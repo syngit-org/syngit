@@ -38,4 +38,7 @@ resources:
   kind: ResourcesInterceptor
   path: dams.kgio/kgio/api/v1
   version: v1
+  webhooks:
+    validation: true
+    webhookVersion: v1
 version: "3"
