@@ -14,4 +14,4 @@ spec:
   testAuthentication: true
   gitProvider: "gitlab"
   secretRef:
-    name: secret-basic-auth
+    name: secret-basic-auth1

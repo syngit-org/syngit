@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/part-of: operator
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: operator
-  name: resourcesinterceptor-sample
+  name: resourcesinterceptor-sample2
   namespace: test
 spec:
   remoteRepository: https://damiendassieu.fr
@@ -23,4 +23,4 @@ spec:
   includedResources:
     - apiGroups: [""]
       apiVersions: ["v1"]
-      kinds: ["Secret"] 
+      kinds: ["ConfigMap"] 

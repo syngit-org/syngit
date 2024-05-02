@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -99,15 +100,17 @@ func parsegvkList(gvkGivenList []kgiov1.NamespaceScopedKinds) []schema.GroupVers
 
 func (r *ResourcesInterceptorReconciler) dynamicObjectFinder(ctx context.Context, obj client.Object) []reconcile.Request {
 	attachedResourcesInterceptor := &kgiov1.ResourcesInterceptorList{}
-	// The cache only supports exact matching
-	// Since we cant to watch ALL the resources with this GVK, we cannot exact match a specific resource
-	// listOps := &client.ListOptions{
-	// 	FieldSelector: fields.Everything(),
-	// 	Namespace:     obj.GetNamespace(),
-	// }
+
+	group := obj.GetObjectKind().GroupVersionKind().Group
+	version := obj.GetObjectKind().GroupVersionKind().Version
+	kind := obj.GetObjectKind().GroupVersionKind().Kind
+	listOps := &client.ListOptions{
+		FieldSelector: fields.OneTermEqualSelector(includedResourcesField, group+"/"+version+"/"+kind),
+		Namespace:     obj.GetNamespace(),
+	}
 
 	// Everything because we already filtered inside the top-level Watches function
-	err := r.List(ctx, attachedResourcesInterceptor)
+	err := r.List(ctx, attachedResourcesInterceptor, listOps)
 	if err != nil {
 		fmt.Println(err)
 		return []reconcile.Request{}
@@ -122,43 +125,95 @@ func (r *ResourcesInterceptorReconciler) dynamicObjectFinder(ctx context.Context
 			},
 		}
 	}
+	fmt.Println("------------- Requests")
+	fmt.Println(requests)
+	fmt.Println("------------- End")
 	return requests
 }
 
 const (
 	includedResourcesField = ".spec.includedResources"
 	excludedResourcesField = ".spec.excludedResources"
+	nameField              = ".metadata.name"
 )
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ResourcesInterceptorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &kgiov1.ResourcesInterceptor{}, includedResourcesField, func(rawObj client.Object) []string {
 
+		resourcesInterceptor := rawObj.(*kgiov1.ResourcesInterceptor)
+		gvksRefName := []string{}
+
+		gvks := parsegvkList(resourcesInterceptor.Spec.IncludedResources)
+		if len(gvks) == 0 {
+			return nil
+		}
+
+		for _, gvk := range gvks {
+			gvksRefName = append(gvksRefName, gvk.Group+"/"+gvk.Version+"/"+gvk.Kind)
+		}
+
+		return gvksRefName
+	}); err != nil {
+		return err
+	}
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &kgiov1.ResourcesInterceptor{}, nameField, func(rawObj client.Object) []string {
+
+		resourcesInterceptor := rawObj.(*kgiov1.ResourcesInterceptor)
+
+		return []string{resourcesInterceptor.Name}
+	}); err != nil {
+		return err
+	}
+
+	ri := &kgiov1.ResourcesInterceptor{}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&kgiov1.ResourcesInterceptor{}).
+		For(ri).
 		Watches(
-			&kgiov1.ResourcesInterceptor{},
+			ri,
 			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
 
-				resourcesInterceptor := obj.(*kgiov1.ResourcesInterceptor)
-				dynamicResource := &unstructured.Unstructured{}
+				attachedResourcesInterceptor := &kgiov1.ResourcesInterceptorList{}
+				listOps := &client.ListOptions{
+					FieldSelector: fields.OneTermEqualSelector(nameField, obj.GetName()),
+					Namespace:     obj.GetNamespace(),
+				}
+				err := r.List(ctx, attachedResourcesInterceptor, listOps)
+				if err != nil {
+					return []reconcile.Request{}
+				}
 
-				// Filter ONLY the resources we want to watch for -> defined in the spec of the ResourcesInterceptor
-				for _, gvk := range parsegvkList(resourcesInterceptor.Spec.IncludedResources) {
-					dynamicResource.SetGroupVersionKind(gvk)
+				fmt.Println("----------------")
+				fmt.Println(len(attachedResourcesInterceptor.Items))
+				fmt.Println(attachedResourcesInterceptor.Items[0].Name)
 
-					err := ctrl.NewControllerManagedBy(mgr).
-						For(&kgiov1.ResourcesInterceptor{}).
-						Watches(
-							dynamicResource,
-							handler.EnqueueRequestsFromMapFunc(r.dynamicObjectFinder),
-							builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
-						).
-						WithLogConstructor(func(request *reconcile.Request) logr.Logger {
-							return mgr.GetLogger()
-						}).
-						Complete(r)
-					if err != nil {
-						mgr.GetLogger().Error(err, fmt.Sprintf("Unable to create a dynamic controller for %s", gvk))
+				for _, resourcesInterceptor := range attachedResourcesInterceptor.Items {
+					// resourcesInterceptor := obj.(*kgiov1.ResourcesInterceptor)
+					dynamicResource := &unstructured.Unstructured{}
+					fmt.Println("----------------")
+					fmt.Println(resourcesInterceptor.Name)
+					fmt.Println(parsegvkList(resourcesInterceptor.Spec.IncludedResources))
+
+					// Filter ONLY the resources we want to watch for -> defined in the spec of the ResourcesInterceptor
+					for _, gvk := range parsegvkList(resourcesInterceptor.Spec.IncludedResources) {
+						dynamicResource.SetGroupVersionKind(gvk)
+
+						fmt.Println("----------------")
+						fmt.Println("Register " + gvk.GroupKind().String() + " for " + resourcesInterceptor.Name)
+						err := ctrl.NewControllerManagedBy(mgr).
+							For(&resourcesInterceptor).
+							Watches(
+								dynamicResource,
+								handler.EnqueueRequestsFromMapFunc(r.dynamicObjectFinder),
+								builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+							).
+							WithLogConstructor(func(request *reconcile.Request) logr.Logger {
+								return mgr.GetLogger()
+							}).
+							Complete(r)
+						if err != nil {
+							mgr.GetLogger().Error(err, fmt.Sprintf("Unable to create a dynamic controller for %s", gvk))
+						}
 					}
 				}
 
