@@ -221,6 +221,10 @@ spec:
                       items:
                         type: string
                       type: array
+                    names:
+                      items:
+                        type: string
+                      type: array
                   required:
                   - apiGroups
                   - apiVersions
@@ -239,6 +243,10 @@ spec:
                         type: string
                       type: array
                     kinds:
+                      items:
+                        type: string
+                      type: array
+                    names:
                       items:
                         type: string
                       type: array

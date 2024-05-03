@@ -40,7 +40,8 @@ import (
 // ResourcesInterceptorReconciler reconciles a ResourcesInterceptor object
 type ResourcesInterceptorReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme        *runtime.Scheme
+	webhookServer WebhookInterceptsAll
 }
 
 //+kubebuilder:rbac:groups=kgio.dams.kgio,resources=resourcesinterceptors,verbs=get;list;watch;create;update;patch;delete
@@ -65,6 +66,7 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	var resourcesInterceptor kgiov1.ResourcesInterceptor
 	if err := r.Get(ctx, req.NamespacedName, &resourcesInterceptor); err != nil {
 		// does not exists -> deleted
+		r.webhookServer.DestroyPathHandler(req.NamespacedName)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	rINamespace := resourcesInterceptor.Namespace
@@ -74,22 +76,74 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 
 	log.Log.Info(prefixMsg + "Reconciling request received")
 
+	// For each included resources, Reset the handler related to this object
+	r.webhookServer.DestroyPathHandler(req.NamespacedName)
+	r.webhookServer.CreatePathHandler(resourcesInterceptor)
+
+	// TODO Make a loop on included
+
+	// // Define your ValidatingWebhook object
+	// webhookName := "your-webhook-name"
+	// serviceName := "your-service-name"
+	// namespace := "your-namespace"
+	// var scope admissionv1.ScopeType = admissionv1.NamespacedScope
+
+	// // Create a new ValidatingWebhook object
+	// newWebhook := &admissionv1.ValidatingWebhook{
+	// 	Name:                    webhookName,
+	// 	AdmissionReviewVersions: []string{"v1"},
+	// 	Rules: []admissionv1.RuleWithOperations{
+	// 		{
+	// 			Operations: []admissionv1.OperationType{"CREATE", "UPDATE", "DELETE"},
+	// 			Rule: admissionv1.Rule{
+	// 				APIGroups:   []string{""},
+	// 				APIVersions: []string{"v1"},
+	// 				Resources:   []string{"pods"},
+	// 				Scope:       &scope,
+	// 			},
+	// 		},
+	// 	},
+	// 	ClientConfig: admissionv1.WebhookClientConfig{
+	// 		Service: &admissionv1.ServiceReference{
+	// 			Name:      serviceName,
+	// 			Namespace: namespace,
+	// 			Path:      &webhookPath,
+	// 		},
+	// 	},
+	// 	FailurePolicy:     failurePolicy,
+	// 	NamespaceSelector: rINamespace,
+	// }
+
+	// ctrl.SetControllerReference(owner, )
+
 	return ctrl.Result{}, nil
 }
 
-func parsegvkList(gvkGivenList []kgiov1.NamespaceScopedKinds) []schema.GroupVersionKind {
-	var gvkList []schema.GroupVersionKind
+func KindToResource(kind string) (schema.GroupVersionResource, error) {
+	gvk, _ := schema.ParseKindArg(kind)
+	return gvk.GroupVersion().WithResource(fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)), nil
+}
+
+func parsegvkList(gvkGivenList []kgiov1.NamespaceScopedKinds) []kgiov1.GroupVersionKindName {
+	var gvkList []kgiov1.GroupVersionKindName
 
 	for _, gvkGiven := range gvkGivenList {
 		for _, group := range gvkGiven.APIGroups {
 			for _, version := range gvkGiven.APIVersions {
 				for _, kind := range gvkGiven.Kinds {
-					gvk := schema.GroupVersionKind{
-						Group:   group,
-						Version: version,
-						Kind:    kind,
+					gvkn := kgiov1.GroupVersionKindName{
+						GroupVersionKind: &schema.GroupVersionKind{
+							Group:   group,
+							Version: version,
+							Kind:    kind,
+						},
 					}
-					gvkList = append(gvkList, gvk)
+					if len(gvkGiven.Names) != 0 {
+						for _, name := range gvkGiven.Names {
+							gvkn.Name = name
+						}
+					}
+					gvkList = append(gvkList, gvkn)
 				}
 			}
 		}
@@ -104,16 +158,32 @@ func (r *ResourcesInterceptorReconciler) dynamicObjectFinder(ctx context.Context
 	group := obj.GetObjectKind().GroupVersionKind().Group
 	version := obj.GetObjectKind().GroupVersionKind().Version
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
+
+	// Search by GVK + name
 	listOps := &client.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector(includedResourcesField, group+"/"+version+"/"+kind),
+		FieldSelector: fields.OneTermEqualSelector(includedResourcesField, group+"/"+version+"/"+kind+"/"+obj.GetName()),
 		Namespace:     obj.GetNamespace(),
 	}
-
-	// Everything because we already filtered inside the top-level Watches function
 	err := r.List(ctx, attachedResourcesInterceptor, listOps)
 	if err != nil {
 		fmt.Println(err)
 		return []reconcile.Request{}
+	}
+	fmt.Println(len(attachedResourcesInterceptor.Items))
+
+	if len(attachedResourcesInterceptor.Items) == 0 {
+		// Search by GVK only
+		listOps = &client.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(includedResourcesField, group+"/"+version+"/"+kind+"/"),
+			Namespace:     obj.GetNamespace(),
+		}
+		attachedResourcesInterceptor = &kgiov1.ResourcesInterceptorList{}
+		err := r.List(ctx, attachedResourcesInterceptor, listOps)
+		if err != nil {
+			fmt.Println(err)
+			return []reconcile.Request{}
+		}
+		fmt.Println(len(attachedResourcesInterceptor.Items))
 	}
 
 	requests := make([]reconcile.Request, len(attachedResourcesInterceptor.Items))
@@ -125,9 +195,6 @@ func (r *ResourcesInterceptorReconciler) dynamicObjectFinder(ctx context.Context
 			},
 		}
 	}
-	fmt.Println("------------- Requests")
-	fmt.Println(requests)
-	fmt.Println("------------- End")
 	return requests
 }
 
@@ -149,8 +216,8 @@ func (r *ResourcesInterceptorReconciler) SetupWithManager(mgr ctrl.Manager) erro
 			return nil
 		}
 
-		for _, gvk := range gvks {
-			gvksRefName = append(gvksRefName, gvk.Group+"/"+gvk.Version+"/"+gvk.Kind)
+		for _, gvkn := range gvks {
+			gvksRefName = append(gvksRefName, gvkn.GroupVersionKind.Group+"/"+gvkn.GroupVersionKind.Version+"/"+gvkn.GroupVersionKind.Kind+"/"+gvkn.Name)
 		}
 
 		return gvksRefName
@@ -166,11 +233,14 @@ func (r *ResourcesInterceptorReconciler) SetupWithManager(mgr ctrl.Manager) erro
 		return err
 	}
 
-	ri := &kgiov1.ResourcesInterceptor{}
+	// Initialize the webhookServer
+	r.webhookServer = WebhookInterceptsAll{}
+	r.webhookServer.Start()
+
 	return ctrl.NewControllerManagedBy(mgr).
-		For(ri).
+		For(&kgiov1.ResourcesInterceptor{}).
 		Watches(
-			ri,
+			&kgiov1.ResourcesInterceptor{},
 			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
 
 				attachedResourcesInterceptor := &kgiov1.ResourcesInterceptorList{}
@@ -183,25 +253,16 @@ func (r *ResourcesInterceptorReconciler) SetupWithManager(mgr ctrl.Manager) erro
 					return []reconcile.Request{}
 				}
 
-				fmt.Println("----------------")
-				fmt.Println(len(attachedResourcesInterceptor.Items))
-				fmt.Println(attachedResourcesInterceptor.Items[0].Name)
-
 				for _, resourcesInterceptor := range attachedResourcesInterceptor.Items {
-					// resourcesInterceptor := obj.(*kgiov1.ResourcesInterceptor)
+					ri := obj.(*kgiov1.ResourcesInterceptor)
 					dynamicResource := &unstructured.Unstructured{}
-					fmt.Println("----------------")
-					fmt.Println(resourcesInterceptor.Name)
-					fmt.Println(parsegvkList(resourcesInterceptor.Spec.IncludedResources))
 
 					// Filter ONLY the resources we want to watch for -> defined in the spec of the ResourcesInterceptor
 					for _, gvk := range parsegvkList(resourcesInterceptor.Spec.IncludedResources) {
-						dynamicResource.SetGroupVersionKind(gvk)
+						dynamicResource.SetGroupVersionKind(*gvk.GroupVersionKind)
 
-						fmt.Println("----------------")
-						fmt.Println("Register " + gvk.GroupKind().String() + " for " + resourcesInterceptor.Name)
 						err := ctrl.NewControllerManagedBy(mgr).
-							For(&resourcesInterceptor).
+							For(ri).
 							Watches(
 								dynamicResource,
 								handler.EnqueueRequestsFromMapFunc(r.dynamicObjectFinder),

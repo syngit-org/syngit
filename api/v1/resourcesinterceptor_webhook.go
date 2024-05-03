@@ -21,6 +21,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -38,9 +39,6 @@ func (r *ResourcesInterceptor) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-kgio-dams-kgio-v1-resourcesinterceptor,mutating=false,failurePolicy=fail,sideEffects=None,groups=kgio.dams.kgio,resources=resourcesinterceptors,verbs=create;update,versions=v1,name=vresourcesinterceptor.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &ResourcesInterceptor{}
@@ -48,6 +46,7 @@ var _ webhook.Validator = &ResourcesInterceptor{}
 // Validate validates the ResourcesInterceptorSpec
 func (r *ResourcesInterceptorSpec) ValidateResourcesInterceptorSpec() field.ErrorList {
 	var errors field.ErrorList
+	errors = append(errors, field.Invalid(field.NewPath("includedResources"), r.IncludedResources, "the GVK "))
 
 	// Validate DefaultUserBind based on DefaultUnauthorizedUserMode
 	if r.DefaultUnauthorizedUserMode == Block && r.DefaultUserBind != nil {
@@ -57,9 +56,12 @@ func (r *ResourcesInterceptorSpec) ValidateResourcesInterceptorSpec() field.Erro
 	}
 
 	// Validate that ExcludedResources does not exists if IncludedResources exists
-	if r.IncludedResources != nil && r.ExcludedResources != nil {
-		errors = append(errors, field.Invalid(field.NewPath("excludedResources"), r.ExcludedResources, "should not be set when includedResources is set"))
-	}
+	// if r.IncludedResources != nil && r.ExcludedResources != nil {
+	// 	errors = append(errors, field.Invalid(field.NewPath("excludedResources"), r.ExcludedResources, "should not be set when includedResources is set"))
+	// }
+
+	// For Included and Ecluded Resources. Validate that if a name is specified for a resource, then the concerned resource is not referenced without the name
+	errors = append(errors, r.validateFineGrainedResources(parsegvkList(r.IncludedResources))...)
 
 	// Validate the ExcludedFields to ensure that it is a YAML path
 	for _, fieldPath := range r.ExcludedFields {
@@ -76,6 +78,59 @@ func isValidYAMLPath(path string) bool {
 	// Regular expression to match a valid YAML path
 	yamlPathRegex := regexp.MustCompile(`^(\.([a-zA-Z0-9_]+|\*))+$`)
 	return yamlPathRegex.MatchString(path)
+}
+
+func (r *ResourcesInterceptorSpec) validateFineGrainedResources(gvkns []GroupVersionKindName) field.ErrorList {
+	var errors field.ErrorList
+
+	seen := make(map[*schema.GroupVersionKind][]GroupVersionKindName)
+	duplicates := make([]GroupVersionKindName, 0)
+
+	for _, item := range gvkns {
+		if existingItems, ok := seen[item.GroupVersionKind]; ok {
+			duplicates = append(duplicates, existingItems...)
+			duplicates = append(duplicates, item)
+		}
+		seen[item.GroupVersionKind] = append(seen[item.GroupVersionKind], item)
+	}
+
+	if len(duplicates) > 0 {
+		errors = append(errors, field.Invalid(field.NewPath("includedResources"), r.IncludedResources, "the GVK "))
+	}
+
+	return errors
+}
+
+func checkIfGVKNContainsNames(gvkn GroupVersionKindName) {
+
+}
+
+func parsegvkList(gvkGivenList []NamespaceScopedKinds) []GroupVersionKindName {
+	var gvkList []GroupVersionKindName
+
+	for _, gvkGiven := range gvkGivenList {
+		for _, group := range gvkGiven.APIGroups {
+			for _, version := range gvkGiven.APIVersions {
+				for _, kind := range gvkGiven.Kinds {
+					gvkn := GroupVersionKindName{
+						GroupVersionKind: &schema.GroupVersionKind{
+							Group:   group,
+							Version: version,
+							Kind:    kind,
+						},
+					}
+					if len(gvkGiven.Names) != 0 {
+						for _, name := range gvkGiven.Names {
+							gvkn.Name = name
+						}
+					}
+					gvkList = append(gvkList, gvkn)
+				}
+			}
+		}
+	}
+
+	return gvkList
 }
 
 func (r *ResourcesInterceptor) ValidateResourcesInterceptor() error {

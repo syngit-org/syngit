@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/part-of: operator
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: operator
-  name: resourcesinterceptor-sample
+  name: resourcesinterceptor-sample3
   namespace: test
 spec:
   remoteRepository: https://damiendassieu.fr
@@ -21,6 +21,9 @@ spec:
     - name: gituserbinding-sample
   defaultUnauthorizedUserMode: Block
   includedResources:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      kinds: ["Secret"]
     - apiGroups: [""]
       apiVersions: ["v1"]
       kinds: ["Secret"]

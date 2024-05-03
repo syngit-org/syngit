@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type CommitMode string
@@ -51,10 +52,17 @@ const (
 	UserDefaultUserBind DefaultUnauthorizedUserMode = "UseDefaultUserBind"
 )
 
+type GroupVersionKindName struct {
+	*schema.GroupVersionKind
+	Name string
+}
+
 type NamespaceScopedKinds struct {
 	APIGroups   []string `json:"apiGroups"`
 	APIVersions []string `json:"apiVersions"`
 	Kinds       []string `json:"kinds"`
+	// +optional
+	Names []string `json:"names"`
 }
 
 // ResourcesInterceptorSpec defines the desired state of ResourcesInterceptor
