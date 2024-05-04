@@ -20,8 +20,8 @@ spec:
   authorizedUsers:
     - name: gituserbinding-sample
   defaultUnauthorizedUserMode: Block
-  includedResources:
-    - apiGroups: [""]
+  includedKinds:
+    - apiGroups: ["", "networking.k8s.io"]
       apiVersions: ["v1"]
-      kinds: ["Secret"]
-      names: ["secret-basic-auth1"]
+      kinds: ["ConfigMap", "Ingress", "Pod"]
+      #names: ["secret-basic-auth1"]

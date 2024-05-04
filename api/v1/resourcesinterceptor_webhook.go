@@ -46,7 +46,7 @@ var _ webhook.Validator = &ResourcesInterceptor{}
 // Validate validates the ResourcesInterceptorSpec
 func (r *ResourcesInterceptorSpec) ValidateResourcesInterceptorSpec() field.ErrorList {
 	var errors field.ErrorList
-	errors = append(errors, field.Invalid(field.NewPath("includedResources"), r.IncludedResources, "the GVK "))
+	errors = append(errors, field.Invalid(field.NewPath("includedResources"), r.IncludedKinds, "the GVK "))
 
 	// Validate DefaultUserBind based on DefaultUnauthorizedUserMode
 	if r.DefaultUnauthorizedUserMode == Block && r.DefaultUserBind != nil {
@@ -55,13 +55,10 @@ func (r *ResourcesInterceptorSpec) ValidateResourcesInterceptorSpec() field.Erro
 		errors = append(errors, field.Required(field.NewPath("defaultUserBind"), "should be set when defaultUnauthorizedUserMode is set to \"UseDefaultUserBind\""))
 	}
 
-	// Validate that ExcludedResources does not exists if IncludedResources exists
-	// if r.IncludedResources != nil && r.ExcludedResources != nil {
-	// 	errors = append(errors, field.Invalid(field.NewPath("excludedResources"), r.ExcludedResources, "should not be set when includedResources is set"))
-	// }
+	// TODO Validate that Kind is given and NOT resources
 
 	// For Included and Ecluded Resources. Validate that if a name is specified for a resource, then the concerned resource is not referenced without the name
-	errors = append(errors, r.validateFineGrainedResources(parsegvkList(r.IncludedResources))...)
+	errors = append(errors, r.validateFineGrainedResources(ParsegvrnList(NSKstoNSRs(r.IncludedKinds)))...)
 
 	// Validate the ExcludedFields to ensure that it is a YAML path
 	for _, fieldPath := range r.ExcludedFields {
@@ -80,57 +77,25 @@ func isValidYAMLPath(path string) bool {
 	return yamlPathRegex.MatchString(path)
 }
 
-func (r *ResourcesInterceptorSpec) validateFineGrainedResources(gvkns []GroupVersionKindName) field.ErrorList {
+func (r *ResourcesInterceptorSpec) validateFineGrainedResources(gvrns []GroupVersionResourceName) field.ErrorList {
 	var errors field.ErrorList
 
-	seen := make(map[*schema.GroupVersionKind][]GroupVersionKindName)
-	duplicates := make([]GroupVersionKindName, 0)
+	seen := make(map[*schema.GroupVersionResource][]GroupVersionResourceName)
+	duplicates := make([]GroupVersionResourceName, 0)
 
-	for _, item := range gvkns {
-		if existingItems, ok := seen[item.GroupVersionKind]; ok {
+	for _, item := range gvrns {
+		if existingItems, ok := seen[item.GroupVersionResource]; ok {
 			duplicates = append(duplicates, existingItems...)
 			duplicates = append(duplicates, item)
 		}
-		seen[item.GroupVersionKind] = append(seen[item.GroupVersionKind], item)
+		seen[item.GroupVersionResource] = append(seen[item.GroupVersionResource], item)
 	}
 
 	if len(duplicates) > 0 {
-		errors = append(errors, field.Invalid(field.NewPath("includedResources"), r.IncludedResources, "the GVK "))
+		errors = append(errors, field.Invalid(field.NewPath("includedKinds"), r.IncludedKinds, "the GVK "))
 	}
 
 	return errors
-}
-
-func checkIfGVKNContainsNames(gvkn GroupVersionKindName) {
-
-}
-
-func parsegvkList(gvkGivenList []NamespaceScopedKinds) []GroupVersionKindName {
-	var gvkList []GroupVersionKindName
-
-	for _, gvkGiven := range gvkGivenList {
-		for _, group := range gvkGiven.APIGroups {
-			for _, version := range gvkGiven.APIVersions {
-				for _, kind := range gvkGiven.Kinds {
-					gvkn := GroupVersionKindName{
-						GroupVersionKind: &schema.GroupVersionKind{
-							Group:   group,
-							Version: version,
-							Kind:    kind,
-						},
-					}
-					if len(gvkGiven.Names) != 0 {
-						for _, name := range gvkGiven.Names {
-							gvkn.Name = name
-						}
-					}
-					gvkList = append(gvkList, gvkn)
-				}
-			}
-		}
-	}
-
-	return gvkList
 }
 
 func (r *ResourcesInterceptor) ValidateResourcesInterceptor() error {

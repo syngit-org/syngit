@@ -17,10 +17,14 @@ limitations under the License.
 package v1
 
 import (
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/gertd/go-pluralize"
 )
 
 type CommitMode string
@@ -57,6 +61,34 @@ type GroupVersionKindName struct {
 	Name string
 }
 
+type GroupVersionResourceName struct {
+	*schema.GroupVersionResource
+	Name string
+}
+
+func (nsk *NamespaceScopedKinds) NskToNsr() NamespaceScopedResources {
+	nsr := NamespaceScopedResources{
+		APIGroups:   nsk.APIGroups,
+		APIVersions: nsk.APIVersions,
+		Names:       nsk.Names,
+	}
+	p := pluralize.NewClient()
+	for _, kind := range nsk.Kinds {
+		lowercase := strings.ToLower(kind)
+		nsr.Resources = append(nsr.Resources, p.Plural(lowercase))
+	}
+
+	return nsr
+}
+
+type NamespaceScopedResources struct {
+	APIGroups   []string `json:"apiGroups"`
+	APIVersions []string `json:"apiVersions"`
+	Resources   []string `json:"resources"`
+	// +optional
+	Names []string `json:"names"`
+}
+
 type NamespaceScopedKinds struct {
 	APIGroups   []string `json:"apiGroups"`
 	APIVersions []string `json:"apiVersions"`
@@ -90,10 +122,10 @@ type ResourcesInterceptorSpec struct {
 	DefaultUserBind *corev1.ObjectReference `json:"defaultUserBind,omitempty"` // Ref to a GitUserBinding object
 
 	// +optional
-	IncludedResources []NamespaceScopedKinds `json:"includedResources,omitempty"`
+	IncludedKinds []NamespaceScopedKinds `json:"includedKinds,omitempty"`
 
-	// +optional
-	ExcludedResources []NamespaceScopedKinds `json:"excludedResources,omitempty"`
+	// +optionalGroupVersionKindName
+	ExcludedKinds []NamespaceScopedKinds `json:"excludedKinds,omitempty"`
 
 	// +optional
 	ExcludedFields []string `json:"excludedFields,omitempty"`
@@ -188,4 +220,70 @@ type ResourcesInterceptorList struct {
 
 func init() {
 	SchemeBuilder.Register(&ResourcesInterceptor{}, &ResourcesInterceptorList{})
+}
+
+func ParsegvrnList(gvrnGivenList []NamespaceScopedResources) []GroupVersionResourceName {
+	var gvrnList []GroupVersionResourceName
+
+	for _, gvrnGiven := range gvrnGivenList {
+		for _, group := range gvrnGiven.APIGroups {
+			for _, version := range gvrnGiven.APIVersions {
+				for _, resource := range gvrnGiven.Resources {
+					gvrn := GroupVersionResourceName{
+						GroupVersionResource: &schema.GroupVersionResource{
+							Group:    group,
+							Version:  version,
+							Resource: resource,
+						},
+					}
+					if len(gvrnGiven.Names) != 0 {
+						for _, name := range gvrnGiven.Names {
+							gvrn.Name = name
+						}
+					}
+					gvrnList = append(gvrnList, gvrn)
+				}
+			}
+		}
+	}
+
+	return gvrnList
+}
+
+func ParsegvknList(gvknGivenList []NamespaceScopedKinds) []GroupVersionKindName {
+	var gvknList []GroupVersionKindName
+
+	for _, gvknGiven := range gvknGivenList {
+		for _, group := range gvknGiven.APIGroups {
+			for _, version := range gvknGiven.APIVersions {
+				for _, kind := range gvknGiven.Kinds {
+					gvrn := GroupVersionKindName{
+						GroupVersionKind: &schema.GroupVersionKind{
+							Group:   group,
+							Version: version,
+							Kind:    kind,
+						},
+					}
+					if len(gvknGiven.Names) != 0 {
+						for _, name := range gvknGiven.Names {
+							gvrn.Name = name
+						}
+					}
+					gvknList = append(gvknList, gvrn)
+				}
+			}
+		}
+	}
+
+	return gvknList
+}
+
+func NSKstoNSRs(nsks []NamespaceScopedKinds) []NamespaceScopedResources {
+
+	nsrs := []NamespaceScopedResources{}
+	// Transform kind into resource
+	for _, nsk := range nsks {
+		nsrs = append(nsrs, nsk.NskToNsr())
+	}
+	return nsrs
 }

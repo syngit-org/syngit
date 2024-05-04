@@ -206,7 +206,7 @@ spec:
                 items:
                   type: string
                 type: array
-              excludedResources:
+              excludedKinds:
                 items:
                   properties:
                     apiGroups:
@@ -231,7 +231,7 @@ spec:
                   - kinds
                   type: object
                 type: array
-              includedResources:
+              includedKinds:
                 items:
                   properties:
                     apiGroups:

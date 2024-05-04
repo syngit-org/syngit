@@ -13,7 +13,7 @@ type WebhookInterceptsAll struct {
 	server       *http.Server
 	stopped      chan struct{}
 	pathHandlers (map[string]*DynamicWebhookHandler)
-	sync.Mutex
+	sync.RWMutex
 }
 
 // PathHandler represents an instance of a path handler with a specific namespace and name
@@ -34,14 +34,15 @@ func (s *WebhookInterceptsAll) Start() {
 
 	// Create the HTTP server
 	s.server = &http.Server{
-		Addr: ":8080", // Define your desired port
-		// Define your HTTP handler here
+		Addr: ":8443",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Get the path from the request URL
 			path := r.URL.Path
 
 			// Find the appropriate path handler based on the request path
+			s.RLock()
 			handler, ok := s.pathHandlers[path]
+			s.RUnlock()
 
 			// If a handler is found, invoke it
 			if ok {
@@ -52,6 +53,13 @@ func (s *WebhookInterceptsAll) Start() {
 			// If no handler is found, respond with a 404 Not Found status
 			http.NotFound(w, r)
 		}),
+		// TODO TLSConfig: &tls.Config{
+		// 	Certificates: [
+		// 		&tls.Certificate{
+
+		// 		}
+		// 	],
+		// },
 	}
 
 	// Start the server asynchronously
@@ -81,8 +89,9 @@ func (s *WebhookInterceptsAll) Stop() {
 }
 
 // CreatePathHandler creates a new path handler instance for the given namespace and name
-func (s *WebhookInterceptsAll) CreatePathHandler(interceptor kgiov1.ResourcesInterceptor) *DynamicWebhookHandler {
-	path := "/webhook/" + interceptor.Namespace + "/" + interceptor.Name
+func (s *WebhookInterceptsAll) CreatePathHandler(interceptor kgiov1.ResourcesInterceptor, path string) *DynamicWebhookHandler {
+	s.Lock()
+	defer s.Unlock()
 
 	// Create a new path handler with the specified namespace and name
 	handler := &DynamicWebhookHandler{
@@ -102,6 +111,7 @@ func (dwc *DynamicWebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	name := dwc.resourcesInterceptor.Name
 
 	// Check conditions to determine whether to deny the request
+	// TODO Check if dwc.resourcesInterceptor is set to CommitApply or CommitOnly
 	if true {
 		// Respond with HTTP 403 Forbidden status code
 		http.Error(w, "Access Denied Message", http.StatusForbidden)
@@ -115,6 +125,9 @@ func (dwc *DynamicWebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 // DestroyPathHandler removes the path handler associated with the given namespace and name
 func (s *WebhookInterceptsAll) DestroyPathHandler(n types.NamespacedName) {
+	s.Lock()
+	defer s.Unlock()
+
 	path := "/webhook/" + n.Namespace + "/" + n.Name
 
 	// Unregister the path handler from the server
