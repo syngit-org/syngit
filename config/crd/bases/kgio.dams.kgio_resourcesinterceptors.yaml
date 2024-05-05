@@ -139,6 +139,8 @@ spec:
                 type: string
               commitProcess:
                 type: string
+              defaultBlockAppliedMessage:
+                type: string
               defaultUnauthorizedUserMode:
                 type: string
               defaultUserBind:
@@ -206,7 +208,7 @@ spec:
                 items:
                   type: string
                 type: array
-              excludedKinds:
+              excludedResources:
                 items:
                   properties:
                     apiGroups:
@@ -217,21 +219,21 @@ spec:
                       items:
                         type: string
                       type: array
-                    kinds:
+                    names:
                       items:
                         type: string
                       type: array
-                    names:
+                    resources:
                       items:
                         type: string
                       type: array
                   required:
                   - apiGroups
                   - apiVersions
-                  - kinds
+                  - resources
                   type: object
                 type: array
-              includedKinds:
+              includedResources:
                 items:
                   properties:
                     apiGroups:
@@ -242,18 +244,18 @@ spec:
                       items:
                         type: string
                       type: array
-                    kinds:
+                    names:
                       items:
                         type: string
                       type: array
-                    names:
+                    resources:
                       items:
                         type: string
                       type: array
                   required:
                   - apiGroups
                   - apiVersions
-                  - kinds
+                  - resources
                   type: object
                 type: array
               operations:

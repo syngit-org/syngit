@@ -18,22 +18,11 @@ package controller
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/pem"
-	"fmt"
-	"math/big"
 	"os"
-	"time"
 
 	admissionv1 "k8s.io/api/admissionregistration/v1"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -54,6 +43,7 @@ type ResourcesInterceptorReconciler struct {
 //+kubebuilder:rbac:groups=kgio.dams.kgio,resources=resourcesinterceptors/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=kgio.dams.kgio,resources=resourcesinterceptors/finalizers,verbs=update
 //+kubebuilder:rbac:groups=*,resources=*,verbs=get;list;watch
+//+kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations,verbs=create;get;list;watch;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -88,12 +78,15 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	r.webhookServer.CreatePathHandler(resourcesInterceptor, webhookPath)
 
 	// The service is located in the manager/controller namespace
-	serviceName := "resources-interceptor-webhook"
-	operatorNamespace := r.Namespace
+	// serviceName := "resources-interceptor-webhook"
+	// operatorNamespace := r.Namespace
+	url := "https://172.17.0.1:8443/kgio/validate/" + rINamespace + "/" + rIName
 
-	caCert, err := r.loadCACertificateFromSecret(ctx)
+	// Read the content of the certificate file
+	caCert, err := os.ReadFile("/tmp/k8s-webhook-server/serving-certs/tls.crt")
 	if err != nil {
-		return ctrl.Result{}, err
+		log.Log.Error(err, "failed to read the cert file /tmp/k8s-webhook-server/serving-certs/tls.crt")
+		panic(err) // handle error if unable to read file
 	}
 
 	var sideEffectsNone = admissionv1.SideEffectClassNone
@@ -109,18 +102,20 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 				Name:                    rIName + ".kgio.com",
 				AdmissionReviewVersions: []string{"v1"},
 				SideEffects:             &sideEffectsNone,
-				Rules:                   nsrListToRuleList(kgiov1.NSKstoNSRs(resourcesInterceptor.Spec.IncludedKinds)),
+				Rules:                   nsrListToRuleList(resourcesInterceptor.Spec.IncludedResources),
 				ClientConfig: admissionv1.WebhookClientConfig{
-					Service: &admissionv1.ServiceReference{
-						Name:      serviceName,
-						Namespace: operatorNamespace,
-						Path:      &webhookPath,
-					},
+					// Service: &admissionv1.ServiceReference{
+					// 	Name:      serviceName,
+					// 	Namespace: operatorNamespace,
+					// 	Path:      &webhookPath,
+					// },
+					URL:      &url,
 					CABundle: caCert,
 				},
 				NamespaceSelector: &v1.LabelSelector{
 					MatchLabels: map[string]string{"kubernetes.io/metadata.name": rINamespace},
 				},
+				// FailurePolicy: DON'T FAIL,
 			},
 		},
 	}
@@ -137,13 +132,10 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 		return reconcile.Result{}, err
 	}
 
-	fmt.Println(err)
-
 	if err == nil {
 		// Update the existing webhook
 		found.Webhooks = webhook.Webhooks
 		err = r.Update(ctx, found)
-		fmt.Println(err)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -156,19 +148,6 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 
 	return ctrl.Result{}, nil
-}
-
-func (r *ResourcesInterceptorReconciler) loadCACertificateFromSecret(ctx context.Context) ([]byte, error) {
-	var secret corev1.Secret
-	err := r.Get(ctx, types.NamespacedName{Namespace: r.Namespace, Name: "resources-interceptor-tls"}, &secret)
-	if err != nil {
-		return nil, err
-	}
-	caCert, ok := secret.Data["tls.crt"]
-	if !ok {
-		return nil, fmt.Errorf("CA certificate key not found in secret")
-	}
-	return caCert, nil
 }
 
 func nsrListToRuleList(nsrList []kgiov1.NamespaceScopedResources) []admissionv1.RuleWithOperations {
@@ -190,91 +169,11 @@ func nsrListToRuleList(nsrList []kgiov1.NamespaceScopedResources) []admissionv1.
 	return rules
 }
 
-func (r *ResourcesInterceptorReconciler) dynamicObjectFinder(ctx context.Context, obj client.Object) []reconcile.Request {
-	attachedResourcesInterceptor := &kgiov1.ResourcesInterceptorList{}
-
-	group := obj.GetObjectKind().GroupVersionKind().Group
-	version := obj.GetObjectKind().GroupVersionKind().Version
-	kind := obj.GetObjectKind().GroupVersionKind().Kind
-
-	// Search by GVK + name
-	listOps := &client.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector(includedResourcesField, group+"/"+version+"/"+kind+"/"+obj.GetName()),
-		Namespace:     obj.GetNamespace(),
-	}
-	err := r.List(ctx, attachedResourcesInterceptor, listOps)
-	if err != nil {
-		fmt.Println(err)
-		return []reconcile.Request{}
-	}
-
-	if len(attachedResourcesInterceptor.Items) == 0 {
-		// Search by GVK only
-		listOps = &client.ListOptions{
-			FieldSelector: fields.OneTermEqualSelector(includedResourcesField, group+"/"+version+"/"+kind+"/"),
-			Namespace:     obj.GetNamespace(),
-		}
-		attachedResourcesInterceptor = &kgiov1.ResourcesInterceptorList{}
-		err := r.List(ctx, attachedResourcesInterceptor, listOps)
-		if err != nil {
-			fmt.Println(err)
-			return []reconcile.Request{}
-		}
-	}
-
-	requests := make([]reconcile.Request, len(attachedResourcesInterceptor.Items))
-	for i, item := range attachedResourcesInterceptor.Items {
-		requests[i] = reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Name:      item.GetName(),
-				Namespace: item.GetNamespace(),
-			},
-		}
-	}
-	return requests
-}
-
-const (
-	includedResourcesField = ".spec.includedResources"
-	excludedResourcesField = ".spec.excludedResources"
-	nameField              = ".metadata.name"
-)
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *ResourcesInterceptorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	managerNamespace := os.Getenv("MANAGER_NAMESPACE")
 	r.Namespace = managerNamespace
-
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &kgiov1.ResourcesInterceptor{}, includedResourcesField, func(rawObj client.Object) []string {
-
-		resourcesInterceptor := rawObj.(*kgiov1.ResourcesInterceptor)
-		gvrnsRefName := []string{}
-
-		gvrns := kgiov1.ParsegvrnList(kgiov1.NSKstoNSRs(resourcesInterceptor.Spec.IncludedKinds))
-		if len(gvrns) == 0 {
-			return nil
-		}
-
-		for _, gvrn := range gvrns {
-			gvrnsRefName = append(gvrnsRefName, gvrn.GroupVersionResource.Group+"/"+gvrn.GroupVersionResource.Version+"/"+gvrn.GroupVersionResource.Resource+"/"+gvrn.Name)
-		}
-
-		return gvrnsRefName
-	}); err != nil {
-		return err
-	}
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &kgiov1.ResourcesInterceptor{}, nameField, func(rawObj client.Object) []string {
-
-		resourcesInterceptor := rawObj.(*kgiov1.ResourcesInterceptor)
-
-		return []string{resourcesInterceptor.Name}
-	}); err != nil {
-		return err
-	}
-	if err := r.createOrUpdateTLSSecret(context.Background(), mgr.GetClient()); err != nil {
-		return err
-	}
 
 	// Initialize the webhookServer
 	r.webhookServer = WebhookInterceptsAll{}
@@ -282,104 +181,5 @@ func (r *ResourcesInterceptorReconciler) SetupWithManager(mgr ctrl.Manager) erro
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kgiov1.ResourcesInterceptor{}).
-		// Watches(
-		// 	&kgiov1.ResourcesInterceptor{},
-		// 	handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
-
-		// 		attachedResourcesInterceptor := &kgiov1.ResourcesInterceptorList{}
-		// 		listOps := &client.ListOptions{
-		// 			FieldSelector: fields.OneTermEqualSelector(nameField, obj.GetName()),
-		// 			Namespace:     obj.GetNamespace(),
-		// 		}
-		// 		err := r.List(ctx, attachedResourcesInterceptor, listOps)
-		// 		if err != nil {
-		// 			return []reconcile.Request{}
-		// 		}
-
-		// 		for _, resourcesInterceptor := range attachedResourcesInterceptor.Items {
-		// 			ri := obj.(*kgiov1.ResourcesInterceptor)
-		// 			dynamicResource := &unstructured.Unstructured{}
-
-		// 			// Filter ONLY the resources we want to watch for -> defined in the spec of the ResourcesInterceptor
-		// 			for _, gvkn := range kgiov1.ParsegvknList(resourcesInterceptor.Spec.IncludedKinds) {
-		// 				fmt.Println("-----------------")
-		// 				fmt.Println(*gvkn.GroupVersionKind)
-		// 				dynamicResource.SetGroupVersionKind(*gvkn.GroupVersionKind)
-
-		// 				err := ctrl.NewControllerManagedBy(mgr).
-		// 					For(ri).
-		// 					Watches(
-		// 						dynamicResource,
-		// 						handler.EnqueueRequestsFromMapFunc(r.dynamicObjectFinder),
-		// 						builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
-		// 					).
-		// 					WithLogConstructor(func(request *reconcile.Request) logr.Logger {
-		// 						return mgr.GetLogger()
-		// 					}).
-		// 					Complete(r)
-		// 				if err != nil {
-		// 					mgr.GetLogger().Error(err, fmt.Sprintf("Unable to create a dynamic controller for %s", gvkn))
-		// 				}
-		// 			}
-		// 		}
-
-		// 		return []reconcile.Request{}
-		// 	}),
-		// ).
 		Complete(r)
-}
-
-func (r *ResourcesInterceptorReconciler) createOrUpdateTLSSecret(ctx context.Context, c client.Client) error {
-	// Generate private key
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return fmt.Errorf("failed to generate private key: %v", err)
-	}
-
-	// TODO manage with cert-manager
-	// Create a certificate template
-	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			Organization: []string{"kgio"},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(1, 0, 0), // Valid for 1 year
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-		DNSNames:              []string{"resources-interceptor-webhook-service." + r.Namespace + ".svc"},
-	}
-
-	// Create a self-signed certificate
-	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
-	if err != nil {
-		return fmt.Errorf("failed to create certificate: %v", err)
-	}
-
-	// Encode private key and certificate
-	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
-
-	// Create or update secret
-	secret := &corev1.Secret{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      "resources-interceptor-tls",
-			Namespace: r.Namespace,
-		},
-		Data: map[string][]byte{
-			"tls.key": keyPEM,
-			"tls.crt": certPEM,
-		},
-	}
-
-	err = c.Update(ctx, secret)
-	if err != nil {
-		// If the update fails, try to create the webhook
-		if err := r.Create(ctx, secret); err != nil {
-			return fmt.Errorf("failed to create or update secret: %v", err)
-		}
-	}
-
-	return nil
 }

@@ -46,7 +46,7 @@ type CommitProcess string
 
 const (
 	CommitOnly  CommitProcess = "CommitOnly"
-	ApplyCommit CommitProcess = "ApplyCommit"
+	CommitApply CommitProcess = "CommitApply"
 )
 
 type DefaultUnauthorizedUserMode string
@@ -107,6 +107,9 @@ type ResourcesInterceptorSpec struct {
 
 	CommitProcess CommitProcess `json:"commitProcess"`
 
+	// +optional
+	DefaultBlockAppliedMessage string `json:"defaultBlockAppliedMessage"`
+
 	// +kubebuilder:validation:Format=uri
 	RemoteRepository string `json:"remoteRepository"`
 
@@ -122,10 +125,10 @@ type ResourcesInterceptorSpec struct {
 	DefaultUserBind *corev1.ObjectReference `json:"defaultUserBind,omitempty"` // Ref to a GitUserBinding object
 
 	// +optional
-	IncludedKinds []NamespaceScopedKinds `json:"includedKinds,omitempty"`
+	IncludedResources []NamespaceScopedResources `json:"includedResources,omitempty"`
 
-	// +optionalGroupVersionKindName
-	ExcludedKinds []NamespaceScopedKinds `json:"excludedKinds,omitempty"`
+	// +optional
+	ExcludedResources []NamespaceScopedResources `json:"excludedResources,omitempty"`
 
 	// +optional
 	ExcludedFields []string `json:"excludedFields,omitempty"`

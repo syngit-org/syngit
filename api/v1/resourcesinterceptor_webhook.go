@@ -46,7 +46,7 @@ var _ webhook.Validator = &ResourcesInterceptor{}
 // Validate validates the ResourcesInterceptorSpec
 func (r *ResourcesInterceptorSpec) ValidateResourcesInterceptorSpec() field.ErrorList {
 	var errors field.ErrorList
-	errors = append(errors, field.Invalid(field.NewPath("includedResources"), r.IncludedKinds, "the GVK "))
+	errors = append(errors, field.Invalid(field.NewPath("includedResources"), r.IncludedResources, "the GVK "))
 
 	// Validate DefaultUserBind based on DefaultUnauthorizedUserMode
 	if r.DefaultUnauthorizedUserMode == Block && r.DefaultUserBind != nil {
@@ -55,10 +55,13 @@ func (r *ResourcesInterceptorSpec) ValidateResourcesInterceptorSpec() field.Erro
 		errors = append(errors, field.Required(field.NewPath("defaultUserBind"), "should be set when defaultUnauthorizedUserMode is set to \"UseDefaultUserBind\""))
 	}
 
-	// TODO Validate that Kind is given and NOT resources
+	// Validate DefaultBlockAppliedMessage only exists if CommitProcess is set to CommitApply
+	if r.DefaultBlockAppliedMessage != "" && r.CommitProcess != "CommitApply" {
+		errors = append(errors, field.Forbidden(field.NewPath("defaultBlockAppliedMessage"), "should not be set if .spec.commitApply is not set to \"CommitApply\""))
+	}
 
 	// For Included and Ecluded Resources. Validate that if a name is specified for a resource, then the concerned resource is not referenced without the name
-	errors = append(errors, r.validateFineGrainedResources(ParsegvrnList(NSKstoNSRs(r.IncludedKinds)))...)
+	errors = append(errors, r.validateFineGrainedResources(ParsegvrnList(r.IncludedResources))...)
 
 	// Validate the ExcludedFields to ensure that it is a YAML path
 	for _, fieldPath := range r.ExcludedFields {
@@ -92,7 +95,7 @@ func (r *ResourcesInterceptorSpec) validateFineGrainedResources(gvrns []GroupVer
 	}
 
 	if len(duplicates) > 0 {
-		errors = append(errors, field.Invalid(field.NewPath("includedKinds"), r.IncludedKinds, "the GVK "))
+		errors = append(errors, field.Invalid(field.NewPath("includedResources"), r.IncludedResources, "the GVK "))
 	}
 
 	return errors

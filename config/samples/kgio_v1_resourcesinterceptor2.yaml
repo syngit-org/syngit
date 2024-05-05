@@ -12,7 +12,7 @@ metadata:
 spec:
   remoteRepository: https://damiendassieu.fr
   commitMode: Commit
-  commitProcess: CommitOnly
+  commitProcess: CommitApply
   operations:
     - CREATE
     - UPDATE
@@ -21,6 +21,7 @@ spec:
     - name: gituserbinding-sample
   defaultUnauthorizedUserMode: Block
   includedResources:
-    - apiGroups: [""]
+    - apiGroups: ["", "networking.k8s.io"]
       apiVersions: ["v1"]
-      kinds: ["ConfigMap"] 
+      resources: ["configmaps", "ingresses", "pods"]
+      #names: ["secret-basic-auth1"]

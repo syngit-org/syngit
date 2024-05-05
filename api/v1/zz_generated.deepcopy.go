@@ -515,16 +515,16 @@ func (in *ResourcesInterceptorSpec) DeepCopyInto(out *ResourcesInterceptorSpec) 
 		*out = new(corev1.ObjectReference)
 		**out = **in
 	}
-	if in.IncludedKinds != nil {
-		in, out := &in.IncludedKinds, &out.IncludedKinds
-		*out = make([]NamespaceScopedKinds, len(*in))
+	if in.IncludedResources != nil {
+		in, out := &in.IncludedResources, &out.IncludedResources
+		*out = make([]NamespaceScopedResources, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.ExcludedKinds != nil {
-		in, out := &in.ExcludedKinds, &out.ExcludedKinds
-		*out = make([]NamespaceScopedKinds, len(*in))
+	if in.ExcludedResources != nil {
+		in, out := &in.ExcludedResources, &out.ExcludedResources
+		*out = make([]NamespaceScopedResources, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
