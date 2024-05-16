@@ -80,7 +80,7 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	// The service is located in the manager/controller namespace
 	// serviceName := "resources-interceptor-webhook"
 	// operatorNamespace := r.Namespace
-	url := "https://172.17.0.1:8443/kgio/validate/" + rINamespace + "/" + rIName
+	url := "https://172.17.0.1:9444/kgio/validate/" + rINamespace + "/" + rIName
 
 	// Read the content of the certificate file
 	caCert, err := os.ReadFile("/tmp/k8s-webhook-server/serving-certs/tls.crt")

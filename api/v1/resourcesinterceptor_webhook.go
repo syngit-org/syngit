@@ -61,7 +61,8 @@ func (r *ResourcesInterceptorSpec) ValidateResourcesInterceptorSpec() field.Erro
 	}
 
 	// For Included and Ecluded Resources. Validate that if a name is specified for a resource, then the concerned resource is not referenced without the name
-	errors = append(errors, r.validateFineGrainedResources(ParsegvrnList(r.IncludedResources))...)
+	errors = append(errors, r.validateFineGrainedIncludedResources(ParsegvrnList(r.IncludedResources))...)
+	errors = append(errors, r.validateFineGrainedExcludedResources(ParsegvrnList(r.ExcludedResources))...)
 
 	// Validate the ExcludedFields to ensure that it is a YAML path
 	for _, fieldPath := range r.ExcludedFields {
@@ -80,9 +81,7 @@ func isValidYAMLPath(path string) bool {
 	return yamlPathRegex.MatchString(path)
 }
 
-func (r *ResourcesInterceptorSpec) validateFineGrainedResources(gvrns []GroupVersionResourceName) field.ErrorList {
-	var errors field.ErrorList
-
+func (r *ResourcesInterceptorSpec) searchForDuplicates(gvrns []GroupVersionResourceName) []GroupVersionResourceName {
 	seen := make(map[*schema.GroupVersionResource][]GroupVersionResourceName)
 	duplicates := make([]GroupVersionResourceName, 0)
 
@@ -94,8 +93,28 @@ func (r *ResourcesInterceptorSpec) validateFineGrainedResources(gvrns []GroupVer
 		seen[item.GroupVersionResource] = append(seen[item.GroupVersionResource], item)
 	}
 
+	return duplicates
+}
+
+func (r *ResourcesInterceptorSpec) validateFineGrainedIncludedResources(gvrns []GroupVersionResourceName) field.ErrorList {
+	var errors field.ErrorList
+
+	duplicates := r.searchForDuplicates(gvrns)
+
 	if len(duplicates) > 0 {
-		errors = append(errors, field.Invalid(field.NewPath("includedResources"), r.IncludedResources, "the GVK "))
+		errors = append(errors, field.Invalid(field.NewPath("includedResources"), r.IncludedResources, "has duplicate GVRName"))
+	}
+
+	return errors
+}
+
+func (r *ResourcesInterceptorSpec) validateFineGrainedExcludedResources(gvrns []GroupVersionResourceName) field.ErrorList {
+	var errors field.ErrorList
+
+	duplicates := r.searchForDuplicates(gvrns)
+
+	if len(duplicates) > 0 {
+		errors = append(errors, field.Invalid(field.NewPath("excludedResources"), r.ExcludedResources, "has duplicate GVRName"))
 	}
 
 	return errors

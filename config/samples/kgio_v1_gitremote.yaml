@@ -12,6 +12,6 @@ metadata:
 spec:
   gitBaseDomainFQDN: "git.inpt.fr"
   testAuthentication: true
-  gitProvider: "gitlab"
+  #gitProvider: "gitlab"
   secretRef:
     name: secret-basic-auth

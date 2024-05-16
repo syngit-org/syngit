@@ -17,6 +17,7 @@ spec:
       targetPort: 9443
   selector:
     control-plane: controller-manager
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -33,6 +34,6 @@ spec:
   ports:
     - port: 443
       protocol: TCP
-      targetPort: 8443
+      targetPort: 9444
   selector:
     control-plane: controller-manager

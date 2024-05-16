@@ -45,6 +45,13 @@ help: ## Display this help.
 
 ##@ Development
 
+IMAGE ?= dams.com/op:dev
+.PHONY: dev
+dev: # Launch dev env on the cluster
+	make docker-build IMG=$(IMAGE)
+	kind load docker-image $(IMAGE) --name dev-cluster
+	make deploy IMG=$(IMAGE)
+
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
@@ -146,6 +153,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	cd config/webhook && ./cert-injector.sh && cd ../..
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 

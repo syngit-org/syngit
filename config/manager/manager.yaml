@@ -58,6 +58,8 @@ spec:
         args:
         - --leader-elect
         image: controller:latest
+        # Uncomment this line only if the tag of the image is 'latest'
+        # imagePullPolicy: Never
         env:
         - name: MANAGER_NAMESPACE
           valueFrom:
