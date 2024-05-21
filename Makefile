@@ -45,12 +45,40 @@ help: ## Display this help.
 
 ##@ Development
 
+WEBHOOK_PATH ?= config/webhook
 IMAGE ?= dams.com/op:dev
-.PHONY: dev
-dev: # Launch dev env on the cluster
+.PHONY: dev-deploy
+dev-deploy: # Launch dev env on the cluster
 	make docker-build IMG=$(IMAGE)
 	kind load docker-image $(IMAGE) --name dev-cluster
+	cd $(WEBHOOK_PATH) && cp manifests.yaml manifests.yaml.temp
+	cd $(WEBHOOK_PATH) && cp secret.yaml secret.yaml.temp
 	make deploy IMG=$(IMAGE)
+
+.PHONY: dev-run
+dev-run: # Deploy fake webhook & launch dev env in cli
+	cd $(WEBHOOK_PATH) && cp dev-webhook.yaml dev-webhook.yaml.temp
+	cd $(WEBHOOK_PATH) && cp secret.yaml secret.yaml.temp
+	cd $(WEBHOOK_PATH) && ./cert-injector.sh dev-webhook.yaml
+	cd $(WEBHOOK_PATH) && mv kustomization.yaml kustomization.yaml.temp
+	cd $(WEBHOOK_PATH) && mv kustomization-dev.yaml kustomization.yaml
+	cd $(WEBHOOK_PATH) && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd $(WEBHOOK_PATH) && $(KUSTOMIZE) build | $(KUBECTL) apply -f -
+	make run
+
+.PHONY: cleanup-deploy
+cleanup-deploy: # Cleanup
+	make undeploy
+	cd $(WEBHOOK_PATH) && mv secret.yaml.temp secret.yaml
+	cd $(WEBHOOK_PATH) && mv manifests.yaml.temp manifests.yaml
+
+.PHONY: cleanup-run
+cleanup-run: # Cleanup
+	$(KUSTOMIZE) build $(WEBHOOK_PATH) | $(KUBECTL) delete --ignore-not-found=true -f -
+	cd $(WEBHOOK_PATH) && mv secret.yaml.temp secret.yaml
+	cd $(WEBHOOK_PATH) && mv dev-webhook.yaml.temp dev-webhook.yaml
+	cd $(WEBHOOK_PATH) && mv kustomization.yaml kustomization-dev.yaml
+	cd $(WEBHOOK_PATH) && mv kustomization.yaml.temp kustomization.yaml
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
@@ -153,8 +181,8 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/webhook && ./cert-injector.sh && cd ../..
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd $(WEBHOOK_PATH) && ./cert-injector.sh manifests.yaml
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
 .PHONY: undeploy

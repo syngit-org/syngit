@@ -1,7 +1,7 @@
 resources:
-- manifests.yaml
 - service.yaml
 - secret.yaml
+- dev-webhook.yaml
 
 configurations:
 - kustomizeconfig.yaml

@@ -24,4 +24,7 @@ spec:
     - apiGroups: ["", "networking.k8s.io"]
       apiVersions: ["v1"]
       resources: ["configmaps", "ingresses", "pods"]
-      #names: ["secret-basic-auth1"]
+      names: ["secret-basic-auth"]
+    - apiGroups: ["", "networking.k8s.io"]
+      apiVersions: ["v1"]
+      resources: ["configmaps", "ingresses", "pods"]

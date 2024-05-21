@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"fmt"
 	"regexp"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -46,7 +47,6 @@ var _ webhook.Validator = &ResourcesInterceptor{}
 // Validate validates the ResourcesInterceptorSpec
 func (r *ResourcesInterceptorSpec) ValidateResourcesInterceptorSpec() field.ErrorList {
 	var errors field.ErrorList
-	errors = append(errors, field.Invalid(field.NewPath("includedResources"), r.IncludedResources, "the GVK "))
 
 	// Validate DefaultUserBind based on DefaultUnauthorizedUserMode
 	if r.DefaultUnauthorizedUserMode == Block && r.DefaultUserBind != nil {
@@ -60,7 +60,7 @@ func (r *ResourcesInterceptorSpec) ValidateResourcesInterceptorSpec() field.Erro
 		errors = append(errors, field.Forbidden(field.NewPath("defaultBlockAppliedMessage"), "should not be set if .spec.commitApply is not set to \"CommitApply\""))
 	}
 
-	// For Included and Ecluded Resources. Validate that if a name is specified for a resource, then the concerned resource is not referenced without the name
+	// For Included and Excluded Resources. Validate that if a name is specified for a resource, then the concerned resource is not referenced without the name
 	errors = append(errors, r.validateFineGrainedIncludedResources(ParsegvrnList(r.IncludedResources))...)
 	errors = append(errors, r.validateFineGrainedExcludedResources(ParsegvrnList(r.ExcludedResources))...)
 
@@ -92,6 +92,8 @@ func (r *ResourcesInterceptorSpec) searchForDuplicates(gvrns []GroupVersionResou
 		}
 		seen[item.GroupVersionResource] = append(seen[item.GroupVersionResource], item)
 	}
+	fmt.Println(seen)
+	fmt.Println(duplicates)
 
 	return duplicates
 }
@@ -99,6 +101,7 @@ func (r *ResourcesInterceptorSpec) searchForDuplicates(gvrns []GroupVersionResou
 func (r *ResourcesInterceptorSpec) validateFineGrainedIncludedResources(gvrns []GroupVersionResourceName) field.ErrorList {
 	var errors field.ErrorList
 
+	fmt.Println(gvrns)
 	duplicates := r.searchForDuplicates(gvrns)
 
 	if len(duplicates) > 0 {

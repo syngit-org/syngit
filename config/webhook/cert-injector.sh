@@ -19,13 +19,13 @@ sed -i.bak -e "/server.crt:/c\  server.crt: $server_crt_base64" \
            -e "/tls.key:/c\  tls.key: $client_key_base64" secret.yaml
 
 # Remove existing caBundle lines if they exist
-sed -i.bak '/^ *caBundle:.*/d' manifests.yaml
+sed -i.bak '/^ *caBundle:.*/d' $1
 
 # Update the webhook configuration
 sed -i.bak '/^ *clientConfig:/ {
   N
   s/\(^ *clientConfig:\)/\1\n    caBundle: '"$client_crt_base64"'/
-}' manifests.yaml
+}' $1
 
 # Clean up temporary files created by sed
-rm -f secret.yaml.bak manifests.yaml.bak
+rm -f secret.yaml.bak $1.bak
