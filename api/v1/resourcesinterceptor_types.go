@@ -81,6 +81,26 @@ func (nsk *NamespaceScopedKinds) NskToNsr() NamespaceScopedResources {
 	return nsr
 }
 
+type NamespaceScopedResourcesPath struct {
+	APIGroups   []string `json:"apiGroups"`
+	APIVersions []string `json:"apiVersions"`
+	Resources   []string `json:"resources"`
+	// +optional
+	Names []string `json:"names"`
+	// +optional
+	RepoPath string `json:"repoPath"`
+}
+
+func (nsrp *NamespaceScopedResourcesPath) NsrpToNsr() NamespaceScopedResources {
+	nsr := NamespaceScopedResources{
+		APIGroups:   nsrp.APIGroups,
+		APIVersions: nsrp.APIVersions,
+		Resources:   nsrp.Resources,
+		Names:       nsrp.Names,
+	}
+	return nsr
+}
+
 type NamespaceScopedResources struct {
 	APIGroups   []string `json:"apiGroups"`
 	APIVersions []string `json:"apiVersions"`
@@ -125,7 +145,7 @@ type ResourcesInterceptorSpec struct {
 	DefaultUserBind *corev1.ObjectReference `json:"defaultUserBind,omitempty"` // Ref to a GitUserBinding object
 
 	// +optional
-	IncludedResources []NamespaceScopedResources `json:"includedResources,omitempty"`
+	IncludedResources []NamespaceScopedResourcesPath `json:"includedResources,omitempty"`
 
 	// +optional
 	ExcludedResources []NamespaceScopedResources `json:"excludedResources,omitempty"`
@@ -325,6 +345,14 @@ func NSKstoNSRs(nsks []NamespaceScopedKinds) []NamespaceScopedResources {
 	// Transform kind into resource
 	for _, nsk := range nsks {
 		nsrs = append(nsrs, nsk.NskToNsr())
+	}
+	return nsrs
+}
+
+func NSRPstoNSRs(nsrps []NamespaceScopedResourcesPath) []NamespaceScopedResources {
+	nsrs := []NamespaceScopedResources{}
+	for _, nsrp := range nsrps {
+		nsrs = append(nsrs, nsrp.NsrpToNsr())
 	}
 	return nsrs
 }

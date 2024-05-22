@@ -102,7 +102,7 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 				Name:                    rIName + ".kgio.com",
 				AdmissionReviewVersions: []string{"v1"},
 				SideEffects:             &sideEffectsNone,
-				Rules:                   nsrListToRuleList(resourcesInterceptor.Spec.IncludedResources),
+				Rules:                   nsrListToRuleList(kgiov1.NSRPstoNSRs(resourcesInterceptor.Spec.IncludedResources)),
 				ClientConfig: admissionv1.WebhookClientConfig{
 					// Service: &admissionv1.ServiceReference{
 					// 	Name:      serviceName,

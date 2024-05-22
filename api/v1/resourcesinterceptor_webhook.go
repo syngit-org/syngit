@@ -60,7 +60,7 @@ func (r *ResourcesInterceptorSpec) ValidateResourcesInterceptorSpec() field.Erro
 	}
 
 	// For Included and Excluded Resources. Validate that if a name is specified for a resource, then the concerned resource is not referenced without the name
-	errors = append(errors, r.validateFineGrainedIncludedResources(ParsegvrnList(r.IncludedResources))...)
+	errors = append(errors, r.validateFineGrainedIncludedResources(ParsegvrnList(NSRPstoNSRs(r.IncludedResources)))...)
 	errors = append(errors, r.validateFineGrainedExcludedResources(ParsegvrnList(r.ExcludedResources))...)
 
 	// Validate the ExcludedFields to ensure that it is a YAML path
