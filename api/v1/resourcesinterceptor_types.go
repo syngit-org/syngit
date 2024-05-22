@@ -226,56 +226,94 @@ func init() {
 }
 
 func ParsegvrnList(gvrnGivenList []NamespaceScopedResources) []GroupVersionResourceName {
+	gvrnSet := make(map[GroupVersionResourceName]bool)
+	names := make([]string, 0)
 	var gvrnList []GroupVersionResourceName
 
 	for _, gvrnGiven := range gvrnGivenList {
+		if len(gvrnGiven.Names) != 0 {
+			names = make([]string, 0)
+			names = append(names, gvrnGiven.Names...)
+		}
 		for _, group := range gvrnGiven.APIGroups {
 			for _, version := range gvrnGiven.APIVersions {
 				for _, resource := range gvrnGiven.Resources {
-					gvrn := GroupVersionResourceName{
-						GroupVersionResource: &schema.GroupVersionResource{
-							Group:    group,
-							Version:  version,
-							Resource: resource,
-						},
-					}
-					if len(gvrnGiven.Names) != 0 {
-						for _, name := range gvrnGiven.Names {
-							gvrn.Name = name
+					if len(names) != 0 {
+						for _, name := range names {
+							gvrn := GroupVersionResourceName{
+								GroupVersionResource: &schema.GroupVersionResource{
+									Group:    group,
+									Version:  version,
+									Resource: resource,
+								},
+								Name: name,
+							}
+							gvrnSet[gvrn] = true
 						}
+					} else {
+						gvr := GroupVersionResourceName{
+							GroupVersionResource: &schema.GroupVersionResource{
+								Group:    group,
+								Version:  version,
+								Resource: resource,
+							},
+						}
+						gvrnSet[gvr] = true
 					}
-					gvrnList = append(gvrnList, gvrn)
 				}
 			}
 		}
+	}
+
+	for gvrn := range gvrnSet {
+		gvrnList = append(gvrnList, gvrn)
 	}
 
 	return gvrnList
 }
 
 func ParsegvknList(gvknGivenList []NamespaceScopedKinds) []GroupVersionKindName {
+	gvknSet := make(map[GroupVersionKindName]bool)
+	names := make([]string, 0)
 	var gvknList []GroupVersionKindName
 
 	for _, gvknGiven := range gvknGivenList {
+		if len(gvknGiven.Names) != 0 {
+			names = make([]string, 0)
+			names = append(names, gvknGiven.Names...)
+		}
 		for _, group := range gvknGiven.APIGroups {
 			for _, version := range gvknGiven.APIVersions {
 				for _, kind := range gvknGiven.Kinds {
-					gvrn := GroupVersionKindName{
-						GroupVersionKind: &schema.GroupVersionKind{
-							Group:   group,
-							Version: version,
-							Kind:    kind,
-						},
-					}
-					if len(gvknGiven.Names) != 0 {
-						for _, name := range gvknGiven.Names {
-							gvrn.Name = name
+					if len(names) != 0 {
+						for _, name := range names {
+							gvkn := GroupVersionKindName{
+								GroupVersionKind: &schema.GroupVersionKind{
+									Group:   group,
+									Version: version,
+									Kind:    kind,
+								},
+								Name: name,
+							}
+							gvknSet[gvkn] = true
 						}
+					} else {
+						gvk := GroupVersionKindName{
+							GroupVersionKind: &schema.GroupVersionKind{
+								Group:   group,
+								Version: version,
+								Kind:    kind,
+							},
+						}
+						gvknSet[gvk] = true
 					}
-					gvknList = append(gvknList, gvrn)
 				}
 			}
 		}
+	}
+
+	for gvkn := range gvknSet {
+		gvknList = append(gvknList, gvkn)
 	}
 
 	return gvknList

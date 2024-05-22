@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	"fmt"
 	"regexp"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -81,19 +80,16 @@ func isValidYAMLPath(path string) bool {
 	return yamlPathRegex.MatchString(path)
 }
 
-func (r *ResourcesInterceptorSpec) searchForDuplicates(gvrns []GroupVersionResourceName) []GroupVersionResourceName {
-	seen := make(map[*schema.GroupVersionResource][]GroupVersionResourceName)
-	duplicates := make([]GroupVersionResourceName, 0)
+func (r *ResourcesInterceptorSpec) searchForDuplicates(gvrns []GroupVersionResourceName) []*schema.GroupVersionResource {
+	seen := make(map[string]bool)
+	duplicates := make([]*schema.GroupVersionResource, 0)
 
 	for _, item := range gvrns {
-		if existingItems, ok := seen[item.GroupVersionResource]; ok {
-			duplicates = append(duplicates, existingItems...)
-			duplicates = append(duplicates, item)
+		if _, ok := seen[item.GroupVersionResource.String()]; ok {
+			duplicates = append(duplicates, item.GroupVersionResource)
 		}
-		seen[item.GroupVersionResource] = append(seen[item.GroupVersionResource], item)
+		seen[item.GroupVersionResource.String()] = true
 	}
-	fmt.Println(seen)
-	fmt.Println(duplicates)
 
 	return duplicates
 }
@@ -101,11 +97,10 @@ func (r *ResourcesInterceptorSpec) searchForDuplicates(gvrns []GroupVersionResou
 func (r *ResourcesInterceptorSpec) validateFineGrainedIncludedResources(gvrns []GroupVersionResourceName) field.ErrorList {
 	var errors field.ErrorList
 
-	fmt.Println(gvrns)
 	duplicates := r.searchForDuplicates(gvrns)
 
 	if len(duplicates) > 0 {
-		errors = append(errors, field.Invalid(field.NewPath("includedResources"), r.IncludedResources, "has duplicate GVRName"))
+		errors = append(errors, field.Invalid(field.NewPath("includedResources"), r.IncludedResources, "duplicate GVRName found"))
 	}
 
 	return errors
@@ -117,7 +112,7 @@ func (r *ResourcesInterceptorSpec) validateFineGrainedExcludedResources(gvrns []
 	duplicates := r.searchForDuplicates(gvrns)
 
 	if len(duplicates) > 0 {
-		errors = append(errors, field.Invalid(field.NewPath("excludedResources"), r.ExcludedResources, "has duplicate GVRName"))
+		errors = append(errors, field.Invalid(field.NewPath("excludedResources"), r.ExcludedResources, "duplicate GVRName found"))
 	}
 
 	return errors
