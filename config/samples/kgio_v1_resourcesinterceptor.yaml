@@ -20,11 +20,14 @@ spec:
   authorizedUsers:
     - name: gituserbinding-sample
   defaultUnauthorizedUserMode: Block
+  excludedFields:
+    - metadata.managedFields
+    - metadata.creationTimestamp
+    - metadata.annotations.[kubectl.kubernetes.io/last-applied-configuration]
+    - :metadata.uidl
+    - "*oui"
   includedResources:
     - apiGroups: ["", "networking.k8s.io"]
       apiVersions: ["v1"]
       resources: ["configmaps", "ingresses", "pods"]
       #names: ["secret-basic-auth"]
-    - apiGroups: [""]
-      apiVersions: ["v1"]
-      resources: ["pods"]

@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/yaml"
 )
 
 type WebhookInterceptsAll struct {
@@ -171,6 +173,39 @@ func (dwc *DynamicWebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	interceptedYAML := ""
+	if admissionReviewReq.Request != nil {
+		// Convert the json string object to a yaml string
+		// We have no other choice than extracting the json into a map
+		//  and then convert the map into a yaml string
+		// Because the 'map' object is, by definition, not ordered
+		//  we cannot reorder fields
+
+		var data map[string]interface{}
+		err := json.Unmarshal(admissionReviewReq.Request.Object.Raw, &data)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+
+		// Paths to remove
+		paths := dwc.resourcesInterceptor.Spec.ExcludedFields
+
+		// Remove unwanted fields
+		for _, path := range paths {
+			kgiov1.ExcludedFieldsFromJson(data, path)
+		}
+
+		// Marshal back to YAML
+		updatedYAML, err := yaml.Marshal(data)
+		if err != nil {
+			panic(err)
+		}
+
+		interceptedYAML = string(updatedYAML)
+	}
+	fmt.Println(interceptedYAML)
+
 	// Context variables
 	var isAllowed = true
 	var isGitPushed = false
@@ -179,12 +214,22 @@ func (dwc *DynamicWebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		isAllowed = false
 	}
 
-	var gitRepoPath = "/"
-	var gitCommitHash = ""
-
 	// Admission response variables
 	var admStatus = "Failure"
-	var defaultBlockedMessage = "Webhook server error. The changes have not been pushed on the remote git repository."
+	var defaultBlockedMessage = "Webhook server error. The changes have not been pushed to the remote git repository."
+
+	// Push the changes
+	gitPusher := &GitPusher{
+		resourcesInterceptor: *dwc.resourcesInterceptor.DeepCopy(),
+		interceptedYAML:      interceptedYAML,
+	}
+	res, err := gitPusher.push()
+	if err != nil {
+		defaultBlockedMessage = err.Error() + " The changes have not been pushed to the remote git repository."
+	}
+
+	var gitRepoPath = res.path
+	var gitCommitHash = res.commitHash
 
 	if isGitPushed {
 		admStatus = "Success"
