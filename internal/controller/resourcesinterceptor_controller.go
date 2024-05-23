@@ -19,10 +19,12 @@ package controller
 import (
 	"context"
 	"os"
+	"slices"
 
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -80,7 +82,7 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	// The service is located in the manager/controller namespace
 	// serviceName := "resources-interceptor-webhook"
 	// operatorNamespace := r.Namespace
-	url := "https://172.17.0.1:9444/kgio/validate/" + rINamespace + "/" + rIName
+	url := "https://172.17.0.1:9444" + webhookPath
 
 	// Read the content of the certificate file
 	caCert, err := os.ReadFile("/tmp/k8s-webhook-server/serving-certs/tls.crt")
@@ -88,18 +90,21 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 		log.Log.Error(err, "failed to read the cert file /tmp/k8s-webhook-server/serving-certs/tls.crt")
 		panic(err) // handle error if unable to read file
 	}
+	webhookObjectName := "resourcesinterceptor.kgio.com"
 
+	// Create the webhook specs for this specific RI
 	var sideEffectsNone = admissionv1.SideEffectClassNone
+	webhookSpecificName := rIName + ".kgio.com"
 
 	// Create a new ValidatingWebhook object
 	webhook := &admissionv1.ValidatingWebhookConfiguration{
 		ObjectMeta: v1.ObjectMeta{
-			Name: rIName,
+			Name: webhookObjectName,
 			// Namespace: rINamespace,
 		},
 		Webhooks: []admissionv1.ValidatingWebhook{
 			{
-				Name:                    rIName + ".kgio.com",
+				Name:                    webhookSpecificName,
 				AdmissionReviewVersions: []string{"v1"},
 				SideEffects:             &sideEffectsNone,
 				Rules:                   nsrListToRuleList(kgiov1.NSRPstoNSRs(resourcesInterceptor.Spec.IncludedResources)),
@@ -125,23 +130,42 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	// 	return ctrl.Result{}, err
 	// }
 
-	// Check if the webhook already exists
-	found := &admissionv1.ValidatingWebhookConfiguration{}
-	err = r.Get(ctx, req.NamespacedName, found)
-	if err != nil && client.IgnoreNotFound(err) != nil {
-		return reconcile.Result{}, err
+	webhookNamespacedName := &types.NamespacedName{
+		Name: webhookObjectName,
 	}
 
+	// Check if the webhook already exists
+	found := &admissionv1.ValidatingWebhookConfiguration{}
+	err = r.Get(ctx, *webhookNamespacedName, found)
+	// if err != nil && client.IgnoreNotFound(err) != nil {
+	// 	return reconcile.Result{}, err
+	// }
+
 	if err == nil {
-		// Update the existing webhook
-		found.Webhooks = webhook.Webhooks
+		// Search for the webhook spec associated to this RI
+		foundRIWebhook := false
+		var currentWebhookCopy []admissionv1.ValidatingWebhook
+		for i, riWebhook := range found.Webhooks {
+			if riWebhook.Name == webhookSpecificName {
+				foundRIWebhook = true
+				currentWebhookCopy = slices.Delete(found.Webhooks, i, 1)
+				currentWebhookCopy = append(currentWebhookCopy, webhook.Webhooks[0])
+			}
+		}
+		// If not found, then just add the new webhook spec for this RI
+		if !foundRIWebhook {
+			found.Webhooks = append(found.Webhooks, webhook.Webhooks[0])
+		} else {
+			found.Webhooks = currentWebhookCopy
+		}
+
 		err = r.Update(ctx, found)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 	} else {
-		// Create a new webhook if not found
-		err = r.Create(ctx, webhook)
+		// Create a new webhook if not found -> if it is the first RI to be created
+		err := r.Create(ctx, webhook)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -176,7 +200,9 @@ func (r *ResourcesInterceptorReconciler) SetupWithManager(mgr ctrl.Manager) erro
 	r.Namespace = managerNamespace
 
 	// Initialize the webhookServer
-	r.webhookServer = WebhookInterceptsAll{}
+	r.webhookServer = WebhookInterceptsAll{
+		k8sClient: mgr.GetClient(),
+	}
 	r.webhookServer.Start()
 
 	return ctrl.NewControllerManagedBy(mgr).

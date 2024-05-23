@@ -263,7 +263,7 @@ func (r *GitRemoteReconciler) gitEndpointsConfigCreation(e event.CreateEvent) bo
 	if !ok {
 		return false
 	}
-	return configMap.Namespace == r.Namespace && configMap.Name == "git-providers-endpoints"
+	return configMap.Namespace == r.Namespace && configMap.Name == gitProvidersConfigMap
 }
 
 func (r *GitRemoteReconciler) gitEndpointsConfigUpdate(e event.UpdateEvent) bool {
@@ -271,7 +271,7 @@ func (r *GitRemoteReconciler) gitEndpointsConfigUpdate(e event.UpdateEvent) bool
 	if !ok {
 		return false
 	}
-	return configMap.Namespace == r.Namespace && configMap.Name == "git-providers-endpoints"
+	return configMap.Namespace == r.Namespace && configMap.Name == gitProvidersConfigMap
 }
 
 func (r *GitRemoteReconciler) gitEndpointsConfigDeletion(e event.DeleteEvent) bool {
@@ -279,11 +279,12 @@ func (r *GitRemoteReconciler) gitEndpointsConfigDeletion(e event.DeleteEvent) bo
 	if !ok {
 		return false
 	}
-	return configMap.Namespace == r.Namespace && configMap.Name == "git-providers-endpoints"
+	return configMap.Namespace == r.Namespace && configMap.Name == gitProvidersConfigMap
 }
 
 const (
-	secretRefField = ".spec.secretRef.name"
+	secretRefField        = ".spec.secretRef.name"
+	gitProvidersConfigMap = "git-providers-endpoints"
 )
 
 // SetupWithManager sets up the controller with the Manager.

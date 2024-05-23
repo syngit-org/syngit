@@ -4,7 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
+	"os/signal"
+	"strings"
 	"sync"
+	"syscall"
 
 	kgiov1 "dams.kgio/kgio/api/v1"
 	"github.com/go-logr/logr"
@@ -12,15 +16,19 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type WebhookInterceptsAll struct {
-	server       *http.Server
-	stopped      chan struct{}
+	server    *http.Server
+	stopped   chan struct{}
+	log       *logr.Logger
+	k8sClient client.Client
+
+	// Caching system
 	pathHandlers (map[string]*DynamicWebhookHandler)
 	sync.RWMutex
-	log *logr.Logger
 }
 
 // PathHandler represents an instance of a path handler with a specific namespace and name
@@ -41,6 +49,7 @@ func (s *WebhookInterceptsAll) Start() {
 	}
 
 	s.pathHandlers = make(map[string]*DynamicWebhookHandler)
+	s.stopped = make(chan struct{})
 
 	// Create the HTTP server
 	s.server = &http.Server{
@@ -58,10 +67,31 @@ func (s *WebhookInterceptsAll) Start() {
 			if ok {
 				handler.ServeHTTP(w, r)
 				return
-			}
 
-			// If no handler is found, respond with a 404 Not Found status
-			http.NotFound(w, r)
+				// If not, then it is not cached -> search in k8s api
+			} else {
+				pathArray := strings.Split(path, "/")
+				riNamespace := pathArray[len(pathArray)-2]
+				riName := pathArray[len(pathArray)-1]
+				ctx := context.Background()
+				riNamespacedName := &types.NamespacedName{
+					Namespace: riNamespace,
+					Name:      riName,
+				}
+
+				found := &kgiov1.ResourcesInterceptor{}
+				err := s.k8sClient.Get(ctx, *riNamespacedName, found)
+				if err != nil {
+					// If no handler is found, respond with a 404 Not Found status
+					http.NotFound(w, r)
+					return
+				}
+
+				// If found in k8s api, add it to the cached map and handle the request
+				s.CreatePathHandler(*found, path)
+				handler.ServeHTTP(w, r)
+				return
+			}
 		}),
 	}
 
@@ -70,12 +100,26 @@ func (s *WebhookInterceptsAll) Start() {
 
 	// Start the server asynchronously
 	go func() {
-		s.log.Info("Serving resources interceptor webhook server on port 8443")
+		s.log.Info("Serving resources interceptor webhook server on port 9444")
 		if err := s.server.ListenAndServeTLS(tlsCert, tlsKey); err != http.ErrServerClosed {
-			s.log.Error(err, "failed to start the resources interceptor webhook server")
+			s.log.Error(err, "failed to start the resources interceptor webhook server on port 9444")
 		}
 		close(s.stopped)
 	}()
+
+	// Set up signal handling for graceful shutdown
+	go s.setupSignalHandler()
+}
+
+func (s *WebhookInterceptsAll) setupSignalHandler() {
+	// Create a channel to receive OS signals
+	sigs := make(chan os.Signal, 1)
+	// Register for interrupt and SIGTERM signals
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+
+	// Block until a signal is received
+	<-sigs
+	s.Stop()
 }
 
 // Stop stops the webhook server
@@ -87,10 +131,14 @@ func (s *WebhookInterceptsAll) Stop() {
 		return
 	}
 
+	// Empty the cached path map
+	s.pathHandlers = nil
+
 	// Shutdown the server gracefully
 	if err := s.server.Shutdown(context.Background()); err != nil {
 		s.log.Error(err, "failed to properly stop the resources interceptor webhook server")
 	}
+	s.log.Info("Resources interceptor webhook server successfully stopped")
 	<-s.stopped
 	s.server = nil
 }
