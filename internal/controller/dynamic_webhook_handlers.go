@@ -184,14 +184,14 @@ func (dwc *DynamicWebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 	// Admission response variables
 	var admStatus = "Failure"
-	var defaultBlockedMessage = "Internal webhook server error. The resource has not been pushed on the remote git repository."
+	var defaultBlockedMessage = "Webhook server error. The changes have not been pushed on the remote git repository."
 
 	if isGitPushed {
 		admStatus = "Success"
 		if dwc.resourcesInterceptor.Spec.DefaultBlockAppliedMessage != "" {
 			defaultBlockedMessage = dwc.resourcesInterceptor.Spec.DefaultBlockAppliedMessage
 		} else {
-			defaultBlockedMessage = "The resource has correctly been pushed on the remote git repository."
+			defaultBlockedMessage = "The changes were correctly been pushed on the remote git repository."
 		}
 	}
 
