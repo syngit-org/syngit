@@ -21,6 +21,7 @@ limitations under the License.
 package v1
 
 import (
+	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -532,7 +533,7 @@ func (in *ResourcesInterceptorSpec) DeepCopyInto(out *ResourcesInterceptorSpec) 
 	*out = *in
 	if in.Operations != nil {
 		in, out := &in.Operations, &out.Operations
-		*out = make([]OperationType, len(*in))
+		*out = make([]admissionv1.Operation, len(*in))
 		copy(*out, *in)
 	}
 	if in.AuthorizedUsers != nil {

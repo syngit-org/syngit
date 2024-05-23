@@ -55,16 +55,16 @@ dev-deploy: # Launch dev env on the cluster
 	cd $(WEBHOOK_PATH) && cp secret.yaml secret.yaml.temp
 	make deploy IMG=$(IMAGE)
 
-.PHONY: dev-run
-dev-run: # Deploy fake webhook & launch dev env in cli
-	cd $(WEBHOOK_PATH) && cp dev-webhook.yaml dev-webhook.yaml.temp
-	cd $(WEBHOOK_PATH) && cp secret.yaml secret.yaml.temp
-	cd $(WEBHOOK_PATH) && ./cert-injector.sh dev-webhook.yaml
-	cd $(WEBHOOK_PATH) && mv kustomization.yaml kustomization.yaml.temp
-	cd $(WEBHOOK_PATH) && mv kustomization-dev.yaml kustomization.yaml
-	cd $(WEBHOOK_PATH) && $(KUSTOMIZE) edit set image controller=${IMG}
-	cd $(WEBHOOK_PATH) && $(KUSTOMIZE) build | $(KUBECTL) apply -f -
-	make run
+# .PHONY: dev-run
+# dev-run: # Deploy fake webhook & launch dev env in cli
+# 	cd $(WEBHOOK_PATH) && cp dev-webhook.yaml dev-webhook.yaml.temp
+# 	cd $(WEBHOOK_PATH) && cp secret.yaml secret.yaml.temp
+# 	cd $(WEBHOOK_PATH) && ./cert-injector.sh dev-webhook.yaml
+# 	cd $(WEBHOOK_PATH) && mv kustomization.yaml kustomization.yaml.temp
+# 	cd $(WEBHOOK_PATH) && mv kustomization-dev.yaml kustomization.yaml
+# 	cd $(WEBHOOK_PATH) && $(KUSTOMIZE) edit set image controller=${IMG}
+# 	cd $(WEBHOOK_PATH) && $(KUSTOMIZE) build | $(KUBECTL) apply -f -
+# 	make run
 
 .PHONY: cleanup-deploy
 cleanup-deploy: # Cleanup
@@ -72,13 +72,13 @@ cleanup-deploy: # Cleanup
 	cd $(WEBHOOK_PATH) && mv secret.yaml.temp secret.yaml
 	cd $(WEBHOOK_PATH) && mv manifests.yaml.temp manifests.yaml
 
-.PHONY: cleanup-run
-cleanup-run: # Cleanup
-	$(KUSTOMIZE) build $(WEBHOOK_PATH) | $(KUBECTL) delete --ignore-not-found=true -f -
-	cd $(WEBHOOK_PATH) && mv secret.yaml.temp secret.yaml
-	cd $(WEBHOOK_PATH) && mv dev-webhook.yaml.temp dev-webhook.yaml
-	cd $(WEBHOOK_PATH) && mv kustomization.yaml kustomization-dev.yaml
-	cd $(WEBHOOK_PATH) && mv kustomization.yaml.temp kustomization.yaml
+# .PHONY: cleanup-run
+# cleanup-run: # Cleanup
+# 	$(KUSTOMIZE) build $(WEBHOOK_PATH) | $(KUBECTL) delete --ignore-not-found=true -f -
+# 	cd $(WEBHOOK_PATH) && mv secret.yaml.temp secret.yaml
+# 	cd $(WEBHOOK_PATH) && mv dev-webhook.yaml.temp dev-webhook.yaml
+# 	cd $(WEBHOOK_PATH) && mv kustomization.yaml kustomization-dev.yaml
+# 	cd $(WEBHOOK_PATH) && mv kustomization.yaml.temp kustomization.yaml
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.

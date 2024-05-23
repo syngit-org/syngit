@@ -19,6 +19,7 @@ package v1
 import (
 	"strings"
 
+	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,14 +33,6 @@ type CommitMode string
 const (
 	Commit       CommitMode = "Commit"
 	MergeRequest CommitMode = "MergeRequest"
-)
-
-type OperationType string
-
-const (
-	Create OperationType = "CREATE"
-	Update OperationType = "UPDATE"
-	Delete OperationType = "DELETE"
 )
 
 type CommitProcess string
@@ -123,7 +116,7 @@ type ResourcesInterceptorSpec struct {
 
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=3
-	Operations []OperationType `json:"operations"`
+	Operations []admissionv1.Operation `json:"operations"`
 
 	CommitProcess CommitProcess `json:"commitProcess"`
 
