@@ -32,6 +32,7 @@ type WebhookInterceptsAll struct {
 // PathHandler represents an instance of a path handler with a specific namespace and name
 type DynamicWebhookHandler struct {
 	resourcesInterceptor kgiov1.ResourcesInterceptor
+	k8sClient            client.Client
 }
 
 // Start starts the webhook server
@@ -149,6 +150,7 @@ func (s *WebhookInterceptsAll) CreatePathHandler(interceptor kgiov1.ResourcesInt
 	// Create a new path handler with the specified namespace and name
 	handler := &DynamicWebhookHandler{
 		resourcesInterceptor: interceptor,
+		k8sClient:            s.k8sClient,
 	}
 
 	// Register the path handler with the server
@@ -170,6 +172,7 @@ func (dwc *DynamicWebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	wrc := &WebhookRequestChecker{
 		admReview:            admissionReviewReq,
 		resourcesInterceptor: dwc.resourcesInterceptor,
+		k8sClient:            dwc.k8sClient,
 	}
 
 	admResponse := wrc.ProcessSteps()

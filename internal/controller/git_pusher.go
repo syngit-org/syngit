@@ -12,6 +12,7 @@ type GitPusher struct {
 	interceptedYAML      string
 	interceptedGVR       schema.GroupVersionResource
 	interceptedName      string
+	gitToken             string
 }
 
 type GitPushResponse struct {

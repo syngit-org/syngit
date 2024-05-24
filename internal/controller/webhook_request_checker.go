@@ -1,15 +1,20 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/url"
 	"slices"
 
 	kgiov1 "dams.kgio/kgio/api/v1"
 	admissionv1 "k8s.io/api/admission/v1"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
 
@@ -31,11 +36,12 @@ type wrcDetails struct {
 	repoFQDN   string
 	repoPath   string
 	commitHash string
+	gitToken   string
 }
 
 const (
-	defaultFailureMessage = "The changes have not been pushed to the remote git repository."
-	defaultSuccessMessage = "The changes were correctly been pushed on the remote git repository."
+	defaultFailureMessage = "The changes have not been pushed to the remote git repository:"
+	defaultSuccessMessage = "The changes were correctly been pushed on the remote git repository:"
 )
 
 type WebhookRequestChecker struct {
@@ -43,6 +49,8 @@ type WebhookRequestChecker struct {
 	admReview admissionv1.AdmissionReview
 	// The resources interceptor object
 	resourcesInterceptor kgiov1.ResourcesInterceptor
+	// The kubernetes client to make request to the api
+	k8sClient client.Client
 }
 
 func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
@@ -54,27 +62,27 @@ func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
 	}
 
 	// STEP 2 : Check if the request can be proceded
-	processAllowed, err := wrc.processAllowed(rDetails)
+	processAllowed, err := wrc.processAllowed(&rDetails)
 	rDetails.processPass = processAllowed
 	if err != nil {
 		return wrc.responseConstructor(rDetails)
 	}
 
 	// STEP 3 : Convert the request to get the yaml of the object
-	err = wrc.convertToYaml(rDetails)
+	err = wrc.convertToYaml(&rDetails)
 	if err != nil {
 		return wrc.responseConstructor(rDetails)
 	}
 
 	// STEP 4 : Git push
-	isPushed, err := wrc.gitPush(rDetails)
+	isPushed, err := wrc.gitPush(&rDetails)
 	rDetails.processPass = isPushed
 	if err != nil {
 		return wrc.responseConstructor(rDetails)
 	}
 
 	// STEP 5 : Post checking
-	wrc.postcheck(rDetails)
+	wrc.postcheck(&rDetails)
 
 	return wrc.responseConstructor(rDetails)
 }
@@ -100,7 +108,7 @@ func (wrc *WebhookRequestChecker) retrieveRequestDetails() (wrcDetails, error) {
 	return *details, nil
 }
 
-func (wrc *WebhookRequestChecker) processAllowed(details wrcDetails) (bool, error) {
+func (wrc *WebhookRequestChecker) processAllowed(details *wrcDetails) (bool, error) {
 
 	// Check if the incoming object is part of the specified names in the included resources
 	includedNames := kgiov1.GetNamesFromGVR(kgiov1.NSRPstoNSRs(wrc.resourcesInterceptor.Spec.IncludedResources), details.interceptedGVR)
@@ -118,12 +126,112 @@ func (wrc *WebhookRequestChecker) processAllowed(details wrcDetails) (bool, erro
 		return false, errors.New(errMsg)
 	}
 
-	// USER CHECKING LOGIC
+	// Check if the user can push (and so, create the resource)
+	incomingUser := wrc.admReview.Request.UserInfo
+	u, err := url.Parse(wrc.resourcesInterceptor.Spec.RemoteRepository)
+	if err != nil {
+		errMsg := "error parsing git repository URL: " + err.Error()
+		details.messageAddition = errMsg
+		return false, errors.New(errMsg)
+	}
+
+	fqdn := u.Host
+	ctx := context.Background()
+
+	userGitToken := ""
+	userCountLoop := 0 // Prevent non-unique name attack
+	for _, ref := range wrc.resourcesInterceptor.Spec.AuthorizedUsers {
+		namespacedName := &types.NamespacedName{
+			Namespace: wrc.resourcesInterceptor.Namespace,
+			Name:      ref.Name,
+		}
+		gitUserBinding := &kgiov1.GitUserBinding{}
+		err := wrc.k8sClient.Get(ctx, *namespacedName, gitUserBinding)
+		if err != nil {
+			continue
+		}
+
+		// The subject name can not be unique -> in specific conditions, a commit can be done as another user
+		// Need to be studied
+		if gitUserBinding.Spec.Subject.Name == incomingUser.Username {
+			userGitToken, err = wrc.searchForGitToken(*gitUserBinding, fqdn)
+			if err != nil {
+				errMsg := err.Error()
+				details.messageAddition = errMsg
+				return false, err
+			}
+			userCountLoop++
+		}
+	}
+
+	if userCountLoop == 0 || userGitToken == "" {
+		errMsg := "no GitUserBinding found for the user " + incomingUser.Username
+		details.messageAddition = errMsg
+		return false, errors.New(errMsg)
+	}
+	if userCountLoop > 1 {
+		const errMsg = "multiple GitUserBinding found OR the name of the user is not unique; this version of the operator work with the name as unique identifier for users"
+		details.messageAddition = errMsg
+		return false, errors.New(errMsg)
+	}
+
+	details.gitToken = userGitToken
+	fmt.Println(userGitToken)
 
 	return true, nil
 }
 
-func (wrc *WebhookRequestChecker) convertToYaml(details wrcDetails) error {
+func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, fqdn string) (string, error) {
+	userGitToken := ""
+	gitRemoteCount := 0
+	secretCount := 0
+	ctx := context.Background()
+
+	namespace := wrc.resourcesInterceptor.Namespace
+	for _, ref := range gub.Spec.RemoteRefs {
+		namespacedName := &types.NamespacedName{
+			Namespace: namespace,
+			Name:      ref.Name,
+		}
+		gitRemote := &kgiov1.GitRemote{}
+		err := wrc.k8sClient.Get(ctx, *namespacedName, gitRemote)
+		if err != nil {
+			continue
+		}
+
+		gitRemoteCount++
+		if gitRemote.Spec.GitBaseDomainFQDN == fqdn {
+			secretNamespacedName := &types.NamespacedName{
+				Namespace: namespace,
+				Name:      gitRemote.Spec.SecretRef.Name,
+			}
+			secret := &corev1.Secret{}
+			err := wrc.k8sClient.Get(ctx, *secretNamespacedName, secret)
+			if err != nil {
+				continue
+			}
+			userGitToken = secret.StringData["password"]
+			secretCount++
+		}
+	}
+
+	if gitRemoteCount == 0 {
+		return userGitToken, errors.New("no GitRemote found for the current user with this fqdn : " + fqdn)
+	}
+	if gitRemoteCount > 1 {
+		return userGitToken, errors.New("more than one GitRemote found for the current user with this fqdn : " + fqdn)
+	}
+	if secretCount == 0 {
+		return userGitToken, errors.New("no Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
+	}
+	if gitRemoteCount > 1 {
+		return userGitToken, errors.New("more than one Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
+	}
+
+	return userGitToken, nil
+}
+
+func (wrc *WebhookRequestChecker) convertToYaml(details *wrcDetails) error {
 	// Convert the json string object to a yaml string
 	// We have no other choice than extracting the json into a map
 	//  and then convert the map into a yaml string
@@ -159,7 +267,7 @@ func (wrc *WebhookRequestChecker) convertToYaml(details wrcDetails) error {
 	return nil
 }
 
-func (wrc *WebhookRequestChecker) gitPush(details wrcDetails) (bool, error) {
+func (wrc *WebhookRequestChecker) gitPush(details *wrcDetails) (bool, error) {
 	gitPusher := &GitPusher{
 		resourcesInterceptor: *wrc.resourcesInterceptor.DeepCopy(),
 		interceptedYAML:      details.interceptedYAML,
@@ -184,7 +292,7 @@ func (wrc *WebhookRequestChecker) gitPush(details wrcDetails) (bool, error) {
 	return true, nil
 }
 
-func (wrc *WebhookRequestChecker) postcheck(details wrcDetails) bool {
+func (wrc *WebhookRequestChecker) postcheck(details *wrcDetails) bool {
 	// Check the Commit Process mode
 	if wrc.resourcesInterceptor.Spec.CommitProcess == kgiov1.CommitOnly {
 		details.webhookPass = false
