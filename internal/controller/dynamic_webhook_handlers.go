@@ -3,11 +3,9 @@ package controller
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
-	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -15,12 +13,9 @@ import (
 	kgiov1 "dams.kgio/kgio/api/v1"
 	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/yaml"
 )
 
 type WebhookInterceptsAll struct {
@@ -164,8 +159,6 @@ func (s *WebhookInterceptsAll) CreatePathHandler(interceptor kgiov1.ResourcesInt
 
 // ServeHTTP implements the http.Handler interface for PathHandler
 func (dwc *DynamicWebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var log = logf.Log.WithName("resourcesinterceptor-webhook")
-
 	decoder := json.NewDecoder(r.Body)
 	var admissionReviewReq admissionv1.AdmissionReview
 	err := decoder.Decode(&admissionReviewReq)
@@ -174,129 +167,23 @@ func (dwc *DynamicWebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	areTheConditionsChecked := true
-	isTheNameScoped := false
-
-	interceptedYAML := ""
-	interceptedGVR := &schema.GroupVersionResource{}
-	interceptedName := ""
-	if admissionReviewReq.Request != nil {
-		interceptedGVR = (*schema.GroupVersionResource)(admissionReviewReq.Request.RequestResource.DeepCopy())
-
-		interceptedName = admissionReviewReq.Request.Name
-
-		// Check names to see if is allowed
-		names := kgiov1.GetNamesFromGVR(kgiov1.NSRPstoNSRs(dwc.resourcesInterceptor.Spec.IncludedResources), *interceptedGVR)
-		if len(names) > 0 && !slices.Contains(names, interceptedName) {
-			areTheConditionsChecked = false
-		}
-		if len(names) > 0 && slices.Contains(names, interceptedName) {
-			isTheNameScoped = true
-		}
-
-		// Convert the json string object to a yaml string
-		// We have no other choice than extracting the json into a map
-		//  and then convert the map into a yaml string
-		// Because the 'map' object is, by definition, not ordered
-		//  we cannot reorder fields
-
-		var data map[string]interface{}
-		err := json.Unmarshal(admissionReviewReq.Request.Object.Raw, &data)
-		if err != nil {
-			fmt.Println("Error:", err)
-			return
-		}
-
-		// Paths to remove
-		paths := dwc.resourcesInterceptor.Spec.ExcludedFields
-
-		// Remove unwanted fields
-		for _, path := range paths {
-			ExcludedFieldsFromJson(data, path)
-		}
-
-		// Marshal back to YAML
-		updatedYAML, err := yaml.Marshal(data)
-		if err != nil {
-			panic(err)
-		}
-
-		interceptedYAML = string(updatedYAML)
+	wrc := &WebhookRequestChecker{
+		admReview:            admissionReviewReq,
+		resourcesInterceptor: dwc.resourcesInterceptor,
 	}
 
-	// Context variables
-	var isAllowed = true
-	var isGitPushed = false
-	var gitRepoPath = ""
-	var gitCommitHash = "res.commitHash"
+	admResponse := wrc.ProcessSteps()
 
-	if dwc.resourcesInterceptor.Spec.CommitProcess == kgiov1.CommitOnly {
-		isAllowed = false
-	}
-
-	// Admission response variables
-	var admStatus = "Failure"
-	var defaultBlockedMessage = "Webhook server error. The changes have not been pushed to the remote git repository."
-
-	// Push the changes
-	if areTheConditionsChecked {
-		gitPusher := &GitPusher{
-			resourcesInterceptor: *dwc.resourcesInterceptor.DeepCopy(),
-			interceptedYAML:      interceptedYAML,
-			interceptedGVR:       *interceptedGVR,
-			interceptedName:      interceptedName,
-			isTheNameScoped:      isTheNameScoped,
-		}
-		res, err := gitPusher.push()
-		if err != nil {
-			defaultBlockedMessage = err.Error() + " The changes have not been pushed to the remote git repository."
-		}
-		if res.commitHash != "" {
-			isGitPushed = true
-		}
-		gitRepoPath = res.path
-		gitCommitHash = res.commitHash
-	}
-
-	if isGitPushed {
-		admStatus = "Success"
-		if dwc.resourcesInterceptor.Spec.DefaultBlockAppliedMessage != "" {
-			defaultBlockedMessage = dwc.resourcesInterceptor.Spec.DefaultBlockAppliedMessage
-		} else {
-			defaultBlockedMessage = "The changes were correctly been pushed on the remote git repository."
-		}
-	}
-
-	admissionReviewResp := admissionv1.AdmissionReview{
-		Response: &admissionv1.AdmissionResponse{
-			UID:     admissionReviewReq.DeepCopy().Request.UID,
-			Allowed: isAllowed,
-			Result: &v1.Status{
-				Status:  admStatus,
-				Message: defaultBlockedMessage,
-			},
-			AuditAnnotations: map[string]string{
-				"kgio-git-repo-fqdn":   dwc.resourcesInterceptor.Spec.RemoteRepository,
-				"kgio-git-repo-path":   gitRepoPath,
-				"kgio-git-commit-hash": gitCommitHash,
-			},
-		},
-	}
-	admissionReviewResp.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "admission.k8s.io",
-		Version: "v1",
-		Kind:    "AdmissionReview",
-	})
-	resp, err := json.Marshal(admissionReviewResp)
+	resp, err := json.Marshal(admResponse)
 	if err != nil {
-		log.Error(err, "Failed to marshal admission review response")
+		http.Error(w, "Failed to marshal admission review response", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(resp)
 	if err != nil {
-		log.Error(err, "Failed to write admission review response")
+		http.Error(w, "Failed to write admission review response", http.StatusInternalServerError)
 		return
 	}
 }

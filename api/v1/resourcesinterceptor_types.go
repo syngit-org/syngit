@@ -377,7 +377,8 @@ func NSRPstoNSRs(nsrps []NamespaceScopedResourcesPath) []NamespaceScopedResource
 func GetPathFromGVRN(gvrnpGivenList []NamespaceScopedResourcesPath, gvrnGiven GroupVersionResourceName) string {
 	gvrnps := parsegvrnpList(gvrnpGivenList)
 	for _, gvrnp := range gvrnps {
-		if *gvrnp.GroupVersionResource == *gvrnGiven.GroupVersionResource && gvrnp.Name == gvrnGiven.Name {
+		// if *gvrnp.GroupVersionResource == *gvrnGiven.GroupVersionResource && gvrnp.Name == gvrnGiven.Name {
+		if *gvrnp.GroupVersionResource == *gvrnGiven.GroupVersionResource {
 			return gvrnp.RepoPath
 		}
 	}

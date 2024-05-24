@@ -12,7 +12,6 @@ type GitPusher struct {
 	interceptedYAML      string
 	interceptedGVR       schema.GroupVersionResource
 	interceptedName      string
-	isTheNameScoped      bool
 }
 
 type GitPushResponse struct {
@@ -20,23 +19,16 @@ type GitPushResponse struct {
 	commitHash string // The commit hash of the commit
 }
 
-func (gp *GitPusher) push() (GitPushResponse, error) {
+func (gp *GitPusher) Push() (GitPushResponse, error) {
 	gpResponse := &GitPushResponse{path: "", commitHash: ""}
 
-	name := ""
-	if gp.isTheNameScoped {
-		name = gp.interceptedName
-	}
 	gvr := gp.interceptedGVR
 	gvrn := &kgiov1.GroupVersionResourceName{
 		GroupVersionResource: &gvr,
-		Name:                 name,
 	}
 
-	repoPath := kgiov1.GetPathFromGVRN(gp.resourcesInterceptor.Spec.IncludedResources, *gvrn.DeepCopy())
-
-	fmt.Println("LE PATH:")
-	fmt.Println(repoPath)
+	tempPath := kgiov1.GetPathFromGVRN(gp.resourcesInterceptor.Spec.IncludedResources, *gvrn.DeepCopy())
+	fmt.Println(tempPath)
 
 	return *gpResponse, nil
 }
