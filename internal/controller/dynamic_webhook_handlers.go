@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -173,8 +174,26 @@ func (dwc *DynamicWebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	areTheConditionsChecked := true
+	isTheNameScoped := false
+
 	interceptedYAML := ""
+	interceptedGVR := &schema.GroupVersionResource{}
+	interceptedName := ""
 	if admissionReviewReq.Request != nil {
+		interceptedGVR = (*schema.GroupVersionResource)(admissionReviewReq.Request.RequestResource.DeepCopy())
+
+		interceptedName = admissionReviewReq.Request.Name
+
+		// Check names to see if is allowed
+		names := kgiov1.GetNamesFromGVR(kgiov1.NSRPstoNSRs(dwc.resourcesInterceptor.Spec.IncludedResources), *interceptedGVR)
+		if len(names) > 0 && !slices.Contains(names, interceptedName) {
+			areTheConditionsChecked = false
+		}
+		if len(names) > 0 && slices.Contains(names, interceptedName) {
+			isTheNameScoped = true
+		}
+
 		// Convert the json string object to a yaml string
 		// We have no other choice than extracting the json into a map
 		//  and then convert the map into a yaml string
@@ -193,7 +212,7 @@ func (dwc *DynamicWebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 		// Remove unwanted fields
 		for _, path := range paths {
-			kgiov1.ExcludedFieldsFromJson(data, path)
+			ExcludedFieldsFromJson(data, path)
 		}
 
 		// Marshal back to YAML
@@ -204,11 +223,12 @@ func (dwc *DynamicWebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 		interceptedYAML = string(updatedYAML)
 	}
-	fmt.Println(interceptedYAML)
 
 	// Context variables
 	var isAllowed = true
 	var isGitPushed = false
+	var gitRepoPath = ""
+	var gitCommitHash = "res.commitHash"
 
 	if dwc.resourcesInterceptor.Spec.CommitProcess == kgiov1.CommitOnly {
 		isAllowed = false
@@ -219,17 +239,24 @@ func (dwc *DynamicWebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	var defaultBlockedMessage = "Webhook server error. The changes have not been pushed to the remote git repository."
 
 	// Push the changes
-	gitPusher := &GitPusher{
-		resourcesInterceptor: *dwc.resourcesInterceptor.DeepCopy(),
-		interceptedYAML:      interceptedYAML,
+	if areTheConditionsChecked {
+		gitPusher := &GitPusher{
+			resourcesInterceptor: *dwc.resourcesInterceptor.DeepCopy(),
+			interceptedYAML:      interceptedYAML,
+			interceptedGVR:       *interceptedGVR,
+			interceptedName:      interceptedName,
+			isTheNameScoped:      isTheNameScoped,
+		}
+		res, err := gitPusher.push()
+		if err != nil {
+			defaultBlockedMessage = err.Error() + " The changes have not been pushed to the remote git repository."
+		}
+		if res.commitHash != "" {
+			isGitPushed = true
+		}
+		gitRepoPath = res.path
+		gitCommitHash = res.commitHash
 	}
-	res, err := gitPusher.push()
-	if err != nil {
-		defaultBlockedMessage = err.Error() + " The changes have not been pushed to the remote git repository."
-	}
-
-	var gitRepoPath = res.path
-	var gitCommitHash = res.commitHash
 
 	if isGitPushed {
 		admStatus = "Success"

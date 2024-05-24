@@ -30,4 +30,5 @@ spec:
     - apiGroups: ["", "networking.k8s.io"]
       apiVersions: ["v1"]
       resources: ["configmaps", "ingresses", "pods"]
-      #names: ["secret-basic-auth"]
+      names: ["secret-basic-auth", "git-providers-endpoints"]
+      repoPath: "oui/config"

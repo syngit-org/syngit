@@ -74,26 +74,6 @@ func (nsk *NamespaceScopedKinds) NskToNsr() NamespaceScopedResources {
 	return nsr
 }
 
-type NamespaceScopedResourcesPath struct {
-	APIGroups   []string `json:"apiGroups"`
-	APIVersions []string `json:"apiVersions"`
-	Resources   []string `json:"resources"`
-	// +optional
-	Names []string `json:"names"`
-	// +optional
-	RepoPath string `json:"repoPath"`
-}
-
-func (nsrp *NamespaceScopedResourcesPath) NsrpToNsr() NamespaceScopedResources {
-	nsr := NamespaceScopedResources{
-		APIGroups:   nsrp.APIGroups,
-		APIVersions: nsrp.APIVersions,
-		Resources:   nsrp.Resources,
-		Names:       nsrp.Names,
-	}
-	return nsr
-}
-
 type NamespaceScopedResources struct {
 	APIGroups   []string `json:"apiGroups"`
 	APIVersions []string `json:"apiVersions"`
@@ -342,91 +322,113 @@ func NSKstoNSRs(nsks []NamespaceScopedKinds) []NamespaceScopedResources {
 	return nsrs
 }
 
+func GetNamesFromGVR(gvrnGivenList []NamespaceScopedResources, gvr schema.GroupVersionResource) []string {
+	names := make([]string, 0)
+	for _, gvrn := range ParsegvrnList(gvrnGivenList) {
+		if *gvrn.GroupVersionResource == gvr && gvrn.Name != "" {
+			names = append(names, gvrn.Name)
+		}
+	}
+	return names
+}
+
+/*
+
+
+	TEMP DEMO
+
+
+*/
+
+type NamespaceScopedResourcesPath struct {
+	APIGroups   []string `json:"apiGroups"`
+	APIVersions []string `json:"apiVersions"`
+	Resources   []string `json:"resources"`
+	// +optional
+	Names []string `json:"names"`
+	// +optional
+	RepoPath string `json:"repoPath"`
+}
+
+type GroupVersionResourceNamePath struct {
+	*schema.GroupVersionResource
+	Name     string
+	RepoPath string
+}
+
+func (nsrp *NamespaceScopedResourcesPath) nsrpToNsr() NamespaceScopedResources {
+	nsr := NamespaceScopedResources{
+		APIGroups:   nsrp.APIGroups,
+		APIVersions: nsrp.APIVersions,
+		Resources:   nsrp.Resources,
+		Names:       nsrp.Names,
+	}
+	return nsr
+}
+
 func NSRPstoNSRs(nsrps []NamespaceScopedResourcesPath) []NamespaceScopedResources {
 	nsrs := []NamespaceScopedResources{}
 	for _, nsrp := range nsrps {
-		nsrs = append(nsrs, nsrp.NsrpToNsr())
+		nsrs = append(nsrs, nsrp.nsrpToNsr())
 	}
 	return nsrs
 }
 
-// Remove the specified path from the json object
-// Path examples :
+func GetPathFromGVRN(gvrnpGivenList []NamespaceScopedResourcesPath, gvrnGiven GroupVersionResourceName) string {
+	gvrnps := parsegvrnpList(gvrnpGivenList)
+	for _, gvrnp := range gvrnps {
+		if *gvrnp.GroupVersionResource == *gvrnGiven.GroupVersionResource && gvrnp.Name == gvrnGiven.Name {
+			return gvrnp.RepoPath
+		}
+	}
+	return ""
+}
 
-//  test1.test2
-//  test1:
-//    test2: value
+func parsegvrnpList(gvrnpGivenList []NamespaceScopedResourcesPath) []GroupVersionResourceNamePath {
+	gvrnpSet := make(map[GroupVersionResourceNamePath]bool)
+	names := make([]string, 0)
+	var gvrnpList []GroupVersionResourceNamePath
 
-//  .test3
-//  test3: value
-
-//  test7
-//  test7: value
-
-// .test4[this.string-is:the/same*key]test5[test6]
-/*
-    test4:
-	  "this.string-is:the/same*key":
-	    test5:
-	      test6: value
-*/
-func ExcludedFieldsFromJson(data map[string]interface{}, path string) {
-	parts := make([]string, 0)
-
-	var current string
-	inBrackets := false
-	for _, char := range path {
-		switch char {
-		case '.':
-			if !inBrackets {
-				if current != "" {
-					parts = append(parts, current)
+	for _, gvrnpGiven := range gvrnpGivenList {
+		if len(gvrnpGiven.Names) != 0 {
+			names = make([]string, 0)
+			names = append(names, gvrnpGiven.Names...)
+		}
+		for _, group := range gvrnpGiven.APIGroups {
+			for _, version := range gvrnpGiven.APIVersions {
+				for _, resource := range gvrnpGiven.Resources {
+					if len(names) != 0 {
+						for _, name := range names {
+							gvrnp := GroupVersionResourceNamePath{
+								GroupVersionResource: &schema.GroupVersionResource{
+									Group:    group,
+									Version:  version,
+									Resource: resource,
+								},
+								Name:     name,
+								RepoPath: gvrnpGiven.RepoPath,
+							}
+							gvrnpSet[gvrnp] = true
+						}
+					} else {
+						gvr := GroupVersionResourceNamePath{
+							GroupVersionResource: &schema.GroupVersionResource{
+								Group:    group,
+								Version:  version,
+								Resource: resource,
+							},
+							RepoPath: gvrnpGiven.RepoPath,
+						}
+						gvrnpSet[gvr] = true
+					}
 				}
-				current = ""
-			} else {
-				current += string(char)
 			}
-		case '[':
-			inBrackets = true
-			if current != "" {
-				parts = append(parts, current)
-			}
-			current = ""
-		case ']':
-			inBrackets = false
-			if current != "" {
-				parts = append(parts, current)
-			}
-			current = ""
-		default:
-			current += string(char)
 		}
 	}
-	if current != "" {
-		parts = append(parts, current)
-	}
-	last := len(parts) - 1
 
-	// Traverse the map based on the path
-	for i, part := range parts {
-		if i == last {
-			// Last part of the path, delete the field
-			delete(data, part)
-			return
-		}
-		// Move to the next level of the map
-		val, ok := data[part]
-		if !ok {
-			// Path not found
-			return
-		}
-		// Check if the value is a map
-		next, ok := val.(map[string]interface{})
-		if !ok {
-			// Not a map, cannot traverse further
-			return
-		}
-		// Update data for next iteration
-		data = next
+	for gvrn := range gvrnpSet {
+		gvrnpList = append(gvrnpList, gvrn)
 	}
+
+	return gvrnpList
 }
