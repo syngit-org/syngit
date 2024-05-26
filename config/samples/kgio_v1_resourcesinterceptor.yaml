@@ -17,6 +17,9 @@ spec:
     - CREATE
     - UPDATE
     - DELETE
+  bypassInterceptionSubjects:
+    #- name: kubernetes-admin
+    #  kind: User
   authorizedUsers:
     - name: gituserbinding-sample
   defaultUnauthorizedUserMode: Block
@@ -31,4 +34,5 @@ spec:
       apiVersions: ["v1"]
       resources: ["configmaps", "ingresses", "pods"]
       names: ["secret-basic-auth", "git-providers-endpoints"]
+
       repoPath: "oui/config"

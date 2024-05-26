@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/url"
 	"slices"
 
@@ -61,27 +60,43 @@ func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
 		return wrc.responseConstructor(rDetails)
 	}
 
-	// STEP 2 : Check if the request can be proceded
-	processAllowed, err := wrc.processAllowed(&rDetails)
+	// STEP 2 : Check if the request contains the right resources
+	processAllowed, err := wrc.containsResources(&rDetails)
 	rDetails.processPass = processAllowed
 	if err != nil {
 		return wrc.responseConstructor(rDetails)
 	}
 
-	// STEP 3 : Convert the request to get the yaml of the object
+	// STEP 3 : Check if is bypass user (SA of argo, flux, etc..)
+	isBypassUser, err := wrc.isBypassSubject(&rDetails)
+	if err != nil {
+		return wrc.responseConstructor(rDetails)
+	}
+	if isBypassUser {
+		return wrc.letPassRequest(&rDetails)
+	}
+
+	// STEP 4 : Check the user's rights
+	processAllowed, err = wrc.userAllowed(&rDetails)
+	rDetails.processPass = processAllowed
+	if err != nil {
+		return wrc.responseConstructor(rDetails)
+	}
+
+	// STEP 5 : Convert the request to get the yaml of the object
 	err = wrc.convertToYaml(&rDetails)
 	if err != nil {
 		return wrc.responseConstructor(rDetails)
 	}
 
-	// STEP 4 : Git push
+	// STEP 6 : Git push
 	isPushed, err := wrc.gitPush(&rDetails)
 	rDetails.processPass = isPushed
 	if err != nil {
 		return wrc.responseConstructor(rDetails)
 	}
 
-	// STEP 5 : Post checking
+	// STEP 7 : Post checking
 	wrc.postcheck(&rDetails)
 
 	return wrc.responseConstructor(rDetails)
@@ -108,7 +123,7 @@ func (wrc *WebhookRequestChecker) retrieveRequestDetails() (wrcDetails, error) {
 	return *details, nil
 }
 
-func (wrc *WebhookRequestChecker) processAllowed(details *wrcDetails) (bool, error) {
+func (wrc *WebhookRequestChecker) containsResources(details *wrcDetails) (bool, error) {
 
 	// Check if the incoming object is part of the specified names in the included resources
 	includedNames := kgiov1.GetNamesFromGVR(kgiov1.NSRPstoNSRs(wrc.resourcesInterceptor.Spec.IncludedResources), details.interceptedGVR)
@@ -126,6 +141,10 @@ func (wrc *WebhookRequestChecker) processAllowed(details *wrcDetails) (bool, err
 		return false, errors.New(errMsg)
 	}
 
+	return true, nil
+}
+
+func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error) {
 	// Check if the user can push (and so, create the resource)
 	incomingUser := wrc.admReview.Request.UserInfo
 	u, err := url.Parse(wrc.resourcesInterceptor.Spec.RemoteRepository)
@@ -176,7 +195,6 @@ func (wrc *WebhookRequestChecker) processAllowed(details *wrcDetails) (bool, err
 	}
 
 	details.gitToken = userGitToken
-	fmt.Println(userGitToken)
 
 	return true, nil
 }
@@ -229,6 +247,36 @@ func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, f
 	}
 
 	return userGitToken, nil
+}
+
+func (wrc *WebhookRequestChecker) isBypassSubject(details *wrcDetails) (bool, error) {
+	incomingUser := wrc.admReview.Request.UserInfo
+	isBypassSubject := false
+
+	userCountLoop := 0 // Prevent non-unique name attack
+	for _, subject := range wrc.resourcesInterceptor.Spec.BypassInterceptionSubjects {
+		// The subject name can not be unique -> in specific conditions, a commit can be done as another user
+		// Need to be studied
+		if subject.Name == incomingUser.Username {
+			isBypassSubject = true
+			userCountLoop++
+		}
+	}
+
+	if userCountLoop > 1 {
+		const errMsg = "the name of the user is not unique; this version of the operator work with the name as unique identifier for users"
+		details.messageAddition = errMsg
+		return isBypassSubject, errors.New(errMsg)
+	}
+
+	return isBypassSubject, nil
+}
+
+func (wrc *WebhookRequestChecker) letPassRequest(details *wrcDetails) admissionv1.AdmissionReview {
+	details.webhookPass = true
+	details.messageAddition = "this user bypass the process"
+
+	return wrc.responseConstructor(*details)
 }
 
 func (wrc *WebhookRequestChecker) convertToYaml(details *wrcDetails) error {
