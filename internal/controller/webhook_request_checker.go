@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 	"slices"
 
@@ -183,7 +184,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 		}
 	}
 
-	if userCountLoop == 0 || userGitToken == "" {
+	if userCountLoop == 0 {
 		errMsg := "no GitUserBinding found for the user " + incomingUser.Username
 		details.messageAddition = errMsg
 		return false, errors.New(errMsg)
@@ -195,6 +196,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	}
 
 	details.gitToken = userGitToken
+	fmt.Println(userGitToken)
 
 	return true, nil
 }
@@ -228,7 +230,7 @@ func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, f
 			if err != nil {
 				continue
 			}
-			userGitToken = secret.StringData["password"]
+			userGitToken = string(secret.Data["password"])
 			secretCount++
 		}
 	}
@@ -244,6 +246,9 @@ func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, f
 	}
 	if gitRemoteCount > 1 {
 		return userGitToken, errors.New("more than one Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
+	}
+	if userGitToken == "" {
+		return userGitToken, errors.New("no token found in the secret; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth")
 	}
 
 	return userGitToken, nil

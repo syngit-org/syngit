@@ -10,7 +10,7 @@ metadata:
   name: resourcesinterceptor-sample
   namespace: test
 spec:
-  remoteRepository: https://damiendassieu.fr
+  remoteRepository: https://gitlab.com/dassieu.damien/kgio-demo
   commitMode: Commit
   commitProcess: CommitOnly
   operations:
