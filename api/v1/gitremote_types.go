@@ -25,6 +25,8 @@ import (
 type GitRemoteSpec struct {
 	SecretRef corev1.SecretReference `json:"secretRef"`
 
+	Email string `json:"email"`
+
 	GitBaseDomainFQDN string `json:"gitBaseDomainFQDN"`
 
 	// +optional

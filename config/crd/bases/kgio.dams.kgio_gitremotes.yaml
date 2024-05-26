@@ -49,6 +49,8 @@ spec:
                 - authentication
                 - fqdn
                 type: object
+              email:
+                type: string
               gitBaseDomainFQDN:
                 type: string
               gitProvider:
@@ -71,6 +73,7 @@ spec:
               testAuthentication:
                 type: boolean
             required:
+            - email
             - gitBaseDomainFQDN
             - secretRef
             type: object

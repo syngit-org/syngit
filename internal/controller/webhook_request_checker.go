@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/url"
 	"slices"
 
@@ -36,6 +35,8 @@ type wrcDetails struct {
 	repoFQDN   string
 	repoPath   string
 	commitHash string
+	gitUser    string
+	gitEmail   string
 	gitToken   string
 }
 
@@ -159,6 +160,8 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	ctx := context.Background()
 
 	userGitToken := ""
+	userGitEmail := ""
+	userGitName := ""
 	userCountLoop := 0 // Prevent non-unique name attack
 	for _, ref := range wrc.resourcesInterceptor.Spec.AuthorizedUsers {
 		namespacedName := &types.NamespacedName{
@@ -174,7 +177,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 		// The subject name can not be unique -> in specific conditions, a commit can be done as another user
 		// Need to be studied
 		if gitUserBinding.Spec.Subject.Name == incomingUser.Username {
-			userGitToken, err = wrc.searchForGitToken(*gitUserBinding, fqdn)
+			userGitName, userGitEmail, userGitToken, err = wrc.searchForGitToken(*gitUserBinding, fqdn)
 			if err != nil {
 				errMsg := err.Error()
 				details.messageAddition = errMsg
@@ -196,13 +199,17 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	}
 
 	details.gitToken = userGitToken
-	fmt.Println(userGitToken)
+	details.gitUser = userGitName
+	details.gitEmail = userGitEmail
 
 	return true, nil
 }
 
-func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, fqdn string) (string, error) {
+func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, fqdn string) (string, string, string, error) {
 	userGitToken := ""
+	userGitName := ""
+	userGitEmail := ""
+
 	gitRemoteCount := 0
 	secretCount := 0
 	ctx := context.Background()
@@ -230,28 +237,31 @@ func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, f
 			if err != nil {
 				continue
 			}
+			userGitName = string(secret.Data["username"])
 			userGitToken = string(secret.Data["password"])
 			secretCount++
+
+			userGitEmail = gitRemote.Spec.Email
 		}
 	}
 
 	if gitRemoteCount == 0 {
-		return userGitToken, errors.New("no GitRemote found for the current user with this fqdn : " + fqdn)
+		return userGitName, userGitEmail, userGitToken, errors.New("no GitRemote found for the current user with this fqdn : " + fqdn)
 	}
 	if gitRemoteCount > 1 {
-		return userGitToken, errors.New("more than one GitRemote found for the current user with this fqdn : " + fqdn)
+		return userGitName, userGitEmail, userGitToken, errors.New("more than one GitRemote found for the current user with this fqdn : " + fqdn)
 	}
 	if secretCount == 0 {
-		return userGitToken, errors.New("no Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
+		return userGitName, userGitEmail, userGitToken, errors.New("no Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
 	}
 	if gitRemoteCount > 1 {
-		return userGitToken, errors.New("more than one Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
+		return userGitName, userGitEmail, userGitToken, errors.New("more than one Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
 	}
 	if userGitToken == "" {
-		return userGitToken, errors.New("no token found in the secret; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth")
+		return userGitName, userGitEmail, userGitToken, errors.New("no token found in the secret; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth")
 	}
 
-	return userGitToken, nil
+	return userGitName, userGitEmail, userGitToken, nil
 }
 
 func (wrc *WebhookRequestChecker) isBypassSubject(details *wrcDetails) (bool, error) {
@@ -326,6 +336,9 @@ func (wrc *WebhookRequestChecker) gitPush(details *wrcDetails) (bool, error) {
 		interceptedYAML:      details.interceptedYAML,
 		interceptedGVR:       details.interceptedGVR,
 		interceptedName:      details.interceptedName,
+		gitUser:              details.gitUser,
+		gitEmail:             details.gitEmail,
+		gitToken:             details.gitToken,
 	}
 	res, err := gitPusher.Push()
 	if err != nil {

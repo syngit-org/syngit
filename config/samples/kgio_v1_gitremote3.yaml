@@ -13,5 +13,6 @@ spec:
   gitBaseDomainFQDN: "gitlab.com"
   testAuthentication: true
   gitProvider: "gitlab"
+  email: damien.dassieu@orange.com
   secretRef:
     name: secret-basic-auth1
