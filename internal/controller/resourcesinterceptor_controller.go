@@ -39,6 +39,7 @@ type ResourcesInterceptorReconciler struct {
 	Scheme        *runtime.Scheme
 	webhookServer WebhookInterceptsAll
 	Namespace     string
+	Dev           bool
 }
 
 //+kubebuilder:rbac:groups=kgio.dams.kgio,resources=resourcesinterceptors,verbs=get;list;watch;create;update;patch;delete
@@ -79,20 +80,36 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	// When ri reconciled, then create a path handled by the dynamic webhook server
 	r.webhookServer.CreatePathHandler(resourcesInterceptor, webhookPath)
 
-	// The service is located in the manager/controller namespace
-	// serviceName := "resources-interceptor-webhook"
-	// operatorNamespace := r.Namespace
-	url := "https://172.17.0.1:9444" + webhookPath
-
 	// Read the content of the certificate file
 	caCert, err := os.ReadFile("/tmp/k8s-webhook-server/serving-certs/tls.crt")
 	if err != nil {
 		log.Log.Error(err, "failed to read the cert file /tmp/k8s-webhook-server/serving-certs/tls.crt")
 		panic(err) // handle error if unable to read file
 	}
-	webhookObjectName := "resourcesinterceptor.kgio.com"
+
+	// The service is located in the manager/controller namespace
+	serviceName := "resources-interceptor-webhook"
+	operatorNamespace := r.Namespace
+	clientConfig := admissionv1.WebhookClientConfig{
+		Service: &admissionv1.ServiceReference{
+			Name:      serviceName,
+			Namespace: operatorNamespace,
+			Path:      &webhookPath,
+		},
+		CABundle: caCert,
+	}
+
+	// Development mode
+	if r.Dev {
+		url := "https://172.17.0.1:9444" + webhookPath
+		clientConfig = admissionv1.WebhookClientConfig{
+			URL:      &url,
+			CABundle: caCert,
+		}
+	}
 
 	// Create the webhook specs for this specific RI
+	webhookObjectName := "resourcesinterceptor.kgio.com"
 	var sideEffectsNone = admissionv1.SideEffectClassNone
 	webhookSpecificName := rIName + ".kgio.com"
 
@@ -108,15 +125,7 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 				AdmissionReviewVersions: []string{"v1"},
 				SideEffects:             &sideEffectsNone,
 				Rules:                   nsrListToRuleList(kgiov1.NSRPstoNSRs(resourcesInterceptor.Spec.IncludedResources), resourcesInterceptor.Spec.DeepCopy().Operations),
-				ClientConfig: admissionv1.WebhookClientConfig{
-					// Service: &admissionv1.ServiceReference{
-					// 	Name:      serviceName,
-					// 	Namespace: operatorNamespace,
-					// 	Path:      &webhookPath,
-					// },
-					URL:      &url,
-					CABundle: caCert,
-				},
+				ClientConfig:            clientConfig,
 				NamespaceSelector: &v1.LabelSelector{
 					MatchLabels: map[string]string{"kubernetes.io/metadata.name": rINamespace},
 				},
@@ -197,7 +206,12 @@ func nsrListToRuleList(nsrList []kgiov1.NamespaceScopedResources, operations []a
 func (r *ResourcesInterceptorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	managerNamespace := os.Getenv("MANAGER_NAMESPACE")
+	dev := os.Getenv("DEV")
 	r.Namespace = managerNamespace
+	r.Dev = false
+	if dev == "true" {
+		r.Dev = true
+	}
 
 	// Initialize the webhookServer
 	r.webhookServer = WebhookInterceptsAll{
