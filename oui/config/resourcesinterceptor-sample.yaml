@@ -1,0 +1,17 @@
+apiVersion: v1
+data:
+  bitbucket: |
+    fqdn: bitbucket.org
+    authentication: https://api.bitbucket.org/2.0/user
+  github: |
+    fqdn: github.com
+    authentication: https://api.github.com/user1
+  gitlab: |
+    fqdn: gitlab.com
+    authentication: https://gitlab.com/api/v4/user
+kind: ConfigMap
+metadata:
+  annotations: {}
+  name: git-providers-endpoints
+  namespace: test
+  uid: 59bfa48c-ef7c-46a8-bb01-dd0188a8203d

@@ -104,6 +104,8 @@ spec:
                   x-kubernetes-map-type: atomic
                 minItems: 1
                 type: array
+              branch:
+                type: string
               bypassInterceptionSubjects:
                 items:
                   description: |-
@@ -273,6 +275,7 @@ spec:
                 type: string
             required:
             - authorizedUsers
+            - branch
             - commitMode
             - commitProcess
             - defaultUnauthorizedUserMode

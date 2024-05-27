@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-git/go-billy/v5/memfs"
 	git "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
@@ -22,6 +24,7 @@ type GitPusher struct {
 	interceptedYAML      string
 	interceptedGVR       schema.GroupVersionResource
 	interceptedName      string
+	branch               string
 	gitUser              string
 	gitEmail             string
 	gitToken             string
@@ -34,14 +37,17 @@ type GitPushResponse struct {
 
 func (gp *GitPusher) Push() (GitPushResponse, error) {
 	gpResponse := &GitPushResponse{path: "", commitHash: ""}
+	gp.branch = gp.resourcesInterceptor.Spec.Branch
 
 	// Clone the repository into memory
-	repo, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
-		URL: gp.resourcesInterceptor.Spec.RemoteRepository,
+	repo, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+		URL:           gp.resourcesInterceptor.Spec.RemoteRepository,
+		ReferenceName: plumbing.ReferenceName(gp.branch),
 		Auth: &http.BasicAuth{
 			Username: gp.gitUser,
 			Password: gp.gitToken,
 		},
+		SingleBranch: true,
 	})
 	if err != nil {
 		errMsg := "failed to clone repository: " + err.Error()
@@ -62,20 +68,24 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 	}
 
 	// STEP 2 : Write the file
-	fullFilePath, err := gp.writeFile(path, fileInfo)
+	fullFilePath, err := gp.writeFile(path, &fileInfo, w)
 	gpResponse.path = fullFilePath
 	if err != nil {
 		return *gpResponse, err
 	}
 
 	// STEP 3 : Commit the changes
-	commitHash, err := gp.commitChanges(w, fullFilePath)
+	commitHash, err := gp.commitChanges(repo, fullFilePath)
 	gpResponse.commitHash = commitHash
 	if err != nil {
 		return *gpResponse, err
 	}
 
 	// STEP 4 : Push the changes
+	err = gp.pushChanges(repo)
+	if err != nil {
+		return *gpResponse, err
+	}
 
 	return *gpResponse, nil
 }
@@ -90,6 +100,7 @@ func (gp *GitPusher) pathConstructor() (string, fs.FileInfo, error) {
 
 	if tempPath == "" {
 		tempPath = gvr.Group + "/" + gvr.Version + "/" + gvr.Resource + "/" + gp.interceptedName + ".yaml"
+		tempPath = tempPath[1:]
 	}
 
 	path, err := gp.validatePath(tempPath)
@@ -103,7 +114,7 @@ func (gp *GitPusher) pathConstructor() (string, fs.FileInfo, error) {
 			pathDir := path
 
 			// If the end of the path ends with .yaml or .yml
-			pathDir, _ = gp.getFileDirName(path)
+			pathDir, _ = gp.getFileDirName(path, "")
 
 			// Path does not exist, create the directory structure
 			err = os.MkdirAll(pathDir, 0755)
@@ -121,7 +132,8 @@ func (gp *GitPusher) pathConstructor() (string, fs.FileInfo, error) {
 func (gp *GitPusher) validatePath(path string) (string, error) {
 	// Validate and clean the path
 	cleanPath := filepath.Clean(path)
-	if !filepath.IsAbs(path) || !gp.containsInvalidCharacters(path) {
+	// !filepath.IsAbs(cleanPath) test absolute path ?
+	if gp.containsInvalidCharacters(cleanPath) {
 		return path, errors.New("the path is not valid")
 	}
 
@@ -140,8 +152,11 @@ func (gp *GitPusher) containsInvalidCharacters(path string) bool {
 	return false
 }
 
-func (gp *GitPusher) getFileDirName(path string) (string, string) {
+func (gp *GitPusher) getFileDirName(path string, filename string) (string, string) {
 	pathArr := strings.Split(path, "/")
+	if filename == "" {
+		return path + "/", gp.resourcesInterceptor.Name + ".yaml"
+	}
 	if strings.Contains(pathArr[len(pathArr)-1], ".yaml") || strings.Contains(pathArr[len(pathArr)-1], ".yml") {
 		filename := pathArr[len(pathArr)-1]
 		pathArr := pathArr[:len(pathArr)-1]
@@ -150,37 +165,58 @@ func (gp *GitPusher) getFileDirName(path string) (string, string) {
 	return strings.Join(pathArr, "/"), gp.resourcesInterceptor.Name + ".yaml"
 }
 
-func (gp *GitPusher) writeFile(path string, fileInfo fs.FileInfo) (string, error) {
+func (gp *GitPusher) writeFile(path string, fileInfo *fs.FileInfo, w *git.Worktree) (string, error) {
 	fullFilePath := path
+	fInfo := *fileInfo
+	dir := ""
+	fileName := ""
 
-	if fileInfo.IsDir() {
-		fullFilePath = path + gp.interceptedName + ".yaml"
+	if fInfo.IsDir() {
+		dir, fileName = gp.getFileDirName(fullFilePath, gp.interceptedName+".yaml")
+		fullFilePath = filepath.Join(dir, fileName)
 	} else {
-		d, f := gp.getFileDirName(path)
-		fullFilePath = filepath.Join(d, f)
+		dir, fileName = gp.getFileDirName(path, "")
+		fullFilePath = filepath.Join(dir, fileName)
 	}
-
-	dir, fileName := gp.getFileDirName(fullFilePath)
 	content := []byte(gp.interceptedYAML)
-	err := os.WriteFile(fullFilePath, content, 0644)
+
+	file, err := w.Filesystem.Create(fullFilePath)
 	if err != nil {
-		errMsg := "failed to create " + fileName + " in the directory " + dir + "; " + err.Error()
+		errMsg := "failed to create file: " + err.Error()
 		return fullFilePath, errors.New(errMsg)
 	}
+	_, err = file.Write(content)
+	if err != nil {
+		errMsg := "failed to write to file" + err.Error()
+		return fullFilePath, errors.New(errMsg)
+	}
+	file.Close()
+
+	// err := os.WriteFile(fullFilePath, content, 0644)
+	// if err != nil {
+	// 	errMsg := "failed to create " + fileName + " in the directory " + dir + "; " + err.Error()
+	// 	return fullFilePath, errors.New(errMsg)
+	// }
 
 	return fullFilePath, nil
 }
 
-func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string) (string, error) {
+func (gp *GitPusher) commitChanges(repo *git.Repository, pathToAdd string) (string, error) {
+	w, err := repo.Worktree()
+	if err != nil {
+		errMsg := "failed to get worktree: " + err.Error()
+		return "", errors.New(errMsg)
+	}
+
 	// Add the file to the staging area
-	_, err := w.Add(pathToAdd)
+	_, err = w.Add(pathToAdd)
 	if err != nil {
 		errMsg := "failed to add file to staging area: " + err.Error()
 		return "", errors.New(errMsg)
 	}
 
 	// Commit the changes
-	commit, err := w.Commit("Add or modify file", &git.CommitOptions{
+	commit, err := w.Commit("Add or modify "+gp.interceptedGVR.Resource+" "+gp.interceptedName, &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  gp.gitUser,
 			Email: gp.gitEmail,
@@ -193,4 +229,19 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string) (string, e
 	}
 
 	return commit.String(), nil
+}
+
+func (gp *GitPusher) pushChanges(repo *git.Repository) error {
+	err := repo.Push(&git.PushOptions{
+		Auth: &http.BasicAuth{
+			Username: gp.gitUser,
+			Password: gp.gitToken,
+		},
+	})
+	if err != nil {
+		errMsg := "failed to push changes: " + err.Error()
+		return errors.New(errMsg)
+	}
+
+	return nil
 }

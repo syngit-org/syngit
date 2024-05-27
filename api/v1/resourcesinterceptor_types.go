@@ -106,6 +106,8 @@ type ResourcesInterceptorSpec struct {
 	// +kubebuilder:validation:Format=uri
 	RemoteRepository string `json:"remoteRepository"`
 
+	Branch string `json:"branch"`
+
 	// +kubebuilder:validation:MinItems=1
 	AuthorizedUsers []corev1.ObjectReference `json:"authorizedUsers"` // Ref to a list of GitUserBinding object
 

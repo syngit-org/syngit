@@ -11,6 +11,7 @@ metadata:
   namespace: test
 spec:
   remoteRepository: https://gitlab.com/dassieu.damien/kgio-demo
+  branch: main
   commitMode: Commit
   commitProcess: CommitOnly
   operations:
@@ -27,12 +28,11 @@ spec:
     - metadata.managedFields
     - metadata.creationTimestamp
     - metadata.annotations.[kubectl.kubernetes.io/last-applied-configuration]
-    - :metadata.uidl
+    - metadata.uid
     - "*oui"
   includedResources:
     - apiGroups: ["", "networking.k8s.io"]
       apiVersions: ["v1"]
       resources: ["configmaps", "ingresses", "pods"]
       names: ["secret-basic-auth", "git-providers-endpoints"]
-
-      repoPath: "oui/config"
+      # repoPath: "oui/config"

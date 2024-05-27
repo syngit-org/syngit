@@ -42,7 +42,7 @@ type wrcDetails struct {
 
 const (
 	defaultFailureMessage = "The changes have not been pushed to the remote git repository:"
-	defaultSuccessMessage = "The changes were correctly been pushed on the remote git repository:"
+	defaultSuccessMessage = "The changes were correctly been pushed on the remote git repository."
 )
 
 type WebhookRequestChecker struct {
@@ -382,7 +382,7 @@ func (wrc *WebhookRequestChecker) responseConstructor(details wrcDetails) admiss
 	// Set the status and the message depending of the status of the webhook
 	status := "Failure"
 	message := defaultFailureMessage
-	if details.webhookPass {
+	if details.processPass || details.webhookPass {
 		status = "Success"
 		message = defaultSuccessMessage
 	}
