@@ -11,7 +11,7 @@ metadata:
   namespace: test
 spec:
   remoteRepository: https://gitlab.com/dassieu.damien/kgio-demo.git
-  branch: main
+  branch: second-main
   commitMode: Commit
   commitProcess: CommitApply
   operations:
@@ -35,4 +35,4 @@ spec:
       apiVersions: ["v1"]
       resources: ["configmaps", "ingresses", "pods"]
       names: ["secret-basic-auth", "git-providers-endpoints"]
-      # repoPath: "oui/config"
+      #repoPath: "oui/config"

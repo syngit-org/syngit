@@ -2,7 +2,6 @@ package controller
 
 import (
 	"errors"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -70,20 +69,20 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 	}
 
 	// STEP 1 : Set the path
-	path, fileInfo, err := gp.pathConstructor()
+	path, err := gp.pathConstructor(w)
 	if err != nil {
 		return *gpResponse, err
 	}
 
 	// STEP 2 : Write the file
-	fullFilePath, err := gp.writeFile(path, &fileInfo, w)
+	fullFilePath, err := gp.writeFile(path, w)
 	gpResponse.path = fullFilePath
 	if err != nil {
 		return *gpResponse, err
 	}
 
 	// STEP 3 : Commit the changes
-	commitHash, err := gp.commitChanges(repo, fullFilePath)
+	commitHash, err := gp.commitChanges(w, fullFilePath)
 	gpResponse.commitHash = commitHash
 	if err != nil {
 		return *gpResponse, err
@@ -98,25 +97,26 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 	return *gpResponse, nil
 }
 
-func (gp *GitPusher) pathConstructor() (string, fs.FileInfo, error) {
+func (gp *GitPusher) pathConstructor(w *git.Worktree) (string, error) {
 	gvr := gp.interceptedGVR
 	gvrn := &kgiov1.GroupVersionResourceName{
 		GroupVersionResource: &gvr,
 	}
 
 	tempPath := kgiov1.GetPathFromGVRN(gp.resourcesInterceptor.Spec.IncludedResources, *gvrn.DeepCopy())
-
 	if tempPath == "" {
-		tempPath = gvr.Group + "/" + gvr.Version + "/" + gvr.Resource + "/" + gp.interceptedName + ".yaml"
+		tempPath = gvr.Group + "/" + gvr.Version + "/" + gvr.Resource
+	}
+	if tempPath[0] == '/' {
 		tempPath = tempPath[1:]
 	}
 
 	path, err := gp.validatePath(tempPath)
 	if err != nil {
-		return tempPath, nil, err
+		return tempPath, err
 	}
 
-	fileInfo, err := os.Stat(path)
+	_, err = w.Filesystem.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			pathDir := path
@@ -125,16 +125,16 @@ func (gp *GitPusher) pathConstructor() (string, fs.FileInfo, error) {
 			pathDir, _ = gp.getFileDirName(path, "")
 
 			// Path does not exist, create the directory structure
-			err = os.MkdirAll(pathDir, 0755)
+			err = w.Filesystem.MkdirAll(pathDir, 0755)
 			if err != nil {
-				return pathDir, nil, err
+				return pathDir, err
 			}
 		} else {
-			return tempPath, nil, err
+			return tempPath, err
 		}
 	}
 
-	return path, fileInfo, nil
+	return path, nil
 }
 
 func (gp *GitPusher) validatePath(path string) (string, error) {
@@ -173,28 +173,24 @@ func (gp *GitPusher) getFileDirName(path string, filename string) (string, strin
 	return strings.Join(pathArr, "/"), gp.resourcesInterceptor.Name + ".yaml"
 }
 
-func (gp *GitPusher) writeFile(path string, fileInfo *fs.FileInfo, w *git.Worktree) (string, error) {
+func (gp *GitPusher) writeFile(path string, w *git.Worktree) (string, error) {
 	fullFilePath := path
-	fInfo := *fileInfo
 	dir := ""
 	fileName := ""
 
-	if fInfo.IsDir() {
+	fileInfo, err := w.Filesystem.Stat(fullFilePath)
+	if err != nil {
+		errMsg := "failed to stat file " + fullFilePath + " : " + err.Error()
+		return fullFilePath, errors.New(errMsg)
+	}
+	if fileInfo.IsDir() {
 		dir, fileName = gp.getFileDirName(fullFilePath, gp.interceptedName+".yaml")
 		fullFilePath = filepath.Join(dir, fileName)
 	} else {
-		dir, fileName = gp.getFileDirName(path, "")
+		dir, fileName = gp.getFileDirName(fullFilePath, "")
 		fullFilePath = filepath.Join(dir, fileName)
 	}
 	content := []byte(gp.interceptedYAML)
-
-	if gp.operation != admissionv1.Create { // It is modified or deleted (not created)
-		err := w.Filesystem.Remove(fullFilePath)
-		if err != nil {
-			errMsg := "failed to delete file: " + err.Error()
-			return fullFilePath, errors.New(errMsg)
-		}
-	}
 
 	if gp.interceptedYAML == "" { // The file has been deleted
 		return fullFilePath, nil
@@ -216,23 +212,18 @@ func (gp *GitPusher) writeFile(path string, fileInfo *fs.FileInfo, w *git.Worktr
 	return fullFilePath, nil
 }
 
-func (gp *GitPusher) commitChanges(repo *git.Repository, pathToAdd string) (string, error) {
-	w, err := repo.Worktree()
-	if err != nil {
-		errMsg := "failed to get worktree: " + err.Error()
-		return "", errors.New(errMsg)
-	}
+func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string) (string, error) {
 	commitMessage := ""
 
 	if gp.interceptedYAML == "" { // The file has been deleted
-		_, err = w.Remove(pathToAdd)
+		_, err := w.Remove(pathToAdd)
 		if err != nil {
 			errMsg := "failed to delete file in staging area: " + err.Error()
 			return "", errors.New(errMsg)
 		}
 		commitMessage = "Delete "
 	} else { // Add the file to the staging area
-		_, err = w.Add(pathToAdd)
+		_, err := w.Add(pathToAdd)
 		if err != nil {
 			errMsg := "failed to add file to staging area: " + err.Error()
 			return "", errors.New(errMsg)
