@@ -42,6 +42,7 @@ type wrcDetails struct {
 	repoPath   string
 	commitHash string
 	gitUser    gitUser
+	remoteConf kgiov1.RemoteConfiguration
 }
 
 const (
@@ -171,6 +172,10 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 		gitEmail: "",
 		gitToken: "",
 	}
+	remoteConf := &kgiov1.RemoteConfiguration{
+		CaBundle:              "",
+		InsecureSkipTlsVerify: false,
+	}
 
 	userCountLoop := 0 // Prevent non-unique name attack
 	for _, ref := range wrc.resourcesInterceptor.Spec.AuthorizedUsers {
@@ -187,7 +192,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 		// The subject name can not be unique -> in specific conditions, a commit can be done as another user
 		// Need to be studied
 		if gitUserBinding.Spec.Subject.Name == incomingUser.Username {
-			gitUser, err = wrc.searchForGitToken(*gitUserBinding, fqdn)
+			remoteConf, gitUser, err = wrc.searchForGitToken(*gitUserBinding, fqdn)
 			if err != nil {
 				errMsg := err.Error()
 				details.messageAddition = errMsg
@@ -209,14 +214,18 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	}
 
 	details.gitUser = *gitUser
+	details.remoteConf = *remoteConf
 
 	return true, nil
 }
 
-func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, fqdn string) (*gitUser, error) {
+func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, fqdn string) (*kgiov1.RemoteConfiguration, *gitUser, error) {
 	userGitName := ""
 	userGitEmail := ""
 	userGitToken := ""
+
+	caBundle := ""
+	skipTLS := false
 
 	gitRemoteCount := 0
 	secretCount := 0
@@ -250,6 +259,9 @@ func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, f
 			secretCount++
 
 			userGitEmail = gitRemote.Spec.Email
+
+			caBundle = gitRemote.Spec.RemoteConfiguration.CaBundle
+			skipTLS = gitRemote.Spec.RemoteConfiguration.InsecureSkipTlsVerify
 		}
 	}
 
@@ -258,24 +270,28 @@ func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, f
 		gitEmail: userGitEmail,
 		gitToken: userGitToken,
 	}
+	remoteConf := &kgiov1.RemoteConfiguration{
+		CaBundle:              caBundle,
+		InsecureSkipTlsVerify: skipTLS,
+	}
 
 	if gitRemoteCount == 0 {
-		return gitUser, errors.New("no GitRemote found for the current user with this fqdn : " + fqdn)
+		return remoteConf, gitUser, errors.New("no GitRemote found for the current user with this fqdn : " + fqdn)
 	}
 	if gitRemoteCount > 1 {
-		return gitUser, errors.New("more than one GitRemote found for the current user with this fqdn : " + fqdn)
+		return remoteConf, gitUser, errors.New("more than one GitRemote found for the current user with this fqdn : " + fqdn)
 	}
 	if secretCount == 0 {
-		return gitUser, errors.New("no Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
+		return remoteConf, gitUser, errors.New("no Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
 	}
 	if gitRemoteCount > 1 {
-		return gitUser, errors.New("more than one Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
+		return remoteConf, gitUser, errors.New("more than one Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
 	}
 	if userGitToken == "" {
-		return gitUser, errors.New("no token found in the secret; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth")
+		return remoteConf, gitUser, errors.New("no token found in the secret; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth")
 	}
 
-	return gitUser, nil
+	return remoteConf, gitUser, nil
 }
 
 func (wrc *WebhookRequestChecker) isBypassSubject(details *wrcDetails) (bool, error) {
@@ -354,6 +370,7 @@ func (wrc *WebhookRequestChecker) gitPush(details *wrcDetails) (bool, error) {
 		gitEmail:             details.gitUser.gitEmail,
 		gitToken:             details.gitUser.gitToken,
 		operation:            wrc.admReview.Request.Operation,
+		remoteConfiguration:  details.remoteConf,
 	}
 	res, err := gitPusher.Push()
 	if err != nil {

@@ -37,6 +37,16 @@ type GitRemoteSpec struct {
 
 	// +optional
 	CustomGitProvider GitProvider `json:"customGitProvider,omitempty"`
+
+	// +optional
+	RemoteConfiguration RemoteConfiguration `json:"remoteConfiguration,omitempty"`
+}
+
+type RemoteConfiguration struct {
+	// +optional
+	CaBundle string `json:"caBundle,omitempty"`
+	// +optional
+	InsecureSkipTlsVerify bool `json:"insecureSkipTlsVerify,omitempty"`
 }
 
 type GitProvider struct {

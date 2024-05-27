@@ -30,6 +30,7 @@ type GitPusher struct {
 	gitEmail             string
 	gitToken             string
 	operation            admissionv1.Operation
+	remoteConfiguration  kgiov1.RemoteConfiguration
 }
 
 type GitPushResponse struct {
@@ -42,15 +43,20 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 	gp.branch = gp.resourcesInterceptor.Spec.Branch
 
 	// Clone the repository into memory
-	repo, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+	cloneOption := &git.CloneOptions{
 		URL:           gp.resourcesInterceptor.Spec.RemoteRepository,
 		ReferenceName: plumbing.ReferenceName(gp.branch),
 		Auth: &http.BasicAuth{
 			Username: gp.gitUser,
 			Password: gp.gitToken,
 		},
-		SingleBranch: true,
-	})
+		SingleBranch:    true,
+		InsecureSkipTLS: gp.remoteConfiguration.InsecureSkipTlsVerify,
+	}
+	if gp.remoteConfiguration.CaBundle != "" {
+		cloneOption.CABundle = []byte(gp.remoteConfiguration.CaBundle)
+	}
+	repo, err := git.Clone(memory.NewStorage(), memfs.New(), cloneOption)
 	if err != nil {
 		errMsg := "failed to clone repository: " + err.Error()
 		return *gpResponse, errors.New(errMsg)

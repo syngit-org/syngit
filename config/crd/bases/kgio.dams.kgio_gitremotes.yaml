@@ -55,6 +55,13 @@ spec:
                 type: string
               gitProvider:
                 type: string
+              remoteConfiguration:
+                properties:
+                  caBundle:
+                    type: string
+                  insecureSkipTlsVerify:
+                    type: boolean
+                type: object
               secretRef:
                 description: |-
                   SecretReference represents a Secret Reference. It has enough information to retrieve secret
