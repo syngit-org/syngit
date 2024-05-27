@@ -264,8 +264,7 @@ spec:
                 type: array
               operations:
                 items:
-                  description: Operation is the type of resource operation being checked
-                    for admission control
+                  description: OperationType specifies an operation for a request.
                   type: string
                 maxItems: 3
                 minItems: 1

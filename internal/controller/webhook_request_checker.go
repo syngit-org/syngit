@@ -17,6 +17,12 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+type gitUser struct {
+	gitUser  string
+	gitEmail string
+	gitToken string
+}
+
 type wrcDetails struct {
 	// Incoming object information
 	interceptedGVR  schema.GroupVersionResource
@@ -35,9 +41,7 @@ type wrcDetails struct {
 	repoFQDN   string
 	repoPath   string
 	commitHash string
-	gitUser    string
-	gitEmail   string
-	gitToken   string
+	gitUser    gitUser
 }
 
 const (
@@ -86,9 +90,13 @@ func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
 	}
 
 	// STEP 5 : Convert the request to get the yaml of the object
-	err = wrc.convertToYaml(&rDetails)
-	if err != nil {
-		return wrc.responseConstructor(rDetails)
+	if wrc.admReview.Request.Operation != admissionv1.Delete {
+		err = wrc.convertToYaml(&rDetails)
+		if err != nil {
+			return wrc.responseConstructor(rDetails)
+		}
+	} else {
+		rDetails.interceptedYAML = ""
 	}
 
 	// STEP 6 : Git push
@@ -158,10 +166,12 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 
 	fqdn := u.Host
 	ctx := context.Background()
+	gitUser := &gitUser{
+		gitUser:  "",
+		gitEmail: "",
+		gitToken: "",
+	}
 
-	userGitToken := ""
-	userGitEmail := ""
-	userGitName := ""
 	userCountLoop := 0 // Prevent non-unique name attack
 	for _, ref := range wrc.resourcesInterceptor.Spec.AuthorizedUsers {
 		namespacedName := &types.NamespacedName{
@@ -177,7 +187,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 		// The subject name can not be unique -> in specific conditions, a commit can be done as another user
 		// Need to be studied
 		if gitUserBinding.Spec.Subject.Name == incomingUser.Username {
-			userGitName, userGitEmail, userGitToken, err = wrc.searchForGitToken(*gitUserBinding, fqdn)
+			gitUser, err = wrc.searchForGitToken(*gitUserBinding, fqdn)
 			if err != nil {
 				errMsg := err.Error()
 				details.messageAddition = errMsg
@@ -198,17 +208,15 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 		return false, errors.New(errMsg)
 	}
 
-	details.gitToken = userGitToken
-	details.gitUser = userGitName
-	details.gitEmail = userGitEmail
+	details.gitUser = *gitUser
 
 	return true, nil
 }
 
-func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, fqdn string) (string, string, string, error) {
-	userGitToken := ""
+func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, fqdn string) (*gitUser, error) {
 	userGitName := ""
 	userGitEmail := ""
+	userGitToken := ""
 
 	gitRemoteCount := 0
 	secretCount := 0
@@ -245,23 +253,29 @@ func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, f
 		}
 	}
 
-	if gitRemoteCount == 0 {
-		return userGitName, userGitEmail, userGitToken, errors.New("no GitRemote found for the current user with this fqdn : " + fqdn)
-	}
-	if gitRemoteCount > 1 {
-		return userGitName, userGitEmail, userGitToken, errors.New("more than one GitRemote found for the current user with this fqdn : " + fqdn)
-	}
-	if secretCount == 0 {
-		return userGitName, userGitEmail, userGitToken, errors.New("no Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
-	}
-	if gitRemoteCount > 1 {
-		return userGitName, userGitEmail, userGitToken, errors.New("more than one Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
-	}
-	if userGitToken == "" {
-		return userGitName, userGitEmail, userGitToken, errors.New("no token found in the secret; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth")
+	gitUser := &gitUser{
+		gitUser:  userGitName,
+		gitEmail: userGitEmail,
+		gitToken: userGitToken,
 	}
 
-	return userGitName, userGitEmail, userGitToken, nil
+	if gitRemoteCount == 0 {
+		return gitUser, errors.New("no GitRemote found for the current user with this fqdn : " + fqdn)
+	}
+	if gitRemoteCount > 1 {
+		return gitUser, errors.New("more than one GitRemote found for the current user with this fqdn : " + fqdn)
+	}
+	if secretCount == 0 {
+		return gitUser, errors.New("no Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
+	}
+	if gitRemoteCount > 1 {
+		return gitUser, errors.New("more than one Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
+	}
+	if userGitToken == "" {
+		return gitUser, errors.New("no token found in the secret; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth")
+	}
+
+	return gitUser, nil
 }
 
 func (wrc *WebhookRequestChecker) isBypassSubject(details *wrcDetails) (bool, error) {
@@ -336,9 +350,10 @@ func (wrc *WebhookRequestChecker) gitPush(details *wrcDetails) (bool, error) {
 		interceptedYAML:      details.interceptedYAML,
 		interceptedGVR:       details.interceptedGVR,
 		interceptedName:      details.interceptedName,
-		gitUser:              details.gitUser,
-		gitEmail:             details.gitEmail,
-		gitToken:             details.gitToken,
+		gitUser:              details.gitUser.gitUser,
+		gitEmail:             details.gitUser.gitEmail,
+		gitToken:             details.gitUser.gitToken,
+		operation:            wrc.admReview.Request.Operation,
 	}
 	res, err := gitPusher.Push()
 	if err != nil {
@@ -382,7 +397,7 @@ func (wrc *WebhookRequestChecker) responseConstructor(details wrcDetails) admiss
 	// Set the status and the message depending of the status of the webhook
 	status := "Failure"
 	message := defaultFailureMessage
-	if details.processPass || details.webhookPass {
+	if details.processPass {
 		status = "Success"
 		message = defaultSuccessMessage
 	}

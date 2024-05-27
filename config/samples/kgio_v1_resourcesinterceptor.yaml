@@ -10,17 +10,17 @@ metadata:
   name: resourcesinterceptor-sample
   namespace: test
 spec:
-  remoteRepository: https://gitlab.com/dassieu.damien/kgio-demo
+  remoteRepository: https://gitlab.com/dassieu.damien/kgio-demo.git
   branch: main
   commitMode: Commit
-  commitProcess: CommitOnly
+  commitProcess: CommitApply
   operations:
     - CREATE
     - UPDATE
     - DELETE
   bypassInterceptionSubjects:
     #- name: kubernetes-admin
-    #  kind: User
+    #   kind: User
   authorizedUsers:
     - name: gituserbinding-sample
   defaultUnauthorizedUserMode: Block
@@ -29,7 +29,7 @@ spec:
     - metadata.creationTimestamp
     - metadata.annotations.[kubectl.kubernetes.io/last-applied-configuration]
     - metadata.uid
-    - "*oui"
+    - metadata.resourceVersion
   includedResources:
     - apiGroups: ["", "networking.k8s.io"]
       apiVersions: ["v1"]

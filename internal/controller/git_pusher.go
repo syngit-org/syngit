@@ -14,6 +14,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
+	admissionv1 "k8s.io/api/admission/v1"
 
 	kgiov1 "dams.kgio/kgio/api/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -28,6 +29,7 @@ type GitPusher struct {
 	gitUser              string
 	gitEmail             string
 	gitToken             string
+	operation            admissionv1.Operation
 }
 
 type GitPushResponse struct {
@@ -180,23 +182,30 @@ func (gp *GitPusher) writeFile(path string, fileInfo *fs.FileInfo, w *git.Worktr
 	}
 	content := []byte(gp.interceptedYAML)
 
+	if gp.operation != admissionv1.Create { // It is modified or deleted (not created)
+		err := w.Filesystem.Remove(fullFilePath)
+		if err != nil {
+			errMsg := "failed to delete file: " + err.Error()
+			return fullFilePath, errors.New(errMsg)
+		}
+	}
+
+	if gp.interceptedYAML == "" { // The file has been deleted
+		return fullFilePath, nil
+	}
+
 	file, err := w.Filesystem.Create(fullFilePath)
 	if err != nil {
 		errMsg := "failed to create file: " + err.Error()
 		return fullFilePath, errors.New(errMsg)
 	}
+
 	_, err = file.Write(content)
 	if err != nil {
 		errMsg := "failed to write to file" + err.Error()
 		return fullFilePath, errors.New(errMsg)
 	}
 	file.Close()
-
-	// err := os.WriteFile(fullFilePath, content, 0644)
-	// if err != nil {
-	// 	errMsg := "failed to create " + fileName + " in the directory " + dir + "; " + err.Error()
-	// 	return fullFilePath, errors.New(errMsg)
-	// }
 
 	return fullFilePath, nil
 }
@@ -207,16 +216,26 @@ func (gp *GitPusher) commitChanges(repo *git.Repository, pathToAdd string) (stri
 		errMsg := "failed to get worktree: " + err.Error()
 		return "", errors.New(errMsg)
 	}
+	commitMessage := ""
 
-	// Add the file to the staging area
-	_, err = w.Add(pathToAdd)
-	if err != nil {
-		errMsg := "failed to add file to staging area: " + err.Error()
-		return "", errors.New(errMsg)
+	if gp.interceptedYAML == "" { // The file has been deleted
+		_, err = w.Remove(pathToAdd)
+		if err != nil {
+			errMsg := "failed to delete file in staging area: " + err.Error()
+			return "", errors.New(errMsg)
+		}
+		commitMessage = "Delete "
+	} else { // Add the file to the staging area
+		_, err = w.Add(pathToAdd)
+		if err != nil {
+			errMsg := "failed to add file to staging area: " + err.Error()
+			return "", errors.New(errMsg)
+		}
+		commitMessage = "Add or modify "
 	}
 
 	// Commit the changes
-	commit, err := w.Commit("Add or modify "+gp.interceptedGVR.Resource+" "+gp.interceptedName, &git.CommitOptions{
+	commit, err := w.Commit(commitMessage+gp.interceptedGVR.Resource+" "+gp.interceptedName, &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  gp.gitUser,
 			Email: gp.gitEmail,

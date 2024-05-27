@@ -107,7 +107,7 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 				Name:                    webhookSpecificName,
 				AdmissionReviewVersions: []string{"v1"},
 				SideEffects:             &sideEffectsNone,
-				Rules:                   nsrListToRuleList(kgiov1.NSRPstoNSRs(resourcesInterceptor.Spec.IncludedResources)),
+				Rules:                   nsrListToRuleList(kgiov1.NSRPstoNSRs(resourcesInterceptor.Spec.IncludedResources), resourcesInterceptor.Spec.DeepCopy().Operations),
 				ClientConfig: admissionv1.WebhookClientConfig{
 					// Service: &admissionv1.ServiceReference{
 					// 	Name:      serviceName,
@@ -174,13 +174,13 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	return ctrl.Result{}, nil
 }
 
-func nsrListToRuleList(nsrList []kgiov1.NamespaceScopedResources) []admissionv1.RuleWithOperations {
+func nsrListToRuleList(nsrList []kgiov1.NamespaceScopedResources, operations []admissionv1.OperationType) []admissionv1.RuleWithOperations {
 	var scope admissionv1.ScopeType = admissionv1.NamespacedScope
 	rules := []admissionv1.RuleWithOperations{}
 
 	for _, nsr := range nsrList {
 		rules = append(rules, admissionv1.RuleWithOperations{
-			Operations: []admissionv1.OperationType{"CREATE", "UPDATE", "DELETE"},
+			Operations: operations,
 			Rule: admissionv1.Rule{
 				APIGroups:   nsr.APIGroups,
 				APIVersions: nsr.APIVersions,

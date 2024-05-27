@@ -19,7 +19,7 @@ package v1
 import (
 	"strings"
 
-	admissionv1 "k8s.io/api/admission/v1"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,7 +96,7 @@ type ResourcesInterceptorSpec struct {
 
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=3
-	Operations []admissionv1.Operation `json:"operations"`
+	Operations []admissionregistrationv1.OperationType `json:"operations"`
 
 	CommitProcess CommitProcess `json:"commitProcess"`
 
