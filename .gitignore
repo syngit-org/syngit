@@ -7,7 +7,7 @@
 *.dylib
 bin/*
 Dockerfile.cross
-config
+config/samples
 
 # Test binary, built with `go test -c`
 *.test

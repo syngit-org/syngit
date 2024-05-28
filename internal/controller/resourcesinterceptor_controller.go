@@ -88,7 +88,7 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 
 	// The service is located in the manager/controller namespace
-	serviceName := "resources-interceptor-webhook"
+	serviceName := "webhook-pusher-service"
 	operatorNamespace := r.Namespace
 	clientConfig := admissionv1.WebhookClientConfig{
 		Service: &admissionv1.ServiceReference{
@@ -99,6 +99,7 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 		CABundle: caCert,
 	}
 
+	annotations := make(map[string]string)
 	// Development mode
 	if r.Dev {
 		url := "https://172.17.0.1:9444" + webhookPath
@@ -106,6 +107,9 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 			URL:      &url,
 			CABundle: caCert,
 		}
+	}
+	if !r.Dev {
+		annotations["cert-manager.io/inject-ca-from"] = "operator-webhook-cert"
 	}
 
 	// Create the webhook specs for this specific RI
@@ -117,7 +121,7 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	webhook := &admissionv1.ValidatingWebhookConfiguration{
 		ObjectMeta: v1.ObjectMeta{
 			Name: webhookObjectName,
-			// Namespace: rINamespace,
+			Annotations: annotations,
 		},
 		Webhooks: []admissionv1.ValidatingWebhook{
 			{
@@ -216,6 +220,7 @@ func (r *ResourcesInterceptorReconciler) SetupWithManager(mgr ctrl.Manager) erro
 	// Initialize the webhookServer
 	r.webhookServer = WebhookInterceptsAll{
 		k8sClient: mgr.GetClient(),
+		dev: r.Dev,
 	}
 	r.webhookServer.Start()
 

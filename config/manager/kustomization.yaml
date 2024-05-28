@@ -7,4 +7,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: dams.com/op
-  newTag: dev
+  newTag: oui

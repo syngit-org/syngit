@@ -27,6 +27,8 @@ type WebhookInterceptsAll struct {
 	// Caching system
 	pathHandlers (map[string]*DynamicWebhookHandler)
 	sync.RWMutex
+
+	dev bool
 }
 
 // PathHandler represents an instance of a path handler with a specific namespace and name
@@ -94,8 +96,12 @@ func (s *WebhookInterceptsAll) Start() {
 		}),
 	}
 
-	tlsCert := "/tmp/k8s-webhook-server/serving-certs/server.crt"
-	tlsKey := "/tmp/k8s-webhook-server/serving-certs/server.key"
+	tlsCert := "/tmp/k8s-webhook-server/serving-certs/tls.crt"
+	tlsKey := "/tmp/k8s-webhook-server/serving-certs/tls.key"
+	if s.dev {
+		tlsCert = "/tmp/k8s-webhook-server/serving-certs/server.crt"
+		tlsKey = "/tmp/k8s-webhook-server/serving-certs/server.key"
+	}
 
 	// Start the server asynchronously
 	go func() {

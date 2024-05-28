@@ -163,14 +163,14 @@ func (gp *GitPusher) containsInvalidCharacters(path string) bool {
 func (gp *GitPusher) getFileDirName(path string, filename string) (string, string) {
 	pathArr := strings.Split(path, "/")
 	if filename == "" {
-		return path + "/", gp.resourcesInterceptor.Name + ".yaml"
+		return path + "/", gp.interceptedName + ".yaml"
 	}
 	if strings.Contains(pathArr[len(pathArr)-1], ".yaml") || strings.Contains(pathArr[len(pathArr)-1], ".yml") {
 		filename := pathArr[len(pathArr)-1]
 		pathArr := pathArr[:len(pathArr)-1]
 		return strings.Join(pathArr, "/"), filename
 	}
-	return strings.Join(pathArr, "/"), gp.resourcesInterceptor.Name + ".yaml"
+	return strings.Join(pathArr, "/"), gp.interceptedName + ".yaml"
 }
 
 func (gp *GitPusher) writeFile(path string, w *git.Worktree) (string, error) {

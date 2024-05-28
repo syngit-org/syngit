@@ -1,5 +1,4 @@
-# operator
-// TODO(user): Add simple overview of use/purpose
+# Git Pusher Operator
 
 ## Description
 // TODO(user): An in-depth paragraph about your project and overview of use

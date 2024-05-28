@@ -1,0 +1,9 @@
+apiVersion: v2
+name: git-pusher-operator
+description: An operator to push resources onto git
+type: application
+version: 0.0.1
+appVersion: 0.0.1
+maintainers:
+  - email: dassieu.damien@gmail.com
+    name: Damien
