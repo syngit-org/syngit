@@ -57,7 +57,6 @@ type GitUserBindingReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.0/pkg/reconcile
 func (r *GitUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
-	var tabString = "\n 					"
 
 	// Get the GitUserBinding Object
 	var gitUserBinding kgiov1.GitUserBinding
@@ -68,14 +67,13 @@ func (r *GitUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	gUBNamespace := gitUserBinding.Namespace
 	gUBName := gitUserBinding.Name
 	subject := gitUserBinding.Spec.Subject
-	var prefixMsg = "[" + gUBNamespace + "/" + gUBName + "]" + tabString
 
-	log.Log.Info(prefixMsg + "Reconciling request received")
+	var prefixMsg = "[" + gUBNamespace + "/" + gUBName + "]"
+	log.Log.Info(prefixMsg + " Reconciling request received")
 
 	// Get the referenced GitRemotes
 	var isGloballyBound bool = false
 	var isGloballyNotBound bool = false
-	var msg = ""
 
 	var gitUserHosts []kgiov1.GitUserHost
 	for _, gitRemoteRef := range gitUserBinding.Spec.RemoteRefs {
@@ -90,15 +88,12 @@ func (r *GitUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 		// Get the concerned GitRemote
 		if err := r.Get(ctx, retrievedGitRemote, &gitRemote); err != nil {
-			log.Log.Error(nil, prefixMsg+"GitRemote not found with the name "+gitRemoteRef.Name)
-			msg += tabString + " ❌ " + gitUserHost.GitRemoteUsed + " Not Bound"
 			r.Recorder.Event(&gitUserBinding, "Warning", "NotBound", gitUserHost.GitRemoteUsed+" not bound")
 			isGloballyNotBound = true
 		} else {
 			gitUserHost.GitFQDN = gitRemote.Spec.GitBaseDomainFQDN
 			gitUserHost.SecretRef = gitRemote.Spec.SecretRef
 			gitUserHost.State = kgiov1.Bound
-			msg += tabString + " ✅ " + gitUserHost.GitRemoteUsed + " Bound"
 			r.Recorder.Event(&gitUserBinding, "Normal", "Bound", gitUserHost.GitRemoteUsed+" bound")
 			isGloballyBound = true
 		}
@@ -108,7 +103,6 @@ func (r *GitUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	gitUserBinding.Status.GitUserHosts = gitUserHosts
 
-	log.Log.Info(prefixMsg + "GitRemotes status list:" + msg)
 	if isGloballyBound && isGloballyNotBound {
 		gitUserBinding.Status.GlobalState = kgiov1.PartiallyBound
 		r.Recorder.Event(&gitUserBinding, "Warning", "PartiallyBound", "Some of the git repos are not bound")

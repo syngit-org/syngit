@@ -14,6 +14,6 @@ spec:
     kind: User
     name: kubernetes-admin
   remoteRefs:
-    - name: gitremote-sample3
+    - name: gitremote-sample
     #- name: another-one
     #- name: gitremote-sample2

@@ -25,6 +25,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -40,6 +41,7 @@ type ResourcesInterceptorReconciler struct {
 	webhookServer WebhookInterceptsAll
 	Namespace     string
 	Dev           bool
+	Recorder      record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=kgio.dams.kgio,resources=resourcesinterceptors,verbs=get;list;watch;create;update;patch;delete
@@ -48,18 +50,8 @@ type ResourcesInterceptorReconciler struct {
 //+kubebuilder:rbac:groups=*,resources=*,verbs=get;list;watch
 //+kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations,verbs=create;get;list;watch;update;patch;delete
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the ResourcesInterceptor object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.0/pkg/reconcile
 func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
-	var tabString = "\n 					"
 
 	// Get the ResourcesInterceptor Object
 	var resourcesInterceptor kgiov1.ResourcesInterceptor
@@ -71,9 +63,8 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	rINamespace := resourcesInterceptor.Namespace
 	rIName := resourcesInterceptor.Name
 
-	var prefixMsg = "[" + rINamespace + "/" + rIName + "]" + tabString
-
-	log.Log.Info(prefixMsg + "Reconciling request received")
+	var prefixMsg = "[" + rINamespace + "/" + rIName + "]"
+	log.Log.Info(prefixMsg + " Reconciling request received")
 
 	// Define the webhook path
 	webhookPath := "/kgio/validate/" + rINamespace + "/" + rIName
@@ -84,7 +75,8 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	caCert, err := os.ReadFile("/tmp/k8s-webhook-server/serving-certs/tls.crt")
 	if err != nil {
 		log.Log.Error(err, "failed to read the cert file /tmp/k8s-webhook-server/serving-certs/tls.crt")
-		panic(err) // handle error if unable to read file
+		r.Recorder.Event(&resourcesInterceptor, "Warning", "WebhookCertFail", "Operator internal error : the certificate file failed to be read")
+		return reconcile.Result{}, err
 	}
 
 	// The service is located in the manager/controller namespace
@@ -120,7 +112,7 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	// Create a new ValidatingWebhook object
 	webhook := &admissionv1.ValidatingWebhookConfiguration{
 		ObjectMeta: v1.ObjectMeta{
-			Name: webhookObjectName,
+			Name:        webhookObjectName,
 			Annotations: annotations,
 		},
 		Webhooks: []admissionv1.ValidatingWebhook{
@@ -138,11 +130,6 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 		},
 	}
 
-	// Set controller reference to own the object
-	// if err := ctrl.SetControllerReference(&resourcesInterceptor, webhook, r.Scheme); err != nil {
-	// 	return ctrl.Result{}, err
-	// }
-
 	webhookNamespacedName := &types.NamespacedName{
 		Name: webhookObjectName,
 	}
@@ -150,9 +137,6 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	// Check if the webhook already exists
 	found := &admissionv1.ValidatingWebhookConfiguration{}
 	err = r.Get(ctx, *webhookNamespacedName, found)
-	// if err != nil && client.IgnoreNotFound(err) != nil {
-	// 	return reconcile.Result{}, err
-	// }
 
 	if err == nil {
 		// Search for the webhook spec associated to this RI
@@ -174,15 +158,19 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 
 		err = r.Update(ctx, found)
 		if err != nil {
+			r.Recorder.Event(&resourcesInterceptor, "Warning", "WebhookNotUpdated", "The webhook exists but has not been updated")
 			return reconcile.Result{}, err
 		}
 	} else {
 		// Create a new webhook if not found -> if it is the first RI to be created
 		err := r.Create(ctx, webhook)
 		if err != nil {
+			r.Recorder.Event(&resourcesInterceptor, "Warning", "WebhookNotCreated", "The webhook does not exists and has not been created")
 			return reconcile.Result{}, err
 		}
 	}
+
+	r.Recorder.Event(&resourcesInterceptor, "Normal", "WebhookUpdated", "The resources have been successfully added to the webhook")
 
 	return ctrl.Result{}, nil
 }
@@ -209,6 +197,9 @@ func nsrListToRuleList(nsrList []kgiov1.NamespaceScopedResources, operations []a
 // SetupWithManager sets up the controller with the Manager.
 func (r *ResourcesInterceptorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
+	recorder := mgr.GetEventRecorderFor("resourcesinterceptor-controller")
+	r.Recorder = recorder
+
 	managerNamespace := os.Getenv("MANAGER_NAMESPACE")
 	dev := os.Getenv("DEV")
 	r.Namespace = managerNamespace
@@ -220,7 +211,7 @@ func (r *ResourcesInterceptorReconciler) SetupWithManager(mgr ctrl.Manager) erro
 	// Initialize the webhookServer
 	r.webhookServer = WebhookInterceptsAll{
 		k8sClient: mgr.GetClient(),
-		dev: r.Dev,
+		dev:       r.Dev,
 	}
 	r.webhookServer.Start()
 

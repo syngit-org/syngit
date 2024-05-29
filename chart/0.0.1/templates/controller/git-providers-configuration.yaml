@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: git-providers-configuration
+data:
+  bitbucket.org: |
+    authenticationEndpoint: https://api.bitbucket.org/2.0/user
+  github.com: |
+    authenticationEndpoint: https://api.github.com/user
+  gitlab.com: |
+    authenticationEndpoint: https://gitlab.com/api/v4/user

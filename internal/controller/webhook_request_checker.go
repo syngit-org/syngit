@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	kgiov1 "dams.kgio/kgio/api/v1"
+	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,11 +39,12 @@ type wrcDetails struct {
 	messageAddition string
 
 	// GitPusher information
-	repoFQDN   string
-	repoPath   string
-	commitHash string
-	gitUser    gitUser
-	remoteConf kgiov1.RemoteConfiguration
+	repoFQDN    string
+	repoPath    string
+	commitHash  string
+	gitUser     gitUser
+	remoteConf  kgiov1.GitProviderConfiguration
+	pushDetails string
 }
 
 const (
@@ -57,6 +59,8 @@ type WebhookRequestChecker struct {
 	resourcesInterceptor kgiov1.ResourcesInterceptor
 	// The kubernetes client to make request to the api
 	k8sClient client.Client
+	// Logger
+	log *logr.Logger
 }
 
 func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
@@ -102,7 +106,7 @@ func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
 
 	// STEP 6 : Git push
 	isPushed, err := wrc.gitPush(&rDetails)
-	rDetails.processPass = isPushed
+	wrc.gitPushPostChecker(isPushed, err, &rDetails)
 	if err != nil {
 		return wrc.responseConstructor(rDetails)
 	}
@@ -130,6 +134,8 @@ func (wrc *WebhookRequestChecker) retrieveRequestDetails() (wrcDetails, error) {
 	details.interceptedGVR = *interceptedGVR
 
 	details.interceptedName = wrc.admReview.Request.Name
+
+	wrc.updateStatus("LastInterceptedObjectState", *details)
 
 	return *details, nil
 }
@@ -172,7 +178,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 		gitEmail: "",
 		gitToken: "",
 	}
-	remoteConf := &kgiov1.RemoteConfiguration{
+	remoteConf := &kgiov1.GitProviderConfiguration{
 		CaBundle:              "",
 		InsecureSkipTlsVerify: false,
 	}
@@ -192,7 +198,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 		// The subject name can not be unique -> in specific conditions, a commit can be done as another user
 		// Need to be studied
 		if gitUserBinding.Spec.Subject.Name == incomingUser.Username {
-			remoteConf, gitUser, err = wrc.searchForGitToken(*gitUserBinding, fqdn)
+			remoteConf, gitUser, err = wrc.searchForGitToken(*gitUserBinding, fqdn, remoteConf)
 			if err != nil {
 				errMsg := err.Error()
 				details.messageAddition = errMsg
@@ -219,13 +225,10 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	return true, nil
 }
 
-func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, fqdn string) (*kgiov1.RemoteConfiguration, *gitUser, error) {
+func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, fqdn string, remoteConf *kgiov1.GitProviderConfiguration) (*kgiov1.GitProviderConfiguration, *gitUser, error) {
 	userGitName := ""
 	userGitEmail := ""
 	userGitToken := ""
-
-	caBundle := ""
-	skipTLS := false
 
 	gitRemoteCount := 0
 	secretCount := 0
@@ -260,8 +263,8 @@ func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, f
 
 			userGitEmail = gitRemote.Spec.Email
 
-			caBundle = gitRemote.Spec.RemoteConfiguration.CaBundle
-			skipTLS = gitRemote.Spec.RemoteConfiguration.InsecureSkipTlsVerify
+			remoteConf.CaBundle = gitRemote.Status.GitProviderConfiguration.CaBundle
+			remoteConf.InsecureSkipTlsVerify = gitRemote.Status.GitProviderConfiguration.InsecureSkipTlsVerify
 		}
 	}
 
@@ -269,10 +272,6 @@ func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, f
 		gitUser:  userGitName,
 		gitEmail: userGitEmail,
 		gitToken: userGitToken,
-	}
-	remoteConf := &kgiov1.RemoteConfiguration{
-		CaBundle:              caBundle,
-		InsecureSkipTlsVerify: skipTLS,
 	}
 
 	if gitRemoteCount == 0 {
@@ -320,6 +319,8 @@ func (wrc *WebhookRequestChecker) isBypassSubject(details *wrcDetails) (bool, er
 func (wrc *WebhookRequestChecker) letPassRequest(details *wrcDetails) admissionv1.AdmissionReview {
 	details.webhookPass = true
 	details.messageAddition = "this user bypass the process"
+
+	wrc.updateStatus("LastBypassedObjectState", *details)
 
 	return wrc.responseConstructor(*details)
 }
@@ -390,6 +391,16 @@ func (wrc *WebhookRequestChecker) gitPush(details *wrcDetails) (bool, error) {
 	return true, nil
 }
 
+func (wrc *WebhookRequestChecker) gitPushPostChecker(isPushed bool, err error, details *wrcDetails) {
+	details.processPass = isPushed
+	if isPushed {
+		details.pushDetails = "Resource successfully pushed"
+	} else {
+		details.pushDetails = err.Error()
+	}
+	wrc.updateStatus("LastPushedObjectState", *details)
+}
+
 func (wrc *WebhookRequestChecker) postcheck(details *wrcDetails) bool {
 	// Check the Commit Process mode
 	if wrc.resourcesInterceptor.Spec.CommitProcess == kgiov1.CommitOnly {
@@ -455,4 +466,47 @@ func (wrc *WebhookRequestChecker) responseConstructor(details wrcDetails) admiss
 	})
 
 	return admissionReviewResp
+}
+
+func (wrc *WebhookRequestChecker) updateStatus(kind string, details wrcDetails) {
+
+	gvrn := &kgiov1.JsonGVRN{
+		Group:    details.interceptedGVR.Group,
+		Version:  details.interceptedGVR.Version,
+		Resource: details.interceptedGVR.Resource,
+		Name:     details.interceptedName,
+	}
+	switch kind {
+	case "LastBypassedObjectState":
+		lastBypassedObjectState := &kgiov1.LastBypassedObjectState{
+			LastBypassedObjectTime:     v1.Now(),
+			LastBypassedObjectUserInfo: wrc.admReview.Request.UserInfo,
+			LastBypassedObject:         *gvrn,
+		}
+		wrc.resourcesInterceptor.Status.LastBypassedObjectState = *lastBypassedObjectState
+	case "LastInterceptedObjectState":
+		lastInterceptedObjectState := &kgiov1.LastInterceptedObjectState{
+			LastInterceptedObjectTime:     v1.Now(),
+			LastInterceptedObjectUserInfo: wrc.admReview.Request.UserInfo,
+			LastInterceptedObject:         *gvrn,
+		}
+		wrc.resourcesInterceptor.Status.LastInterceptedObjectState = *lastInterceptedObjectState
+	case "LastPushedObjectState":
+		lastPushedObjectState := &kgiov1.LastPushedObjectState{
+			LastPushedObjectTime:          v1.Now(),
+			LastPushedObject:              *gvrn,
+			LastPushedObjectGitPath:       details.repoPath,
+			LastPushedObjectGitRepo:       details.repoFQDN,
+			LastPushedObjectGitCommitHash: details.commitHash,
+			LastPushedGitUser:             details.gitUser.gitUser,
+			LastPushedObjectStatus:        details.pushDetails,
+		}
+		wrc.resourcesInterceptor.Status.LastPushedObjectState = *lastPushedObjectState
+	}
+
+	ctx := context.Background()
+	if err := wrc.k8sClient.Status().Update(ctx, &wrc.resourcesInterceptor); err != nil {
+		wrc.log.Error(err, "can't update the status of the resource interceptor "+wrc.resourcesInterceptor.Namespace+"/"+wrc.resourcesInterceptor.Name)
+	}
+
 }

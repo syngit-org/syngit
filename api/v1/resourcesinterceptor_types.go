@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -136,15 +137,22 @@ type NamespaceScopedObject struct {
 	Name        string          `json:"name"`
 }
 
+type JsonGVRN struct {
+	Group    string `json:"group"`
+	Version  string `json:"version"`
+	Resource string `json:"resource"`
+	Name     string `json:"name"`
+}
+
 type LastBypassedObjectState struct {
 	// +optional
 	LastBypassedObjectTime metav1.Time `json:"lastBypassObjectTime,omitempty"`
 
 	// +optional
-	LastBypassedObjectSubject rbacv1.Subject `json:"lastBypassObjectSubject,omitempty"`
+	LastBypassedObjectUserInfo authenticationv1.UserInfo `json:"lastBypassObjectUserInfo,omitempty"`
 
 	// +optional
-	LastBypassedObject NamespaceScopedObject `json:"lastBypassObject,omitempty"`
+	LastBypassedObject JsonGVRN `json:"lastBypassObject,omitempty"`
 }
 
 type LastInterceptedObjectState struct {
@@ -152,10 +160,10 @@ type LastInterceptedObjectState struct {
 	LastInterceptedObjectTime metav1.Time `json:"lastInterceptedObjectTime,omitempty"`
 
 	// +optional
-	LastInterceptedObjectKubernetesUser rbacv1.Subject `json:"lastInterceptedObjectKubernetesUser,omitempty"`
+	LastInterceptedObjectUserInfo authenticationv1.UserInfo `json:"lastInterceptedObjectUserInfo,omitempty"`
 
 	// +optional
-	LastInterceptedObject NamespaceScopedObject `json:"lastInterceptedObject,omitempty"`
+	LastInterceptedObject JsonGVRN `json:"lastInterceptedObject,omitempty"`
 }
 
 type LastPushedObjectState struct {
@@ -163,25 +171,31 @@ type LastPushedObjectState struct {
 	LastPushedObjectTime metav1.Time `json:"lastPushedObjectTime,omitempty"`
 
 	// +optional
-	LastPushedGitUserID string `json:"lastPushedGitUserID,omitempty"`
+	LastPushedGitUser string `json:"lastPushedGitUser,omitempty"`
+
+	// +optional
+	LastPushedObjectGitRepo string `json:"lastPushedObjectGitRepo,omitempty"`
 
 	// +optional
 	LastPushedObjectGitPath string `json:"lastPushedObjectGitPath,omitempty"`
 
 	// +optional
-	LastPushedObject NamespaceScopedObject `json:"lastPushedObject,omitempty"`
+	LastPushedObjectGitCommitHash string `json:"lastPushedObjectCommitHash,omitempty"`
 
 	// +optional
-	LastPushedObjectStatus PushedObjectStatus `json:"lastPushedObjectState,omitempty"`
+	LastPushedObject JsonGVRN `json:"lastPushedObject,omitempty"`
+
+	// +optional
+	LastPushedObjectStatus string `json:"lastPushedObjectState,omitempty"`
 }
 
-type PushedObjectStatus string
+// type PushedObjectStatus string
 
-const (
-	Pushed         PushedObjectStatus = "Resource correctly pushed"
-	PushNotAllowed PushedObjectStatus = "Error: Push permission is not allowed on this git repository for this user"
-	NetworkError   PushedObjectStatus = "Error: A network error occured"
-)
+// const (
+// 	Pushed         PushedObjectStatus = "Resource correctly pushed"
+// 	PushNotAllowed PushedObjectStatus = "Error: Push permission is not allowed on this git repository for this user"
+// 	NetworkError   PushedObjectStatus = "Error: A network error occured"
+// )
 
 // ResourcesInterceptorStatus defines the observed state of ResourcesInterceptor
 type ResourcesInterceptorStatus struct {

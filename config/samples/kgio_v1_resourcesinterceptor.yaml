@@ -13,14 +13,14 @@ spec:
   remoteRepository: https://gitlab.com/dassieu.damien/kgio-demo.git
   branch: second-main
   commitMode: Commit
-  commitProcess: CommitApply
+  commitProcess: CommitOnly
   operations:
     - CREATE
     - UPDATE
     - DELETE
   bypassInterceptionSubjects:
-    #- name: kubernetes-admin
-    #   kind: User
+    - name: kubernetes-admin
+      kind: User
   authorizedUsers:
     - name: gituserbinding-sample
   defaultUnauthorizedUserMode: Block
@@ -34,5 +34,5 @@ spec:
     - apiGroups: ["", "networking.k8s.io"]
       apiVersions: ["v1"]
       resources: ["configmaps", "ingresses", "pods"]
-      names: ["secret-basic-auth", "git-providers-endpoints"]
+      names: ["secret-basic-auth1", "random-cm"]
       #repoPath: "oui/config"

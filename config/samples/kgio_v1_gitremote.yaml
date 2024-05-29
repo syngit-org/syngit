@@ -10,8 +10,8 @@ metadata:
   name: gitremote-sample
   namespace: test
 spec:
-  gitBaseDomainFQDN: "git.inpt.fr"
+  gitBaseDomainFQDN: "gitlab.com"
   testAuthentication: true
-  #gitProvider: "gitlab"
+  email: dassieu.damien@gmail.com
   secretRef:
     name: secret-basic-auth

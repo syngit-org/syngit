@@ -44,11 +44,6 @@ var _ webhook.Validator = &GitRemote{}
 func (r *GitRemoteSpec) ValidateGitRemoteSpec() field.ErrorList {
 	var errors field.ErrorList
 
-	// The GitProvider must be set if the TestAuthentication field is setted to true
-	if r.TestAuthentication && r.GitProvider == "" {
-		errors = append(errors, field.Required(field.NewPath("gitProvider"), "should be set when testAuthentication is set to true"))
-	}
-
 	return errors
 }
 

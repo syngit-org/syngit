@@ -30,40 +30,50 @@ type GitRemoteSpec struct {
 	GitBaseDomainFQDN string `json:"gitBaseDomainFQDN"`
 
 	// +optional
+	CustomGitProviderConfigRef corev1.ObjectReference `json:"customGitProviderConfigRef,omitempty"`
+
+	// +optional
 	TestAuthentication bool `json:"testAuthentication,omitempty"`
-
-	// +optional
-	GitProvider string `json:"gitProvider,omitempty"`
-
-	// +optional
-	CustomGitProvider GitProvider `json:"customGitProvider,omitempty"`
-
-	// +optional
-	RemoteConfiguration RemoteConfiguration `json:"remoteConfiguration,omitempty"`
 }
 
-type RemoteConfiguration struct {
+type GitProviderConfiguration struct {
 	// +optional
-	CaBundle string `json:"caBundle,omitempty"`
+	Inherited bool `json:"inherited,omitempty" yaml:"inherited,omitempty"`
+	//+ optional
+	AuthenticationEndpoint string `json:"authenticationEndpoint,omitempty" yaml:"authenticationEndpoint,omitempty"`
 	// +optional
-	InsecureSkipTlsVerify bool `json:"insecureSkipTlsVerify,omitempty"`
+	CaBundle string `json:"caBundle,omitempty" yaml:"caBundle,omitempty"`
+	// +optional
+	InsecureSkipTlsVerify bool `json:"insecureSkipTlsVerify,omitempty" yaml:"insecureSkipTlsVerify,omitempty"`
 }
 
-type GitProvider struct {
-	FQDN           string `json:"fqdn"`
-	Authentication string `json:"authentication"`
+type GitRemoteConnexionStatus struct {
+	Status GitRemoteConnexionStatusReason `json:"status,omitempty"`
+	// +optional
+	Details string `json:"details,omitempty"`
 }
 
-type GitRemoteConnexionStatus string
+type GitRemoteConnexionStatusReason string
 
 const (
-	Connected        GitRemoteConnexionStatus = "Connected"
-	Unauthorized     GitRemoteConnexionStatus = "Unauthorized: bad credentials"
-	Forbidden        GitRemoteConnexionStatus = "Forbidden : Not enough permission"
-	NotFound         GitRemoteConnexionStatus = "Not found: the git repository is not found"
-	ServerError      GitRemoteConnexionStatus = "Server error: a server error happened"
-	UnexpectedStatus GitRemoteConnexionStatus = "Unexpected response status code"
-	Disconnected     GitRemoteConnexionStatus = "Disconnected: The secret has been deleted"
+	GitConnected        GitRemoteConnexionStatusReason = "Connected"
+	GitUnauthorized     GitRemoteConnexionStatusReason = "Unauthorized: bad credentials"
+	GitForbidden        GitRemoteConnexionStatusReason = "Forbidden : Not enough permission"
+	GitNotFound         GitRemoteConnexionStatusReason = "Not found: the git server is not found"
+	GitServerError      GitRemoteConnexionStatusReason = "Server error: a server error happened"
+	GitUnexpectedStatus GitRemoteConnexionStatusReason = "Unexpected response status code"
+	GitNotConnected     GitRemoteConnexionStatusReason = "Not Connected"
+	GitUnsupported      GitRemoteConnexionStatusReason = "Unsupported Git provider"
+	GitConfigNotFound   GitRemoteConnexionStatusReason = "Git provider ConfigMap not found"
+	GitConfigParseError GitRemoteConnexionStatusReason = "Failed to parse the git provider ConfigMap"
+)
+
+type SecretBoundStatus string
+
+const (
+	SecretBound     SecretBoundStatus = "Secret bound"
+	SecretNotFound  SecretBoundStatus = "Secret not found"
+	SecretWrongType SecretBoundStatus = "Secret type is not set to BasicAuth"
 )
 
 // GitRemoteStatus defines the observed state of GitRemote
@@ -72,10 +82,16 @@ type GitRemoteStatus struct {
 	ConnexionStatus GitRemoteConnexionStatus `json:"connexionStatus,omitempty"`
 
 	// +optional
-	GitUserID string `json:"gitUserID,omitempty"`
+	GitUser string `json:"gitUser,omitempty"`
 
 	// +optional
 	LastAuthTime metav1.Time `json:"lastAuthTime,omitempty"`
+
+	// +optional
+	SecretBoundStatus SecretBoundStatus `json:"secretBoundStatus,omitempty"`
+
+	// +optional
+	GitProviderConfiguration GitProviderConfiguration `json:"gitProviderConfiguration,omitempty"`
 }
 
 //+kubebuilder:object:root=true

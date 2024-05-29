@@ -35,6 +35,7 @@ type WebhookInterceptsAll struct {
 type DynamicWebhookHandler struct {
 	resourcesInterceptor kgiov1.ResourcesInterceptor
 	k8sClient            client.Client
+	log                  *logr.Logger
 }
 
 // Start starts the webhook server
@@ -179,6 +180,7 @@ func (dwc *DynamicWebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		admReview:            admissionReviewReq,
 		resourcesInterceptor: dwc.resourcesInterceptor,
 		k8sClient:            dwc.k8sClient,
+		log:                  dwc.log,
 	}
 
 	admResponse := wrc.ProcessSteps()

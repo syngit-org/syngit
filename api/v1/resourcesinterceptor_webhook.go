@@ -54,14 +54,19 @@ func (r *ResourcesInterceptorSpec) ValidateResourcesInterceptorSpec() field.Erro
 		errors = append(errors, field.Required(field.NewPath("defaultUserBind"), "should be set when defaultUnauthorizedUserMode is set to \"UseDefaultUserBind\""))
 	}
 
-	// Validate DefaultBlockAppliedMessage only exists if CommitProcess is set to CommitApply
+	// Validate DefaultBlockAppliedMessage only exists if CommitProcess is set to ApplyCommit
 	if r.DefaultBlockAppliedMessage != "" && r.CommitProcess != "CommitApply" {
 		errors = append(errors, field.Forbidden(field.NewPath("defaultBlockAppliedMessage"), "should not be set if .spec.commitApply is not set to \"CommitApply\""))
 	}
 
+	// Validate that CommitProcess is either CommitApply or CommitOnly
+	if r.CommitProcess != "CommitOnly" && r.CommitProcess != "CommitApply" {
+		errors = append(errors, field.Forbidden(field.NewPath("commitProcess"), "should be set to \"CommitApply\" or \"CommitOnly\""))
+	}
+
 	// For Included and Excluded Resources. Validate that if a name is specified for a resource, then the concerned resource is not referenced without the name
-	errors = append(errors, r.validateFineGrainedIncludedResources(ParsegvrnList(NSRPstoNSRs(r.IncludedResources)))...)
-	errors = append(errors, r.validateFineGrainedExcludedResources(ParsegvrnList(r.ExcludedResources))...)
+	// errors = append(errors, r.validateFineGrainedIncludedResources(ParsegvrnList(NSRPstoNSRs(r.IncludedResources)))...)
+	// errors = append(errors, r.validateFineGrainedExcludedResources(ParsegvrnList(r.ExcludedResources))...)
 
 	// Validate the ExcludedFields to ensure that it is a YAML path
 	for _, fieldPath := range r.ExcludedFields {
