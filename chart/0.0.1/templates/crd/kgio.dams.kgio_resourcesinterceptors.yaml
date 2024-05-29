@@ -1,5 +1,6 @@
 {{- if eq .Values.installCRD true }}
 ---
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -137,6 +138,7 @@ spec:
                 description: |-
                   Reference to a GitUserBinding. If set, this git user will be use to push the resources.
 
+
                   Instead of using this type, create a locally provided and used type that is well-focused on your reference.
                   For example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533 .
                 properties:
@@ -264,407 +266,131 @@ spec:
                 properties:
                   lastBypassObject:
                     properties:
-                      apiGroups:
-                        description: |-
-                          APIGroup contains the name, the supported versions, and the preferred version
-                          of a group.
-                        properties:
-                          apiVersion:
-                            description: |-
-                              APIVersion defines the versioned schema of this representation of an object.
-                              Servers should convert recognized schemas to the latest internal value, and
-                              may reject unrecognized values.
-                              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
-                            type: string
-                          kind:
-                            description: |-
-                              Kind is a string value representing the REST resource this object represents.
-                              Servers may infer this from the endpoint the client submits requests to.
-                              Cannot be updated.
-                              In CamelCase.
-                              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
-                            type: string
-                          name:
-                            description: name is the name of the group.
-                            type: string
-                          preferredVersion:
-                            description: |-
-                              preferredVersion is the version preferred by the API server, which
-                              probably is the storage version.
-                            properties:
-                              groupVersion:
-                                description: groupVersion specifies the API group
-                                  and version in the form "group/version"
-                                type: string
-                              version:
-                                description: |-
-                                  version specifies the version in the form of "version". This is to save
-                                  the clients the trouble of splitting the GroupVersion.
-                                type: string
-                            required:
-                            - groupVersion
-                            - version
-                            type: object
-                          serverAddressByClientCIDRs:
-                            description: |-
-                              a map of client CIDR to server address that is serving this group.
-                              This is to help clients reach servers in the most network-efficient way possible.
-                              Clients can use the appropriate server address as per the CIDR that they match.
-                              In case of multiple matches, clients should use the longest matching CIDR.
-                              The server returns only those CIDRs that it thinks that the client can match.
-                              For example: the master will return an internal IP CIDR only, if the client reaches the server using an internal IP.
-                              Server looks at X-Forwarded-For header or X-Real-Ip header or request.RemoteAddr (in that order) to get the client IP.
-                            items:
-                              description: ServerAddressByClientCIDR helps the client
-                                to determine the server address that they should use,
-                                depending on the clientCIDR that they match.
-                              properties:
-                                clientCIDR:
-                                  description: The CIDR with which clients can match
-                                    their IP to figure out the server address that
-                                    they should use.
-                                  type: string
-                                serverAddress:
-                                  description: |-
-                                    Address of this server, suitable for a client that matches the above CIDR.
-                                    This can be a hostname, hostname:port, IP or IP:port.
-                                  type: string
-                              required:
-                              - clientCIDR
-                              - serverAddress
-                              type: object
-                            type: array
-                          versions:
-                            description: versions are the versions supported in this
-                              group.
-                            items:
-                              description: |-
-                                GroupVersion contains the "group/version" and "version" string of a version.
-                                It is made a struct to keep extensibility.
-                              properties:
-                                groupVersion:
-                                  description: groupVersion specifies the API group
-                                    and version in the form "group/version"
-                                  type: string
-                                version:
-                                  description: |-
-                                    version specifies the version in the form of "version". This is to save
-                                    the clients the trouble of splitting the GroupVersion.
-                                  type: string
-                              required:
-                              - groupVersion
-                              - version
-                              type: object
-                            type: array
-                        required:
-                        - name
-                        - versions
-                        type: object
-                      apiVersions:
+                      group:
                         type: string
                       name:
                         type: string
-                      resources:
+                      resource:
+                        type: string
+                      version:
                         type: string
                     required:
-                    - apiGroups
-                    - apiVersions
+                    - group
                     - name
-                    - resources
+                    - resource
+                    - version
                     type: object
-                  lastBypassObjectSubject:
-                    description: |-
-                      Subject contains a reference to the object or user identities a role binding applies to.  This can either hold a direct API object reference,
-                      or a value for non-objects such as user and group names.
-                    properties:
-                      apiGroup:
-                        description: |-
-                          APIGroup holds the API group of the referenced subject.
-                          Defaults to "" for ServiceAccount subjects.
-                          Defaults to "rbac.authorization.k8s.io" for User and Group subjects.
-                        type: string
-                      kind:
-                        description: |-
-                          Kind of object being referenced. Values defined by this API group are "User", "Group", and "ServiceAccount".
-                          If the Authorizer does not recognized the kind value, the Authorizer should report an error.
-                        type: string
-                      name:
-                        description: Name of the object being referenced.
-                        type: string
-                      namespace:
-                        description: |-
-                          Namespace of the referenced object.  If the object kind is non-namespace, such as "User" or "Group", and this value is not empty
-                          the Authorizer should report an error.
-                        type: string
-                    required:
-                    - kind
-                    - name
-                    type: object
-                    x-kubernetes-map-type: atomic
                   lastBypassObjectTime:
                     format: date-time
                     type: string
+                  lastBypassObjectUserInfo:
+                    description: |-
+                      UserInfo holds the information about the user needed to implement the
+                      user.Info interface.
+                    properties:
+                      extra:
+                        additionalProperties:
+                          description: ExtraValue masks the value so protobuf can
+                            generate
+                          items:
+                            type: string
+                          type: array
+                        description: Any additional information provided by the authenticator.
+                        type: object
+                      groups:
+                        description: The names of groups this user is a part of.
+                        items:
+                          type: string
+                        type: array
+                      uid:
+                        description: |-
+                          A unique value that identifies this user across time. If this user is
+                          deleted and another user by the same name is added, they will have
+                          different UIDs.
+                        type: string
+                      username:
+                        description: The name that uniquely identifies this user among
+                          all active users.
+                        type: string
+                    type: object
                 type: object
               lastInterceptedObjectState:
                 properties:
                   lastInterceptedObject:
                     properties:
-                      apiGroups:
-                        description: |-
-                          APIGroup contains the name, the supported versions, and the preferred version
-                          of a group.
-                        properties:
-                          apiVersion:
-                            description: |-
-                              APIVersion defines the versioned schema of this representation of an object.
-                              Servers should convert recognized schemas to the latest internal value, and
-                              may reject unrecognized values.
-                              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
-                            type: string
-                          kind:
-                            description: |-
-                              Kind is a string value representing the REST resource this object represents.
-                              Servers may infer this from the endpoint the client submits requests to.
-                              Cannot be updated.
-                              In CamelCase.
-                              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
-                            type: string
-                          name:
-                            description: name is the name of the group.
-                            type: string
-                          preferredVersion:
-                            description: |-
-                              preferredVersion is the version preferred by the API server, which
-                              probably is the storage version.
-                            properties:
-                              groupVersion:
-                                description: groupVersion specifies the API group
-                                  and version in the form "group/version"
-                                type: string
-                              version:
-                                description: |-
-                                  version specifies the version in the form of "version". This is to save
-                                  the clients the trouble of splitting the GroupVersion.
-                                type: string
-                            required:
-                            - groupVersion
-                            - version
-                            type: object
-                          serverAddressByClientCIDRs:
-                            description: |-
-                              a map of client CIDR to server address that is serving this group.
-                              This is to help clients reach servers in the most network-efficient way possible.
-                              Clients can use the appropriate server address as per the CIDR that they match.
-                              In case of multiple matches, clients should use the longest matching CIDR.
-                              The server returns only those CIDRs that it thinks that the client can match.
-                              For example: the master will return an internal IP CIDR only, if the client reaches the server using an internal IP.
-                              Server looks at X-Forwarded-For header or X-Real-Ip header or request.RemoteAddr (in that order) to get the client IP.
-                            items:
-                              description: ServerAddressByClientCIDR helps the client
-                                to determine the server address that they should use,
-                                depending on the clientCIDR that they match.
-                              properties:
-                                clientCIDR:
-                                  description: The CIDR with which clients can match
-                                    their IP to figure out the server address that
-                                    they should use.
-                                  type: string
-                                serverAddress:
-                                  description: |-
-                                    Address of this server, suitable for a client that matches the above CIDR.
-                                    This can be a hostname, hostname:port, IP or IP:port.
-                                  type: string
-                              required:
-                              - clientCIDR
-                              - serverAddress
-                              type: object
-                            type: array
-                          versions:
-                            description: versions are the versions supported in this
-                              group.
-                            items:
-                              description: |-
-                                GroupVersion contains the "group/version" and "version" string of a version.
-                                It is made a struct to keep extensibility.
-                              properties:
-                                groupVersion:
-                                  description: groupVersion specifies the API group
-                                    and version in the form "group/version"
-                                  type: string
-                                version:
-                                  description: |-
-                                    version specifies the version in the form of "version". This is to save
-                                    the clients the trouble of splitting the GroupVersion.
-                                  type: string
-                              required:
-                              - groupVersion
-                              - version
-                              type: object
-                            type: array
-                        required:
-                        - name
-                        - versions
-                        type: object
-                      apiVersions:
+                      group:
                         type: string
                       name:
                         type: string
-                      resources:
+                      resource:
+                        type: string
+                      version:
                         type: string
                     required:
-                    - apiGroups
-                    - apiVersions
+                    - group
                     - name
-                    - resources
+                    - resource
+                    - version
                     type: object
-                  lastInterceptedObjectKubernetesUser:
-                    description: |-
-                      Subject contains a reference to the object or user identities a role binding applies to.  This can either hold a direct API object reference,
-                      or a value for non-objects such as user and group names.
-                    properties:
-                      apiGroup:
-                        description: |-
-                          APIGroup holds the API group of the referenced subject.
-                          Defaults to "" for ServiceAccount subjects.
-                          Defaults to "rbac.authorization.k8s.io" for User and Group subjects.
-                        type: string
-                      kind:
-                        description: |-
-                          Kind of object being referenced. Values defined by this API group are "User", "Group", and "ServiceAccount".
-                          If the Authorizer does not recognized the kind value, the Authorizer should report an error.
-                        type: string
-                      name:
-                        description: Name of the object being referenced.
-                        type: string
-                      namespace:
-                        description: |-
-                          Namespace of the referenced object.  If the object kind is non-namespace, such as "User" or "Group", and this value is not empty
-                          the Authorizer should report an error.
-                        type: string
-                    required:
-                    - kind
-                    - name
-                    type: object
-                    x-kubernetes-map-type: atomic
                   lastInterceptedObjectTime:
                     format: date-time
                     type: string
+                  lastInterceptedObjectUserInfo:
+                    description: |-
+                      UserInfo holds the information about the user needed to implement the
+                      user.Info interface.
+                    properties:
+                      extra:
+                        additionalProperties:
+                          description: ExtraValue masks the value so protobuf can
+                            generate
+                          items:
+                            type: string
+                          type: array
+                        description: Any additional information provided by the authenticator.
+                        type: object
+                      groups:
+                        description: The names of groups this user is a part of.
+                        items:
+                          type: string
+                        type: array
+                      uid:
+                        description: |-
+                          A unique value that identifies this user across time. If this user is
+                          deleted and another user by the same name is added, they will have
+                          different UIDs.
+                        type: string
+                      username:
+                        description: The name that uniquely identifies this user among
+                          all active users.
+                        type: string
+                    type: object
                 type: object
               lastPushedObjectState:
                 properties:
-                  lastPushedGitUserID:
+                  lastPushedGitUser:
                     type: string
                   lastPushedObject:
                     properties:
-                      apiGroups:
-                        description: |-
-                          APIGroup contains the name, the supported versions, and the preferred version
-                          of a group.
-                        properties:
-                          apiVersion:
-                            description: |-
-                              APIVersion defines the versioned schema of this representation of an object.
-                              Servers should convert recognized schemas to the latest internal value, and
-                              may reject unrecognized values.
-                              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
-                            type: string
-                          kind:
-                            description: |-
-                              Kind is a string value representing the REST resource this object represents.
-                              Servers may infer this from the endpoint the client submits requests to.
-                              Cannot be updated.
-                              In CamelCase.
-                              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
-                            type: string
-                          name:
-                            description: name is the name of the group.
-                            type: string
-                          preferredVersion:
-                            description: |-
-                              preferredVersion is the version preferred by the API server, which
-                              probably is the storage version.
-                            properties:
-                              groupVersion:
-                                description: groupVersion specifies the API group
-                                  and version in the form "group/version"
-                                type: string
-                              version:
-                                description: |-
-                                  version specifies the version in the form of "version". This is to save
-                                  the clients the trouble of splitting the GroupVersion.
-                                type: string
-                            required:
-                            - groupVersion
-                            - version
-                            type: object
-                          serverAddressByClientCIDRs:
-                            description: |-
-                              a map of client CIDR to server address that is serving this group.
-                              This is to help clients reach servers in the most network-efficient way possible.
-                              Clients can use the appropriate server address as per the CIDR that they match.
-                              In case of multiple matches, clients should use the longest matching CIDR.
-                              The server returns only those CIDRs that it thinks that the client can match.
-                              For example: the master will return an internal IP CIDR only, if the client reaches the server using an internal IP.
-                              Server looks at X-Forwarded-For header or X-Real-Ip header or request.RemoteAddr (in that order) to get the client IP.
-                            items:
-                              description: ServerAddressByClientCIDR helps the client
-                                to determine the server address that they should use,
-                                depending on the clientCIDR that they match.
-                              properties:
-                                clientCIDR:
-                                  description: The CIDR with which clients can match
-                                    their IP to figure out the server address that
-                                    they should use.
-                                  type: string
-                                serverAddress:
-                                  description: |-
-                                    Address of this server, suitable for a client that matches the above CIDR.
-                                    This can be a hostname, hostname:port, IP or IP:port.
-                                  type: string
-                              required:
-                              - clientCIDR
-                              - serverAddress
-                              type: object
-                            type: array
-                          versions:
-                            description: versions are the versions supported in this
-                              group.
-                            items:
-                              description: |-
-                                GroupVersion contains the "group/version" and "version" string of a version.
-                                It is made a struct to keep extensibility.
-                              properties:
-                                groupVersion:
-                                  description: groupVersion specifies the API group
-                                    and version in the form "group/version"
-                                  type: string
-                                version:
-                                  description: |-
-                                    version specifies the version in the form of "version". This is to save
-                                    the clients the trouble of splitting the GroupVersion.
-                                  type: string
-                              required:
-                              - groupVersion
-                              - version
-                              type: object
-                            type: array
-                        required:
-                        - name
-                        - versions
-                        type: object
-                      apiVersions:
+                      group:
                         type: string
                       name:
                         type: string
-                      resources:
+                      resource:
+                        type: string
+                      version:
                         type: string
                     required:
-                    - apiGroups
-                    - apiVersions
+                    - group
                     - name
-                    - resources
+                    - resource
+                    - version
                     type: object
+                  lastPushedObjectCommitHash:
+                    type: string
                   lastPushedObjectGitPath:
+                    type: string
+                  lastPushedObjectGitRepo:
                     type: string
                   lastPushedObjectState:
                     type: string
@@ -678,4 +404,5 @@ spec:
     storage: true
     subresources:
       status: {}
+
 {{- end }}
