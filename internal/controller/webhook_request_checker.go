@@ -198,7 +198,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 		// The subject name can not be unique -> in specific conditions, a commit can be done as another user
 		// Need to be studied
 		if gitUserBinding.Spec.Subject.Name == incomingUser.Username {
-			remoteConf, gitUser, err = wrc.searchForGitToken(*gitUserBinding, fqdn, remoteConf)
+			_, gitUser, err = wrc.searchForGitToken(*gitUserBinding, fqdn, remoteConf)
 			if err != nil {
 				errMsg := err.Error()
 				details.messageAddition = errMsg
