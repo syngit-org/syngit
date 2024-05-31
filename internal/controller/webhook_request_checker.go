@@ -43,7 +43,7 @@ type wrcDetails struct {
 	repoPath    string
 	commitHash  string
 	gitUser     gitUser
-	remoteConf  kgiov1.GitProviderConfiguration
+	remoteConf  kgiov1.GitServerConfiguration
 	pushDetails string
 }
 
@@ -178,7 +178,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 		gitEmail: "",
 		gitToken: "",
 	}
-	remoteConf := &kgiov1.GitProviderConfiguration{
+	remoteConf := &kgiov1.GitServerConfiguration{
 		CaBundle:              "",
 		InsecureSkipTlsVerify: false,
 	}
@@ -198,7 +198,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 		// The subject name can not be unique -> in specific conditions, a commit can be done as another user
 		// Need to be studied
 		if gitUserBinding.Spec.Subject.Name == incomingUser.Username {
-			_, gitUser, err = wrc.searchForGitToken(*gitUserBinding, fqdn, remoteConf)
+			remoteConf, gitUser, err = wrc.searchForGitToken(*gitUserBinding, fqdn, remoteConf)
 			if err != nil {
 				errMsg := err.Error()
 				details.messageAddition = errMsg
@@ -225,7 +225,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	return true, nil
 }
 
-func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, fqdn string, remoteConf *kgiov1.GitProviderConfiguration) (*kgiov1.GitProviderConfiguration, *gitUser, error) {
+func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, fqdn string, remoteConf *kgiov1.GitServerConfiguration) (*kgiov1.GitServerConfiguration, *gitUser, error) {
 	userGitName := ""
 	userGitEmail := ""
 	userGitToken := ""
@@ -263,8 +263,8 @@ func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, f
 
 			userGitEmail = gitRemote.Spec.Email
 
-			remoteConf.CaBundle = gitRemote.Status.GitProviderConfiguration.CaBundle
-			remoteConf.InsecureSkipTlsVerify = gitRemote.Status.GitProviderConfiguration.InsecureSkipTlsVerify
+			remoteConf.CaBundle = gitRemote.Status.GitServerConfiguration.CaBundle
+			remoteConf.InsecureSkipTlsVerify = gitRemote.Status.GitServerConfiguration.InsecureSkipTlsVerify
 		}
 	}
 

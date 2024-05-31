@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
-	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -57,56 +57,53 @@ func (r *GitRemoteReconciler) updateStatus(ctx context.Context, gitRemote *kgiov
 	return nil
 }
 
-func (r *GitRemoteReconciler) setProviderConfiguration(ctx context.Context, gitRemote *kgiov1.GitRemote) (kgiov1.GitProviderConfiguration, error) {
+func (r *GitRemoteReconciler) setServerConfiguration(ctx context.Context, gitRemote *kgiov1.GitRemote) (kgiov1.GitServerConfiguration, error) {
 
-	gpc := kgiov1.GitProviderConfiguration{
-		Inherited:             false,
-		CaBundle:              "",
-		InsecureSkipTlsVerify: false,
+	gpc := &kgiov1.GitServerConfiguration{
+		Inherited:              false,
+		AuthenticationEndpoint: "",
+		CaBundle:               "",
+		InsecureSkipTlsVerify:  false,
 	}
 
 	// STEP 1 : Check the config map ref
 	var cm corev1.ConfigMap
-	if gitRemote.Spec.CustomGitProviderConfigRef.Name != "" {
+	if gitRemote.Spec.CustomGitServerConfigRef.Name != "" {
 		// It is defined in the GitRemote object
-		namespacedName := types.NamespacedName{Namespace: gitRemote.Namespace, Name: gitRemote.Spec.CustomGitProviderConfigRef.Name}
+		namespacedName := types.NamespacedName{Namespace: gitRemote.Namespace, Name: gitRemote.Spec.CustomGitServerConfigRef.Name}
 		if err := r.Get(ctx, namespacedName, &cm); err != nil {
 			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitConfigNotFound
-			gitRemote.Status.ConnexionStatus.Details = "ConfigMap name: " + gitRemote.Spec.CustomGitProviderConfigRef.Name
-			return gpc, err
+			gitRemote.Status.ConnexionStatus.Details = "ConfigMap name: " + gitRemote.Spec.CustomGitServerConfigRef.Name
+			return *gpc, err
 		}
 	} else {
 		// It is not defined in the GitRemote object -> look for the default configmap of the operator
-		namespacedName := types.NamespacedName{Namespace: r.Namespace, Name: gitProvidersConfigMap}
+		namespacedName := types.NamespacedName{Namespace: r.Namespace, Name: gitRemote.Spec.GitBaseDomainFQDN}
 		if err := r.Get(ctx, namespacedName, &cm); err != nil {
 			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitConfigNotFound
-			gitRemote.Status.ConnexionStatus.Details = "Configuration reference not found in the current GitRemote; ConfigMap " + gitProvidersConfigMap + " in the namespace of the operator not found as well"
-			return gpc, err
+			gitRemote.Status.ConnexionStatus.Details = "Configuration reference not found in the current GitRemote; ConfigMap " + gitRemote.Spec.GitBaseDomainFQDN + " in the namespace of the operator not found as well"
+			return *gpc, err
 		}
 		gpc.Inherited = true
 	}
 
-	// STEP 2 : Build the GitProviderConfiguration
+	// STEP 2 : Build the GitServerConfiguration
 
 	// Parse the ConfigMap
-	providers, err := parseConfigMap(cm)
+	serverConf, err := parseConfigMap(cm)
 	if err != nil {
 		gitRemote.Status.ConnexionStatus.Status = kgiov1.GitConfigParseError
 		gitRemote.Status.ConnexionStatus.Details = err.Error()
-		return gpc, err
+		return *gpc, err
 	}
 
-	// Set the conf
-	for providerName, providerData := range providers {
-		if gitRemote.Spec.GitBaseDomainFQDN == providerName {
-			gpc.AuthenticationEndpoint = providerData.AuthenticationEndpoint
-			gpc.CaBundle = providerData.CaBundle
-			gpc.InsecureSkipTlsVerify = providerData.InsecureSkipTlsVerify
-			// .. Future conf
-		}
+	if gitRemote.Spec.InsecureSkipTlsVerify != serverConf.InsecureSkipTlsVerify {
+		serverConf.InsecureSkipTlsVerify = gitRemote.Spec.InsecureSkipTlsVerify
 	}
 
-	return gpc, nil
+	*gpc = serverConf
+
+	return *gpc, nil
 }
 
 // +kubebuilder:rbac:groups=kgio.dams.kgio,resources=gitremotes,verbs=get;list;watch;create;update;patch;delete
@@ -143,12 +140,12 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	username := string(secret.Data["username"])
 
 	// Update configuration
-	gpc, err := r.setProviderConfiguration(ctx, &gitRemote)
+	gpc, err := r.setServerConfiguration(ctx, &gitRemote)
 	if err != nil {
 		errUpdate := r.updateStatus(ctx, &gitRemote)
 		return ctrl.Result{}, errUpdate
 	}
-	gitRemote.Status.GitProviderConfiguration = gpc
+	gitRemote.Status.GitServerConfiguration = gpc
 	errUpdate := r.updateStatus(ctx, &gitRemote)
 	if errUpdate != nil {
 		return ctrl.Result{}, errUpdate
@@ -172,9 +169,9 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if authenticationEndpoint == "" {
 			errMsg := ""
 			if gpc.Inherited {
-				errMsg = "git provider not found in the " + gitProvidersConfigMap + " ConfigMap in the namespace of the operator"
+				errMsg = "git provider not found in the " + gitRemote.Spec.GitBaseDomainFQDN + " ConfigMap in the namespace of the operator"
 			} else {
-				errMsg = "git provider not found in the " + gitRemote.Spec.CustomGitProviderConfigRef.Name + " ConfigMap"
+				errMsg = "git provider not found in the " + gitRemote.Spec.CustomGitServerConfigRef.Name + " ConfigMap"
 			}
 			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitUnsupported
 			gitRemote.Status.ConnexionStatus.Details = errMsg
@@ -187,7 +184,7 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		gitReq, err := http.NewRequest("GET", authenticationEndpoint, nil)
 		if err != nil {
 			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitServerError
-			gitRemote.Status.ConnexionStatus.Details = "Internal operator error : cannot create the http request"
+			gitRemote.Status.ConnexionStatus.Details = "Internal operator error : cannot create the http request " + err.Error()
 			errUpdate := r.updateStatus(ctx, &gitRemote)
 			return ctrl.Result{}, errUpdate
 		}
@@ -196,11 +193,13 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		resp, err := httpClient.Do(gitReq)
 		if err != nil {
 			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitServerError
-			gitRemote.Status.ConnexionStatus.Details = "Internal operator error : the request cannot be processed"
+			gitRemote.Status.ConnexionStatus.Details = "Internal operator error : the request cannot be processed " + err.Error()
 			errUpdate := r.updateStatus(ctx, &gitRemote)
 			return ctrl.Result{}, errUpdate
 		}
 		defer resp.Body.Close()
+
+		gitRemote.Status.ConnexionStatus.Details = ""
 
 		// Check the response status code
 		if resp.StatusCode == http.StatusOK {
@@ -234,20 +233,26 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	return ctrl.Result{}, nil
 }
 
-func parseConfigMap(configMap corev1.ConfigMap) (map[string]kgiov1.GitProviderConfiguration, error) {
-	providers := make(map[string]kgiov1.GitProviderConfiguration)
-
+func parseConfigMap(configMap corev1.ConfigMap) (kgiov1.GitServerConfiguration, error) {
+	gitServerConf := &kgiov1.GitServerConfiguration{}
 	for key, value := range configMap.Data {
-		var gitProvider kgiov1.GitProviderConfiguration
-
-		if err := yaml.Unmarshal([]byte(value), &gitProvider); err != nil {
-			return nil, errors.New("failed to unmarshal provider data for key " + key + ": " + err.Error())
+		switch key {
+		case "authenticationEndpoint":
+			gitServerConf.AuthenticationEndpoint = value
+		case "caBundle":
+			gitServerConf.CaBundle = value
+		case "insecureSkipTlsVerify":
+			if value == "true" {
+				gitServerConf.InsecureSkipTlsVerify = true
+			} else {
+				gitServerConf.InsecureSkipTlsVerify = false
+			}
+		default:
+			return *gitServerConf, errors.New("wrong key " + key + " found in the git server configmap " + configMap.Namespace + "/" + configMap.Name)
 		}
-
-		providers[key] = gitProvider
 	}
 
-	return providers, nil
+	return *gitServerConf, nil
 }
 
 func (r *GitRemoteReconciler) findObjectsForSecret(ctx context.Context, secret client.Object) []reconcile.Request {
@@ -321,7 +326,7 @@ func (r *GitRemoteReconciler) gitEndpointsConfigCreation(e event.CreateEvent) bo
 	if !ok {
 		return false
 	}
-	return configMap.Namespace == r.Namespace && configMap.Name == gitProvidersConfigMap
+	return configMap.Namespace == r.Namespace && strings.Contains(configMap.Name, ".")
 }
 
 func (r *GitRemoteReconciler) gitEndpointsConfigUpdate(e event.UpdateEvent) bool {
@@ -329,7 +334,7 @@ func (r *GitRemoteReconciler) gitEndpointsConfigUpdate(e event.UpdateEvent) bool
 	if !ok {
 		return false
 	}
-	return configMap.Namespace == r.Namespace && configMap.Name == gitProvidersConfigMap
+	return configMap.Namespace == r.Namespace && strings.Contains(configMap.Name, ".")
 }
 
 func (r *GitRemoteReconciler) gitEndpointsConfigDeletion(e event.DeleteEvent) bool {
@@ -337,13 +342,12 @@ func (r *GitRemoteReconciler) gitEndpointsConfigDeletion(e event.DeleteEvent) bo
 	if !ok {
 		return false
 	}
-	return configMap.Namespace == r.Namespace && configMap.Name == gitProvidersConfigMap
+	return configMap.Namespace == r.Namespace && strings.Contains(configMap.Name, ".")
 }
 
 const (
 	secretRefField            = ".spec.secretRef.name"
-	gitProviderConfigRefField = ".spec.customGitProviderConfigRef.name"
-	gitProvidersConfigMap     = "git-providers-configuration"
+	gitProviderConfigRefField = ".spec.CustomGitServerConfigRef.name"
 )
 
 // SetupWithManager sets up the controller with the Manager.
@@ -361,10 +365,10 @@ func (r *GitRemoteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &kgiov1.GitRemote{}, gitProviderConfigRefField, func(rawObj client.Object) []string {
 		// Extract the ConfigMap name from the GitRemote Spec, if one is provided
 		gitRemote := rawObj.(*kgiov1.GitRemote)
-		if gitRemote.Spec.CustomGitProviderConfigRef.Name == "" {
+		if gitRemote.Spec.CustomGitServerConfigRef.Name == "" {
 			return nil
 		}
-		return []string{gitRemote.Spec.CustomGitProviderConfigRef.Name}
+		return []string{gitRemote.Spec.CustomGitServerConfigRef.Name}
 	}); err != nil {
 		return err
 	}

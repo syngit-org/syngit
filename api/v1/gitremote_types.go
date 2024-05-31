@@ -30,13 +30,16 @@ type GitRemoteSpec struct {
 	GitBaseDomainFQDN string `json:"gitBaseDomainFQDN"`
 
 	// +optional
-	CustomGitProviderConfigRef corev1.ObjectReference `json:"customGitProviderConfigRef,omitempty"`
+	CustomGitServerConfigRef corev1.ObjectReference `json:"customGitServerConfigRef,omitempty"`
 
 	// +optional
 	TestAuthentication bool `json:"testAuthentication,omitempty"`
+
+	// +optional
+	InsecureSkipTlsVerify bool `json:"insecureSkipTlsVerify,omitempty"`
 }
 
-type GitProviderConfiguration struct {
+type GitServerConfiguration struct {
 	// +optional
 	Inherited bool `json:"inherited,omitempty" yaml:"inherited,omitempty"`
 	//+ optional
@@ -91,7 +94,7 @@ type GitRemoteStatus struct {
 	SecretBoundStatus SecretBoundStatus `json:"secretBoundStatus,omitempty"`
 
 	// +optional
-	GitProviderConfiguration GitProviderConfiguration `json:"gitProviderConfiguration,omitempty"`
+	GitServerConfiguration GitServerConfiguration `json:"gitServerConfiguration,omitempty"`
 }
 
 //+kubebuilder:object:root=true

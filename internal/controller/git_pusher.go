@@ -29,7 +29,7 @@ type GitPusher struct {
 	gitEmail             string
 	gitToken             string
 	operation            admissionv1.Operation
-	remoteConfiguration  kgiov1.GitProviderConfiguration
+	remoteConfiguration  kgiov1.GitServerConfiguration
 }
 
 type GitPushResponse struct {
