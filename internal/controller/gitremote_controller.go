@@ -18,6 +18,8 @@ package controller
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net/http"
@@ -180,7 +182,22 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 
 		// Perform Git provider authentication check
-		httpClient := &http.Client{}
+		caCertPool := x509.NewCertPool()
+		if ok := caCertPool.AppendCertsFromPEM([]byte(gpc.CaBundle)); !ok {
+			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitConfigParseError
+			gitRemote.Status.ConnexionStatus.Details = "the certificate should be base64-encoded (in PEM format)"
+			errUpdate := r.updateStatus(ctx, &gitRemote)
+			return ctrl.Result{}, errUpdate
+		}
+		transport := &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs:            caCertPool,
+				InsecureSkipVerify: gpc.InsecureSkipTlsVerify,
+			},
+		}
+		httpClient := &http.Client{
+			Transport: transport,
+		}
 		gitReq, err := http.NewRequest("GET", authenticationEndpoint, nil)
 		if err != nil {
 			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitServerError
