@@ -182,18 +182,20 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 
 		// Perform Git provider authentication check
-		caCertPool := x509.NewCertPool()
-		if ok := caCertPool.AppendCertsFromPEM([]byte(gpc.CaBundle)); !ok {
-			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitConfigParseError
-			gitRemote.Status.ConnexionStatus.Details = "the certificate should be base64-encoded (in PEM format)"
-			errUpdate := r.updateStatus(ctx, &gitRemote)
-			return ctrl.Result{}, errUpdate
-		}
 		transport := &http.Transport{
 			TLSClientConfig: &tls.Config{
-				RootCAs:            caCertPool,
 				InsecureSkipVerify: gpc.InsecureSkipTlsVerify,
 			},
+		}
+		if !gpc.InsecureSkipTlsVerify {
+			caCertPool := x509.NewCertPool()
+			if ok := caCertPool.AppendCertsFromPEM([]byte(gpc.CaBundle)); !ok {
+				gitRemote.Status.ConnexionStatus.Status = kgiov1.GitConfigParseError
+				gitRemote.Status.ConnexionStatus.Details = "x509 cert pool maker failed"
+				errUpdate := r.updateStatus(ctx, &gitRemote)
+				return ctrl.Result{}, errUpdate
+			}
+			transport.TLSClientConfig.RootCAs = caCertPool
 		}
 		httpClient := &http.Client{
 			Transport: transport,

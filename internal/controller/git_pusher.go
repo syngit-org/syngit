@@ -51,6 +51,7 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 		},
 		SingleBranch:    true,
 		InsecureSkipTLS: gp.remoteConfiguration.InsecureSkipTlsVerify,
+		CABundle:        []byte(gp.remoteConfiguration.CaBundle),
 	}
 	if gp.remoteConfiguration.CaBundle != "" {
 		cloneOption.CABundle = []byte(gp.remoteConfiguration.CaBundle)
@@ -253,6 +254,8 @@ func (gp *GitPusher) pushChanges(repo *git.Repository) error {
 			Username: gp.gitUser,
 			Password: gp.gitToken,
 		},
+		InsecureSkipTLS: gp.remoteConfiguration.InsecureSkipTlsVerify,
+		CABundle:        []byte(gp.remoteConfiguration.CaBundle),
 	})
 	if err != nil {
 		errMsg := "failed to push changes: " + err.Error()
