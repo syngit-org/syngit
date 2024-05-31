@@ -3,11 +3,11 @@ kind: Service
 metadata:
   labels:
     app.kubernetes.io/name: service
-    app.kubernetes.io/instance: {{ .Values.webhook.services.crd }}
+    app.kubernetes.io/instance: webhook-crd-service
     app.kubernetes.io/component: webhook
     app.kubernetes.io/created-by: {{ .Release.Name }}
     app.kubernetes.io/part-of: {{ .Release.Name }}
-  name: {{ .Values.webhook.services.crd }}
+  name: webhook-crd-service
 spec:
   ports:
     - port: 443

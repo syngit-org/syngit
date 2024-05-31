@@ -40,7 +40,7 @@ spec:
           spec:
             description: GitRemoteSpec defines the desired state of GitRemote
             properties:
-              customGitProviderConfigRef:
+              customGitServerConfigRef:
                 description: |-
                   Reference to a ConfigMap to configuration the behavior of the GitRemote connexion with the distant server
 
@@ -92,6 +92,8 @@ spec:
                 type: string
               gitBaseDomainFQDN:
                 type: string
+              insecureSkipTlsVerify:
+                type: boolean
               secretRef:
                 description: |-
                   SecretReference represents a Secret Reference. It has enough information to retrieve secret
@@ -124,7 +126,7 @@ spec:
                   status:
                     type: string
                 type: object
-              gitProviderConfiguration:
+              gitServerConfiguration:
                 properties:
                   authenticationEndpoint:
                     type: string

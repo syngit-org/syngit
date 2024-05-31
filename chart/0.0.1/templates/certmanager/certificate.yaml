@@ -25,12 +25,12 @@ metadata:
   name: operator-webhook-cert
 spec:
   dnsNames:
-  - {{ .Values.webhook.services.crd }}.{{ .Release.Namespace }}.svc
-  - {{ .Values.webhook.services.crd }}.{{ .Release.Namespace }}.svc.cluster.local
+  - webhook-crd-service.{{ .Release.Namespace }}.svc
+  - webhook-crd-service.{{ .Release.Namespace }}.svc.cluster.local
   - webhook-pusher-service.{{ .Release.Namespace }}.svc
   - webhook-pusher-service.{{ .Release.Namespace }}.svc.cluster.local
   issuerRef:
     kind: Issuer
     name: {{ .Release.Name }}-selfsigned-issuer
-  secretName: {{ .Values.webhook.certificate.secret }}
+  secretName: {{ .Values.webhook.certmanager.certificate.secret }}
 {{- end }}

@@ -12,7 +12,7 @@ webhooks:
   - v1
   clientConfig:
     service:
-      name: {{ .Values.webhook.services.crd }}
+      name: webhook-crd-service
       namespace: {{ .Release.Namespace }}
       path: /validate-kgio-dams-kgio-v1-gitremote
   failurePolicy: Fail
@@ -32,7 +32,7 @@ webhooks:
   - v1
   clientConfig:
     service:
-      name: {{ .Values.webhook.services.crd }}
+      name: webhook-crd-service
       namespace: {{ .Release.Namespace }}
       path: /validate-kgio-dams-kgio-v1-resourcesinterceptor
   failurePolicy: Fail

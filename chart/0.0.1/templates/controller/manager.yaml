@@ -46,7 +46,7 @@ spec:
         - "--health-probe-bind-address=:8081"
         - "--metrics-bind-address={{ .Values.controller.metrics.bindAddress }}"
         {{- end }}
-        image: {{ .Values.imagePrefix }}/{{ .Chart.Name }}:{{ .Chart.Version }}
+        image: {{ .Values.controller.imagePrefix }}/{{ .Chart.Name }}:{{ .Chart.Version }}
         env:
         - name: MANAGER_NAMESPACE
           valueFrom:
@@ -87,4 +87,4 @@ spec:
       - name: cert
         secret:
           defaultMode: 420
-          secretName: {{ .Values.webhook.certificate.secret }}
+          secretName: {{ .Values.webhook.certmanager.certificate.secret }}

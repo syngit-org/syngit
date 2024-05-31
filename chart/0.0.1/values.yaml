@@ -1,13 +1,12 @@
 webhook:
   certmanager:
     enable: true
-  certificate:
-    name: webhook-cert
-    secret: webhook-server-cert
-  services:
-    crd: webhook-crd-service
+    certificate:
+      name: webhook-cert
+      secret: webhook-server-cert
 
 controller:
+  imagePrefix: ghcr.io/damsien
   securityContext:
     runAsUser: 1000
     allowPrivilegeEscalation: false
@@ -57,4 +56,7 @@ monitoring:
 
 installCRD: true
 
-imagePrefix: ghcr.io/damsien
+configuration:
+  gitlab: true
+  github: true
+  bitbucket: true
