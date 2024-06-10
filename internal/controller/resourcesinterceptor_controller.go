@@ -54,16 +54,22 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	_ = log.FromContext(ctx)
 	isDeleted := false
 
+	var rINamespace string
+	var rIName string
+
 	// Get the ResourcesInterceptor Object
 	var resourcesInterceptor kgiov1.ResourcesInterceptor
 	if err := r.Get(ctx, req.NamespacedName, &resourcesInterceptor); err != nil {
 		// does not exists -> deleted
 		r.webhookServer.DestroyPathHandler(req.NamespacedName)
 		isDeleted = true
+		rIName = req.Name
+		rINamespace = req.Namespace
 		// return ctrl.Result{}, client.IgnoreNotFound(err)
+	} else {
+		rINamespace = resourcesInterceptor.Namespace
+		rIName = resourcesInterceptor.Name
 	}
-	rINamespace := resourcesInterceptor.Namespace
-	rIName := resourcesInterceptor.Name
 
 	var prefixMsg = "[" + rINamespace + "/" + rIName + "]"
 	log.Log.Info(prefixMsg + " Reconciling request received")
@@ -109,7 +115,7 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	// Create the webhook specs for this specific RI
 	webhookObjectName := "resourcesinterceptor.kgio.com"
 	var sideEffectsNone = admissionv1.SideEffectClassNone
-	webhookSpecificName := rIName + ".kgio.com"
+	webhookSpecificName := rIName + "-" + rINamespace + ".kgio.com"
 
 	// Create a new ValidatingWebhook object
 	webhook := &admissionv1.ValidatingWebhookConfiguration{
@@ -154,19 +160,20 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 			if riWebhook.Name == webhookSpecificName {
 				foundRIWebhook = true
 				currentWebhookCopy = slices.Delete(found.Webhooks, i, 1)
-				if !isDeleted {
-					currentWebhookCopy = append(currentWebhookCopy, webhook.Webhooks[0])
-				}
 			}
 		}
-		// If not found, then just add the new webhook spec for this RI
-		if !foundRIWebhook {
-			found.Webhooks = append(found.Webhooks, webhook.Webhooks[0])
-		} else {
-			found.Webhooks = currentWebhookCopy
+		if !isDeleted {
+			currentWebhookCopy = append(currentWebhookCopy, webhook.Webhooks[0])
 		}
 
 		if len(found.Webhooks) != len(currentWebhookCopy) {
+			// If not found, then just add the new webhook spec for this RI
+			if !foundRIWebhook {
+				found.Webhooks = append(found.Webhooks, webhook.Webhooks[0])
+			} else {
+				found.Webhooks = currentWebhookCopy
+			}
+
 			err = r.Update(ctx, found)
 			if err != nil {
 				r.Recorder.Event(&resourcesInterceptor, "Warning", "WebhookNotUpdated", "The webhook exists but has not been updated")
