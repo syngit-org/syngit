@@ -155,15 +155,15 @@ type LastBypassedObjectState struct {
 	LastBypassedObject JsonGVRN `json:"lastBypassObject,omitempty"`
 }
 
-type LastInterceptedObjectState struct {
+type LastObservedObjectState struct {
 	// +optional
-	LastInterceptedObjectTime metav1.Time `json:"lastInterceptedObjectTime,omitempty"`
+	LastObservedObjectTime metav1.Time `json:"lastObservedObjectTime,omitempty"`
 
 	// +optional
-	LastInterceptedObjectUserInfo authenticationv1.UserInfo `json:"lastInterceptedObjectUserInfo,omitempty"`
+	LastObservedObjectUserInfo authenticationv1.UserInfo `json:"lastObservedObjectUserInfo,omitempty"`
 
 	// +optional
-	LastInterceptedObject JsonGVRN `json:"lastInterceptedObject,omitempty"`
+	LastObservedObject JsonGVRN `json:"lastObservedObject,omitempty"`
 }
 
 type LastPushedObjectState struct {
@@ -189,21 +189,21 @@ type LastPushedObjectState struct {
 	LastPushedObjectStatus string `json:"lastPushedObjectState,omitempty"`
 }
 
-// type PushedObjectStatus string
-
-// const (
-// 	Pushed         PushedObjectStatus = "Resource correctly pushed"
-// 	PushNotAllowed PushedObjectStatus = "Error: Push permission is not allowed on this git repository for this user"
-// 	NetworkError   PushedObjectStatus = "Error: A network error occured"
-// )
-
 // ResourcesInterceptorStatus defines the observed state of ResourcesInterceptor
 type ResourcesInterceptorStatus struct {
+
+	// +listType=map
+	// +listMapKey=type
+	// +patchStrategy=merge
+	// +patchMergeKey=type
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+
 	// +optional
 	LastBypassedObjectState LastBypassedObjectState `json:"lastBypassedObjectState,omitempty"`
 
 	// +optional
-	LastInterceptedObjectState LastInterceptedObjectState `json:"lastInterceptedObjectState,omitempty"`
+	LastObservedObjectState LastObservedObjectState `json:"lastObservedObjectState,omitempty"`
 
 	// +optional
 	LastPushedObjectState LastPushedObjectState `json:"lastPushedObjectState,omitempty"`

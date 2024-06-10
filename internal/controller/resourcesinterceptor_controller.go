@@ -160,10 +160,12 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 			found.Webhooks = currentWebhookCopy
 		}
 
-		err = r.Update(ctx, found)
-		if err != nil {
-			r.Recorder.Event(&resourcesInterceptor, "Warning", "WebhookNotUpdated", "The webhook exists but has not been updated")
-			return reconcile.Result{}, err
+		if len(found.Webhooks) != len(currentWebhookCopy) {
+			err = r.Update(ctx, found)
+			if err != nil {
+				r.Recorder.Event(&resourcesInterceptor, "Warning", "WebhookNotUpdated", "The webhook exists but has not been updated")
+				return reconcile.Result{}, err
+			}
 		}
 	} else {
 		// Create a new webhook if not found -> if it is the first RI to be created

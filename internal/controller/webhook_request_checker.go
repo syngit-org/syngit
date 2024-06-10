@@ -485,12 +485,12 @@ func (wrc *WebhookRequestChecker) updateStatus(kind string, details wrcDetails) 
 		}
 		wrc.resourcesInterceptor.Status.LastBypassedObjectState = *lastBypassedObjectState
 	case "LastInterceptedObjectState":
-		lastInterceptedObjectState := &kgiov1.LastInterceptedObjectState{
-			LastInterceptedObjectTime:     v1.Now(),
-			LastInterceptedObjectUserInfo: wrc.admReview.Request.UserInfo,
-			LastInterceptedObject:         *gvrn,
+		lastObservedObjectState := &kgiov1.LastObservedObjectState{
+			LastObservedObjectTime:     v1.Now(),
+			LastObservedObjectUserInfo: wrc.admReview.Request.UserInfo,
+			LastObservedObject:         *gvrn,
 		}
-		wrc.resourcesInterceptor.Status.LastInterceptedObjectState = *lastInterceptedObjectState
+		wrc.resourcesInterceptor.Status.LastObservedObjectState = *lastObservedObjectState
 	case "LastPushedObjectState":
 		lastPushedObjectState := &kgiov1.LastPushedObjectState{
 			LastPushedObjectTime:          v1.Now(),
