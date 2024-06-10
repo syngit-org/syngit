@@ -19,6 +19,7 @@ package v1
 import (
 	"regexp"
 
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -49,19 +50,35 @@ func (r *ResourcesInterceptorSpec) ValidateResourcesInterceptorSpec() field.Erro
 
 	// Validate DefaultUserBind based on DefaultUnauthorizedUserMode
 	if r.DefaultUnauthorizedUserMode == Block && r.DefaultUserBind != nil {
-		errors = append(errors, field.Invalid(field.NewPath("defaultUserBind"), r.DefaultUserBind, "should not be set when defaultUnauthorizedUserMode is set to \"Block\""))
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultUserBind"), r.DefaultUserBind, "should not be set when defaultUnauthorizedUserMode is set to \"Block\""))
 	} else if r.DefaultUnauthorizedUserMode == UserDefaultUserBind && r.DefaultUserBind == nil {
-		errors = append(errors, field.Required(field.NewPath("defaultUserBind"), "should be set when defaultUnauthorizedUserMode is set to \"UseDefaultUserBind\""))
+		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultUserBind"), "should be set when defaultUnauthorizedUserMode is set to \"UseDefaultUserBind\""))
 	}
 
 	// Validate DefaultBlockAppliedMessage only exists if CommitProcess is set to ApplyCommit
 	if r.DefaultBlockAppliedMessage != "" && r.CommitProcess != "CommitApply" {
-		errors = append(errors, field.Forbidden(field.NewPath("defaultBlockAppliedMessage"), "should not be set if .spec.commitApply is not set to \"CommitApply\""))
+		errors = append(errors, field.Forbidden(field.NewPath("spec").Child("defaultBlockAppliedMessage"), "should not be set if .spec.commitProcess is not set to \"CommitApply\""))
 	}
 
 	// Validate that CommitProcess is either CommitApply or CommitOnly
 	if r.CommitProcess != "CommitOnly" && r.CommitProcess != "CommitApply" {
-		errors = append(errors, field.Forbidden(field.NewPath("commitProcess"), "should be set to \"CommitApply\" or \"CommitOnly\""))
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("commitProcess"), r.CommitProcess, "should be set to \"CommitApply\" or \"CommitOnly\""))
+	}
+
+	// Validate the allowed operations
+	for _, operation := range r.Operations {
+		switch operation {
+		case admissionregistrationv1.OperationAll, admissionregistrationv1.Create, admissionregistrationv1.Update, admissionregistrationv1.Delete, admissionregistrationv1.Connect:
+			continue
+		default:
+			errors = append(errors, field.Invalid(field.NewPath("spec").Child("operations"), r.Operations, "should be set to \"*\", \"CREATE\", \"UPDATE\", \"DELETE\" or \"CONNECT\""))
+		}
+	}
+
+	// Validate Git URI
+	gitURIPattern := regexp.MustCompile(`^(https?|git|ssh|ftps?|rsync)\://[^ ]+$`)
+	if !gitURIPattern.MatchString(r.RemoteRepository) {
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("remoteRepository"), r.RemoteRepository, "invalid Git URI"))
 	}
 
 	// For Included and Excluded Resources. Validate that if a name is specified for a resource, then the concerned resource is not referenced without the name
@@ -71,7 +88,7 @@ func (r *ResourcesInterceptorSpec) ValidateResourcesInterceptorSpec() field.Erro
 	// Validate the ExcludedFields to ensure that it is a YAML path
 	for _, fieldPath := range r.ExcludedFields {
 		if !isValidYAMLPath(fieldPath) {
-			errors = append(errors, field.Invalid(field.NewPath("excludedFields"), fieldPath, "must be a valid YAML path. Regex : "+`^([a-zA-Z0-9_./:-]*(\[[a-zA-Z0-9_*./:-]*\])?)*$`))
+			errors = append(errors, field.Invalid(field.NewPath("spec").Child("excludedFields"), fieldPath, "must be a valid YAML path. Regex : "+`^([a-zA-Z0-9_./:-]*(\[[a-zA-Z0-9_*./:-]*\])?)*$`))
 		}
 	}
 
@@ -105,7 +122,7 @@ func (r *ResourcesInterceptorSpec) validateFineGrainedIncludedResources(gvrns []
 	duplicates := r.searchForDuplicates(gvrns)
 
 	if len(duplicates) > 0 {
-		errors = append(errors, field.Invalid(field.NewPath("includedResources"), r.IncludedResources, "duplicate GVRName found"))
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("includedResources"), r.IncludedResources, "duplicate GVRName found"))
 	}
 
 	return errors
@@ -117,7 +134,7 @@ func (r *ResourcesInterceptorSpec) validateFineGrainedExcludedResources(gvrns []
 	duplicates := r.searchForDuplicates(gvrns)
 
 	if len(duplicates) > 0 {
-		errors = append(errors, field.Invalid(field.NewPath("excludedResources"), r.ExcludedResources, "duplicate GVRName found"))
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("excludedResources"), r.ExcludedResources, "duplicate GVRName found"))
 	}
 
 	return errors

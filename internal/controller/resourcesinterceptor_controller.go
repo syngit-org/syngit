@@ -52,13 +52,15 @@ type ResourcesInterceptorReconciler struct {
 
 func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
+	isDeleted := false
 
 	// Get the ResourcesInterceptor Object
 	var resourcesInterceptor kgiov1.ResourcesInterceptor
 	if err := r.Get(ctx, req.NamespacedName, &resourcesInterceptor); err != nil {
 		// does not exists -> deleted
 		r.webhookServer.DestroyPathHandler(req.NamespacedName)
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		isDeleted = true
+		// return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	rINamespace := resourcesInterceptor.Namespace
 	rIName := resourcesInterceptor.Name
@@ -146,7 +148,9 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 			if riWebhook.Name == webhookSpecificName {
 				foundRIWebhook = true
 				currentWebhookCopy = slices.Delete(found.Webhooks, i, 1)
-				currentWebhookCopy = append(currentWebhookCopy, webhook.Webhooks[0])
+				if !isDeleted {
+					currentWebhookCopy = append(currentWebhookCopy, webhook.Webhooks[0])
+				}
 			}
 		}
 		// If not found, then just add the new webhook spec for this RI

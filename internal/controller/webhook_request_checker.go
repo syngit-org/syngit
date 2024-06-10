@@ -72,10 +72,10 @@ func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
 	}
 
 	// STEP 2 : Check if the request contains the right resources
-	processAllowed, err := wrc.containsResources(&rDetails)
+	processAllowed := wrc.containsResources(&rDetails)
 	rDetails.processPass = processAllowed
-	if err != nil {
-		return wrc.responseConstructor(rDetails)
+	if !processAllowed {
+		return wrc.letPassRequest(&rDetails)
 	}
 
 	// STEP 3 : Check if is bypass user (SA of argo, flux, etc..)
@@ -140,25 +140,25 @@ func (wrc *WebhookRequestChecker) retrieveRequestDetails() (wrcDetails, error) {
 	return *details, nil
 }
 
-func (wrc *WebhookRequestChecker) containsResources(details *wrcDetails) (bool, error) {
+func (wrc *WebhookRequestChecker) containsResources(details *wrcDetails) bool {
 
 	// Check if the incoming object is part of the specified names in the included resources
 	includedNames := kgiov1.GetNamesFromGVR(kgiov1.NSRPstoNSRs(wrc.resourcesInterceptor.Spec.IncludedResources), details.interceptedGVR)
 	if len(includedNames) > 0 && !slices.Contains(includedNames, details.interceptedName) {
 		const errMsg = "the name of the resource is not part of the IncludedResources"
-		details.messageAddition = errMsg // Keep this ? Does the user really need to know that his resource is not scoped ?
-		return false, errors.New(errMsg)
+		details.messageAddition = errMsg
+		return false
 	}
 
 	// Check if the incoming object is part of the specified names in the excluded resources
 	excludedNames := kgiov1.GetNamesFromGVR(wrc.resourcesInterceptor.Spec.ExcludedResources, details.interceptedGVR)
 	if len(excludedNames) > 0 && slices.Contains(excludedNames, details.interceptedName) {
 		const errMsg = "the name of the resource is part of the ExcludedResources"
-		details.messageAddition = errMsg // Keep this ? Does the user really need to know that his resource is not scoped ?
-		return false, errors.New(errMsg)
+		details.messageAddition = errMsg
+		return false
 	}
 
-	return true, nil
+	return true
 }
 
 func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error) {
@@ -303,6 +303,7 @@ func (wrc *WebhookRequestChecker) isBypassSubject(details *wrcDetails) (bool, er
 		// Need to be studied
 		if subject.Name == incomingUser.Username {
 			isBypassSubject = true
+			details.messageAddition = "this user bypass the process"
 			userCountLoop++
 		}
 	}
@@ -318,7 +319,6 @@ func (wrc *WebhookRequestChecker) isBypassSubject(details *wrcDetails) (bool, er
 
 func (wrc *WebhookRequestChecker) letPassRequest(details *wrcDetails) admissionv1.AdmissionReview {
 	details.webhookPass = true
-	details.messageAddition = "this user bypass the process"
 
 	wrc.updateStatus("LastBypassedObjectState", *details)
 
