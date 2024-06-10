@@ -140,6 +140,12 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	found := &admissionv1.ValidatingWebhookConfiguration{}
 	err = r.Get(ctx, *webhookNamespacedName, found)
 
+	condition := &v1.Condition{
+		LastTransitionTime: v1.Now(),
+		Type:               "NotReady",
+		Status:             "False",
+	}
+
 	if err == nil {
 		// Search for the webhook spec associated to this RI
 		foundRIWebhook := false
@@ -164,6 +170,11 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 			err = r.Update(ctx, found)
 			if err != nil {
 				r.Recorder.Event(&resourcesInterceptor, "Warning", "WebhookNotUpdated", "The webhook exists but has not been updated")
+
+				condition.Reason = "WebhookNotUpdated"
+				condition.Message = "The webhook exists but has not been updated"
+				r.updateConditions(ctx, &resourcesInterceptor, *condition)
+
 				return reconcile.Result{}, err
 			}
 		}
@@ -172,11 +183,20 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 		err := r.Create(ctx, webhook)
 		if err != nil {
 			r.Recorder.Event(&resourcesInterceptor, "Warning", "WebhookNotCreated", "The webhook does not exists and has not been created")
+
+			condition.Reason = "WebhookNotCreated"
+			condition.Message = "The webhook does not exists and has not been created"
+			r.updateConditions(ctx, &resourcesInterceptor, *condition)
+
 			return reconcile.Result{}, err
 		}
 	}
 
-	r.Recorder.Event(&resourcesInterceptor, "Normal", "WebhookUpdated", "The resources have been successfully added to the webhook")
+	condition.Type = "Ready"
+	condition.Reason = "WebhookUpdated"
+	condition.Message = "The resources have been successfully assigned to the webhook"
+	condition.Status = "True"
+	r.updateConditions(ctx, &resourcesInterceptor, *condition)
 
 	return ctrl.Result{}, nil
 }
@@ -198,6 +218,33 @@ func nsrListToRuleList(nsrList []kgiov1.NamespaceScopedResources, operations []a
 	}
 
 	return rules
+}
+
+func (r *ResourcesInterceptorReconciler) updateConditions(ctx context.Context, ri *kgiov1.ResourcesInterceptor, condition v1.Condition) error {
+	added := false
+	var conditions []v1.Condition
+	for _, cond := range ri.Status.Conditions {
+		if cond.Type == condition.Type {
+			if cond.Reason != condition.Reason {
+				r.Recorder.Event(ri, "Normal", "WebhookUpdated", "The resources have been successfully assigned to the webhook")
+				conditions = append(conditions, condition)
+			} else {
+				conditions = append(conditions, cond)
+			}
+			added = true
+		} else {
+			conditions = append(conditions, cond)
+		}
+	}
+	if !added {
+		conditions = append(conditions, condition)
+	}
+
+	ri.Status.Conditions = conditions
+	if err := r.Status().Update(ctx, ri); err != nil {
+		return err
+	}
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

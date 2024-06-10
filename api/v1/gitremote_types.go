@@ -81,6 +81,14 @@ const (
 
 // GitRemoteStatus defines the observed state of GitRemote
 type GitRemoteStatus struct {
+
+	// +listType=map
+	// +listMapKey=type
+	// +patchStrategy=merge
+	// +patchMergeKey=type
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+
 	// +optional
 	ConnexionStatus GitRemoteConnexionStatus `json:"connexionStatus,omitempty"`
 

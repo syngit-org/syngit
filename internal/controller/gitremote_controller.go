@@ -28,6 +28,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -50,13 +51,6 @@ type GitRemoteReconciler struct {
 	Scheme    *runtime.Scheme
 	Recorder  record.EventRecorder
 	Namespace string
-}
-
-func (r *GitRemoteReconciler) updateStatus(ctx context.Context, gitRemote *kgiov1.GitRemote) error {
-	if err := r.Status().Update(ctx, gitRemote); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (r *GitRemoteReconciler) setServerConfiguration(ctx context.Context, gitRemote *kgiov1.GitRemote) (kgiov1.GitServerConfiguration, error) {
@@ -129,13 +123,23 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	var prefixMsg = "[" + gRNamespace + "/" + gRName + "]"
 	log.Log.Info(prefixMsg + " Reconciling request received")
 
+	condition := &v1.Condition{
+		LastTransitionTime: v1.Now(),
+		Type:               "NotReady",
+		Status:             "False",
+	}
+
 	// Get the referenced Secret
 	var secret corev1.Secret
 	namespacedNameSecret := types.NamespacedName{Namespace: req.Namespace, Name: gitRemote.Spec.SecretRef.Name}
 	if err := r.Get(ctx, namespacedNameSecret, &secret); err != nil {
 		gitRemote.Status.SecretBoundStatus = kgiov1.SecretNotFound
 		gitRemote.Status.ConnexionStatus.Status = ""
-		r.updateStatus(ctx, &gitRemote)
+
+		condition.Reason = "SecretNotFound"
+		condition.Message = string(kgiov1.SecretNotFound)
+		err = r.updateStatus(ctx, &gitRemote, *condition)
+
 		return ctrl.Result{}, err
 	}
 	gitRemote.Status.SecretBoundStatus = kgiov1.SecretBound
@@ -144,22 +148,39 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Update configuration
 	gpc, err := r.setServerConfiguration(ctx, &gitRemote)
 	if err != nil {
-		errUpdate := r.updateStatus(ctx, &gitRemote)
+
+		condition.Reason = "GitRemoteServerConfigurationError"
+		condition.Message = err.Error()
+		errUpdate := r.updateStatus(ctx, &gitRemote, *condition)
+
 		return ctrl.Result{}, errUpdate
 	}
+
+	condition.Type = "Ready"
+	condition.Status = "True"
+
 	gitRemote.Status.GitServerConfiguration = gpc
-	errUpdate := r.updateStatus(ctx, &gitRemote)
+	condition.Reason = "GitRemoteServerConfigurationAssigned"
+	condition.Message = "The git remote server configuration has been assigned to this object"
+	errUpdate := r.updateStatus(ctx, &gitRemote, *condition)
 	if errUpdate != nil {
 		return ctrl.Result{}, errUpdate
 	}
 
 	if gitRemote.Spec.TestAuthentication {
+		condition.Type = "NotReady"
+		condition.Status = "False"
 
 		// Check if the referenced Secret is a basic-auth type
 		if secret.Type != corev1.SecretTypeBasicAuth {
-			err := errors.New("secret type is not BasicAuth")
+
 			gitRemote.Status.SecretBoundStatus = kgiov1.SecretWrongType
-			return ctrl.Result{}, err
+
+			condition.Reason = "SecretWrongType"
+			condition.Message = string(kgiov1.SecretWrongType)
+			errUpdate := r.updateStatus(ctx, &gitRemote, *condition)
+
+			return ctrl.Result{}, errUpdate
 		}
 
 		// Get the username and password from the Secret
@@ -177,7 +198,11 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			}
 			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitUnsupported
 			gitRemote.Status.ConnexionStatus.Details = errMsg
-			errUpdate := r.updateStatus(ctx, &gitRemote)
+
+			condition.Reason = "WrongGitRemoteServerConfiguration"
+			condition.Message = errMsg
+			errUpdate := r.updateStatus(ctx, &gitRemote, *condition)
+
 			return ctrl.Result{}, errUpdate
 		}
 
@@ -187,12 +212,16 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				InsecureSkipVerify: gpc.InsecureSkipTlsVerify,
 			},
 		}
-		if !gpc.InsecureSkipTlsVerify {
+		if !gpc.InsecureSkipTlsVerify && gpc.CaBundle != "" {
 			caCertPool := x509.NewCertPool()
 			if ok := caCertPool.AppendCertsFromPEM([]byte(gpc.CaBundle)); !ok {
 				gitRemote.Status.ConnexionStatus.Status = kgiov1.GitConfigParseError
 				gitRemote.Status.ConnexionStatus.Details = "x509 cert pool maker failed"
-				errUpdate := r.updateStatus(ctx, &gitRemote)
+
+				condition.Reason = "GitRemoteServerCertificateMalformed"
+				condition.Message = gitRemote.Status.ConnexionStatus.Details
+				errUpdate := r.updateStatus(ctx, &gitRemote, *condition)
+
 				return ctrl.Result{}, errUpdate
 			}
 			transport.TLSClientConfig.RootCAs = caCertPool
@@ -204,7 +233,11 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if err != nil {
 			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitServerError
 			gitRemote.Status.ConnexionStatus.Details = "Internal operator error : cannot create the http request " + err.Error()
-			errUpdate := r.updateStatus(ctx, &gitRemote)
+
+			condition.Reason = "GitRemoteServerError"
+			condition.Message = gitRemote.Status.ConnexionStatus.Details
+			errUpdate := r.updateStatus(ctx, &gitRemote, *condition)
+
 			return ctrl.Result{}, errUpdate
 		}
 		gitReq.Header.Add("Private-Token", PAToken)
@@ -213,41 +246,64 @@ func (r *GitRemoteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if err != nil {
 			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitServerError
 			gitRemote.Status.ConnexionStatus.Details = "Internal operator error : the request cannot be processed " + err.Error()
-			errUpdate := r.updateStatus(ctx, &gitRemote)
+
+			condition.Reason = "GitRemoteServerError"
+			condition.Message = gitRemote.Status.ConnexionStatus.Details
+			errUpdate := r.updateStatus(ctx, &gitRemote, *condition)
+
 			return ctrl.Result{}, errUpdate
 		}
 		defer resp.Body.Close()
 
 		gitRemote.Status.ConnexionStatus.Details = ""
 
+		condition.Type = "AuthFailed"
+
 		// Check the response status code
 		if resp.StatusCode == http.StatusOK {
 			// Authentication successful
 			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitConnected
 			gitRemote.Status.LastAuthTime = metav1.Now()
+
+			condition.Type = "AuthSucceeded"
+			condition.Status = "True"
+			condition.Reason = "GitRemoteUserConnected"
+			condition.Message = "Successfully logged to the remote git server with the git user specified"
 			r.Recorder.Event(&gitRemote, "Normal", "Connected", "Auth succeeded")
 		} else if resp.StatusCode == http.StatusUnauthorized {
 			// Unauthorized: bad credentials
 			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitUnauthorized
+
+			condition.Reason = "GitRemoteUserUnauthorized"
+			condition.Message = string(gitRemote.Status.ConnexionStatus.Status)
 			r.Recorder.Event(&gitRemote, "Warning", "AuthFailed", "Auth failed - unauthorized")
 		} else if resp.StatusCode == http.StatusForbidden {
 			// Forbidden : Not enough permission
 			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitForbidden
+
+			condition.Reason = "GitRemoteUserForbidden"
+			condition.Message = string(gitRemote.Status.ConnexionStatus.Status)
 			r.Recorder.Event(&gitRemote, "Warning", "AuthFailed", "Auth failed - forbidden")
 		} else if resp.StatusCode == http.StatusInternalServerError {
 			// Server error: a server error happened
 			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitServerError
+
+			condition.Reason = "GitRemoteServerError"
+			condition.Message = string(gitRemote.Status.ConnexionStatus.Status)
 			r.Recorder.Event(&gitRemote, "Warning", "AuthFailed", "Auth failed - server error")
 		} else {
 			// Handle other status codes if needed
 			gitRemote.Status.ConnexionStatus.Status = kgiov1.GitUnexpectedStatus
+
+			condition.Reason = "GitRemoteServerError"
+			condition.Message = string(gitRemote.Status.ConnexionStatus.Status)
 			r.Recorder.Event(&gitRemote, "Warning", "AuthFailed",
 				fmt.Sprintf("Auth failed - unexpected response - %s", resp.Status))
 		}
 	}
 
 	// Update the status of GitRemote
-	r.updateStatus(ctx, &gitRemote)
+	r.updateStatus(ctx, &gitRemote, *condition)
 
 	return ctrl.Result{}, nil
 }
@@ -272,6 +328,33 @@ func parseConfigMap(configMap corev1.ConfigMap) (kgiov1.GitServerConfiguration, 
 	}
 
 	return *gitServerConf, nil
+}
+
+func (r *GitRemoteReconciler) updateConditions(gitRemote kgiov1.GitRemote, condition v1.Condition) []v1.Condition {
+	added := false
+	var conditions []v1.Condition
+	for _, cond := range gitRemote.Status.Conditions {
+		if cond.Type == condition.Type {
+			conditions = append(conditions, condition)
+			added = true
+		} else {
+			conditions = append(conditions, cond)
+		}
+	}
+	if !added {
+		conditions = append(conditions, condition)
+	}
+	return conditions
+}
+
+func (r *GitRemoteReconciler) updateStatus(ctx context.Context, gitRemote *kgiov1.GitRemote, condition v1.Condition) error {
+	conditions := r.updateConditions(*gitRemote, condition)
+
+	gitRemote.Status.Conditions = conditions
+	if err := r.Status().Update(ctx, gitRemote); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *GitRemoteReconciler) findObjectsForSecret(ctx context.Context, secret client.Object) []reconcile.Request {

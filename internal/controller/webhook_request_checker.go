@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/url"
 	"slices"
+	"sync"
 
 	kgiov1 "dams.kgio/kgio/api/v1"
 	"github.com/go-logr/logr"
@@ -61,6 +62,8 @@ type WebhookRequestChecker struct {
 	k8sClient client.Client
 	// Logger
 	log *logr.Logger
+	// Status and condition mutex
+	sync.RWMutex
 }
 
 func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
@@ -135,7 +138,7 @@ func (wrc *WebhookRequestChecker) retrieveRequestDetails() (wrcDetails, error) {
 
 	details.interceptedName = wrc.admReview.Request.Name
 
-	wrc.updateStatus("LastInterceptedObjectState", *details)
+	wrc.updateStatus("LastObservedObjectState", *details)
 
 	return *details, nil
 }
@@ -398,7 +401,16 @@ func (wrc *WebhookRequestChecker) gitPushPostChecker(isPushed bool, err error, d
 	} else {
 		details.pushDetails = err.Error()
 	}
+
 	wrc.updateStatus("LastPushedObjectState", *details)
+	condition := &v1.Condition{
+		LastTransitionTime: v1.Now(),
+		Type:               "Synced",
+		Reason:             "Pushed",
+		Status:             "True",
+		Message:            details.pushDetails,
+	}
+	wrc.updateConditions(*condition)
 }
 
 func (wrc *WebhookRequestChecker) postcheck(details *wrcDetails) bool {
@@ -428,6 +440,15 @@ func (wrc *WebhookRequestChecker) responseConstructor(details wrcDetails) admiss
 	if details.processPass {
 		status = "Success"
 		message = defaultSuccessMessage
+	} else {
+		condition := &v1.Condition{
+			LastTransitionTime: v1.Now(),
+			Type:               "NotSynced",
+			Reason:             "WebhookHandlerError",
+			Status:             "False",
+			Message:            details.messageAddition,
+		}
+		wrc.updateConditions(*condition)
 	}
 
 	// Set the final message
@@ -468,7 +489,34 @@ func (wrc *WebhookRequestChecker) responseConstructor(details wrcDetails) admiss
 	return admissionReviewResp
 }
 
+func (wrc *WebhookRequestChecker) updateConditions(condition v1.Condition) {
+	wrc.Lock()
+	defer wrc.Unlock()
+
+	added := false
+	conditions := make([]v1.Condition, 0)
+	for _, cond := range wrc.resourcesInterceptor.Status.Conditions {
+		if cond.Type == condition.Type {
+			conditions = append(conditions, condition)
+			added = true
+		} else {
+			conditions = append(conditions, cond)
+		}
+	}
+	if !added {
+		conditions = append(conditions, condition)
+	}
+	wrc.resourcesInterceptor.Status.Conditions = conditions
+
+	ctx := context.Background()
+	if err := wrc.k8sClient.Status().Update(ctx, &wrc.resourcesInterceptor); err != nil {
+		wrc.log.Error(err, "can't update the conditions of the resource interceptor "+wrc.resourcesInterceptor.Namespace+"/"+wrc.resourcesInterceptor.Name)
+	}
+}
+
 func (wrc *WebhookRequestChecker) updateStatus(kind string, details wrcDetails) {
+	wrc.Lock()
+	defer wrc.Unlock()
 
 	gvrn := &kgiov1.JsonGVRN{
 		Group:    details.interceptedGVR.Group,
@@ -484,7 +532,7 @@ func (wrc *WebhookRequestChecker) updateStatus(kind string, details wrcDetails) 
 			LastBypassedObject:         *gvrn,
 		}
 		wrc.resourcesInterceptor.Status.LastBypassedObjectState = *lastBypassedObjectState
-	case "LastInterceptedObjectState":
+	case "LastObservedObjectState":
 		lastObservedObjectState := &kgiov1.LastObservedObjectState{
 			LastObservedObjectTime:     v1.Now(),
 			LastObservedObjectUserInfo: wrc.admReview.Request.UserInfo,

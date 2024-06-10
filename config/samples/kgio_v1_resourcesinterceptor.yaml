@@ -18,9 +18,9 @@ spec:
     - CREATE
     - UPDATE
     - DELETE
-  bypassInterceptionSubjects:
-    - name: kubernetes-admin
-      kind: User
+# bypassInterceptionSubjects:
+    #- name: kubernetes-admin
+    #  kind: User
   authorizedUsers:
     - name: gituserbinding-sample
   defaultUnauthorizedUserMode: Block
