@@ -19,7 +19,6 @@ package controller
 import (
 	"context"
 	"os"
-	"slices"
 
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -118,24 +117,23 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 	webhookSpecificName := rIName + "-" + rINamespace + ".kgio.com"
 
 	// Create a new ValidatingWebhook object
-	webhook := &admissionv1.ValidatingWebhookConfiguration{
+	webhook := &admissionv1.ValidatingWebhook{
+		Name:                    webhookSpecificName,
+		AdmissionReviewVersions: []string{"v1"},
+		SideEffects:             &sideEffectsNone,
+		Rules:                   nsrListToRuleList(kgiov1.NSRPstoNSRs(resourcesInterceptor.Spec.IncludedResources), resourcesInterceptor.Spec.DeepCopy().Operations),
+		ClientConfig:            clientConfig,
+		NamespaceSelector: &v1.LabelSelector{
+			MatchLabels: map[string]string{"kubernetes.io/metadata.name": rINamespace},
+		},
+		// FailurePolicy: DON'T FAIL,
+	}
+	webhookConf := &admissionv1.ValidatingWebhookConfiguration{
 		ObjectMeta: v1.ObjectMeta{
 			Name:        webhookObjectName,
 			Annotations: annotations,
 		},
-		Webhooks: []admissionv1.ValidatingWebhook{
-			{
-				Name:                    webhookSpecificName,
-				AdmissionReviewVersions: []string{"v1"},
-				SideEffects:             &sideEffectsNone,
-				Rules:                   nsrListToRuleList(kgiov1.NSRPstoNSRs(resourcesInterceptor.Spec.IncludedResources), resourcesInterceptor.Spec.DeepCopy().Operations),
-				ClientConfig:            clientConfig,
-				NamespaceSelector: &v1.LabelSelector{
-					MatchLabels: map[string]string{"kubernetes.io/metadata.name": rINamespace},
-				},
-				// FailurePolicy: DON'T FAIL,
-			},
-		},
+		Webhooks: []admissionv1.ValidatingWebhook{*webhook},
 	}
 
 	webhookNamespacedName := &types.NamespacedName{
@@ -154,40 +152,32 @@ func (r *ResourcesInterceptorReconciler) Reconcile(ctx context.Context, req ctrl
 
 	if err == nil {
 		// Search for the webhook spec associated to this RI
-		foundRIWebhook := false
 		var currentWebhookCopy []admissionv1.ValidatingWebhook
-		for i, riWebhook := range found.Webhooks {
-			if riWebhook.Name == webhookSpecificName {
-				foundRIWebhook = true
-				currentWebhookCopy = slices.Delete(found.Webhooks, i, 1)
+		for _, riWebhook := range found.Webhooks {
+			if riWebhook.Name != webhookSpecificName {
+				currentWebhookCopy = append(currentWebhookCopy, riWebhook)
 			}
 		}
 		if !isDeleted {
-			currentWebhookCopy = append(currentWebhookCopy, webhook.Webhooks[0])
+			currentWebhookCopy = append(currentWebhookCopy, *webhook)
 		}
 
-		if len(found.Webhooks) != len(currentWebhookCopy) {
-			// If not found, then just add the new webhook spec for this RI
-			if !foundRIWebhook {
-				found.Webhooks = append(found.Webhooks, webhook.Webhooks[0])
-			} else {
-				found.Webhooks = currentWebhookCopy
-			}
+		// If not found, then just add the new webhook spec for this RI
+		found.Webhooks = currentWebhookCopy
 
-			err = r.Update(ctx, found)
-			if err != nil {
-				r.Recorder.Event(&resourcesInterceptor, "Warning", "WebhookNotUpdated", "The webhook exists but has not been updated")
+		err = r.Update(ctx, found)
+		if err != nil {
+			r.Recorder.Event(&resourcesInterceptor, "Warning", "WebhookNotUpdated", "The webhook exists but has not been updated")
 
-				condition.Reason = "WebhookNotUpdated"
-				condition.Message = "The webhook exists but has not been updated"
-				r.updateConditions(ctx, &resourcesInterceptor, *condition)
+			condition.Reason = "WebhookNotUpdated"
+			condition.Message = "The webhook exists but has not been updated"
+			r.updateConditions(ctx, &resourcesInterceptor, *condition)
 
-				return reconcile.Result{}, err
-			}
+			return reconcile.Result{}, err
 		}
 	} else {
 		// Create a new webhook if not found -> if it is the first RI to be created
-		err := r.Create(ctx, webhook)
+		err := r.Create(ctx, webhookConf)
 		if err != nil {
 			r.Recorder.Event(&resourcesInterceptor, "Warning", "WebhookNotCreated", "The webhook does not exists and has not been created")
 
