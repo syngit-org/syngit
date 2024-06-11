@@ -1,102 +1,184 @@
-# new-operator
-// TODO(user): Add simple overview of use/purpose
+# syngit
+
+syngit is a Kubernetes operator that allows you to push resources on a git repository. It leverage the gitops by unifying the source of truth between your cluster and your git repository.
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+
+Sounds cool, isn't it? **But what is the difference with the other Gitops CD tools such as Flux or ArgoCD?**
+
+The main approach of these tools is to pull changes from the remote git repository to apply them on the cluster. syngit does the opposite : it pushes the changes that you made on the cluster to the remote git repository.
+
+**Why do I need syngit?**
+
+There is plenty of reasons to use this operator. It can be borring to make every modification only through the git repository. Applying manifests will return an instant result of the cluster state.
+
+Basically, if you like to use Kubernetes with cli or through an UI BUT you want to work in GitOps, then syngit is the operator that you need.
+
+**I use an automatic reconciliation with my CD tool, do I really need to use syngit?**
+
+By concept, both are not compatible. In fact, the automatic reconciliation will not have any effect because the changes made on the cluster are pushed on the remote git repository.
 
 ## Getting Started
 
 ### Prerequisites
-- go version v1.21.0+
 - docker version 17.03+.
 - kubectl version v1.11.3+.
 - Access to a Kubernetes v1.11.3+ cluster.
 
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
+### Installation
 
+For now, you can only install syngit using Helm.
+
+1. Add this github repository to your helm repos.
 ```sh
-make docker-build docker-push IMG=<some-registry>/new-operator:tag
+helm repo add syngit https://github.com/damsien/syngit.git
 ```
 
-**NOTE:** This image ought to be published in the personal registry you specified. 
-And it is required to have access to pull the image from the working environment. 
-Make sure you have the proper permission to the registry if the above commands don’t work.
-
-**Install the CRDs into the cluster:**
-
+2. Install the operator
+You can customize the values before installing the Helm chart. The template can be found under `chart/x.x.x/values.yaml` and add the `-f values.yaml` flag.
 ```sh
-make install
+helm install syngit syngit/syngit --version 0.0.1
 ```
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
+syngit is now installed on your cluster!
 
-```sh
-make deploy IMG=<some-registry>/new-operator:tag
+## Use syngit
+
+There is 3 custom objects that are necessary to create in order to use syngit.
+
+### RemoteUser
+
+The RemoteUser object make the connexion to the remote git server using an user account. In order to use this object, you first need to create a secret that reference a Personal Access Token (and not an Access Token).
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: git-server-my_git_username-auth
+  namespace: test
+type: kubernetes.io/basic-auth
+stringData:
+  username: <MY_GIT_USERNAME>
+  password: <PERSONAL_ACCESS_TOKEN>
 ```
 
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin 
-privileges or be logged in as admin.
-
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
-
-```sh
-kubectl apply -k config/samples/
+```yaml
+apiVersion: syngit.damsien.fr/v1alpha1
+kind: RemoteUser
+metadata:
+  name: remoteuser-sample
+  namespace: test
+spec:
+  gitBaseDomainFQDN: "github.com"
+  testAuthentication: true
+  email: your@email.com
+  secretRef:
+    name: git-server-my_git_username-auth
 ```
 
->**NOTE**: Ensure that the samples has default values to test it out.
-
-### To Uninstall
-**Delete the instances (CRs) from the cluster:**
+Now, if you look at the status of the object, the user should be connected to the git server.
 
 ```sh
-kubectl delete -k config/samples/
+kubectl get -n test remoteuser remoteuser-sample -o=jsonpath='{.status.connexionStatus}'
 ```
 
-**Delete the APIs(CRDs) from the cluster:**
+### RemoteUserBinding
 
+The RemoteUserBinding bind the Kubernetes user with the remote git user. This is used by syngit when the user apply changes on the cluster. Syngit will push on the git server with the associated git user.
+
+To retrieve your own username, you can run the following command :
 ```sh
-make uninstall
+kubectl auth whoami -o=jsonpath='{.status.userInfo.username}'
 ```
 
-**UnDeploy the controller from the cluster:**
+The name of the user is the id of the user. It can be different depending of your RBAC manager. It should be unique.
 
-```sh
-make undeploy
+```yaml
+apiVersion: syngit.damsien.fr/v1alpha1
+kind: RemoteUserBinding
+metadata:
+  name: remoteuserbinding-sample
+  namespace: test
+spec:
+  subject:
+    kind: User
+    name: kubernetes-user
+  remoteRefs:
+    - name: remoteuser-sample
 ```
 
-## Project Distribution
+### RemoteSyncer
 
-Following are the steps to build the installer and distribute this project to users.
+The RemoteSyncer object contains the whole logic part of the operator.
 
-1. Build the installer for the image built and published in the registry:
+In this example, the RemoteSyncer will intercept all the *configmaps*. It will push them to *https://github.com/my_repo_path.git* in the branch *main* under the path `my_configmaps/`. Because the `commitProcess` is set to `CommitApply`, the changes will be pushed and then applied to the cluster.
 
-```sh
-make build-installer IMG=<some-registry>/new-operator:tag
+```yaml
+apiVersion: syngit.damsien.fr/v1alpha1
+kind: RemoteSyncer
+metadata:
+  name: remotesyncer-sample
+  namespace: test
+spec:
+  remoteRepository: https://github.com/my_repo_path.git
+  branch: main
+  commitMode: Commit
+  commitProcess: CommitApply
+  operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+  authorizedUsers:
+    - name: remoteuserbinding-sample
+  defaultUnauthorizedUserMode: Block
+  excludedFields:
+    - metadata.managedFields
+    - metadata.creationTimestamp
+    - metadata.annotations.[kubectl.kubernetes.io/last-applied-configuration]
+    - metadata.uid
+    - metadata.resourceVersion
+  includedResources:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["configmaps"]
+      repotPath: "my_configmaps"
 ```
 
-NOTE: The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without
-its dependencies.
+### Catch the resource
 
-2. Using the installer
+Now, let's apply this configmap :
 
-Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/new-operator/<tag or branch>/dist/install.yaml
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-configmap
+  namespace: test
+data:
+  somedata: here
 ```
+
+The configmap has been applied on the cluster and it has been pushed on the remote git repository as well!
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
 
-**NOTE:** Run `make help` for more information on all potential `make` targets
-
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
+TODO
 
 ## License
+
+This operator has been built using the [kubebuilder]("https://book.kubebuilder.io/") framework.
+
+### damsien license
+
+Copyright 2024-present Damien Dassieu
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+### Kubebuilder license
 
 Copyright 2024.
 
