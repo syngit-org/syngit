@@ -2,23 +2,24 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
-- bases/kgio.dams.kgio_gituserbindings.yaml
-- bases/kgio.dams.kgio_gitremotes.yaml
-- bases/kgio.dams.kgio_resourcesinterceptors.yaml
+- bases/syngit.damsien.fr_remoteusers.yaml
+- bases/syngit.damsien.fr_remoteuserbindings.yaml
+- bases/syngit.damsien.fr_remotesyncers.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patches:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
 # patches here are for enabling the conversion webhook for each CRD
-- path: patches/webhook_in_resourcesinterceptors.yaml
-- path: patches/webhook_in_gitremotes.yaml
+- path: patches/webhook_in_remoteusers.yaml
+# - path: patches/webhook_in_remoteuserbindings.yaml
+- path: patches/webhook_in_remotesyncers.yaml
 #+kubebuilder:scaffold:crdkustomizewebhookpatch
 
 # [CERTMANAGER] To enable cert-manager, uncomment all the sections with [CERTMANAGER] prefix.
 # patches here are for enabling the CA injection for each CRD
-# - path: patches/cainjection_in_gituserbindings.yaml
-- path: patches/cainjection_in_gitremotes.yaml
-- path: patches/cainjection_in_resourcesinterceptors.yaml
+- path: patches/cainjection_in_remoteusers.yaml
+#- path: patches/cainjection_in_remoteuserbindings.yaml
+- path: patches/cainjection_in_remotesyncers.yaml
 #+kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # [WEBHOOK] To enable webhook, uncomment the following section

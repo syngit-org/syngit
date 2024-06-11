@@ -10,7 +10,7 @@ import (
 	"sync"
 	"syscall"
 
-	kgiov1 "dams.kgio/kgio/api/v1"
+	syngitv1alpha1 "damsien.fr/syngit/api/v1alpha1"
 	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,14 +33,14 @@ type WebhookInterceptsAll struct {
 
 // PathHandler represents an instance of a path handler with a specific namespace and name
 type DynamicWebhookHandler struct {
-	resourcesInterceptor kgiov1.ResourcesInterceptor
-	k8sClient            client.Client
-	log                  *logr.Logger
+	remoteSyncer syngitv1alpha1.RemoteSyncer
+	k8sClient    client.Client
+	log          *logr.Logger
 }
 
 // Start starts the webhook server
 func (s *WebhookInterceptsAll) Start() {
-	var log = logf.Log.WithName("resourcesinterceptor-webhook")
+	var log = logf.Log.WithName("remotesyncer-webhook")
 	s.log = &log
 
 	s.Lock()
@@ -81,7 +81,7 @@ func (s *WebhookInterceptsAll) Start() {
 					Name:      riName,
 				}
 
-				found := &kgiov1.ResourcesInterceptor{}
+				found := &syngitv1alpha1.RemoteSyncer{}
 				err := s.k8sClient.Get(ctx, *riNamespacedName, found)
 				if err != nil {
 					// If no handler is found, respond with a 404 Not Found status
@@ -150,14 +150,14 @@ func (s *WebhookInterceptsAll) Stop() {
 }
 
 // CreatePathHandler creates a new path handler instance for the given namespace and name
-func (s *WebhookInterceptsAll) CreatePathHandler(interceptor kgiov1.ResourcesInterceptor, path string) *DynamicWebhookHandler {
+func (s *WebhookInterceptsAll) CreatePathHandler(interceptor syngitv1alpha1.RemoteSyncer, path string) *DynamicWebhookHandler {
 	s.Lock()
 	defer s.Unlock()
 
 	// Create a new path handler with the specified namespace and name
 	handler := &DynamicWebhookHandler{
-		resourcesInterceptor: interceptor,
-		k8sClient:            s.k8sClient,
+		remoteSyncer: interceptor,
+		k8sClient:    s.k8sClient,
 	}
 
 	// Register the path handler with the server
@@ -177,10 +177,10 @@ func (dwc *DynamicWebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	}
 
 	wrc := &WebhookRequestChecker{
-		admReview:            admissionReviewReq,
-		resourcesInterceptor: dwc.resourcesInterceptor,
-		k8sClient:            dwc.k8sClient,
-		log:                  dwc.log,
+		admReview:    admissionReviewReq,
+		remoteSyncer: dwc.remoteSyncer,
+		k8sClient:    dwc.k8sClient,
+		log:          dwc.log,
 	}
 
 	admResponse := wrc.ProcessSteps()

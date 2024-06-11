@@ -27,7 +27,7 @@ rules:
 - apiGroups:
   - kgio.dams.kgio
   resources:
-  - gitremote
+  - remoteUser
   verbs:
   - get
   - list
@@ -35,7 +35,7 @@ rules:
 - apiGroups:
   - kgio.dams.kgio
   resources:
-  - gituserbindings
+  - remoteuserbindings
   verbs:
   - create
   - delete
@@ -47,21 +47,21 @@ rules:
 - apiGroups:
   - kgio.dams.kgio
   resources:
-  - gituserbindings/finalizers
+  - remoteuserbindings/finalizers
   verbs:
   - update
 - apiGroups:
   - kgio.dams.kgio
   resources:
-  - gituserbindings/status
+  - remoteuserbindings/status
   verbs:
   - get
   - patch
   - update
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.dams.syngit
   resources:
-  - resourcesinterceptors
+  - remotesyncers
   verbs:
   - create
   - delete
@@ -71,15 +71,15 @@ rules:
   - update
   - watch
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.dams.syngit
   resources:
-  - resourcesinterceptors/finalizers
+  - remotesyncers/finalizers
   verbs:
   - update
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.dams.syngit
   resources:
-  - resourcesinterceptors/status
+  - remotesyncers/status
   verbs:
   - get
   - patch

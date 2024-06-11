@@ -2,30 +2,21 @@
 # This file is used to track the info used to scaffold your project
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
-domain: dams.kgio
+domain: damsien.fr
 layout:
 - go.kubebuilder.io/v4
-projectName: operator
-repo: dams.kgio/kgio
+projectName: new-operator
+repo: damsien.fr/syngit
 resources:
 - api:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: dams.kgio
-  group: kgio
-  kind: GitUserBinding
-  path: dams.kgio/kgio/api/v1
-  version: v1
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: dams.kgio
-  group: kgio
-  kind: GitRemote
-  path: dams.kgio/kgio/api/v1
-  version: v1
+  domain: damsien.fr
+  group: syngit
+  kind: RemoteUser
+  path: damsien.fr/syngit/api/v1alpha1
+  version: v1alpha1
   webhooks:
     validation: true
     webhookVersion: v1
@@ -33,11 +24,20 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: dams.kgio
-  group: kgio
-  kind: ResourcesInterceptor
-  path: dams.kgio/kgio/api/v1
-  version: v1
+  domain: damsien.fr
+  group: syngit
+  kind: RemoteUserBinding
+  path: damsien.fr/syngit/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: damsien.fr
+  group: syngit
+  kind: RemoteSyncer
+  path: damsien.fr/syngit/api/v1alpha1
+  version: v1alpha1
   webhooks:
     validation: true
     webhookVersion: v1

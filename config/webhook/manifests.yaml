@@ -10,9 +10,9 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-kgio-dams-kgio-v1-gitremote
+      path: /validate-kgio-dams-kgio-v1-remotesyncer
   failurePolicy: Fail
-  name: vgitremote.kb.io
+  name: vremotesyncer.kb.io
   rules:
   - apiGroups:
     - kgio.dams.kgio
@@ -22,7 +22,7 @@ webhooks:
     - CREATE
     - UPDATE
     resources:
-    - gitremotes
+    - remotesyncers
   sideEffects: None
 - admissionReviewVersions:
   - v1
@@ -30,9 +30,9 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-kgio-dams-kgio-v1-resourcesinterceptor
+      path: /validate-kgio-dams-kgio-v1-remoteuser
   failurePolicy: Fail
-  name: vresourcesinterceptor.kb.io
+  name: vremoteuser.kb.io
   rules:
   - apiGroups:
     - kgio.dams.kgio
@@ -42,5 +42,5 @@ webhooks:
     - CREATE
     - UPDATE
     resources:
-    - resourcesinterceptors
+    - remoteusers
   sideEffects: None

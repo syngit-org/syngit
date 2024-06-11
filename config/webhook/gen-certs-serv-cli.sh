@@ -15,7 +15,7 @@ subjectAltName = @alt_names
 
 [alt_names]
 DNS.1 = operator-webhook-service.operator-system.svc
-DNS.2 = resources-interceptor-webhook-service.operator-system.svc
+DNS.2 = remote-syncer-webhook-service.operator-system.svc
 IP.1 = 172.17.0.1
 EOF
 

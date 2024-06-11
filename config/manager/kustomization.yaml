@@ -1,9 +1,3 @@
 resources:
 - manager_namespace.yaml
 - manager.yaml
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-images:
-- name: controller
-  newName: dams.com/op
-  newTag: dev

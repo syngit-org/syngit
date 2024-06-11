@@ -1,0 +1,31 @@
+# permissions for end users to edit remotesyncers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: remotesyncer-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: new-operator
+    app.kubernetes.io/part-of: new-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: remotesyncer-editor-role
+rules:
+- apiGroups:
+  - syngit.damsien.fr
+  resources:
+  - remotesyncers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - syngit.damsien.fr
+  resources:
+  - remotesyncers/status
+  verbs:
+  - get

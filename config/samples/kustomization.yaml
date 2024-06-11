@@ -1,6 +1,6 @@
 ## Append samples of your project ##
 resources:
-- kgio_v1_gituserbinding.yaml
-- kgio_v1_gitremote.yaml
-- kgio_v1_resourcesinterceptor.yaml
+- syngit_v1alpha1_remoteuser.yaml
+- syngit_v1alpha1_remoteuserbinding.yaml
+- syngit_v1alpha1_remotesyncer.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

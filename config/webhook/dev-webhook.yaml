@@ -7,9 +7,9 @@ webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
-    url: https://172.17.0.1:9443/validate-kgio-dams-kgio-v1-gitremote
+    url: https://172.17.0.1:9443/validate-kgio-dams-kgio-v1-remoteuser
   failurePolicy: Fail
-  name: vgitremote.kb.io
+  name: vremoteuser.kb.io
   rules:
   - apiGroups:
     - kgio.dams.kgio
@@ -19,14 +19,14 @@ webhooks:
     - CREATE
     - UPDATE
     resources:
-    - gitremotes
+    - remoteusers
   sideEffects: None
 - admissionReviewVersions:
   - v1
   clientConfig:
-    url: https://172.17.0.1:9443/validate-kgio-dams-kgio-v1-resourcesinterceptor
+    url: https://172.17.0.1:9443/validate-kgio-dams-kgio-v1-remotesyncer
   failurePolicy: Fail
-  name: vresourcesinterceptor.kb.io
+  name: vremotesyncer.kb.io
   rules:
   - apiGroups:
     - kgio.dams.kgio
@@ -36,5 +36,5 @@ webhooks:
     - CREATE
     - UPDATE
     resources:
-    - resourcesinterceptors
+    - remotesyncers
   sideEffects: None

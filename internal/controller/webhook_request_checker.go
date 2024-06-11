@@ -8,7 +8,7 @@ import (
 	"slices"
 	"sync"
 
-	kgiov1 "dams.kgio/kgio/api/v1"
+	syngitv1alpha1 "damsien.fr/syngit/api/v1alpha1"
 	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -44,7 +44,7 @@ type wrcDetails struct {
 	repoPath    string
 	commitHash  string
 	gitUser     gitUser
-	remoteConf  kgiov1.GitServerConfiguration
+	remoteConf  syngitv1alpha1.GitServerConfiguration
 	pushDetails string
 }
 
@@ -57,7 +57,7 @@ type WebhookRequestChecker struct {
 	// The webhook admission review containing the request
 	admReview admissionv1.AdmissionReview
 	// The resources interceptor object
-	resourcesInterceptor kgiov1.ResourcesInterceptor
+	remoteSyncer syngitv1alpha1.RemoteSyncer
 	// The kubernetes client to make request to the api
 	k8sClient client.Client
 	// Logger
@@ -146,7 +146,7 @@ func (wrc *WebhookRequestChecker) retrieveRequestDetails() (wrcDetails, error) {
 func (wrc *WebhookRequestChecker) containsResources(details *wrcDetails) bool {
 
 	// Check if the incoming object is part of the specified names in the included resources
-	includedNames := kgiov1.GetNamesFromGVR(kgiov1.NSRPstoNSRs(wrc.resourcesInterceptor.Spec.IncludedResources), details.interceptedGVR)
+	includedNames := syngitv1alpha1.GetNamesFromGVR(syngitv1alpha1.NSRPstoNSRs(wrc.remoteSyncer.Spec.IncludedResources), details.interceptedGVR)
 	if len(includedNames) > 0 && !slices.Contains(includedNames, details.interceptedName) {
 		const errMsg = "the name of the resource is not part of the IncludedResources"
 		details.messageAddition = errMsg
@@ -154,7 +154,7 @@ func (wrc *WebhookRequestChecker) containsResources(details *wrcDetails) bool {
 	}
 
 	// Check if the incoming object is part of the specified names in the excluded resources
-	excludedNames := kgiov1.GetNamesFromGVR(wrc.resourcesInterceptor.Spec.ExcludedResources, details.interceptedGVR)
+	excludedNames := syngitv1alpha1.GetNamesFromGVR(wrc.remoteSyncer.Spec.ExcludedResources, details.interceptedGVR)
 	if len(excludedNames) > 0 && slices.Contains(excludedNames, details.interceptedName) {
 		const errMsg = "the name of the resource is part of the ExcludedResources"
 		details.messageAddition = errMsg
@@ -167,7 +167,7 @@ func (wrc *WebhookRequestChecker) containsResources(details *wrcDetails) bool {
 func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error) {
 	// Check if the user can push (and so, create the resource)
 	incomingUser := wrc.admReview.Request.UserInfo
-	u, err := url.Parse(wrc.resourcesInterceptor.Spec.RemoteRepository)
+	u, err := url.Parse(wrc.remoteSyncer.Spec.RemoteRepository)
 	if err != nil {
 		errMsg := "error parsing git repository URL: " + err.Error()
 		details.messageAddition = errMsg
@@ -181,27 +181,27 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 		gitEmail: "",
 		gitToken: "",
 	}
-	remoteConf := &kgiov1.GitServerConfiguration{
+	remoteConf := &syngitv1alpha1.GitServerConfiguration{
 		CaBundle:              "",
 		InsecureSkipTlsVerify: false,
 	}
 
 	userCountLoop := 0 // Prevent non-unique name attack
-	for _, ref := range wrc.resourcesInterceptor.Spec.AuthorizedUsers {
+	for _, ref := range wrc.remoteSyncer.Spec.AuthorizedUsers {
 		namespacedName := &types.NamespacedName{
-			Namespace: wrc.resourcesInterceptor.Namespace,
+			Namespace: wrc.remoteSyncer.Namespace,
 			Name:      ref.Name,
 		}
-		gitUserBinding := &kgiov1.GitUserBinding{}
-		err := wrc.k8sClient.Get(ctx, *namespacedName, gitUserBinding)
+		remoteUserBinding := &syngitv1alpha1.RemoteUserBinding{}
+		err := wrc.k8sClient.Get(ctx, *namespacedName, remoteUserBinding)
 		if err != nil {
 			continue
 		}
 
 		// The subject name can not be unique -> in specific conditions, a commit can be done as another user
 		// Need to be studied
-		if gitUserBinding.Spec.Subject.Name == incomingUser.Username {
-			remoteConf, gitUser, err = wrc.searchForGitToken(*gitUserBinding, fqdn, remoteConf)
+		if remoteUserBinding.Spec.Subject.Name == incomingUser.Username {
+			remoteConf, gitUser, err = wrc.searchForGitToken(*remoteUserBinding, fqdn, remoteConf)
 			if err != nil {
 				errMsg := err.Error()
 				details.messageAddition = errMsg
@@ -212,12 +212,12 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	}
 
 	if userCountLoop == 0 {
-		errMsg := "no GitUserBinding found for the user " + incomingUser.Username
+		errMsg := "no RemoteUserBinding found for the user " + incomingUser.Username
 		details.messageAddition = errMsg
 		return false, errors.New(errMsg)
 	}
 	if userCountLoop > 1 {
-		const errMsg = "multiple GitUserBinding found OR the name of the user is not unique; this version of the operator work with the name as unique identifier for users"
+		const errMsg = "multiple RemoteUserBinding found OR the name of the user is not unique; this version of the operator work with the name as unique identifier for users"
 		details.messageAddition = errMsg
 		return false, errors.New(errMsg)
 	}
@@ -228,32 +228,32 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	return true, nil
 }
 
-func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, fqdn string, remoteConf *kgiov1.GitServerConfiguration) (*kgiov1.GitServerConfiguration, *gitUser, error) {
+func (wrc *WebhookRequestChecker) searchForGitToken(gub syngitv1alpha1.RemoteUserBinding, fqdn string, remoteConf *syngitv1alpha1.GitServerConfiguration) (*syngitv1alpha1.GitServerConfiguration, *gitUser, error) {
 	userGitName := ""
 	userGitEmail := ""
 	userGitToken := ""
 
-	gitRemoteCount := 0
+	remoteUserCount := 0
 	secretCount := 0
 	ctx := context.Background()
 
-	namespace := wrc.resourcesInterceptor.Namespace
+	namespace := wrc.remoteSyncer.Namespace
 	for _, ref := range gub.Spec.RemoteRefs {
 		namespacedName := &types.NamespacedName{
 			Namespace: namespace,
 			Name:      ref.Name,
 		}
-		gitRemote := &kgiov1.GitRemote{}
-		err := wrc.k8sClient.Get(ctx, *namespacedName, gitRemote)
+		remoteUser := &syngitv1alpha1.RemoteUser{}
+		err := wrc.k8sClient.Get(ctx, *namespacedName, remoteUser)
 		if err != nil {
 			continue
 		}
 
-		gitRemoteCount++
-		if gitRemote.Spec.GitBaseDomainFQDN == fqdn {
+		remoteUserCount++
+		if remoteUser.Spec.GitBaseDomainFQDN == fqdn {
 			secretNamespacedName := &types.NamespacedName{
 				Namespace: namespace,
-				Name:      gitRemote.Spec.SecretRef.Name,
+				Name:      remoteUser.Spec.SecretRef.Name,
 			}
 			secret := &corev1.Secret{}
 			err := wrc.k8sClient.Get(ctx, *secretNamespacedName, secret)
@@ -264,10 +264,10 @@ func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, f
 			userGitToken = string(secret.Data["password"])
 			secretCount++
 
-			userGitEmail = gitRemote.Spec.Email
+			userGitEmail = remoteUser.Spec.Email
 
-			remoteConf.CaBundle = gitRemote.Status.GitServerConfiguration.CaBundle
-			remoteConf.InsecureSkipTlsVerify = gitRemote.Status.GitServerConfiguration.InsecureSkipTlsVerify
+			remoteConf.CaBundle = remoteUser.Status.GitServerConfiguration.CaBundle
+			remoteConf.InsecureSkipTlsVerify = remoteUser.Status.GitServerConfiguration.InsecureSkipTlsVerify
 		}
 	}
 
@@ -277,16 +277,16 @@ func (wrc *WebhookRequestChecker) searchForGitToken(gub kgiov1.GitUserBinding, f
 		gitToken: userGitToken,
 	}
 
-	if gitRemoteCount == 0 {
-		return remoteConf, gitUser, errors.New("no GitRemote found for the current user with this fqdn : " + fqdn)
+	if remoteUserCount == 0 {
+		return remoteConf, gitUser, errors.New("no RemoteUser found for the current user with this fqdn : " + fqdn)
 	}
-	if gitRemoteCount > 1 {
-		return remoteConf, gitUser, errors.New("more than one GitRemote found for the current user with this fqdn : " + fqdn)
+	if remoteUserCount > 1 {
+		return remoteConf, gitUser, errors.New("more than one RemoteUser found for the current user with this fqdn : " + fqdn)
 	}
 	if secretCount == 0 {
 		return remoteConf, gitUser, errors.New("no Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
 	}
-	if gitRemoteCount > 1 {
+	if remoteUserCount > 1 {
 		return remoteConf, gitUser, errors.New("more than one Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
 	}
 	if userGitToken == "" {
@@ -301,7 +301,7 @@ func (wrc *WebhookRequestChecker) isBypassSubject(details *wrcDetails) (bool, er
 	isBypassSubject := false
 
 	userCountLoop := 0 // Prevent non-unique name attack
-	for _, subject := range wrc.resourcesInterceptor.Spec.BypassInterceptionSubjects {
+	for _, subject := range wrc.remoteSyncer.Spec.BypassInterceptionSubjects {
 		// The subject name can not be unique -> in specific conditions, a commit can be done as another user
 		// Need to be studied
 		if subject.Name == incomingUser.Username {
@@ -344,7 +344,7 @@ func (wrc *WebhookRequestChecker) convertToYaml(details *wrcDetails) error {
 	}
 
 	// Paths to remove
-	paths := wrc.resourcesInterceptor.Spec.ExcludedFields
+	paths := wrc.remoteSyncer.Spec.ExcludedFields
 
 	// Remove unwanted fields
 	for _, path := range paths {
@@ -366,15 +366,15 @@ func (wrc *WebhookRequestChecker) convertToYaml(details *wrcDetails) error {
 
 func (wrc *WebhookRequestChecker) gitPush(details *wrcDetails) (bool, error) {
 	gitPusher := &GitPusher{
-		resourcesInterceptor: *wrc.resourcesInterceptor.DeepCopy(),
-		interceptedYAML:      details.interceptedYAML,
-		interceptedGVR:       details.interceptedGVR,
-		interceptedName:      details.interceptedName,
-		gitUser:              details.gitUser.gitUser,
-		gitEmail:             details.gitUser.gitEmail,
-		gitToken:             details.gitUser.gitToken,
-		operation:            wrc.admReview.Request.Operation,
-		remoteConfiguration:  details.remoteConf,
+		remoteSyncer:        *wrc.remoteSyncer.DeepCopy(),
+		interceptedYAML:     details.interceptedYAML,
+		interceptedGVR:      details.interceptedGVR,
+		interceptedName:     details.interceptedName,
+		gitUser:             details.gitUser.gitUser,
+		gitEmail:            details.gitUser.gitEmail,
+		gitToken:            details.gitUser.gitToken,
+		operation:           wrc.admReview.Request.Operation,
+		remoteConfiguration: details.remoteConf,
 	}
 	res, err := gitPusher.Push()
 	if err != nil {
@@ -389,7 +389,7 @@ func (wrc *WebhookRequestChecker) gitPush(details *wrcDetails) (bool, error) {
 
 	details.repoPath = res.path
 	details.commitHash = res.commitHash
-	details.repoFQDN = wrc.resourcesInterceptor.Spec.RemoteRepository
+	details.repoFQDN = wrc.remoteSyncer.Spec.RemoteRepository
 
 	return true, nil
 }
@@ -415,10 +415,10 @@ func (wrc *WebhookRequestChecker) gitPushPostChecker(isPushed bool, err error, d
 
 func (wrc *WebhookRequestChecker) postcheck(details *wrcDetails) bool {
 	// Check the Commit Process mode
-	if wrc.resourcesInterceptor.Spec.CommitProcess == kgiov1.CommitOnly {
+	if wrc.remoteSyncer.Spec.CommitProcess == syngitv1alpha1.CommitOnly {
 		details.webhookPass = false
 	}
-	if wrc.resourcesInterceptor.Spec.CommitProcess == kgiov1.CommitApply {
+	if wrc.remoteSyncer.Spec.CommitProcess == syngitv1alpha1.CommitApply {
 		details.webhookPass = true
 	}
 
@@ -495,7 +495,7 @@ func (wrc *WebhookRequestChecker) updateConditions(condition v1.Condition) {
 
 	added := false
 	conditions := make([]v1.Condition, 0)
-	for _, cond := range wrc.resourcesInterceptor.Status.Conditions {
+	for _, cond := range wrc.remoteSyncer.Status.Conditions {
 		if cond.Type == condition.Type {
 			conditions = append(conditions, condition)
 			added = true
@@ -506,11 +506,11 @@ func (wrc *WebhookRequestChecker) updateConditions(condition v1.Condition) {
 	if !added {
 		conditions = append(conditions, condition)
 	}
-	wrc.resourcesInterceptor.Status.Conditions = conditions
+	wrc.remoteSyncer.Status.Conditions = conditions
 
 	ctx := context.Background()
-	if err := wrc.k8sClient.Status().Update(ctx, &wrc.resourcesInterceptor); err != nil {
-		wrc.log.Error(err, "can't update the conditions of the resource interceptor "+wrc.resourcesInterceptor.Namespace+"/"+wrc.resourcesInterceptor.Name)
+	if err := wrc.k8sClient.Status().Update(ctx, &wrc.remoteSyncer); err != nil {
+		wrc.log.Error(err, "can't update the conditions of the remote syncer "+wrc.remoteSyncer.Namespace+"/"+wrc.remoteSyncer.Name)
 	}
 }
 
@@ -518,7 +518,7 @@ func (wrc *WebhookRequestChecker) updateStatus(kind string, details wrcDetails) 
 	wrc.Lock()
 	defer wrc.Unlock()
 
-	gvrn := &kgiov1.JsonGVRN{
+	gvrn := &syngitv1alpha1.JsonGVRN{
 		Group:    details.interceptedGVR.Group,
 		Version:  details.interceptedGVR.Version,
 		Resource: details.interceptedGVR.Resource,
@@ -526,21 +526,21 @@ func (wrc *WebhookRequestChecker) updateStatus(kind string, details wrcDetails) 
 	}
 	switch kind {
 	case "LastBypassedObjectState":
-		lastBypassedObjectState := &kgiov1.LastBypassedObjectState{
+		lastBypassedObjectState := &syngitv1alpha1.LastBypassedObjectState{
 			LastBypassedObjectTime:     v1.Now(),
 			LastBypassedObjectUserInfo: wrc.admReview.Request.UserInfo,
 			LastBypassedObject:         *gvrn,
 		}
-		wrc.resourcesInterceptor.Status.LastBypassedObjectState = *lastBypassedObjectState
+		wrc.remoteSyncer.Status.LastBypassedObjectState = *lastBypassedObjectState
 	case "LastObservedObjectState":
-		lastObservedObjectState := &kgiov1.LastObservedObjectState{
+		lastObservedObjectState := &syngitv1alpha1.LastObservedObjectState{
 			LastObservedObjectTime:     v1.Now(),
 			LastObservedObjectUserInfo: wrc.admReview.Request.UserInfo,
 			LastObservedObject:         *gvrn,
 		}
-		wrc.resourcesInterceptor.Status.LastObservedObjectState = *lastObservedObjectState
+		wrc.remoteSyncer.Status.LastObservedObjectState = *lastObservedObjectState
 	case "LastPushedObjectState":
-		lastPushedObjectState := &kgiov1.LastPushedObjectState{
+		lastPushedObjectState := &syngitv1alpha1.LastPushedObjectState{
 			LastPushedObjectTime:          v1.Now(),
 			LastPushedObject:              *gvrn,
 			LastPushedObjectGitPath:       details.repoPath,
@@ -549,12 +549,12 @@ func (wrc *WebhookRequestChecker) updateStatus(kind string, details wrcDetails) 
 			LastPushedGitUser:             details.gitUser.gitUser,
 			LastPushedObjectStatus:        details.pushDetails,
 		}
-		wrc.resourcesInterceptor.Status.LastPushedObjectState = *lastPushedObjectState
+		wrc.remoteSyncer.Status.LastPushedObjectState = *lastPushedObjectState
 	}
 
 	ctx := context.Background()
-	if err := wrc.k8sClient.Status().Update(ctx, &wrc.resourcesInterceptor); err != nil {
-		wrc.log.Error(err, "can't update the status of the resource interceptor "+wrc.resourcesInterceptor.Namespace+"/"+wrc.resourcesInterceptor.Name)
+	if err := wrc.k8sClient.Status().Update(ctx, &wrc.remoteSyncer); err != nil {
+		wrc.log.Error(err, "can't update the status of the remote syncer "+wrc.remoteSyncer.Namespace+"/"+wrc.remoteSyncer.Name)
 	}
 
 }

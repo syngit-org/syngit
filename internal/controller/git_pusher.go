@@ -15,21 +15,21 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 	admissionv1 "k8s.io/api/admission/v1"
 
-	kgiov1 "dams.kgio/kgio/api/v1"
+	syngitv1alpha1 "damsien.fr/syngit/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type GitPusher struct {
-	resourcesInterceptor kgiov1.ResourcesInterceptor
-	interceptedYAML      string
-	interceptedGVR       schema.GroupVersionResource
-	interceptedName      string
-	branch               string
-	gitUser              string
-	gitEmail             string
-	gitToken             string
-	operation            admissionv1.Operation
-	remoteConfiguration  kgiov1.GitServerConfiguration
+	remoteSyncer        syngitv1alpha1.RemoteSyncer
+	interceptedYAML     string
+	interceptedGVR      schema.GroupVersionResource
+	interceptedName     string
+	branch              string
+	gitUser             string
+	gitEmail            string
+	gitToken            string
+	operation           admissionv1.Operation
+	remoteConfiguration syngitv1alpha1.GitServerConfiguration
 }
 
 type GitPushResponse struct {
@@ -39,11 +39,11 @@ type GitPushResponse struct {
 
 func (gp *GitPusher) Push() (GitPushResponse, error) {
 	gpResponse := &GitPushResponse{path: "", commitHash: ""}
-	gp.branch = gp.resourcesInterceptor.Spec.Branch
+	gp.branch = gp.remoteSyncer.Spec.Branch
 
 	// Clone the repository into memory
 	cloneOption := &git.CloneOptions{
-		URL:           gp.resourcesInterceptor.Spec.RemoteRepository,
+		URL:           gp.remoteSyncer.Spec.RemoteRepository,
 		ReferenceName: plumbing.ReferenceName(gp.branch),
 		Auth: &http.BasicAuth{
 			Username: gp.gitUser,
@@ -100,11 +100,11 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 
 func (gp *GitPusher) pathConstructor(w *git.Worktree) (string, error) {
 	gvr := gp.interceptedGVR
-	gvrn := &kgiov1.GroupVersionResourceName{
+	gvrn := &syngitv1alpha1.GroupVersionResourceName{
 		GroupVersionResource: &gvr,
 	}
 
-	tempPath := kgiov1.GetPathFromGVRN(gp.resourcesInterceptor.Spec.IncludedResources, *gvrn.DeepCopy())
+	tempPath := syngitv1alpha1.GetPathFromGVRN(gp.remoteSyncer.Spec.IncludedResources, *gvrn.DeepCopy())
 	if tempPath == "" {
 		tempPath = gvr.Group + "/" + gvr.Version + "/" + gvr.Resource
 	}
