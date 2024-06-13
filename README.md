@@ -1,3 +1,5 @@
+![logo](./img/logo.png)
+
 # syngit
 
 syngit is a Kubernetes operator that allows you to push resources on a git repository. It leverage the gitops by unifying the source of truth between your cluster and your git repository.
