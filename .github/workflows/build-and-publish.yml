@@ -3,7 +3,10 @@ name: Build and Publish
 on:
   # run it on push to the default repository branch
   push:
-    branches: [main]
+    branches:
+      - dev
+  tags:
+    - '*'
 
 jobs:
   # define job to build and publish docker image
@@ -26,14 +29,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: Determine Docker Image Tag
+        id: image_tag
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "tag=latest" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
+            COMMIT_HASH=$(git rev-parse --short HEAD)
+            echo "tag=dev-${COMMIT_HASH}" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+            echo "tag=${TAG_NAME}" >> $GITHUB_ENV
+          fi
+
       - name: Build image and push to Docker Hub and GitHub Container Registry
         uses: docker/build-push-action@v2
         with:
-          platforms: linux/arm64,linux/amd64
-          # Note: tags has to be all lower-case
-          tags: ghcr.io/damsien/git-pusher-operator:0.0.1
-          # build on feature branches, push only on main branch
-          push: ${{ github.ref == 'refs/heads/main' }}
+          platforms: linux/amd64,linux/arm64
+          tags: ghcr.io/damsien/syngit:${{ env.tag }}
+          push: ${{ github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
