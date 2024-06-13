@@ -46,7 +46,7 @@ spec:
         - "--health-probe-bind-address=:8081"
         - "--metrics-bind-address={{ .Values.controller.metrics.bindAddress }}"
         {{- end }}
-        image: {{ .Values.controller.imagePrefix }}/{{ .Chart.Name }}:{{ .Chart.Version }}
+        image: {{ .Values.controller.imagePrefix }}/{{ .Chart.Name }}:{{ .Chart.appVersion }}
         env:
         - name: MANAGER_NAMESPACE
           valueFrom:

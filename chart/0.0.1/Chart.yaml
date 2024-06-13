@@ -1,5 +1,5 @@
 apiVersion: v2
-name: git-pusher-operator
+name: syngit
 description: An operator to push resources onto git
 type: application
 version: 0.0.1
