@@ -160,6 +160,14 @@ data:
 
 The configmap has been applied on the cluster and it has been pushed on the remote git repository as well!
 
+## Roadmap
+
+- [ ] Automatic RemoteUserBinding creation on RemoteUser creation
+- [ ] Specify the git server credentials directly inside the RemoteUser
+- [ ] Remove `authorizedUsers` field from the RemoteSyncer : search for all RemoteUserBinding in the same namespace
+- [ ] Centralize default excluded fields in a ConfigMap (like the git server configuration)
+- [ ] Create a CRD to configure the repoPath with a fine-grained object scope
+
 ## Contributing
 
 TODO
