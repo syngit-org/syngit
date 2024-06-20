@@ -25,40 +25,6 @@ rules:
   - update
   - watch
 - apiGroups:
-  - kgio.dams.kgio
-  resources:
-  - remoteUser
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - kgio.dams.kgio
-  resources:
-  - remoteuserbindings
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - kgio.dams.kgio
-  resources:
-  - remoteuserbindings/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - kgio.dams.kgio
-  resources:
-  - remoteuserbindings/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
   - syngit.dams.syngit
   resources:
   - remotesyncers
@@ -80,6 +46,40 @@ rules:
   - syngit.dams.syngit
   resources:
   - remotesyncers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - syngit.damsien.fr
+  resources:
+  - remoteUser
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - syngit.damsien.fr
+  resources:
+  - remoteuserbindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - syngit.damsien.fr
+  resources:
+  - remoteuserbindings/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - syngit.damsien.fr
+  resources:
+  - remoteuserbindings/status
   verbs:
   - get
   - patch

@@ -41,4 +41,15 @@ resources:
   webhooks:
     validation: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: damsien.fr
+  group: syngit
+  kind: RemoteUser
+  path: damsien.fr/syngit/api/v1alpha2
+  version: v1alpha2
+  webhooks:
+    validation: true
+    webhookVersion: v1
 version: "3"

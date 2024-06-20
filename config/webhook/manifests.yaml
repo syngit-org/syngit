@@ -10,14 +10,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-kgio-dams-kgio-v1-remotesyncer
+      path: /validate-syngit-damsien-fr-v1alpha2-remotesyncer
   failurePolicy: Fail
   name: vremotesyncer.kb.io
   rules:
   - apiGroups:
-    - kgio.dams.kgio
+    - syngit.damsien.fr
     apiVersions:
-    - v1
+    - v1alpha2
     operations:
     - CREATE
     - UPDATE
@@ -30,17 +30,36 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-kgio-dams-kgio-v1-remoteuser
+      path: /validate-ssyngit-damsien-fr-v1alpha2-remoteuser
   failurePolicy: Fail
   name: vremoteuser.kb.io
   rules:
   - apiGroups:
-    - kgio.dams.kgio
+    - syngit.damsien.fr
     apiVersions:
-    - v1
+    - v1alpha2
     operations:
     - CREATE
     - UPDATE
+    resources:
+    - remoteusers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-syngit-remoteuser-owner
+  failurePolicy: Fail
+  name: vremoteusers-owner.kb.io
+  rules:
+  - apiGroups:
+    - syngit.damsien.fr
+    apiVersions:
+    - v1alpha2
+    operations:
+    - CREATE
     resources:
     - remoteusers
   sideEffects: None

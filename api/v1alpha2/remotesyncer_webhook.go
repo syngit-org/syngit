@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha2
 
 import (
 	"regexp"
@@ -39,6 +39,8 @@ func (r *RemoteSyncer) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		For(r).
 		Complete()
 }
+
+//+kubebuilder:webhook:path=/validate-syngit-damsien-fr-v1alpha2-remotesyncer,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.damsien.fr,resources=remotesyncers,verbs=create;update,versions=v1alpha2,name=vremotesyncer.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &RemoteSyncer{}
 

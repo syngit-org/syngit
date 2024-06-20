@@ -8,7 +8,7 @@ import (
 	"slices"
 	"sync"
 
-	syngitv1alpha1 "damsien.fr/syngit/api/v1alpha1"
+	syngit "damsien.fr/syngit/api/v1alpha2"
 	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -44,7 +44,7 @@ type wrcDetails struct {
 	repoPath    string
 	commitHash  string
 	gitUser     gitUser
-	remoteConf  syngitv1alpha1.GitServerConfiguration
+	remoteConf  syngit.GitServerConfiguration
 	pushDetails string
 }
 
@@ -57,7 +57,7 @@ type WebhookRequestChecker struct {
 	// The webhook admission review containing the request
 	admReview admissionv1.AdmissionReview
 	// The resources interceptor object
-	remoteSyncer syngitv1alpha1.RemoteSyncer
+	remoteSyncer syngit.RemoteSyncer
 	// The kubernetes client to make request to the api
 	k8sClient client.Client
 	// Logger
@@ -146,7 +146,7 @@ func (wrc *WebhookRequestChecker) retrieveRequestDetails() (wrcDetails, error) {
 func (wrc *WebhookRequestChecker) containsResources(details *wrcDetails) bool {
 
 	// Check if the incoming object is part of the specified names in the included resources
-	includedNames := syngitv1alpha1.GetNamesFromGVR(syngitv1alpha1.NSRPstoNSRs(wrc.remoteSyncer.Spec.IncludedResources), details.interceptedGVR)
+	includedNames := syngit.GetNamesFromGVR(syngit.NSRPstoNSRs(wrc.remoteSyncer.Spec.IncludedResources), details.interceptedGVR)
 	if len(includedNames) > 0 && !slices.Contains(includedNames, details.interceptedName) {
 		const errMsg = "the name of the resource is not part of the IncludedResources"
 		details.messageAddition = errMsg
@@ -154,7 +154,7 @@ func (wrc *WebhookRequestChecker) containsResources(details *wrcDetails) bool {
 	}
 
 	// Check if the incoming object is part of the specified names in the excluded resources
-	excludedNames := syngitv1alpha1.GetNamesFromGVR(wrc.remoteSyncer.Spec.ExcludedResources, details.interceptedGVR)
+	excludedNames := syngit.GetNamesFromGVR(wrc.remoteSyncer.Spec.ExcludedResources, details.interceptedGVR)
 	if len(excludedNames) > 0 && slices.Contains(excludedNames, details.interceptedName) {
 		const errMsg = "the name of the resource is part of the ExcludedResources"
 		details.messageAddition = errMsg
@@ -181,7 +181,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 		gitEmail: "",
 		gitToken: "",
 	}
-	remoteConf := &syngitv1alpha1.GitServerConfiguration{
+	remoteConf := &syngit.GitServerConfiguration{
 		CaBundle:              "",
 		InsecureSkipTlsVerify: false,
 	}
@@ -192,7 +192,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 			Namespace: wrc.remoteSyncer.Namespace,
 			Name:      ref.Name,
 		}
-		remoteUserBinding := &syngitv1alpha1.RemoteUserBinding{}
+		remoteUserBinding := &syngit.RemoteUserBinding{}
 		err := wrc.k8sClient.Get(ctx, *namespacedName, remoteUserBinding)
 		if err != nil {
 			continue
@@ -228,7 +228,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	return true, nil
 }
 
-func (wrc *WebhookRequestChecker) searchForGitToken(gub syngitv1alpha1.RemoteUserBinding, fqdn string, remoteConf *syngitv1alpha1.GitServerConfiguration) (*syngitv1alpha1.GitServerConfiguration, *gitUser, error) {
+func (wrc *WebhookRequestChecker) searchForGitToken(gub syngit.RemoteUserBinding, fqdn string, remoteConf *syngit.GitServerConfiguration) (*syngit.GitServerConfiguration, *gitUser, error) {
 	userGitName := ""
 	userGitEmail := ""
 	userGitToken := ""
@@ -243,7 +243,7 @@ func (wrc *WebhookRequestChecker) searchForGitToken(gub syngitv1alpha1.RemoteUse
 			Namespace: namespace,
 			Name:      ref.Name,
 		}
-		remoteUser := &syngitv1alpha1.RemoteUser{}
+		remoteUser := &syngit.RemoteUser{}
 		err := wrc.k8sClient.Get(ctx, *namespacedName, remoteUser)
 		if err != nil {
 			continue
@@ -415,10 +415,10 @@ func (wrc *WebhookRequestChecker) gitPushPostChecker(isPushed bool, err error, d
 
 func (wrc *WebhookRequestChecker) postcheck(details *wrcDetails) bool {
 	// Check the Commit Process mode
-	if wrc.remoteSyncer.Spec.CommitProcess == syngitv1alpha1.CommitOnly {
+	if wrc.remoteSyncer.Spec.CommitProcess == syngit.CommitOnly {
 		details.webhookPass = false
 	}
-	if wrc.remoteSyncer.Spec.CommitProcess == syngitv1alpha1.CommitApply {
+	if wrc.remoteSyncer.Spec.CommitProcess == syngit.CommitApply {
 		details.webhookPass = true
 	}
 
@@ -518,7 +518,7 @@ func (wrc *WebhookRequestChecker) updateStatus(kind string, details wrcDetails) 
 	wrc.Lock()
 	defer wrc.Unlock()
 
-	gvrn := &syngitv1alpha1.JsonGVRN{
+	gvrn := &syngit.JsonGVRN{
 		Group:    details.interceptedGVR.Group,
 		Version:  details.interceptedGVR.Version,
 		Resource: details.interceptedGVR.Resource,
@@ -526,21 +526,21 @@ func (wrc *WebhookRequestChecker) updateStatus(kind string, details wrcDetails) 
 	}
 	switch kind {
 	case "LastBypassedObjectState":
-		lastBypassedObjectState := &syngitv1alpha1.LastBypassedObjectState{
+		lastBypassedObjectState := &syngit.LastBypassedObjectState{
 			LastBypassedObjectTime:     v1.Now(),
 			LastBypassedObjectUserInfo: wrc.admReview.Request.UserInfo,
 			LastBypassedObject:         *gvrn,
 		}
 		wrc.remoteSyncer.Status.LastBypassedObjectState = *lastBypassedObjectState
 	case "LastObservedObjectState":
-		lastObservedObjectState := &syngitv1alpha1.LastObservedObjectState{
+		lastObservedObjectState := &syngit.LastObservedObjectState{
 			LastObservedObjectTime:     v1.Now(),
 			LastObservedObjectUserInfo: wrc.admReview.Request.UserInfo,
 			LastObservedObject:         *gvrn,
 		}
 		wrc.remoteSyncer.Status.LastObservedObjectState = *lastObservedObjectState
 	case "LastPushedObjectState":
-		lastPushedObjectState := &syngitv1alpha1.LastPushedObjectState{
+		lastPushedObjectState := &syngit.LastPushedObjectState{
 			LastPushedObjectTime:          v1.Now(),
 			LastPushedObject:              *gvrn,
 			LastPushedObjectGitPath:       details.repoPath,

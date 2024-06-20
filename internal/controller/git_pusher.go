@@ -15,12 +15,12 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 	admissionv1 "k8s.io/api/admission/v1"
 
-	syngitv1alpha1 "damsien.fr/syngit/api/v1alpha1"
+	syngit "damsien.fr/syngit/api/v1alpha2"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type GitPusher struct {
-	remoteSyncer        syngitv1alpha1.RemoteSyncer
+	remoteSyncer        syngit.RemoteSyncer
 	interceptedYAML     string
 	interceptedGVR      schema.GroupVersionResource
 	interceptedName     string
@@ -29,7 +29,7 @@ type GitPusher struct {
 	gitEmail            string
 	gitToken            string
 	operation           admissionv1.Operation
-	remoteConfiguration syngitv1alpha1.GitServerConfiguration
+	remoteConfiguration syngit.GitServerConfiguration
 }
 
 type GitPushResponse struct {
@@ -100,11 +100,11 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 
 func (gp *GitPusher) pathConstructor(w *git.Worktree) (string, error) {
 	gvr := gp.interceptedGVR
-	gvrn := &syngitv1alpha1.GroupVersionResourceName{
+	gvrn := &syngit.GroupVersionResourceName{
 		GroupVersionResource: &gvr,
 	}
 
-	tempPath := syngitv1alpha1.GetPathFromGVRN(gp.remoteSyncer.Spec.IncludedResources, *gvrn.DeepCopy())
+	tempPath := syngit.GetPathFromGVRN(gp.remoteSyncer.Spec.IncludedResources, *gvrn.DeepCopy())
 	if tempPath == "" {
 		tempPath = gvr.Group + "/" + gvr.Version + "/" + gvr.Resource
 	}

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"syscall"
 
-	syngitv1alpha1 "damsien.fr/syngit/api/v1alpha1"
+	syngit "damsien.fr/syngit/api/v1alpha2"
 	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,7 +33,7 @@ type WebhookInterceptsAll struct {
 
 // PathHandler represents an instance of a path handler with a specific namespace and name
 type DynamicWebhookHandler struct {
-	remoteSyncer syngitv1alpha1.RemoteSyncer
+	remoteSyncer syngit.RemoteSyncer
 	k8sClient    client.Client
 	log          *logr.Logger
 }
@@ -81,7 +81,7 @@ func (s *WebhookInterceptsAll) Start() {
 					Name:      riName,
 				}
 
-				found := &syngitv1alpha1.RemoteSyncer{}
+				found := &syngit.RemoteSyncer{}
 				err := s.k8sClient.Get(ctx, *riNamespacedName, found)
 				if err != nil {
 					// If no handler is found, respond with a 404 Not Found status
@@ -150,7 +150,7 @@ func (s *WebhookInterceptsAll) Stop() {
 }
 
 // CreatePathHandler creates a new path handler instance for the given namespace and name
-func (s *WebhookInterceptsAll) CreatePathHandler(interceptor syngitv1alpha1.RemoteSyncer, path string) *DynamicWebhookHandler {
+func (s *WebhookInterceptsAll) CreatePathHandler(interceptor syngit.RemoteSyncer, path string) *DynamicWebhookHandler {
 	s.Lock()
 	defer s.Unlock()
 

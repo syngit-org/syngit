@@ -33,8 +33,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	syngitv1alpha1 "damsien.fr/syngit/api/v1alpha1"
+	syngitv1alpha2 "damsien.fr/syngit/api/v1alpha2"
 	"damsien.fr/syngit/internal/controller"
 	//+kubebuilder:scaffold:imports
 )
@@ -47,7 +48,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(syngitv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(syngitv1alpha2.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -131,11 +132,16 @@ func main() {
 		os.Exit(1)
 	}
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
-		if err = (&syngitv1alpha1.RemoteUser{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = (&syngitv1alpha2.RemoteUser{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUser")
 			os.Exit(1)
 		}
 	}
+	mgr.GetWebhookServer().Register("/reconcile-syngit-remoteuser-owner", &webhook.Admission{Handler: &syngitv1alpha2.RemoteUserWebhookHandler{
+		Client:  mgr.GetClient(),
+		Decoder: admission.NewDecoder(mgr.GetScheme()),
+	}})
+
 	if err = (&controller.RemoteUserBindingReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
@@ -144,6 +150,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "RemoteUserBinding")
 		os.Exit(1)
 	}
+
 	if err = (&controller.RemoteSyncerReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
@@ -153,7 +160,7 @@ func main() {
 		os.Exit(1)
 	}
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
-		if err = (&syngitv1alpha1.RemoteSyncer{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = (&syngitv1alpha2.RemoteSyncer{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteSyncer")
 			os.Exit(1)
 		}
