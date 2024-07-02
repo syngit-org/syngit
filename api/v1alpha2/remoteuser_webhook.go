@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -122,8 +123,22 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 	err = ruwh.Client.Get(ctx, *webhookNamespacedName, rub)
 	if err != nil {
 		// The RemoteUserBinding does not exists yet
+
+		// Create the RemoteUserBinding object
 		rub.Name = name
 		rub.Namespace = req.Namespace
+
+		isControlled := true
+		ownerRef := v1.OwnerReference{
+			Name:       ru.Name,
+			APIVersion: ru.APIVersion,
+			Kind:       ru.GroupVersionKind().Kind,
+			UID:        ru.GetUID(),
+			Controller: &isControlled,
+		}
+		ownerRefs := make([]v1.OwnerReference, 0)
+		ownerRefs = append(ownerRefs, ownerRef)
+		rub.ObjectMeta.OwnerReferences = ownerRefs
 
 		subject := &rbacv1.Subject{
 			Kind: "User",
@@ -141,6 +156,19 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 		}
 	} else {
 		// The RemoteUserBinding already exists
+
+		// Update the list of the RemoteUserBinding object
+		isControlled := true
+		ownerRef := v1.OwnerReference{
+			Name:       ru.Name,
+			APIVersion: ru.APIVersion,
+			Kind:       ru.GroupVersionKind().Kind,
+			UID:        ru.GetUID(),
+			Controller: &isControlled,
+		}
+		ownerRefs := make([]v1.OwnerReference, 0)
+		ownerRefs = append(ownerRefs, ownerRef)
+		rub.ObjectMeta.OwnerReferences = ownerRefs
 
 		remoteRefs := rub.DeepCopy().Spec.RemoteRefs
 		remoteRefs = append(remoteRefs, objRef)

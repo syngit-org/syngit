@@ -36,6 +36,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -100,6 +101,58 @@ func (r *RemoteUserReconciler) setServerConfiguration(ctx context.Context, remot
 	return *gpc, nil
 }
 
+func (r *RemoteUserReconciler) finalizer(ctx context.Context, remoteUser *syngit.RemoteUser) error {
+
+	finalizerName := "syngit.io/remote-user-bindings"
+
+	// examine DeletionTimestamp to determine if object is under deletion
+	if remoteUser.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// to registering our finalizer.
+		if !controllerutil.ContainsFinalizer(remoteUser, finalizerName) {
+			controllerutil.AddFinalizer(remoteUser, finalizerName)
+			if err := r.Update(ctx, remoteUser); err != nil {
+				return err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(remoteUser, finalizerName) {
+
+			allRemoteUserBindings := syngit.RemoteUserBindingList{}
+			if err := r.List(ctx, &allRemoteUserBindings, client.InNamespace(remoteUser.Namespace)); err != nil {
+				// does not exists -> deleted
+				return client.IgnoreNotFound(err)
+			}
+			remoteUserBindings := make([]syngit.RemoteUserBinding, 0)
+			for _, rub := range allRemoteUserBindings.Items {
+				if len(rub.OwnerReferences) != 0 {
+					owner := rub.OwnerReferences[0]
+					if owner.UID == remoteUser.GetUID() {
+						remoteUserBindings = append(remoteUserBindings, rub)
+					}
+				}
+			}
+
+			for _, rub := range remoteUserBindings {
+				err := r.Delete(ctx, &rub)
+				if err != nil {
+					return err
+				}
+			}
+
+			// remove our finalizer from the list and update it.
+			controllerutil.RemoveFinalizer(remoteUser, finalizerName)
+			if err := r.Update(ctx, remoteUser); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // +kubebuilder:rbac:groups=syngit.damsien.fr,resources=remoteusers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=syngit.damsien.fr,resources=remoteusers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=syngit.damsien.fr,resources=remoteusers/finalizers,verbs=update
@@ -125,6 +178,11 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		LastTransitionTime: v1.Now(),
 		Type:               "NotReady",
 		Status:             "False",
+	}
+
+	finalizerError := r.finalizer(ctx, &remoteUser)
+	if finalizerError != nil {
+		return ctrl.Result{}, finalizerError
 	}
 
 	// Get the referenced Secret
