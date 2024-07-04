@@ -26,7 +26,7 @@ Another useful usage is the object logging. Automatic etcd snapshot can be sette
 
 By concept, both are not compatible. In fact, the automatic reconciliation will not have any effect because the changes made on the cluster are pushed on the remote git repository.
 
-## Getting Started
+## Quick start
 
 ### Prerequisites
 - docker version 17.03+.
@@ -51,7 +51,7 @@ helm install syngit syngit/syngit --version 0.0.2
 
 syngit is now installed on your cluster!
 
-## Quick start
+## Use syngit
 
 There is 3 custom objects that are necessary to create in order to use syngit.
 

@@ -18,6 +18,10 @@ jobs:
 
     # steps to perform in job
     steps:
+      # Checkout the repository to make it available for Git commands
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       # setup Docker build action
       - name: Set up Docker Buildx
         id: buildx
