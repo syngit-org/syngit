@@ -110,7 +110,7 @@ The RemoteSyncer object contains the whole logic part of the operator.
 In this example, the RemoteSyncer will intercept all the *configmaps*. It will push them to *https://github.com/my_repo_path.git* in the branch *main* under the path `my_configmaps/`. Because the `commitProcess` is set to `CommitApply`, the changes will be pushed and then applied to the cluster.
 
 ```yaml
-apiVersion: syngit.damsien.fr/v1alpha1
+apiVersion: syngit.damsien.fr/v2alpha2
 kind: RemoteSyncer
 metadata:
   name: remotesyncer-sample
@@ -162,4 +162,4 @@ TODO
 
 ## License
 
-This operator has been built using the [kubebuilder]("https://book.kubebuilder.io/") framework. The framework is under the Apache-2.0 License. The same license is used for the syngit operator and can be found in the file LICENSE.md.
+This operator has been built using the [kubebuilder](https://book.kubebuilder.io/) framework. The framework is under the Apache-2.0 License. The Apache-2.0 license is also used for the syngit operator and can be found in the [LICENSE](./LICENSE.md) file.
