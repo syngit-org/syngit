@@ -40,8 +40,6 @@ func (r *RemoteSyncer) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-kgio-dams-kgio-v1-remotesyncer,mutating=false,failurePolicy=fail,sideEffects=None,groups=kgio.dams.kgio,resources=remotesyncers,verbs=create;update,versions=v1,name=vremotesyncer.kb.io,admissionReviewVersions=v1
-
 var _ webhook.Validator = &RemoteSyncer{}
 
 // Validate validates the RemoteSyncerSpec

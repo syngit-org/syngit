@@ -20,7 +20,6 @@ import (
 	"context"
 	"os"
 
-	syngitv1alpha1 "damsien.fr/syngit/api/v1alpha1"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	syngit "syngit.io/syngit/api/v2alpha2"
 )
 
 // RemoteSyncerReconciler reconciles a RemoteSyncer object
@@ -42,9 +42,9 @@ type RemoteSyncerReconciler struct {
 	Recorder      record.EventRecorder
 }
 
-//+kubebuilder:rbac:groups=syngit.dams.syngit,resources=remotesyncers,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=syngit.dams.syngit,resources=remotesyncers/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=syngit.dams.syngit,resources=remotesyncers/finalizers,verbs=update
+//+kubebuilder:rbac:groups=syngit.syngit.io,resources=remotesyncers,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=syngit.syngit.io,resources=remotesyncers/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=syngit.syngit.io,resources=remotesyncers/finalizers,verbs=update
 //+kubebuilder:rbac:groups=*,resources=*,verbs=get;list;watch
 //+kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations,verbs=create;get;list;watch;update;patch;delete
 
@@ -56,7 +56,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	var rSName string
 
 	// Get the RemoteSyncer Object
-	var remoteSyncer syngitv1alpha1.RemoteSyncer
+	var remoteSyncer syngit.RemoteSyncer
 	if err := r.Get(ctx, req.NamespacedName, &remoteSyncer); err != nil {
 		// does not exists -> deleted
 		r.webhookServer.DestroyPathHandler(req.NamespacedName)
@@ -120,7 +120,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		Name:                    webhookSpecificName,
 		AdmissionReviewVersions: []string{"v1"},
 		SideEffects:             &sideEffectsNone,
-		Rules:                   nsrListToRuleList(syngitv1alpha1.NSRPstoNSRs(remoteSyncer.Spec.IncludedResources), remoteSyncer.Spec.DeepCopy().Operations),
+		Rules:                   nsrListToRuleList(syngit.NSRPstoNSRs(remoteSyncer.Spec.IncludedResources), remoteSyncer.Spec.DeepCopy().Operations),
 		ClientConfig:            clientConfig,
 		NamespaceSelector: &v1.LabelSelector{
 			MatchLabels: map[string]string{"kubernetes.io/metadata.name": rSNamespace},
@@ -197,7 +197,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, nil
 }
 
-func nsrListToRuleList(nsrList []syngitv1alpha1.NamespaceScopedResources, operations []admissionv1.OperationType) []admissionv1.RuleWithOperations {
+func nsrListToRuleList(nsrList []syngit.NamespaceScopedResources, operations []admissionv1.OperationType) []admissionv1.RuleWithOperations {
 	var scope admissionv1.ScopeType = admissionv1.NamespacedScope
 	rules := []admissionv1.RuleWithOperations{}
 
@@ -216,7 +216,7 @@ func nsrListToRuleList(nsrList []syngitv1alpha1.NamespaceScopedResources, operat
 	return rules
 }
 
-func (r *RemoteSyncerReconciler) updateConditions(ctx context.Context, rs *syngitv1alpha1.RemoteSyncer, condition v1.Condition) error {
+func (r *RemoteSyncerReconciler) updateConditions(ctx context.Context, rs *syngit.RemoteSyncer, condition v1.Condition) error {
 	added := false
 	var conditions []v1.Condition
 	for _, cond := range rs.Status.Conditions {
@@ -265,6 +265,6 @@ func (r *RemoteSyncerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.webhookServer.Start()
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&syngitv1alpha1.RemoteSyncer{}).
+		For(&syngit.RemoteSyncer{}).
 		Complete(r)
 }

@@ -6,13 +6,13 @@ metadata:
     app.kubernetes.io/name: clusterrole
     app.kubernetes.io/instance: remoteuser-editor-role
     app.kubernetes.io/component: rbac
-    app.kubernetes.io/created-by: new-operator
-    app.kubernetes.io/part-of: new-operator
+    app.kubernetes.io/created-by: syngit
+    app.kubernetes.io/part-of: syngit
     app.kubernetes.io/managed-by: kustomize
   name: remoteuser-editor-role
 rules:
 - apiGroups:
-  - syngit.damsien.fr
+  - syngit.syngit.io
   resources:
   - remoteusers
   verbs:
@@ -24,7 +24,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - syngit.damsien.fr
+  - syngit.syngit.io
   resources:
   - remoteusers/status
   verbs:

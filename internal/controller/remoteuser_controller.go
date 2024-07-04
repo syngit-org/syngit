@@ -26,7 +26,6 @@ import (
 	"os"
 	"strings"
 
-	syngitv1alpha1 "damsien.fr/syngit/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -36,11 +35,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	syngit "syngit.io/syngit/api/v2alpha2"
 )
 
 // RemoteUserReconciler reconciles a RemoteUser object
@@ -51,9 +52,9 @@ type RemoteUserReconciler struct {
 	Namespace string
 }
 
-func (r *RemoteUserReconciler) setServerConfiguration(ctx context.Context, remoteUser *syngitv1alpha1.RemoteUser) (syngitv1alpha1.GitServerConfiguration, error) {
+func (r *RemoteUserReconciler) setServerConfiguration(ctx context.Context, remoteUser *syngit.RemoteUser) (syngit.GitServerConfiguration, error) {
 
-	gpc := &syngitv1alpha1.GitServerConfiguration{
+	gpc := &syngit.GitServerConfiguration{
 		Inherited:              false,
 		AuthenticationEndpoint: "",
 		CaBundle:               "",
@@ -66,7 +67,7 @@ func (r *RemoteUserReconciler) setServerConfiguration(ctx context.Context, remot
 		// It is defined in the RemoteUser object
 		namespacedName := types.NamespacedName{Namespace: remoteUser.Namespace, Name: remoteUser.Spec.CustomGitServerConfigRef.Name}
 		if err := r.Get(ctx, namespacedName, &cm); err != nil {
-			remoteUser.Status.ConnexionStatus.Status = syngitv1alpha1.GitConfigNotFound
+			remoteUser.Status.ConnexionStatus.Status = syngit.GitConfigNotFound
 			remoteUser.Status.ConnexionStatus.Details = "ConfigMap name: " + remoteUser.Spec.CustomGitServerConfigRef.Name
 			return *gpc, err
 		}
@@ -74,7 +75,7 @@ func (r *RemoteUserReconciler) setServerConfiguration(ctx context.Context, remot
 		// It is not defined in the RemoteUser object -> look for the default configmap of the operator
 		namespacedName := types.NamespacedName{Namespace: r.Namespace, Name: remoteUser.Spec.GitBaseDomainFQDN}
 		if err := r.Get(ctx, namespacedName, &cm); err != nil {
-			remoteUser.Status.ConnexionStatus.Status = syngitv1alpha1.GitConfigNotFound
+			remoteUser.Status.ConnexionStatus.Status = syngit.GitConfigNotFound
 			remoteUser.Status.ConnexionStatus.Details = "Configuration reference not found in the current RemoteUser; ConfigMap " + remoteUser.Spec.GitBaseDomainFQDN + " in the namespace of the operator not found as well"
 			return *gpc, err
 		}
@@ -86,7 +87,7 @@ func (r *RemoteUserReconciler) setServerConfiguration(ctx context.Context, remot
 	// Parse the ConfigMap
 	serverConf, err := parseConfigMap(cm)
 	if err != nil {
-		remoteUser.Status.ConnexionStatus.Status = syngitv1alpha1.GitConfigParseError
+		remoteUser.Status.ConnexionStatus.Status = syngit.GitConfigParseError
 		remoteUser.Status.ConnexionStatus.Details = err.Error()
 		return *gpc, err
 	}
@@ -100,17 +101,69 @@ func (r *RemoteUserReconciler) setServerConfiguration(ctx context.Context, remot
 	return *gpc, nil
 }
 
-// +kubebuilder:rbac:groups=kgio.dams.kgio,resources=remoteusers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=kgio.dams.kgio,resources=remoteusers/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=kgio.dams.kgio,resources=remoteusers/finalizers,verbs=update
+func (r *RemoteUserReconciler) finalizer(ctx context.Context, remoteUser *syngit.RemoteUser) error {
+
+	finalizerName := "syngit.io/remote-user-bindings"
+
+	// examine DeletionTimestamp to determine if object is under deletion
+	if remoteUser.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object. This is equivalent
+		// to registering our finalizer.
+		if !controllerutil.ContainsFinalizer(remoteUser, finalizerName) {
+			controllerutil.AddFinalizer(remoteUser, finalizerName)
+			if err := r.Update(ctx, remoteUser); err != nil {
+				return err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if controllerutil.ContainsFinalizer(remoteUser, finalizerName) {
+
+			allRemoteUserBindings := syngit.RemoteUserBindingList{}
+			if err := r.List(ctx, &allRemoteUserBindings, client.InNamespace(remoteUser.Namespace)); err != nil {
+				// does not exists -> deleted
+				return client.IgnoreNotFound(err)
+			}
+			remoteUserBindings := make([]syngit.RemoteUserBinding, 0)
+			for _, rub := range allRemoteUserBindings.Items {
+				if len(rub.OwnerReferences) != 0 {
+					owner := rub.OwnerReferences[0]
+					if owner.UID == remoteUser.GetUID() {
+						remoteUserBindings = append(remoteUserBindings, rub)
+					}
+				}
+			}
+
+			for _, rub := range remoteUserBindings {
+				err := r.Delete(ctx, &rub)
+				if err != nil {
+					return err
+				}
+			}
+
+			// remove our finalizer from the list and update it.
+			controllerutil.RemoveFinalizer(remoteUser, finalizerName)
+			if err := r.Update(ctx, remoteUser); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// +kubebuilder:rbac:groups=syngit.syngit.io,resources=remoteusers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=syngit.syngit.io,resources=remoteusers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=syngit.syngit.io,resources=remoteusers/finalizers,verbs=update
 // +kubebuilder:rbac:groups=corev1,resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=corev1,resources=configmaps,verbs=get;list;watch
-// +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=corev1,resources=events,verbs=create;patch
 func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
 	// Get the RemoteUser Object
-	var remoteUser syngitv1alpha1.RemoteUser
+	var remoteUser syngit.RemoteUser
 	if err := r.Get(ctx, req.NamespacedName, &remoteUser); err != nil {
 		// does not exists -> deleted
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -127,20 +180,25 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		Status:             "False",
 	}
 
+	finalizerError := r.finalizer(ctx, &remoteUser)
+	if finalizerError != nil {
+		return ctrl.Result{}, finalizerError
+	}
+
 	// Get the referenced Secret
 	var secret corev1.Secret
 	namespacedNameSecret := types.NamespacedName{Namespace: req.Namespace, Name: remoteUser.Spec.SecretRef.Name}
 	if err := r.Get(ctx, namespacedNameSecret, &secret); err != nil {
-		remoteUser.Status.SecretBoundStatus = syngitv1alpha1.SecretNotFound
+		remoteUser.Status.SecretBoundStatus = syngit.SecretNotFound
 		remoteUser.Status.ConnexionStatus.Status = ""
 
 		condition.Reason = "SecretNotFound"
-		condition.Message = string(syngitv1alpha1.SecretNotFound)
+		condition.Message = string(syngit.SecretNotFound)
 		err = r.updateStatus(ctx, &remoteUser, *condition)
 
 		return ctrl.Result{}, err
 	}
-	remoteUser.Status.SecretBoundStatus = syngitv1alpha1.SecretBound
+	remoteUser.Status.SecretBoundStatus = syngit.SecretBound
 	username := string(secret.Data["username"])
 
 	// Update configuration
@@ -172,10 +230,10 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		// Check if the referenced Secret is a basic-auth type
 		if secret.Type != corev1.SecretTypeBasicAuth {
 
-			remoteUser.Status.SecretBoundStatus = syngitv1alpha1.SecretWrongType
+			remoteUser.Status.SecretBoundStatus = syngit.SecretWrongType
 
 			condition.Reason = "SecretWrongType"
-			condition.Message = string(syngitv1alpha1.SecretWrongType)
+			condition.Message = string(syngit.SecretWrongType)
 			errUpdate := r.updateStatus(ctx, &remoteUser, *condition)
 
 			return ctrl.Result{}, errUpdate
@@ -194,7 +252,7 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			} else {
 				errMsg = "git provider not found in the " + remoteUser.Spec.CustomGitServerConfigRef.Name + " ConfigMap"
 			}
-			remoteUser.Status.ConnexionStatus.Status = syngitv1alpha1.GitUnsupported
+			remoteUser.Status.ConnexionStatus.Status = syngit.GitUnsupported
 			remoteUser.Status.ConnexionStatus.Details = errMsg
 
 			condition.Reason = "WrongRemoteUserServerConfiguration"
@@ -213,7 +271,7 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		if !gpc.InsecureSkipTlsVerify && gpc.CaBundle != "" {
 			caCertPool := x509.NewCertPool()
 			if ok := caCertPool.AppendCertsFromPEM([]byte(gpc.CaBundle)); !ok {
-				remoteUser.Status.ConnexionStatus.Status = syngitv1alpha1.GitConfigParseError
+				remoteUser.Status.ConnexionStatus.Status = syngit.GitConfigParseError
 				remoteUser.Status.ConnexionStatus.Details = "x509 cert pool maker failed"
 
 				condition.Reason = "RemoteUserServerCertificateMalformed"
@@ -229,7 +287,7 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		}
 		gitReq, err := http.NewRequest("GET", authenticationEndpoint, nil)
 		if err != nil {
-			remoteUser.Status.ConnexionStatus.Status = syngitv1alpha1.GitServerError
+			remoteUser.Status.ConnexionStatus.Status = syngit.GitServerError
 			remoteUser.Status.ConnexionStatus.Details = "Internal operator error : cannot create the http request " + err.Error()
 
 			condition.Reason = "RemoteUserServerError"
@@ -242,7 +300,7 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 		resp, err := httpClient.Do(gitReq)
 		if err != nil {
-			remoteUser.Status.ConnexionStatus.Status = syngitv1alpha1.GitServerError
+			remoteUser.Status.ConnexionStatus.Status = syngit.GitServerError
 			remoteUser.Status.ConnexionStatus.Details = "Internal operator error : the request cannot be processed " + err.Error()
 
 			condition.Reason = "RemoteUserServerError"
@@ -260,7 +318,7 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		// Check the response status code
 		if resp.StatusCode == http.StatusOK {
 			// Authentication successful
-			remoteUser.Status.ConnexionStatus.Status = syngitv1alpha1.GitConnected
+			remoteUser.Status.ConnexionStatus.Status = syngit.GitConnected
 			remoteUser.Status.LastAuthTime = v1.Now()
 
 			condition.Type = "AuthSucceeded"
@@ -270,28 +328,28 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			r.Recorder.Event(&remoteUser, "Normal", "Connected", "Auth succeeded")
 		} else if resp.StatusCode == http.StatusUnauthorized {
 			// Unauthorized: bad credentials
-			remoteUser.Status.ConnexionStatus.Status = syngitv1alpha1.GitUnauthorized
+			remoteUser.Status.ConnexionStatus.Status = syngit.GitUnauthorized
 
 			condition.Reason = "RemoteUserUserUnauthorized"
 			condition.Message = string(remoteUser.Status.ConnexionStatus.Status)
 			r.Recorder.Event(&remoteUser, "Warning", "AuthFailed", "Auth failed - unauthorized")
 		} else if resp.StatusCode == http.StatusForbidden {
 			// Forbidden : Not enough permission
-			remoteUser.Status.ConnexionStatus.Status = syngitv1alpha1.GitForbidden
+			remoteUser.Status.ConnexionStatus.Status = syngit.GitForbidden
 
 			condition.Reason = "RemoteUserUserForbidden"
 			condition.Message = string(remoteUser.Status.ConnexionStatus.Status)
 			r.Recorder.Event(&remoteUser, "Warning", "AuthFailed", "Auth failed - forbidden")
 		} else if resp.StatusCode == http.StatusInternalServerError {
 			// Server error: a server error happened
-			remoteUser.Status.ConnexionStatus.Status = syngitv1alpha1.GitServerError
+			remoteUser.Status.ConnexionStatus.Status = syngit.GitServerError
 
 			condition.Reason = "RemoteUserServerError"
 			condition.Message = string(remoteUser.Status.ConnexionStatus.Status)
 			r.Recorder.Event(&remoteUser, "Warning", "AuthFailed", "Auth failed - server error")
 		} else {
 			// Handle other status codes if needed
-			remoteUser.Status.ConnexionStatus.Status = syngitv1alpha1.GitUnexpectedStatus
+			remoteUser.Status.ConnexionStatus.Status = syngit.GitUnexpectedStatus
 
 			condition.Reason = "RemoteUserServerError"
 			condition.Message = string(remoteUser.Status.ConnexionStatus.Status)
@@ -306,8 +364,8 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	return ctrl.Result{}, nil
 }
 
-func parseConfigMap(configMap corev1.ConfigMap) (syngitv1alpha1.GitServerConfiguration, error) {
-	gitServerConf := &syngitv1alpha1.GitServerConfiguration{}
+func parseConfigMap(configMap corev1.ConfigMap) (syngit.GitServerConfiguration, error) {
+	gitServerConf := &syngit.GitServerConfiguration{}
 	for key, value := range configMap.Data {
 		switch key {
 		case "authenticationEndpoint":
@@ -328,7 +386,7 @@ func parseConfigMap(configMap corev1.ConfigMap) (syngitv1alpha1.GitServerConfigu
 	return *gitServerConf, nil
 }
 
-func (r *RemoteUserReconciler) updateConditions(remoteUser syngitv1alpha1.RemoteUser, condition v1.Condition) []v1.Condition {
+func (r *RemoteUserReconciler) updateConditions(remoteUser syngit.RemoteUser, condition v1.Condition) []v1.Condition {
 	added := false
 	var conditions []v1.Condition
 	for _, cond := range remoteUser.Status.Conditions {
@@ -345,7 +403,7 @@ func (r *RemoteUserReconciler) updateConditions(remoteUser syngitv1alpha1.Remote
 	return conditions
 }
 
-func (r *RemoteUserReconciler) updateStatus(ctx context.Context, remoteUser *syngitv1alpha1.RemoteUser, condition v1.Condition) error {
+func (r *RemoteUserReconciler) updateStatus(ctx context.Context, remoteUser *syngit.RemoteUser, condition v1.Condition) error {
 	conditions := r.updateConditions(*remoteUser, condition)
 
 	remoteUser.Status.Conditions = conditions
@@ -356,7 +414,7 @@ func (r *RemoteUserReconciler) updateStatus(ctx context.Context, remoteUser *syn
 }
 
 func (r *RemoteUserReconciler) findObjectsForSecret(ctx context.Context, secret client.Object) []reconcile.Request {
-	attachedRemoteUsers := &syngitv1alpha1.RemoteUserList{}
+	attachedRemoteUsers := &syngit.RemoteUserList{}
 	listOps := &client.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector(secretRefField, secret.GetName()),
 		Namespace:     secret.GetNamespace(),
@@ -379,7 +437,7 @@ func (r *RemoteUserReconciler) findObjectsForSecret(ctx context.Context, secret 
 }
 
 func (r *RemoteUserReconciler) findObjectsForGitProviderConfig(ctx context.Context, configMap client.Object) []reconcile.Request {
-	attachedRemoteUsers := &syngitv1alpha1.RemoteUserList{}
+	attachedRemoteUsers := &syngit.RemoteUserList{}
 	listOps := &client.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector(gitProviderConfigRefField, configMap.GetName()),
 		Namespace:     configMap.GetNamespace(),
@@ -402,7 +460,7 @@ func (r *RemoteUserReconciler) findObjectsForGitProviderConfig(ctx context.Conte
 }
 
 func (r *RemoteUserReconciler) findObjectsForRootConfigMap(ctx context.Context, configMap client.Object) []reconcile.Request {
-	attachedRemoteUsers := &syngitv1alpha1.RemoteUserList{}
+	attachedRemoteUsers := &syngit.RemoteUserList{}
 	listOps := &client.ListOptions{}
 	err := r.List(ctx, attachedRemoteUsers, listOps)
 	if err != nil {
@@ -452,9 +510,9 @@ const (
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *RemoteUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &syngitv1alpha1.RemoteUser{}, secretRefField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &syngit.RemoteUser{}, secretRefField, func(rawObj client.Object) []string {
 		// Extract the Secret name from the RemoteUser Spec, if one is provided
-		remoteUser := rawObj.(*syngitv1alpha1.RemoteUser)
+		remoteUser := rawObj.(*syngit.RemoteUser)
 		if remoteUser.Spec.SecretRef.Name == "" {
 			return nil
 		}
@@ -462,9 +520,9 @@ func (r *RemoteUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}); err != nil {
 		return err
 	}
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &syngitv1alpha1.RemoteUser{}, gitProviderConfigRefField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &syngit.RemoteUser{}, gitProviderConfigRefField, func(rawObj client.Object) []string {
 		// Extract the ConfigMap name from the RemoteUser Spec, if one is provided
-		remoteUser := rawObj.(*syngitv1alpha1.RemoteUser)
+		remoteUser := rawObj.(*syngit.RemoteUser)
 		if remoteUser.Spec.CustomGitServerConfigRef.Name == "" {
 			return nil
 		}
@@ -487,7 +545,7 @@ func (r *RemoteUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&syngitv1alpha1.RemoteUser{}).
+		For(&syngit.RemoteUser{}).
 		Watches(
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSecret),

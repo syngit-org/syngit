@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	syngitv1alpha1 "damsien.fr/syngit/api/v1alpha1"
+	syngit "syngit.io/syngit/api/v2alpha2"
 )
 
 var _ = Describe("RemoteSyncer Controller", func() {
@@ -40,13 +40,13 @@ var _ = Describe("RemoteSyncer Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		remotesyncer := &syngitv1alpha1.RemoteSyncer{}
+		remotesyncer := &syngit.RemoteSyncer{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind RemoteSyncer")
 			err := k8sClient.Get(ctx, typeNamespacedName, remotesyncer)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &syngitv1alpha1.RemoteSyncer{
+				resource := &syngit.RemoteSyncer{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
@@ -59,7 +59,7 @@ var _ = Describe("RemoteSyncer Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &syngitv1alpha1.RemoteSyncer{}
+			resource := &syngit.RemoteSyncer{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 

@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= kgio-controller:latest
+IMG ?= syngit-controller:latest
 DEV_CLUSTER ?= dev-cluster
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.29.0
@@ -46,7 +46,7 @@ help: ## Display this help.
 ##@ Development
 
 WEBHOOK_PATH ?= config/webhook
-IMAGE ?= dams.com/op:dev
+IMAGE ?= syngit.io/op:dev
 .PHONY: dev-deploy
 dev-deploy: # Launch dev env on the cluster
 	make docker-build IMG=$(IMAGE)

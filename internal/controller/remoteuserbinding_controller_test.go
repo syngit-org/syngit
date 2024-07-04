@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	syngitv1alpha1 "damsien.fr/syngit/api/v1alpha1"
+	syngit "syngit.io/syngit/api/v2alpha2"
 )
 
 var _ = Describe("RemoteUserBinding Controller", func() {
@@ -40,13 +40,13 @@ var _ = Describe("RemoteUserBinding Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		remoteuserbinding := &syngitv1alpha1.RemoteUserBinding{}
+		remoteuserbinding := &syngit.RemoteUserBinding{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind RemoteUserBinding")
 			err := k8sClient.Get(ctx, typeNamespacedName, remoteuserbinding)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &syngitv1alpha1.RemoteUserBinding{
+				resource := &syngit.RemoteUserBinding{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
@@ -59,7 +59,7 @@ var _ = Describe("RemoteUserBinding Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &syngitv1alpha1.RemoteUserBinding{}
+			resource := &syngit.RemoteUserBinding{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 

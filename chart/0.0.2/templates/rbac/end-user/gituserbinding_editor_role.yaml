@@ -1,0 +1,30 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: gituserbinding-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+  name: {{ .Release.Name }}-gituserbinding-editor-role
+rules:
+- apiGroups:
+  - kgio.dams.kgio
+  resources:
+  - gituserbindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - kgio.dams.kgio
+  resources:
+  - gituserbindings/status
+  verbs:
+  - get

@@ -36,8 +36,6 @@ func (r *RemoteUser) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-kgio-dams-kgio-v1-remoteuser,mutating=false,failurePolicy=fail,sideEffects=None,groups=kgio.dams.kgio,resources=remoteusers,verbs=create;update,versions=v1,name=vremoteuser.kb.io,admissionReviewVersions=v1
-
 var _ webhook.Validator = &RemoteUser{}
 
 // Validate validates the RemoteUserSpec
