@@ -8,6 +8,10 @@
 bin/*
 Dockerfile.cross
 config/samples
+config/webhook/manifests.yaml
+config/webhook/secret.yaml
+config/webhook/manifests.yaml.temp
+config/webhook/secret.yaml.temp
 
 # Test binary, built with `go test -c`
 *.test
