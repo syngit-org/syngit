@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	syngit "damsien.fr/syngit/api/v1alpha2"
+	syngit "syngit.io/syngit/api/v2alpha2"
 )
 
 var _ = Describe("RemoteSyncer Controller", func() {

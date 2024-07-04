@@ -20,7 +20,6 @@ import (
 	"context"
 	"os"
 
-	syngit "damsien.fr/syngit/api/v1alpha2"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	syngit "syngit.io/syngit/api/v2alpha2"
 )
 
 // RemoteSyncerReconciler reconciles a RemoteSyncer object
@@ -42,9 +42,9 @@ type RemoteSyncerReconciler struct {
 	Recorder      record.EventRecorder
 }
 
-//+kubebuilder:rbac:groups=syngit.dams.syngit,resources=remotesyncers,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=syngit.dams.syngit,resources=remotesyncers/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=syngit.dams.syngit,resources=remotesyncers/finalizers,verbs=update
+//+kubebuilder:rbac:groups=syngit.syngit.io,resources=remotesyncers,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=syngit.syngit.io,resources=remotesyncers/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=syngit.syngit.io,resources=remotesyncers/finalizers,verbs=update
 //+kubebuilder:rbac:groups=*,resources=*,verbs=get;list;watch
 //+kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations,verbs=create;get;list;watch;update;patch;delete
 

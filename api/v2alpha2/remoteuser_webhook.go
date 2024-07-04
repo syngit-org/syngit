@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v2alpha2
 
 import (
 	"context"
@@ -44,8 +44,8 @@ func (r *RemoteUser) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-syngit-damsien-fr-v1alpha2-remoteuser,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.damsien.fr,resources=remoteusers,verbs=create;update,versions=v1alpha2,name=vremoteuser.kb.io,admissionReviewVersions=v1
-//+kubebuilder:webhook:path=/reconcile-syngit-remoteuser-owner,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.damsien.fr,resources=remoteusers,verbs=create,versions=v1alpha2,admissionReviewVersions=v1,name=vremoteusers-owner.kb.io
+//+kubebuilder:webhook:path=/validate-syngit-syngit-io-v2alpha2-remoteuser,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remoteusers,verbs=create;update,versions=v2alpha2,name=vremoteuser.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/reconcile-syngit-remoteuser-owner,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remoteusers,verbs=create,versions=v2alpha2,admissionReviewVersions=v1,name=vremoteusers-owner.kb.io
 
 var _ webhook.Validator = &RemoteUser{}
 

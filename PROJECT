@@ -2,20 +2,20 @@
 # This file is used to track the info used to scaffold your project
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
-domain: damsien.fr
+domain: syngit.io
 layout:
 - go.kubebuilder.io/v4
-projectName: new-operator
-repo: damsien.fr/syngit
+projectName: syngit
+repo: syngit.io/syngit
 resources:
 - api:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: damsien.fr
+  domain: syngit.io
   group: syngit
   kind: RemoteUser
-  path: damsien.fr/syngit/api/v1alpha1
+  path: syngit.io/syngit/api/v1alpha1
   version: v1alpha1
   webhooks:
     validation: true
@@ -24,19 +24,19 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: damsien.fr
+  domain: syngit.io
   group: syngit
   kind: RemoteUserBinding
-  path: damsien.fr/syngit/api/v1alpha1
+  path: syngit.io/syngit/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: damsien.fr
+  domain: syngit.io
   group: syngit
   kind: RemoteSyncer
-  path: damsien.fr/syngit/api/v1alpha1
+  path: syngit.io/syngit/api/v1alpha1
   version: v1alpha1
   webhooks:
     validation: true
@@ -44,11 +44,30 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: damsien.fr
+  domain: syngit.io
   group: syngit
   kind: RemoteUser
-  path: damsien.fr/syngit/api/v1alpha2
-  version: v1alpha2
+  path: syngit.io/syngit/api/v2alpha2
+  version: v2alpha2
+  webhooks:
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: syngit.io
+  group: syngit
+  kind: RemoteUserBinding
+  path: syngit.io/syngit/api/v2alpha2
+  version: v2alpha2
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: syngit.io
+  group: syngit
+  kind: RemoteSyncer
+  path: syngit.io/syngit/api/v2alpha2
+  version: v2alpha2
   webhooks:
     validation: true
     webhookVersion: v1

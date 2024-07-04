@@ -10,12 +10,12 @@ import (
 	"sync"
 	"syscall"
 
-	syngit "damsien.fr/syngit/api/v1alpha2"
 	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	syngit "syngit.io/syngit/api/v2alpha2"
 )
 
 type WebhookInterceptsAll struct {

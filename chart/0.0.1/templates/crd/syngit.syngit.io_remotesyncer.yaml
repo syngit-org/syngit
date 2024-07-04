@@ -5,9 +5,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.14.0
-  name: remotesyncers.syngit.damsien.fr
+  name: remotesyncers.syngit.syngit.io
 spec:
-  group: syngit.damsien.fr
+  group: syngit.syngit.io
   names:
     kind: RemoteSyncer
     listKind: RemoteSyncerList

@@ -32,7 +32,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	syngit "damsien.fr/syngit/api/v1alpha2"
+	syngit "syngit.io/syngit/api/v2alpha2"
 	//+kubebuilder:scaffold:imports
 )
 

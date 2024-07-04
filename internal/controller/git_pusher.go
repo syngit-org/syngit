@@ -15,8 +15,8 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 	admissionv1 "k8s.io/api/admission/v1"
 
-	syngit "damsien.fr/syngit/api/v1alpha2"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	syngit "syngit.io/syngit/api/v2alpha2"
 )
 
 type GitPusher struct {

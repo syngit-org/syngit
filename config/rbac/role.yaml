@@ -25,7 +25,15 @@ rules:
   - update
   - watch
 - apiGroups:
-  - syngit.dams.syngit
+  - syngit.syngit.io
+  resources:
+  - remoteUser
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - syngit.syngit.io
   resources:
   - remotesyncers
   verbs:
@@ -37,13 +45,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - syngit.dams.syngit
+  - syngit.syngit.io
   resources:
   - remotesyncers/finalizers
   verbs:
   - update
 - apiGroups:
-  - syngit.dams.syngit
+  - syngit.syngit.io
   resources:
   - remotesyncers/status
   verbs:
@@ -51,15 +59,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - syngit.damsien.fr
-  resources:
-  - remoteUser
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - syngit.damsien.fr
+  - syngit.syngit.io
   resources:
   - remoteuserbindings
   verbs:
@@ -71,13 +71,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - syngit.damsien.fr
+  - syngit.syngit.io
   resources:
   - remoteuserbindings/finalizers
   verbs:
   - update
 - apiGroups:
-  - syngit.damsien.fr
+  - syngit.syngit.io
   resources:
   - remoteuserbindings/status
   verbs:

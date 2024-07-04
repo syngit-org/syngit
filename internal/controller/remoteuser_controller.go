@@ -26,7 +26,6 @@ import (
 	"os"
 	"strings"
 
-	syngit "damsien.fr/syngit/api/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -42,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	syngit "syngit.io/syngit/api/v2alpha2"
 )
 
 // RemoteUserReconciler reconciles a RemoteUser object
@@ -153,9 +153,9 @@ func (r *RemoteUserReconciler) finalizer(ctx context.Context, remoteUser *syngit
 	return nil
 }
 
-// +kubebuilder:rbac:groups=syngit.damsien.fr,resources=remoteusers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=syngit.damsien.fr,resources=remoteusers/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=syngit.damsien.fr,resources=remoteusers/finalizers,verbs=update
+// +kubebuilder:rbac:groups=syngit.syngit.io,resources=remoteusers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=syngit.syngit.io,resources=remoteusers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=syngit.syngit.io,resources=remoteusers/finalizers,verbs=update
 // +kubebuilder:rbac:groups=corev1,resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=corev1,resources=configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups=corev1,resources=events,verbs=create;patch

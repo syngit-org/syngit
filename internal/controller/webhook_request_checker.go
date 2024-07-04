@@ -8,7 +8,6 @@ import (
 	"slices"
 	"sync"
 
-	syngit "damsien.fr/syngit/api/v1alpha2"
 	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -17,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
+	syngit "syngit.io/syngit/api/v2alpha2"
 )
 
 type gitUser struct {
@@ -459,13 +459,13 @@ func (wrc *WebhookRequestChecker) responseConstructor(details wrcDetails) admiss
 	// Annotation that will be stored in the outcoming object
 	auditAnnotation := make(map[string]string)
 	if details.repoFQDN != "" {
-		auditAnnotation["kgio-git-repo-fqdn"] = details.repoFQDN
+		auditAnnotation["syngit-git-repo-fqdn"] = details.repoFQDN
 	}
 	if details.repoPath != "" {
-		auditAnnotation["kgio-git-repo-path"] = details.repoPath
+		auditAnnotation["syngit-git-repo-path"] = details.repoPath
 	}
 	if details.commitHash != "" {
-		auditAnnotation["kgio-git-commit-hash"] = details.commitHash
+		auditAnnotation["syngit-git-commit-hash"] = details.commitHash
 	}
 
 	// Construct the admisson review request

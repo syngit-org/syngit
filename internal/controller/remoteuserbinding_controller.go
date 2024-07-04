@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	syngit "damsien.fr/syngit/api/v1alpha2"
+	syngit "syngit.io/syngit/api/v2alpha2"
 )
 
 // RemoteUserBindingReconciler reconciles a RemoteUserBinding object
@@ -41,10 +41,10 @@ type RemoteUserBindingReconciler struct {
 	Recorder record.EventRecorder
 }
 
-//+kubebuilder:rbac:groups=syngit.damsien.fr,resources=remoteuserbindings,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=syngit.damsien.fr,resources=remoteuserbindings/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=syngit.damsien.fr,resources=remoteuserbindings/finalizers,verbs=update
-//+kubebuilder:rbac:groups=syngit.damsien.fr,resources=remoteUser,verbs=get;list;watch
+//+kubebuilder:rbac:groups=syngit.syngit.io,resources=remoteuserbindings,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=syngit.syngit.io,resources=remoteuserbindings/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=syngit.syngit.io,resources=remoteuserbindings/finalizers,verbs=update
+//+kubebuilder:rbac:groups=syngit.syngit.io,resources=remoteUser,verbs=get;list;watch
 
 func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)

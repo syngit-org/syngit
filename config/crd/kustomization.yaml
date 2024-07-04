@@ -2,9 +2,9 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
-- bases/syngit.damsien.fr_remoteusers.yaml
-- bases/syngit.damsien.fr_remoteuserbindings.yaml
-- bases/syngit.damsien.fr_remotesyncers.yaml
+- bases/syngit.syngit.io_remoteusers.yaml
+- bases/syngit.syngit.io_remoteuserbindings.yaml
+- bases/syngit.syngit.io_remotesyncers.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patches:

@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.14.0
-  name: remoteusers.syngit.damsien.fr
+  name: remoteusers.syngit.syngit.io
 spec:
-  group: syngit.damsien.fr
+  group: syngit.syngit.io
   names:
     kind: RemoteUser
     listKind: RemoteUserList
@@ -232,7 +232,7 @@ spec:
     storage: false
     subresources:
       status: {}
-  - name: v1alpha2
+  - name: v2alpha2
     schema:
       openAPIV3Schema:
         description: RemoteUser is the Schema for the remoteusers API

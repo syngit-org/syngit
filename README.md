@@ -6,7 +6,9 @@ syngit is a Kubernetes operator that allows you to push resources on a git repos
 
 ## Description
 
-Sounds cool, isn't it? **But what is the difference with the other Gitops CD tools such as Flux or ArgoCD?**
+Sounds cool, isn't it?
+
+**What is the difference with the other Gitops CD tools such as Flux or ArgoCD?**
 
 The main approach of these tools is to pull changes from the remote git repository to apply them on the cluster. syngit does the opposite : it pushes the changes that you made on the cluster to the remote git repository.
 
@@ -15,6 +17,10 @@ The main approach of these tools is to pull changes from the remote git reposito
 There is plenty of reasons to use this operator. It can be borring to make every modification only through the git repository. Applying manifests will return an instant result of the cluster state.
 
 Basically, if you like to use Kubernetes with cli or through an UI BUT you want to work in GitOps, then syngit is the operator that you need.
+
+**Can I use it to keep history of my objects?**
+
+Another useful usage is the object logging. Automatic etcd snapshot can be setted on the cluster but it will log the changes of the whole cluster. As a DevOps user that only deploy application without managing the cluster, I want to keep an history of my objects throught commit on a git repository.
 
 **I use an automatic reconciliation with my CD tool, do I really need to use syngit?**
 
@@ -25,6 +31,7 @@ By concept, both are not compatible. In fact, the automatic reconciliation will 
 ### Prerequisites
 - docker version 17.03+.
 - kubectl version v1.11.3+.
+- helm version v3.0.0+.
 - Access to a Kubernetes v1.11.3+ cluster.
 
 ### Installation
@@ -39,12 +46,12 @@ helm repo add syngit https://github.com/damsien/syngit.git
 2. Install the operator
 You can customize the values before installing the Helm chart. The template can be found under `chart/x.x.x/values.yaml` and add the `-f values.yaml` flag.
 ```sh
-helm install syngit syngit/syngit --version 0.0.1
+helm install syngit syngit/syngit --version 0.0.2
 ```
 
 syngit is now installed on your cluster!
 
-## Use syngit
+## Quick start
 
 There is 3 custom objects that are necessary to create in order to use syngit.
 
@@ -65,7 +72,7 @@ stringData:
 ```
 
 ```yaml
-apiVersion: syngit.damsien.fr/v1alpha1
+apiVersion: syngit.syngit.io/v2alpha2
 kind: RemoteUser
 metadata:
   name: remoteuser-sample
@@ -74,6 +81,7 @@ spec:
   gitBaseDomainFQDN: "github.com"
   testAuthentication: true
   email: your@email.com
+  ownRemoteUserBinding: true
   secretRef:
     name: git-server-my_git_username-auth
 ```
@@ -86,27 +94,13 @@ kubectl get -n test remoteuser remoteuser-sample -o=jsonpath='{.status.connexion
 
 ### RemoteUserBinding
 
-The RemoteUserBinding bind the Kubernetes user with the remote git user. This is used by syngit when the user apply changes on the cluster. Syngit will push on the git server with the associated git user.
+The RemoteUserBinding bind the Kubernetes user with the remote git user. This is used by syngit when the user apply changes on the cluster. syngit will push on the git server with the associated git user.
 
-To retrieve your own username, you can run the following command :
+By default, the `ownRemoteUserBinding` field of the RemoteUser object automatically creates a RemoteUserBinding. The name of the object is `owned-rub-<kubernetes_user_id>`.
+
+To get the associated RemoteUserBinding object, run :
 ```sh
-kubectl auth whoami -o=jsonpath='{.status.userInfo.username}'
-```
-
-The name of the user is the id of the user. It can be different depending of your RBAC manager. It should be unique.
-
-```yaml
-apiVersion: syngit.damsien.fr/v1alpha1
-kind: RemoteUserBinding
-metadata:
-  name: remoteuserbinding-sample
-  namespace: test
-spec:
-  subject:
-    kind: User
-    name: kubernetes-user
-  remoteRefs:
-    - name: remoteuser-sample
+kubectl get -n test remoteuserbinding owned-rub-$(kubectl auth whoami -o=jsonpath='{.status.userInfo.username}')
 ```
 
 ### RemoteSyncer
@@ -162,45 +156,10 @@ data:
 
 The configmap has been applied on the cluster and it has been pushed on the remote git repository as well!
 
-## Roadmap
-
-- [ ] Automatic RemoteUserBinding creation on RemoteUser creation
-- [ ] Specify the git server credentials directly inside the RemoteUser
-- [ ] Remove `authorizedUsers` field from the RemoteSyncer : search for all RemoteUserBinding in the same namespace
-- [ ] Centralize default excluded fields in a ConfigMap (like the git server configuration)
-- [ ] Create a CRD to configure the repoPath with a fine-grained object scope
-
 ## Contributing
 
 TODO
 
 ## License
 
-This operator has been built using the [kubebuilder]("https://book.kubebuilder.io/") framework.
-
-### damsien license
-
-Copyright 2024-present Damien Dassieu
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-### Kubebuilder license
-
-Copyright 2024.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
+This operator has been built using the [kubebuilder]("https://book.kubebuilder.io/") framework. The framework is under the Apache-2.0 License. The same license is used for the syngit operator and can be found in the file LICENSE.md.

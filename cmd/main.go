@@ -35,8 +35,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	syngitv1alpha2 "damsien.fr/syngit/api/v1alpha2"
-	"damsien.fr/syngit/internal/controller"
+	syngitv1alpha1 "syngit.io/syngit/api/v1alpha1"
+	syngitv2alpha2 "syngit.io/syngit/api/v2alpha2"
+	"syngit.io/syngit/internal/controller"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -48,7 +49,8 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(syngitv1alpha2.AddToScheme(scheme))
+	utilruntime.Must(syngitv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(syngitv2alpha2.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -105,7 +107,7 @@ func main() {
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "f380d1ef.damsien.fr",
+		LeaderElectionID:       "23bf18fa.syngit.io",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
@@ -132,12 +134,12 @@ func main() {
 		os.Exit(1)
 	}
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
-		if err = (&syngitv1alpha2.RemoteUser{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = (&syngitv2alpha2.RemoteUser{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUser")
 			os.Exit(1)
 		}
 	}
-	mgr.GetWebhookServer().Register("/reconcile-syngit-remoteuser-owner", &webhook.Admission{Handler: &syngitv1alpha2.RemoteUserWebhookHandler{
+	mgr.GetWebhookServer().Register("/reconcile-syngit-remoteuser-owner", &webhook.Admission{Handler: &syngitv2alpha2.RemoteUserWebhookHandler{
 		Client:  mgr.GetClient(),
 		Decoder: admission.NewDecoder(mgr.GetScheme()),
 	}})
@@ -160,7 +162,7 @@ func main() {
 		os.Exit(1)
 	}
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
-		if err = (&syngitv1alpha2.RemoteSyncer{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = (&syngitv2alpha2.RemoteSyncer{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteSyncer")
 			os.Exit(1)
 		}
