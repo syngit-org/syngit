@@ -1,5 +1,9 @@
 #!/bin/bash
 
+## Create the temp directory to welcome the certificates
+mkdir -p /tmp/k8s-webhook-server/serving-certs/
+cd /tmp/k8s-webhook-server/serving-certs/
+
 cat > openssl.cnf <<EOF
 [req]
 distinguished_name = req_distinguished_name
@@ -14,8 +18,8 @@ CN = webhook-service-client
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = operator-webhook-service.operator-system.svc
-DNS.2 = remote-syncer-webhook-service.operator-system.svc
+DNS.1 = syngit-webhook-service.syngit-system.svc
+DNS.2 = syngit-remote-syncer-webhook-service.syngit-system.svc
 IP.1 = 172.17.0.1
 EOF
 

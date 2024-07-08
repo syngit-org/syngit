@@ -36,15 +36,15 @@ By concept, both are not compatible. In fact, the automatic reconciliation will 
 
 ### Installation
 
-For now, you can only install syngit using Helm.
+For now, you can only install syngit using Helm. More information about the configuration can be found [wiki](https://github.com/syngit/syngit/wiki/Installation).
 
 1. Add this github repository to your helm repos.
 ```sh
-helm repo add syngit https://github.com/damsien/syngit.git
+helm repo add syngit https://github.com/syngit/syngit.git
 ```
 
-2. Install the operator
-You can customize the values before installing the Helm chart. The template can be found under `chart/x.x.x/values.yaml` and add the `-f values.yaml` flag.
+1. Install the operator
+You can customize the values before installing the Helm chart.
 ```sh
 helm install syngit syngit/syngit --version 0.0.2
 ```
@@ -53,7 +53,7 @@ syngit is now installed on your cluster!
 
 ## Use syngit
 
-There is 3 custom objects that are necessary to create in order to use syngit.
+There is 3 custom objects that are necessary to create in order to use syngit. More information about the usage can be found in the [wiki](https://github.com/syngit/syngit/wiki/Usage).
 
 ### RemoteUser
 
@@ -110,7 +110,7 @@ The RemoteSyncer object contains the whole logic part of the operator.
 In this example, the RemoteSyncer will intercept all the *configmaps*. It will push them to *https://github.com/my_repo_path.git* in the branch *main* under the path `my_configmaps/`. Because the `commitProcess` is set to `CommitApply`, the changes will be pushed and then applied to the cluster.
 
 ```yaml
-apiVersion: syngit.damsien.fr/v2alpha2
+apiVersion: syngit.syngit.io/v2alpha2
 kind: RemoteSyncer
 metadata:
   name: remotesyncer-sample
@@ -156,9 +156,17 @@ data:
 
 The configmap has been applied on the cluster and it has been pushed on the remote git repository as well!
 
-## Contributing
+## Wiki
 
-TODO
+The [wiki](https://github.com/syngit/syngit/wiki) contains all the information needed!
+
+## Contribute
+
+Please refer to the [Contribute](https://github.com/syngit/syngit/wiki/Contribute) page of the wiki.
+
+## Roadmap
+
+Please refer to the [Roadmap](https://github.com/syngit/syngit/wiki/Roadmap) page of the wiki.
 
 ## License
 
