@@ -45,7 +45,7 @@ func (r *RemoteUser) SetupWebhookWithManager(mgr ctrl.Manager) error {
 }
 
 //+kubebuilder:webhook:path=/validate-syngit-syngit-io-v2alpha2-remoteuser,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remoteusers,verbs=create;update,versions=v2alpha2,name=vremoteuser.kb.io,admissionReviewVersions=v1
-//+kubebuilder:webhook:path=/reconcile-syngit-remoteuser-owner,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remoteusers,verbs=create,versions=v2alpha2,admissionReviewVersions=v1,name=vremoteusers-owner.kb.io
+//+kubebuilder:webhook:path=/reconcile-syngit-remoteuser-owner,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remoteusers,verbs=create;delete,versions=v2alpha2,admissionReviewVersions=v1,name=vremoteusers-owner.kb.io
 
 var _ webhook.Validator = &RemoteUser{}
 
@@ -102,6 +102,66 @@ type RemoteUserWebhookHandler struct {
 }
 
 func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.Request) admission.Response {
+
+	username := req.DeepCopy().UserInfo.Username
+	name := rubPrefix + username
+
+	if string(req.Operation) == "DELETE" {
+		ru := &RemoteUser{}
+		err := ruwh.Decoder.DecodeRaw(req.OldObject, ru)
+		if err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+
+		rub := &RemoteUserBinding{}
+		webhookNamespacedName := &types.NamespacedName{
+			Name:      name,
+			Namespace: req.Namespace,
+		}
+		rubErr := ruwh.Client.Get(ctx, *webhookNamespacedName, rub)
+		if rubErr != nil {
+			return admission.Errored(http.StatusBadRequest, rubErr)
+		}
+
+		isControlled := false
+		ownerRefs := rub.ObjectMeta.DeepCopy().OwnerReferences
+		newOwnerRefs := []v1.OwnerReference{}
+		for _, owner := range ownerRefs {
+			if string(owner.UID) != string(ru.UID) {
+				newOwnerRefs = append(newOwnerRefs, owner)
+			} else {
+				isControlled = true
+			}
+		}
+		rub.ObjectMeta.OwnerReferences = newOwnerRefs
+
+		remoteRefs := rub.Spec.DeepCopy().RemoteRefs
+		newRemoteRefs := []corev1.ObjectReference{}
+		for _, rm := range remoteRefs {
+			if (rm.Name != ru.Name && isControlled) || !isControlled {
+				newRemoteRefs = append(newRemoteRefs, rm)
+			}
+		}
+		rub.Spec.RemoteRefs = newRemoteRefs
+
+		if len(newRemoteRefs) != 0 {
+
+			deleteErr := ruwh.Client.Update(ctx, rub)
+			if deleteErr != nil {
+				return admission.Errored(http.StatusInternalServerError, deleteErr)
+			}
+
+		} else {
+
+			deleteErr := ruwh.Client.Delete(ctx, rub)
+			if deleteErr != nil {
+				return admission.Errored(http.StatusInternalServerError, deleteErr)
+			}
+		}
+
+		return admission.Allowed("This object has been removed from the " + name + " RemoteUserBinding owners")
+	}
+
 	ru := &RemoteUser{}
 	err := ruwh.Decoder.Decode(req, ru)
 	if err != nil {
@@ -112,9 +172,7 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 		return admission.Allowed("This object does not own a RemoteUserBinding")
 	}
 
-	username := req.DeepCopy().UserInfo.Username
 	objRef := corev1.ObjectReference{Name: ru.Name}
-	name := rubPrefix + username
 	rub := &RemoteUserBinding{}
 	webhookNamespacedName := &types.NamespacedName{
 		Name:      name,
@@ -128,13 +186,11 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 		rub.Name = name
 		rub.Namespace = req.Namespace
 
-		isControlled := true
 		ownerRef := v1.OwnerReference{
 			Name:       ru.Name,
 			APIVersion: ru.APIVersion,
 			Kind:       ru.GroupVersionKind().Kind,
 			UID:        ru.GetUID(),
-			Controller: &isControlled,
 		}
 		ownerRefs := make([]v1.OwnerReference, 0)
 		ownerRefs = append(ownerRefs, ownerRef)
@@ -158,15 +214,13 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 		// The RemoteUserBinding already exists
 
 		// Update the list of the RemoteUserBinding object
-		isControlled := true
 		ownerRef := v1.OwnerReference{
 			Name:       ru.Name,
 			APIVersion: ru.APIVersion,
 			Kind:       ru.GroupVersionKind().Kind,
 			UID:        ru.GetUID(),
-			Controller: &isControlled,
 		}
-		ownerRefs := make([]v1.OwnerReference, 0)
+		ownerRefs := rub.ObjectMeta.DeepCopy().OwnerReferences
 		ownerRefs = append(ownerRefs, ownerRef)
 		rub.ObjectMeta.OwnerReferences = ownerRefs
 
@@ -178,6 +232,7 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 		if updateErr != nil {
 			return admission.Errored(http.StatusInternalServerError, updateErr)
 		}
+
 	}
 
 	return admission.Allowed("This object owns the " + name + " RemoteUserBinding")

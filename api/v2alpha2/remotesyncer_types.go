@@ -26,8 +26,6 @@ import (
 )
 
 type RemoteSyncerSpec struct {
-	CommitMode CommitMode `json:"commitMode"`
-
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=3
 	Operations []admissionregistrationv1.OperationType `json:"operations"`
@@ -51,7 +49,7 @@ type RemoteSyncerSpec struct {
 	DefaultUnauthorizedUserMode DefaultUnauthorizedUserMode `json:"defaultUnauthorizedUserMode"`
 
 	// +optional
-	DefaultUserBind *corev1.ObjectReference `json:"defaultUserBind,omitempty"` // Ref to a RemoteUserBinding object
+	DefaultUserBind *corev1.ObjectReference `json:"defaultUserBind,omitempty"` // Ref to a RemoteUser object
 
 	// +optional
 	IncludedResources []NamespaceScopedResourcesPath `json:"includedResources,omitempty"`

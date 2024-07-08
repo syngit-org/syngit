@@ -618,8 +618,6 @@ spec:
                   type: object
                   x-kubernetes-map-type: atomic
                 type: array
-              commitMode:
-                type: string
               commitProcess:
                 type: string
               defaultBlockAppliedMessage:
@@ -756,7 +754,6 @@ spec:
             required:
             - authorizedUsers
             - branch
-            - commitMode
             - commitProcess
             - defaultUnauthorizedUserMode
             - operations
