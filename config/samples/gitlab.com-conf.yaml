@@ -1,0 +1,7 @@
+apiVersion: v1
+data:
+  authenticationEndpoint: https://gitlab.com/api/v4/user
+kind: ConfigMap
+metadata:
+  name: gitlab.com
+  namespace: operator-system

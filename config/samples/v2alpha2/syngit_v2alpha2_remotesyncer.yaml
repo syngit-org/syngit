@@ -1,0 +1,40 @@
+apiVersion: syngit.syngit.io/v2alpha2
+kind: RemoteSyncer
+metadata:
+  labels:
+    app.kubernetes.io/name: remotesyncer
+    app.kubernetes.io/instance: remotesyncer-sample
+    app.kubernetes.io/part-of: syngit
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: syngit
+  name: remotesyncer-sample
+  namespace: test
+spec:
+  remoteRepository: https://gitlab.com/dassieu.damien/kgio-demo.git
+  branch: second-main
+  commitProcess: CommitApply
+  operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+# bypassInterceptionSubjects:
+    #- name: kubernetes-admin
+    #  kind: User
+  authorizedUsers:
+    - name: owned-rub-kubernetes-admin
+  defaultUnauthorizedUserMode: Block
+  excludedFields:
+    - metadata.managedFields
+    - metadata.creationTimestamp
+    - metadata.annotations.[kubectl.kubernetes.io/last-applied-configuration]
+    - metadata.uid
+    - metadata.resourceVersion
+  includedResources:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["configmaps", "pods"]
+      names: ["secret-basic-auth1", "random-cm"]
+    - apiGroups: ["networking.k8s.io"]
+      apiVersions: ["v1"]
+      resources: ["ingresses"]
+      #repoPath: "oui/config"

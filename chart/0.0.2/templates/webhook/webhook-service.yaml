@@ -21,11 +21,11 @@ kind: Service
 metadata:
   labels:
     app.kubernetes.io/name: service
-    app.kubernetes.io/instance: webhook-pusher-service
+    app.kubernetes.io/instance: syngit-remote-syncer-webhook-service
     app.kubernetes.io/component: webhook
-    app.kubernetes.io/created-by: dams
+    app.kubernetes.io/created-by: {{ .Release.Name }}
     app.kubernetes.io/part-of: {{ .Release.Name }}
-  name: webhook-pusher-service
+  name: syngit-remote-syncer-webhook-service
 spec:
   ports:
     - port: 443

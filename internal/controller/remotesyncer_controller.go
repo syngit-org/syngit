@@ -86,7 +86,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// The service is located in the manager/controller namespace
-	serviceName := "webhook-pusher-service"
+	serviceName := "syngit-remote-syncer-webhook-service"
 	operatorNamespace := r.Namespace
 	clientConfig := admissionv1.WebhookClientConfig{
 		Service: &admissionv1.ServiceReference{
@@ -111,9 +111,9 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Create the webhook specs for this specific RI
-	webhookObjectName := "remotesyncer.syngit.com"
+	webhookObjectName := "remotesyncer.syngit.io"
 	var sideEffectsNone = admissionv1.SideEffectClassNone
-	webhookSpecificName := rSName + "-" + rSNamespace + ".syngit.com"
+	webhookSpecificName := rSName + "." + rSNamespace + ".syngit.io"
 
 	// Create a new ValidatingWebhook object
 	webhook := &admissionv1.ValidatingWebhook{
