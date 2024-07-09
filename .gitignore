@@ -7,7 +7,7 @@
 *.dylib
 bin/*
 Dockerfile.cross
-# config/samples
+config/samples
 config/webhook/manifests.yaml
 config/webhook/secret.yaml
 config/webhook/manifests.yaml.temp

@@ -118,14 +118,13 @@ metadata:
 spec:
   remoteRepository: https://github.com/my_repo_path.git
   branch: main
-  commitMode: Commit
   commitProcess: CommitApply
   operations:
     - CREATE
     - UPDATE
     - DELETE
   authorizedUsers:
-    - name: remoteuserbinding-sample
+    - name: owned-rub-kubernetes-<kubernetes_user_id>
   defaultUnauthorizedUserMode: Block
   excludedFields:
     - metadata.managedFields
