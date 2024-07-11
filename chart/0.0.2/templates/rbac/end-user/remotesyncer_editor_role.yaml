@@ -4,16 +4,16 @@ kind: ClusterRole
 metadata:
   labels:
     app.kubernetes.io/name: clusterrole
-    app.kubernetes.io/instance: resourcesinterceptor-editor-role
+    app.kubernetes.io/instance: remotesyncers-editor-role
     app.kubernetes.io/component: rbac
     app.kubernetes.io/created-by: {{ .Release.Name }}
     app.kubernetes.io/part-of: {{ .Release.Name }}
-  name: {{ .Release.Name }}-resourcesinterceptor-editor-role
+  name: {{ .Release.Name }}-remotesyncers-editor-role
 rules:
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - resourcesinterceptors
+  - remotesyncerss
   verbs:
   - create
   - delete
@@ -23,8 +23,8 @@ rules:
   - update
   - watch
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - resourcesinterceptors/status
+  - remotesyncerss/status
   verbs:
   - get

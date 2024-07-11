@@ -8,8 +8,8 @@ webhook:
 controller:
   image:
     prefix: ghcr.io/damsien
-    name: {{ .Chart.Name }}
-    tag: {{ .Chart.appVersion }}
+    name: syngit
+    tag: 0.0.2
 
   securityContext:
     runAsUser: 1000

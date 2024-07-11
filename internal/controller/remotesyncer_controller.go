@@ -197,25 +197,6 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, nil
 }
 
-func nsrListToRuleList(nsrList []syngit.NamespaceScopedResources, operations []admissionv1.OperationType) []admissionv1.RuleWithOperations {
-	var scope admissionv1.ScopeType = admissionv1.NamespacedScope
-	rules := []admissionv1.RuleWithOperations{}
-
-	for _, nsr := range nsrList {
-		rules = append(rules, admissionv1.RuleWithOperations{
-			Operations: operations,
-			Rule: admissionv1.Rule{
-				APIGroups:   nsr.APIGroups,
-				APIVersions: nsr.APIVersions,
-				Resources:   nsr.Resources,
-				Scope:       &scope,
-			},
-		})
-	}
-
-	return rules
-}
-
 func (r *RemoteSyncerReconciler) updateConditions(ctx context.Context, rs *syngit.RemoteSyncer, condition v1.Condition) error {
 	added := false
 	var conditions []v1.Condition

@@ -213,8 +213,8 @@ spec:
                 type: string
             type: object
         type: object
-    served: true
-    storage: true
+    served: false
+    storage: false
     subresources:
       status: {}
   - name: v2alpha2

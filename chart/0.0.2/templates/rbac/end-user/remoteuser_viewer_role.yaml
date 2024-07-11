@@ -11,16 +11,16 @@ metadata:
   name: {{ .Release.Name }}-gitremote-viewer-role
 rules:
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - gitremotes
+  - remoteusers
   verbs:
   - get
   - list
   - watch
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - gitremotes/status
+  - remoteusers/status
   verbs:
   - get
