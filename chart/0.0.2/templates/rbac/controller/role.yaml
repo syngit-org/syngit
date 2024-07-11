@@ -36,25 +36,25 @@ rules:
   - update
   - watch
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - gitremotes
+  - remoteusers
   verbs:
   - get
   - list
   - watch
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - gitremotes/status
+  - remoteusers/status
   verbs:
   - get
   - patch
   - update
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - gituserbindings
+  - remoteuserbindings
   verbs:
   - create
   - delete
@@ -64,23 +64,23 @@ rules:
   - update
   - watch
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - gituserbindings/finalizers
+  - remoteuserbindings/finalizers
   verbs:
   - update
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - gituserbindings/status
+  - remoteuserbindings/status
   verbs:
   - get
   - patch
   - update
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - resourcesinterceptors
+  - remotesyncers
   verbs:
   - create
   - delete
@@ -90,15 +90,15 @@ rules:
   - update
   - watch
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - resourcesinterceptors/finalizers
+  - remotesyncers/finalizers
   verbs:
   - update
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - resourcesinterceptors/status
+  - remotesyncers/status
   verbs:
   - get
   - patch

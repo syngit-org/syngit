@@ -128,7 +128,7 @@ spec:
     - metadata.annotations.[kubectl.kubernetes.io/last-applied-configuration]
     - metadata.uid
     - metadata.resourceVersion
-  includedResources:
+  scopedResources:
     - apiGroups: [""]
       apiVersions: ["v1"]
       resources: ["configmaps"]

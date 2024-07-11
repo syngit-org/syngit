@@ -1,26 +1,30 @@
-# permissions for end users to view resourcesinterceptors.
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
     app.kubernetes.io/name: clusterrole
-    app.kubernetes.io/instance: resourcesinterceptor-viewer-role
+    app.kubernetes.io/instance: remoteuser-editor-role
     app.kubernetes.io/component: rbac
     app.kubernetes.io/created-by: {{ .Release.Name }}
     app.kubernetes.io/part-of: {{ .Release.Name }}
-  name: {{ .Release.Name }}-resourcesinterceptor-viewer-role
+  name: {{ .Release.Name }}-remoteuser-editor-role
 rules:
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - resourcesinterceptors
+  - remoteusers
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - resourcesinterceptors/status
+  - remoteusers/status
   verbs:
   - get

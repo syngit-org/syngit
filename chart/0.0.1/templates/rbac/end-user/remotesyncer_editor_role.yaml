@@ -4,23 +4,27 @@ kind: ClusterRole
 metadata:
   labels:
     app.kubernetes.io/name: clusterrole
-    app.kubernetes.io/instance: gituserbinding-viewer-role
+    app.kubernetes.io/instance: remotesyncer-editor-role
     app.kubernetes.io/component: rbac
     app.kubernetes.io/created-by: {{ .Release.Name }}
     app.kubernetes.io/part-of: {{ .Release.Name }}
-  name: {{ .Release.Name }}-gituserbinding-viewer-role
+  name: {{ .Release.Name }}-remotesyncer-editor-role
 rules:
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - gituserbindings
+  - remotesyncers
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
-  - kgio.dams.kgio
+  - syngit.syngit.io
   resources:
-  - gituserbindings/status
+  - remotesyncers/status
   verbs:
   - get
