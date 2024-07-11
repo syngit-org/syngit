@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
-	"slices"
 	"sync"
 
 	"github.com/go-logr/logr"
@@ -74,14 +73,7 @@ func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
 		return wrc.responseConstructor(rDetails)
 	}
 
-	// STEP 2 : Check if the request contains the right resources
-	processAllowed := wrc.containsResources(&rDetails)
-	rDetails.processPass = processAllowed
-	if !processAllowed {
-		return wrc.letPassRequest(&rDetails)
-	}
-
-	// STEP 3 : Check if is bypass user (SA of argo, flux, etc..)
+	// STEP 2 : Check if is bypass user (SA of argo, flux, etc..)
 	isBypassUser, err := wrc.isBypassSubject(&rDetails)
 	if err != nil {
 		return wrc.responseConstructor(rDetails)
@@ -90,14 +82,14 @@ func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
 		return wrc.letPassRequest(&rDetails)
 	}
 
-	// STEP 4 : Check the user's rights
-	processAllowed, err = wrc.userAllowed(&rDetails)
+	// STEP 3 : Check the user's rights
+	processAllowed, err := wrc.userAllowed(&rDetails)
 	rDetails.processPass = processAllowed
 	if err != nil {
 		return wrc.responseConstructor(rDetails)
 	}
 
-	// STEP 5 : Convert the request to get the yaml of the object
+	// STEP 4 : Convert the request to get the yaml of the object
 	if wrc.admReview.Request.Operation != admissionv1.Delete {
 		err = wrc.convertToYaml(&rDetails)
 		if err != nil {
@@ -107,14 +99,14 @@ func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
 		rDetails.interceptedYAML = ""
 	}
 
-	// STEP 6 : Git push
+	// STEP 5 : Git push
 	isPushed, err := wrc.gitPush(&rDetails)
 	wrc.gitPushPostChecker(isPushed, err, &rDetails)
 	if err != nil {
 		return wrc.responseConstructor(rDetails)
 	}
 
-	// STEP 7 : Post checking
+	// STEP 6 : Post checking
 	wrc.postcheck(&rDetails)
 
 	return wrc.responseConstructor(rDetails)
@@ -141,27 +133,6 @@ func (wrc *WebhookRequestChecker) retrieveRequestDetails() (wrcDetails, error) {
 	wrc.updateStatus("LastObservedObjectState", *details)
 
 	return *details, nil
-}
-
-func (wrc *WebhookRequestChecker) containsResources(details *wrcDetails) bool {
-
-	// Check if the incoming object is part of the specified names in the included resources
-	includedNames := syngit.GetNamesFromGVR(syngit.NSRPstoNSRs(wrc.remoteSyncer.Spec.IncludedResources), details.interceptedGVR)
-	if len(includedNames) > 0 && !slices.Contains(includedNames, details.interceptedName) {
-		const errMsg = "the name of the resource is not part of the IncludedResources"
-		details.messageAddition = errMsg
-		return false
-	}
-
-	// Check if the incoming object is part of the specified names in the excluded resources
-	excludedNames := syngit.GetNamesFromGVR(wrc.remoteSyncer.Spec.ExcludedResources, details.interceptedGVR)
-	if len(excludedNames) > 0 && slices.Contains(excludedNames, details.interceptedName) {
-		const errMsg = "the name of the resource is part of the ExcludedResources"
-		details.messageAddition = errMsg
-		return false
-	}
-
-	return true
 }
 
 func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error) {

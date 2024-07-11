@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	rubPrefix = "owned-rub-"
+	RubPrefix = "owned-rub-"
 )
 
 type RemoteUserBindingSpec struct {

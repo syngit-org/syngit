@@ -60,6 +60,7 @@ webhooks:
     - v2alpha2
     operations:
     - CREATE
+    - DELETE
     resources:
     - remoteusers
   sideEffects: None

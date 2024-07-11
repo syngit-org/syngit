@@ -17,7 +17,7 @@ limitations under the License.
 package v2alpha2
 
 import (
-	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	admissionv1 "k8s.io/api/admissionregistration/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -26,10 +26,6 @@ import (
 )
 
 type RemoteSyncerSpec struct {
-	// +kubebuilder:validation:MinItems=1
-	// +kubebuilder:validation:MaxItems=3
-	Operations []admissionregistrationv1.OperationType `json:"operations"`
-
 	CommitProcess CommitProcess `json:"commitProcess"`
 
 	// +optional
@@ -52,10 +48,10 @@ type RemoteSyncerSpec struct {
 	DefaultUserBind *corev1.ObjectReference `json:"defaultUserBind,omitempty"` // Ref to a RemoteUser object
 
 	// +optional
-	IncludedResources []NamespaceScopedResourcesPath `json:"includedResources,omitempty"`
+	ScopedResources ScopedResources `json:"scopedResources,omitempty"`
 
 	// +optional
-	ExcludedResources []NamespaceScopedResources `json:"excludedResources,omitempty"`
+	RootPath string `json:"rootPath,omitempty"`
 
 	// +optional
 	ExcludedFields []string `json:"excludedFields,omitempty"`
@@ -131,6 +127,17 @@ const (
 	UserDefaultUserBind DefaultUnauthorizedUserMode = "UseDefaultUserBind"
 )
 
+type ScopedResources struct {
+
+	// +optional
+	MatchPolicy *admissionv1.MatchPolicyType `json:"matchPolicy,omitempty" protobuf:"bytes,9,opt,name=matchPolicy,casttype=MatchPolicyType"`
+
+	// +optional
+	ObjectSelector *metav1.LabelSelector `json:"objectSelector,omitempty" protobuf:"bytes,10,opt,name=objectSelector"`
+
+	Rules []admissionv1.RuleWithOperations `json:"rules,omitempty" protobuf:"bytes,3,rep,name=rules"`
+}
+
 type NamespaceScopedResources struct {
 	APIGroups   []string `json:"apiGroups"`
 	APIVersions []string `json:"apiVersions"`
@@ -161,65 +168,8 @@ type GroupVersionResourceName struct {
 	Name string
 }
 
-func ParsegvrnList(gvrnGivenList []NamespaceScopedResources) []GroupVersionResourceName {
-	gvrnSet := make(map[GroupVersionResourceName]bool)
-	names := make([]string, 0)
-	var gvrnList []GroupVersionResourceName
-
-	for _, gvrnGiven := range gvrnGivenList {
-		if len(gvrnGiven.Names) != 0 {
-			names = make([]string, 0)
-			names = append(names, gvrnGiven.Names...)
-		}
-		for _, group := range gvrnGiven.APIGroups {
-			for _, version := range gvrnGiven.APIVersions {
-				for _, resource := range gvrnGiven.Resources {
-					if len(names) != 0 {
-						for _, name := range names {
-							gvrn := GroupVersionResourceName{
-								GroupVersionResource: &schema.GroupVersionResource{
-									Group:    group,
-									Version:  version,
-									Resource: resource,
-								},
-								Name: name,
-							}
-							gvrnSet[gvrn] = true
-						}
-					} else {
-						gvr := GroupVersionResourceName{
-							GroupVersionResource: &schema.GroupVersionResource{
-								Group:    group,
-								Version:  version,
-								Resource: resource,
-							},
-						}
-						gvrnSet[gvr] = true
-					}
-				}
-			}
-		}
-	}
-
-	for gvrn := range gvrnSet {
-		gvrnList = append(gvrnList, gvrn)
-	}
-
-	return gvrnList
-}
-
-func GetNamesFromGVR(gvrnGivenList []NamespaceScopedResources, gvr schema.GroupVersionResource) []string {
-	names := make([]string, 0)
-	for _, gvrn := range ParsegvrnList(gvrnGivenList) {
-		if *gvrn.GroupVersionResource == gvr && gvrn.Name != "" {
-			names = append(names, gvrn.Name)
-		}
-	}
-	return names
-}
-
 /*
-	STATUS EXTENSION
+STATUS EXTENSION
 */
 
 type JsonGVRN struct {
@@ -272,106 +222,4 @@ type LastPushedObjectState struct {
 
 	// +optional
 	LastPushedObjectStatus string `json:"lastPushedObjectState,omitempty"`
-}
-
-/*
-
-
-	TEMP DEMO
-
-
-*/
-
-type NamespaceScopedResourcesPath struct {
-	APIGroups   []string `json:"apiGroups"`
-	APIVersions []string `json:"apiVersions"`
-	Resources   []string `json:"resources"`
-	// +optional
-	Names []string `json:"names"`
-	// +optional
-	RepoPath string `json:"repoPath"`
-}
-
-type GroupVersionResourceNamePath struct {
-	*schema.GroupVersionResource
-	Name     string
-	RepoPath string
-}
-
-func (nsrp *NamespaceScopedResourcesPath) nsrpToNsr() NamespaceScopedResources {
-	nsr := NamespaceScopedResources{
-		APIGroups:   nsrp.APIGroups,
-		APIVersions: nsrp.APIVersions,
-		Resources:   nsrp.Resources,
-		Names:       nsrp.Names,
-	}
-	return nsr
-}
-
-func NSRPstoNSRs(nsrps []NamespaceScopedResourcesPath) []NamespaceScopedResources {
-	nsrs := []NamespaceScopedResources{}
-	for _, nsrp := range nsrps {
-		nsrs = append(nsrs, nsrp.nsrpToNsr())
-	}
-	return nsrs
-}
-
-func GetPathFromGVRN(gvrnpGivenList []NamespaceScopedResourcesPath, gvrnGiven GroupVersionResourceName) string {
-	gvrnps := parsegvrnpList(gvrnpGivenList)
-	for _, gvrnp := range gvrnps {
-		// if *gvrnp.GroupVersionResource == *gvrnGiven.GroupVersionResource && gvrnp.Name == gvrnGiven.Name {
-		if *gvrnp.GroupVersionResource == *gvrnGiven.GroupVersionResource {
-			return gvrnp.RepoPath
-		}
-	}
-	return ""
-}
-
-func parsegvrnpList(gvrnpGivenList []NamespaceScopedResourcesPath) []GroupVersionResourceNamePath {
-	gvrnpSet := make(map[GroupVersionResourceNamePath]bool)
-	names := make([]string, 0)
-	var gvrnpList []GroupVersionResourceNamePath
-
-	for _, gvrnpGiven := range gvrnpGivenList {
-		if len(gvrnpGiven.Names) != 0 {
-			names = make([]string, 0)
-			names = append(names, gvrnpGiven.Names...)
-		}
-		for _, group := range gvrnpGiven.APIGroups {
-			for _, version := range gvrnpGiven.APIVersions {
-				for _, resource := range gvrnpGiven.Resources {
-					if len(names) != 0 {
-						for _, name := range names {
-							gvrnp := GroupVersionResourceNamePath{
-								GroupVersionResource: &schema.GroupVersionResource{
-									Group:    group,
-									Version:  version,
-									Resource: resource,
-								},
-								Name:     name,
-								RepoPath: gvrnpGiven.RepoPath,
-							}
-							gvrnpSet[gvrnp] = true
-						}
-					} else {
-						gvr := GroupVersionResourceNamePath{
-							GroupVersionResource: &schema.GroupVersionResource{
-								Group:    group,
-								Version:  version,
-								Resource: resource,
-							},
-							RepoPath: gvrnpGiven.RepoPath,
-						}
-						gvrnpSet[gvr] = true
-					}
-				}
-			}
-		}
-	}
-
-	for gvrn := range gvrnpSet {
-		gvrnpList = append(gvrnpList, gvrn)
-	}
-
-	return gvrnpList
 }

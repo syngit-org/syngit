@@ -10,7 +10,7 @@ metadata:
   name: remotesyncer-sample
   namespace: test
 spec:
-  remoteRepository: https://gitlab.com/dassieu.damien/kgio-demo.git
+  remoteRepository: ""
   branch: second-main
   commitMode: Commit
   commitProcess: CommitOnly
