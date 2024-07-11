@@ -102,7 +102,7 @@ func (gp *GitPusher) pathConstructor(w *git.Worktree) (string, error) {
 	gvr := gp.interceptedGVR
 
 	tempPath := gp.remoteSyncer.Spec.RootPath
-	tempPath += "/" + gp.remoteSyncer.Namespace + "/" + gvr.Group + "/" + gvr.Version + "/" + gvr.Resource + "/" + gp.interceptedName
+	tempPath += "/" + gp.remoteSyncer.Namespace + "/" + gvr.Group + "/" + gvr.Version + "/" + gvr.Resource + "/"
 
 	path, err := gp.validatePath(tempPath)
 	if err != nil {

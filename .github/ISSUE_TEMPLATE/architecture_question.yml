@@ -1,0 +1,28 @@
+
+name: Architecture discussion
+description: Suggest a change or having some question.
+title: "[AD]: "
+body:
+  - type: dropdown
+    attributes:
+      label: Discussion subject
+      multiple: false
+      options:
+        - Details needed
+        - Change suggestion
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Architecture part concerned
+      description: RemoteUser, webhooks, the reconcile function of the RemoteSyncer object, ...
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Question / Suggestion
+      description: |
+        - Question or need details about the architecture.
+        - Give a suggestion to improve the architecture
+    validations:
+      required: true
