@@ -119,10 +119,6 @@ spec:
   remoteRepository: https://github.com/my_repo_path.git
   branch: main
   commitProcess: CommitApply
-  operations:
-    - CREATE
-    - UPDATE
-    - DELETE
   authorizedUsers:
     - name: owned-rub-kubernetes-<kubernetes_user_id>
   defaultUnauthorizedUserMode: Block
@@ -136,7 +132,7 @@ spec:
     - apiGroups: [""]
       apiVersions: ["v1"]
       resources: ["configmaps"]
-      repotPath: "my_configmaps"
+      operations: ["CREATE", "UPDATE", "DELETE"]
 ```
 
 ### Catch the resource
