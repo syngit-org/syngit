@@ -10,14 +10,10 @@ metadata:
   name: remotesyncer-sample
   namespace: test
 spec:
-  remoteRepository: https://gitlab.com/dassieu.damien/kgio-demo.git
+  remoteRepository: ""
   branch: second-main
   commitMode: Commit
   commitProcess: CommitOnly
-  operations:
-    - CREATE
-    - UPDATE
-    - DELETE
 # bypassInterceptionSubjects:
     #- name: kubernetes-admin
     #  kind: User
@@ -31,7 +27,8 @@ spec:
     - metadata.uid
     - metadata.resourceVersion
   includedResources:
-    - apiGroups: [""]
-      apiVersions: ["v1"]
-      resources: ["configmaps", "pods"]
-      names: ["secret-basic-auth1", "random-cm"]
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["configmaps", "pods"]
+        operations: ["CREATE", "UPDATE", "DELETE"]

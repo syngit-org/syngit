@@ -4,4 +4,4 @@ data:
 kind: ConfigMap
 metadata:
   name: gitlab.com
-  namespace: operator-system
+  namespace: syngit-system

@@ -12,7 +12,7 @@ metadata:
 spec:
   gitBaseDomainFQDN: "gitlab.com"
   testAuthentication: true
-  email: dassieu.damien@gmail.com
+  email: ""
   secretRef:
     name: secret-basic-auth
   ownRemoteUserBinding: true

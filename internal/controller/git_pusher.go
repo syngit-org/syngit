@@ -100,17 +100,9 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 
 func (gp *GitPusher) pathConstructor(w *git.Worktree) (string, error) {
 	gvr := gp.interceptedGVR
-	gvrn := &syngit.GroupVersionResourceName{
-		GroupVersionResource: &gvr,
-	}
 
-	tempPath := syngit.GetPathFromGVRN(gp.remoteSyncer.Spec.IncludedResources, *gvrn.DeepCopy())
-	if tempPath == "" {
-		tempPath = gvr.Group + "/" + gvr.Version + "/" + gvr.Resource
-	}
-	if tempPath[0] == '/' {
-		tempPath = tempPath[1:]
-	}
+	tempPath := gp.remoteSyncer.Spec.RootPath
+	tempPath += "/" + gp.remoteSyncer.Namespace + "/" + gvr.Group + "/" + gvr.Version + "/" + gvr.Resource + "/" + gp.interceptedName
 
 	path, err := gp.validatePath(tempPath)
 	if err != nil {

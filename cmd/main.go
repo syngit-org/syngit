@@ -139,7 +139,7 @@ func main() {
 			os.Exit(1)
 		}
 	}
-	mgr.GetWebhookServer().Register("/reconcile-syngit-remoteuser-owner", &webhook.Admission{Handler: &syngitv2alpha2.RemoteUserWebhookHandler{
+	mgr.GetWebhookServer().Register("/reconcile-syngit-remoteuser-owner", &webhook.Admission{Handler: &controller.RemoteUserWebhookHandler{
 		Client:  mgr.GetClient(),
 		Decoder: admission.NewDecoder(mgr.GetScheme()),
 	}})

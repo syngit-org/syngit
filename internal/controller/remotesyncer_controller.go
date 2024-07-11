@@ -120,7 +120,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		Name:                    webhookSpecificName,
 		AdmissionReviewVersions: []string{"v1"},
 		SideEffects:             &sideEffectsNone,
-		Rules:                   nsrListToRuleList(syngit.NSRPstoNSRs(remoteSyncer.Spec.IncludedResources), remoteSyncer.Spec.DeepCopy().Operations),
+		Rules:                   remoteSyncer.Spec.ScopedResources.Rules,
 		ClientConfig:            clientConfig,
 		NamespaceSelector: &v1.LabelSelector{
 			MatchLabels: map[string]string{"kubernetes.io/metadata.name": rSNamespace},
