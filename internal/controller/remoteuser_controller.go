@@ -91,7 +91,7 @@ func (r *RemoteUserReconciler) setServerConfiguration(ctx context.Context, remot
 		return *gpc, err
 	}
 
-	if remoteUser.Spec.InsecureSkipTlsVerify != serverConf.InsecureSkipTlsVerify {
+	if remoteUser.Spec.InsecureSkipTlsVerify && remoteUser.Spec.InsecureSkipTlsVerify != serverConf.InsecureSkipTlsVerify {
 		serverConf.InsecureSkipTlsVerify = remoteUser.Spec.InsecureSkipTlsVerify
 	}
 

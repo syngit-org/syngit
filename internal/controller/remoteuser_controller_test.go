@@ -18,13 +18,14 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	syngit "syngit.io/syngit/api/v2alpha2"
@@ -32,26 +33,68 @@ import (
 
 var _ = Describe("RemoteUser Controller", func() {
 	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
-
 		ctx := context.Background()
+
+		const (
+			timeout  = time.Second * 10
+			duration = time.Second * 10
+			interval = time.Millisecond * 250
+
+			userNamespace = "default"
+			resourceName  = "test-remoteuser"
+		)
+
+		const remoteGitServerName = "sample-git-server.com-conf"
+		confNamespacedName := types.NamespacedName{
+			Name:      remoteGitServerName,
+			Namespace: userNamespace,
+		}
+		remoteGitServerConf := &corev1.ConfigMap{}
+
+		defaultGitServerConfiguration := syngit.GitServerConfiguration{
+			AuthenticationEndpoint: "",
+			InsecureSkipTlsVerify:  false,
+			CaBundle:               "",
+		}
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: userNamespace,
 		}
 		remoteuser := &syngit.RemoteUser{}
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind RemoteUser")
-			err := k8sClient.Get(ctx, typeNamespacedName, remoteuser)
+			By("creating the custom remote git server configuration")
+			err := k8sClient.Get(ctx, confNamespacedName, remoteGitServerConf)
+			if err != nil && errors.IsNotFound(err) {
+				resource := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      remoteGitServerName,
+						Namespace: userNamespace,
+					},
+					Data: map[string]string{
+						"authenticationEndpoint": "https://sample-git-server.com/api/v4/user",
+						"caBundle":               "CA Bundle cert",
+						"insecureSkipTlsVerify":  "true",
+					},
+				}
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			}
+
+			By("Creating a RemoteUser that owns a RemoteUserBinding and is bound to a config")
+			err = k8sClient.Get(ctx, typeNamespacedName, remoteuser)
 			if err != nil && errors.IsNotFound(err) {
 				resource := &syngit.RemoteUser{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
-						Namespace: "default",
+						Namespace: userNamespace,
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: syngit.RemoteUserSpec{
+						Email:                "sample@email.com",
+						GitBaseDomainFQDN:    "sample-git-server.com",
+						OwnRemoteUserBinding: true,
+						TestAuthentication:   false,
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
@@ -63,22 +106,50 @@ var _ = Describe("RemoteUser Controller", func() {
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
+			resourceConf := &corev1.ConfigMap{}
+			err = k8sClient.Get(ctx, confNamespacedName, resourceConf)
+			Expect(err).NotTo(HaveOccurred())
+
 			By("Cleanup the specific resource instance RemoteUser")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &RemoteUserReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
 
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
+			By("Cleanup the associated custom remote git server configuration")
+			Expect(k8sClient.Delete(ctx, resourceConf)).To(Succeed())
+		})
+
+		Context("When updating a RemoteUser", func() {
+
+			// It("Should create a RemoteUserBinding", func() {
+			// 	rubLookupKey := types.NamespacedName{Name: "owned-rub-kubernetes-admin", Namespace: userNamespace}
+			// 	createRemoteUserBinding := &syngit.RemoteUserBinding{}
+
+			// 	Eventually(func() bool {
+			// 		err := k8sClient.Get(ctx, rubLookupKey, createRemoteUserBinding)
+			// 		return err == nil
+			// 	}, timeout, interval).Should(BeTrue())
+
+			// 	Expect(createRemoteUserBinding.Spec.RemoteRefs).Should(ContainElement(corev1.ObjectReference{Name: resourceName}))
+
+			// })
+			It("Should have the configuration stored in the status", func() {
+				ruLookupKey := types.NamespacedName{Name: resourceName, Namespace: userNamespace}
+				createRemoteUser := &syngit.RemoteUser{}
+
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, ruLookupKey, createRemoteUser)
+					return err == nil
+				}, timeout, interval).Should(BeTrue())
+
+				Expect(createRemoteUser.Status.GitServerConfiguration).Should(Equal(defaultGitServerConfiguration))
+
+				confBool := false
+				if remoteGitServerConf.Data["insecureSkipTlsVerify"] == "true" {
+					confBool = true
+				}
+				Expect(createRemoteUser.Status.GitServerConfiguration.CaBundle).Should(Equal(remoteGitServerConf.Data["caBundle"]))
+				Expect(createRemoteUser.Status.GitServerConfiguration.InsecureSkipTlsVerify).Should(Equal(confBool))
+				Expect(createRemoteUser.Status.GitServerConfiguration.AuthenticationEndpoint).Should(Equal(remoteGitServerConf.Data["authenticationEndpoint"]))
 			})
-			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
 		})
 	})
 })
