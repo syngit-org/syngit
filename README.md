@@ -2,9 +2,9 @@
 
 # syngit
 
-syngit is a Kubernetes operator that allows you to push resources on a git repository. It leverage the gitops by unifying the source of truth between your cluster and your git repository.
+syngit is a Kubernetes operator that allows you to push resources on a git repository. It leverage the gitops by unifying the source of truth between your cluster and your git repository. It acts as a proxy between your client tool (`kubectl` or any UI) and the cluster.
 
-![full-gitops-lifecycle](./img/wiki/conception/full-gitops-lifecycle.png)
+![syngit-proxy](./img/wiki/conception/commitonly-proxy.png)
 
 ## Description
 
@@ -12,21 +12,17 @@ Sounds cool, isn't it?
 
 **What is the difference with the other Gitops CD tools such as Flux or ArgoCD?**
 
-The main approach of these tools is to pull changes from the remote git repository to apply them on the cluster. syngit does the opposite : it pushes the changes that you made on the cluster to the remote git repository.
+The main approach of these tools is to pull changes from the remote git repository to apply them on the cluster. syngit does the opposite : it pushes the changes that you want to make on the cluster to the remote git repository.
 
 **Why do I need syngit?**
 
-There is plenty of reasons to use this operator. It can be borring to make every modification only through the git repository. Applying manifests will return an instant result of the cluster state.
+There is plenty of reasons to use this operator. It is not really user-friendly to make all modifications only through the git repository. Applying manifests will return an instant result of the cluster state.
 
 Basically, if you like to use Kubernetes with cli or through an UI BUT you want to work in GitOps, then syngit is the operator that you need.
 
 **Can I use it to keep history of my objects?**
 
-Another useful usage is the object logging. Automatic etcd snapshot can be setted on the cluster but it will log the changes of the whole cluster. As a DevOps user that only deploy application without managing the cluster, I want to keep an history of my objects throught commit on a git repository.
-
-**I use an automatic reconciliation with my CD tool, do I really need to use syngit?**
-
-By concept, both are not compatible. In fact, the automatic reconciliation will not have any effect because the changes made on the cluster are pushed on the remote git repository.
+Another useful usage is the object logging. Automatic etcd snapshot can be setted on the cluster but it will log the changes of the whole cluster. As a DevOps user (that only deploy application without managing the cluster), I want to keep an history of my objects through commits on a git repository.
 
 ## Quick start
 
@@ -38,11 +34,11 @@ By concept, both are not compatible. In fact, the automatic reconciliation will 
 
 ### Installation
 
-For now, you can only install syngit using Helm. More information about the configuration can be found [wiki](https://github.com/syngit/syngit/wiki/Installation).
+For now, you can only install syngit using Helm. More information about the configuration can be found [wiki](https://github.com/syngit-org/syngit/wiki/Installation).
 
 1. Add this github repository to your helm repos.
 ```sh
-helm repo add syngit https://github.com/syngit/syngit.git
+helm repo add syngit https://syngit-org.github.io/syngit
 ```
 
 1. Install the operator
@@ -55,7 +51,7 @@ syngit is now installed on your cluster!
 
 ## Use syngit
 
-There is 3 custom objects that are necessary to create in order to use syngit. More information about the usage can be found in the [wiki](https://github.com/syngit/syngit/wiki/Usage).
+There is 3 custom objects that are necessary to create in order to use syngit. More information about the usage can be found in the [wiki](https://github.com/syngit-org/syngit/wiki/Usage).
 
 ### RemoteUser
 
@@ -154,17 +150,27 @@ data:
 
 The configmap has been applied on the cluster and it has been pushed on the remote git repository as well!
 
+## Advanced questions
+
+**I use an automatic reconciliation with my CD tool, do I really need to use syngit?**
+
+Using the `CommitApply` mode, the automatic reconciliation will not have any effect since the changes made on the cluster are pushed on the remote git repository. It is better to let it enabled and consider syngit to be a transparent tool.
+
+**What if the connection with my git repository does not work?**
+
+As explained [here](https://github.com/syngit-org/syngit/wiki/Contribute), by default, the webhook logic will first try to commit & push and then apply the changes to the cluster. If, for any reason, the resource has not been pushed, the resource will not be applied. Therefore, the GitOps philosophy is not broken.
+
 ## Wiki
 
-The [wiki](https://github.com/syngit/syngit/wiki) contains all the information needed!
+The [wiki](https://github.com/syngit-org/syngit/wiki) contains all the information needed!
 
 ## Contribute
 
-Please refer to the [Contribute](https://github.com/syngit/syngit/wiki/Contribute) page of the wiki.
+Please refer to the [Contribute](https://github.com/syngit-org/syngit/wiki/Contribute) page of the wiki.
 
 ## Roadmap
 
-Please refer to the [Roadmap](https://github.com/syngit/syngit/wiki/Roadmap) page of the wiki.
+Please refer to the [Roadmap](https://github.com/syngit-org/syngit/wiki/Roadmap) page of the wiki.
 
 ## License
 
