@@ -2,7 +2,7 @@
 
 # syngit
 
-syngit is a Kubernetes operator that allows you to push resources on a git repository. It leverage the gitops by unifying the source of truth between your cluster and your git repository. It acts as a proxy between your client tool (`kubectl` or any UI) and the cluster.
+syngit is a Kubernetes operator that allows you to push resources on a git repository and manage their lifecycle. It leverage the gitops by unifying the source of truth between your cluster and your git repository. It acts as a proxy between your client tool (`kubectl` or any UI) and the cluster.
 
 ![syngit-proxy](./img/wiki/conception/commitonly-proxy.png)
 
@@ -158,7 +158,7 @@ Using the `CommitApply` mode, the automatic reconciliation will not have any eff
 
 **What if the connection with my git repository does not work?**
 
-As explained [here](https://github.com/syngit-org/syngit/wiki/Contribute), by default, the webhook logic will first try to commit & push and then apply the changes to the cluster. If, for any reason, the resource has not been pushed, the resource will not be applied. Therefore, the GitOps philosophy is not broken.
+As explained [here](https://github.com/syngit-org/syngit/wiki/Architecture), by default, the webhook logic will first try to commit & push and then apply the changes to the cluster. If, for any reason, the resource has not been pushed, the resource will not be applied. Therefore, the GitOps philosophy is not broken.
 
 ## Wiki
 
