@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v2alpha2
+package v3alpha3
 
 import (
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -55,6 +55,9 @@ type RemoteSyncerSpec struct {
 
 	// +optional
 	ExcludedFields []string `json:"excludedFields,omitempty"`
+
+	// +optional
+	ExcludedFieldsConfig *corev1.ObjectReference `json:"excludedFieldsConfig,omitempty"` // Ref to a ConfigMap
 }
 
 type RemoteSyncerStatus struct {
@@ -78,6 +81,7 @@ type RemoteSyncerStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:storageversion
 
 // RemoteSyncer is the Schema for the remotesyncers API
 type RemoteSyncer struct {

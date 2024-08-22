@@ -37,6 +37,7 @@ import (
 
 	syngitv1alpha1 "syngit.io/syngit/api/v1alpha1"
 	syngitv2alpha2 "syngit.io/syngit/api/v2alpha2"
+	syngitv3alpha3 "syngit.io/syngit/api/v3alpha3"
 	"syngit.io/syngit/internal/controller"
 	//+kubebuilder:scaffold:imports
 )
@@ -51,6 +52,7 @@ func init() {
 
 	utilruntime.Must(syngitv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(syngitv2alpha2.AddToScheme(scheme))
+	utilruntime.Must(syngitv3alpha3.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -133,12 +135,6 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "RemoteUser")
 		os.Exit(1)
 	}
-	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
-		if err = (&syngitv2alpha2.RemoteUser{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUser")
-			os.Exit(1)
-		}
-	}
 	mgr.GetWebhookServer().Register("/reconcile-syngit-remoteuser-owner", &webhook.Admission{Handler: &controller.RemoteUserWebhookHandler{
 		Client:  mgr.GetClient(),
 		Decoder: admission.NewDecoder(mgr.GetScheme()),
@@ -162,8 +158,14 @@ func main() {
 		os.Exit(1)
 	}
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
-		if err = (&syngitv2alpha2.RemoteSyncer{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = (&syngitv3alpha3.RemoteSyncer{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteSyncer")
+			os.Exit(1)
+		}
+	}
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = (&syngitv3alpha3.RemoteUser{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUser")
 			os.Exit(1)
 		}
 	}

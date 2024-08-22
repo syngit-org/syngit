@@ -8,14 +8,14 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
+	"gopkg.in/yaml.v3"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/yaml"
-	syngit "syngit.io/syngit/api/v2alpha2"
+	syngit "syngit.io/syngit/api/v3alpha3"
 )
 
 type gitUser struct {
@@ -316,6 +316,34 @@ func (wrc *WebhookRequestChecker) convertToYaml(details *wrcDetails) error {
 
 	// Paths to remove
 	paths := wrc.remoteSyncer.Spec.ExcludedFields
+
+	// Check if the excludedFields ConfigMap exists
+	if wrc.remoteSyncer.Spec.ExcludedFieldsConfig.Name != "" {
+		ctx := context.Background()
+		secretNamespacedName := &types.NamespacedName{
+			Namespace: wrc.remoteSyncer.Namespace,
+			Name:      wrc.remoteSyncer.Spec.ExcludedFieldsConfig.Name,
+		}
+		excludedFieldsConfig := &corev1.ConfigMap{}
+		err := wrc.k8sClient.Get(ctx, *secretNamespacedName, excludedFieldsConfig)
+		if err != nil {
+			errMsg := err.Error()
+			details.messageAddition = errMsg
+			return errors.New(errMsg)
+		}
+		yamlString := excludedFieldsConfig.Data["excludedFields"]
+		var excludedFields []string
+
+		// Unmarshal the YAML string into the Go array
+		err = yaml.Unmarshal([]byte(yamlString), &excludedFields)
+		if err != nil {
+			errMsg := "failed to convert the excludedFields from the ConfigMap (wrong yaml format)"
+			details.messageAddition = errMsg
+			return errors.New(errMsg)
+		}
+
+		paths = append(paths, excludedFields...)
+	}
 
 	// Remove unwanted fields
 	for _, path := range paths {

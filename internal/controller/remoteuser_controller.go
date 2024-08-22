@@ -40,7 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	syngit "syngit.io/syngit/api/v2alpha2"
+	syngit "syngit.io/syngit/api/v3alpha3"
 )
 
 // RemoteUserReconciler reconciles a RemoteUser object
@@ -106,6 +106,7 @@ func (r *RemoteUserReconciler) setServerConfiguration(ctx context.Context, remot
 // +kubebuilder:rbac:groups=corev1,resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=corev1,resources=configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups=corev1,resources=events,verbs=create;patch
+
 func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 

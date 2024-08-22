@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	syngit "syngit.io/syngit/api/v2alpha2"
+	syngit "syngit.io/syngit/api/v3alpha3"
 )
 
 /*

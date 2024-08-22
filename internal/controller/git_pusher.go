@@ -2,6 +2,7 @@ package controller
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +17,7 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	syngit "syngit.io/syngit/api/v2alpha2"
+	syngit "syngit.io/syngit/api/v3alpha3"
 )
 
 type GitPusher struct {
@@ -176,6 +177,9 @@ func (gp *GitPusher) writeFile(path string, w *git.Worktree) (string, error) {
 		errMsg := "failed to stat file " + fullFilePath + " : " + err.Error()
 		return fullFilePath, errors.New(errMsg)
 	}
+	fmt.Println(fileInfo)
+	fmt.Println(path)
+	fmt.Println(fileInfo.IsDir())
 	if fileInfo.IsDir() {
 		dir, fileName = gp.getFileDirName(fullFilePath, gp.interceptedName+".yaml")
 		fullFilePath = filepath.Join(dir, fileName)
@@ -184,6 +188,8 @@ func (gp *GitPusher) writeFile(path string, w *git.Worktree) (string, error) {
 		fullFilePath = filepath.Join(dir, fileName)
 	}
 	content := []byte(gp.interceptedYAML)
+	fmt.Println(gp.interceptedYAML)
+	fmt.Println(content)
 
 	if gp.interceptedYAML == "" { // The file has been deleted
 		return fullFilePath, nil

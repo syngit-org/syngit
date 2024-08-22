@@ -70,7 +70,7 @@ stringData:
 ```
 
 ```yaml
-apiVersion: syngit.syngit.io/v2alpha2
+apiVersion: syngit.syngit.io/v3alpha3
 kind: RemoteUser
 metadata:
   name: remoteuser-sample
@@ -108,7 +108,7 @@ The RemoteSyncer object contains the whole logic part of the operator.
 In this example, the RemoteSyncer will intercept all the *configmaps*. It will push them to *https://github.com/my_repo_path.git* in the branch *main* under the path `my_configmaps/`. Because the `commitProcess` is set to `CommitApply`, the changes will be pushed and then applied to the cluster.
 
 ```yaml
-apiVersion: syngit.syngit.io/v2alpha2
+apiVersion: syngit.syngit.io/v3alpha3
 kind: RemoteSyncer
 metadata:
   name: remotesyncer-sample

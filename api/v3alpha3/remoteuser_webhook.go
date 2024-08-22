@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v2alpha2
+package v3alpha3
 
 import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -35,6 +35,9 @@ func (r *RemoteUser) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		For(r).
 		Complete()
 }
+
+//+kubebuilder:webhook:path=/validate-syngit-syngit-io-v3alpha3-remoteuser,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remoteusers,verbs=create;update,versions=v3alpha3,name=vremoteuser.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/reconcile-syngit-remoteuser-owner,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remoteusers,verbs=create;delete,versions=v3alpha3,admissionReviewVersions=v1,name=vremoteusers-owner.kb.io
 
 var _ webhook.Validator = &RemoteUser{}
 

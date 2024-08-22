@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v2alpha2
+package v3alpha3
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -67,6 +67,7 @@ type RemoteUserStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:storageversion
 
 // RemoteUser is the Schema for the remoteusers API
 type RemoteUser struct {
