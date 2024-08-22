@@ -2,7 +2,6 @@ package controller
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -102,8 +101,11 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 func (gp *GitPusher) pathConstructor(w *git.Worktree) (string, error) {
 	gvr := gp.interceptedGVR
 
-	tempPath := gp.remoteSyncer.Spec.RootPath
-	tempPath += "/" + gp.remoteSyncer.Namespace + "/" + gvr.Group + "/" + gvr.Version + "/" + gvr.Resource + "/"
+	tempPath := ""
+	if gp.remoteSyncer.Spec.RootPath != "" {
+		tempPath += gp.remoteSyncer.Spec.RootPath + "/"
+	}
+	tempPath += gp.remoteSyncer.Namespace + "/" + gvr.Group + "/" + gvr.Version + "/" + gvr.Resource + "/"
 
 	path, err := gp.validatePath(tempPath)
 	if err != nil {
@@ -177,9 +179,6 @@ func (gp *GitPusher) writeFile(path string, w *git.Worktree) (string, error) {
 		errMsg := "failed to stat file " + fullFilePath + " : " + err.Error()
 		return fullFilePath, errors.New(errMsg)
 	}
-	fmt.Println(fileInfo)
-	fmt.Println(path)
-	fmt.Println(fileInfo.IsDir())
 	if fileInfo.IsDir() {
 		dir, fileName = gp.getFileDirName(fullFilePath, gp.interceptedName+".yaml")
 		fullFilePath = filepath.Join(dir, fileName)
@@ -188,8 +187,6 @@ func (gp *GitPusher) writeFile(path string, w *git.Worktree) (string, error) {
 		fullFilePath = filepath.Join(dir, fileName)
 	}
 	content := []byte(gp.interceptedYAML)
-	fmt.Println(gp.interceptedYAML)
-	fmt.Println(content)
 
 	if gp.interceptedYAML == "" { // The file has been deleted
 		return fullFilePath, nil
