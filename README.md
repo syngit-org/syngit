@@ -116,6 +116,7 @@ metadata:
 spec:
   remoteRepository: https://github.com/my_repo_path.git
   branch: main
+  rootPath: "root-folder"
   commitProcess: CommitApply
   authorizedUsers:
     - name: owned-rub-kubernetes-<kubernetes_user_id>
