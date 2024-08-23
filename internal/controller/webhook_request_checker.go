@@ -184,7 +184,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	if userCountLoop == 0 {
 
 		// Check if there is a default user that we can use
-		if wrc.remoteSyncer.Spec.DefaultUnauthorizedUserMode != syngit.UseDefaultUser || wrc.remoteSyncer.Spec.DefaultUser.Name == "" {
+		if wrc.remoteSyncer.Spec.DefaultUnauthorizedUserMode != syngit.UseDefaultUser || wrc.remoteSyncer.Spec.DefaultUser == nil || wrc.remoteSyncer.Spec.DefaultUser.Name == "" {
 			errMsg := "no RemoteUserBinding found for the user " + incomingUser.Username
 			details.messageAddition = errMsg
 			return false, errors.New(errMsg)
@@ -356,7 +356,7 @@ func (wrc *WebhookRequestChecker) convertToYaml(details *wrcDetails) error {
 	paths := wrc.remoteSyncer.Spec.ExcludedFields
 
 	// Check if the excludedFields ConfigMap exists
-	if wrc.remoteSyncer.Spec.ExcludedFieldsConfig.Name != "" {
+	if wrc.remoteSyncer.Spec.ExcludedFieldsConfig != nil && wrc.remoteSyncer.Spec.ExcludedFieldsConfig.Name != "" {
 		ctx := context.Background()
 		secretNamespacedName := &types.NamespacedName{
 			Namespace: wrc.remoteSyncer.Namespace,
