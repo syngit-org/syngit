@@ -25,10 +25,8 @@ metadata:
   name: operator-webhook-cert
 spec:
   dnsNames:
-  - webhook-crd-service.{{ .Release.Namespace }}.svc
-  - webhook-crd-service.{{ .Release.Namespace }}.svc.cluster.local
-  - webhook-pusher-service.{{ .Release.Namespace }}.svc
-  - webhook-pusher-service.{{ .Release.Namespace }}.svc.cluster.local
+  - syngit-remote-syncer-webhook-service.{{ .Release.Namespace }}.svc
+  - syngit-remote-syncer-webhook-service.{{ .Release.Namespace }}.svc.local
   issuerRef:
     kind: Issuer
     name: {{ .Release.Name }}-selfsigned-issuer

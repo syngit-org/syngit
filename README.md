@@ -116,7 +116,6 @@ metadata:
 spec:
   remoteRepository: https://github.com/my_repo_path.git
   branch: main
-  rootPath: "root-folder"
   commitProcess: CommitApply
   defaultUnauthorizedUserMode: Block
   excludedFields:
