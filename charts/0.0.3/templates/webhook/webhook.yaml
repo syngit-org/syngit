@@ -14,19 +14,19 @@ webhooks:
     service:
       name: webhook-crd-service
       namespace: {{ .Release.Namespace }}
-      path: /validate-kgio-dams-kgio-v1-gitremote
+      path: /validate-syngit-syngit-io-v3alpha3-remoteuser
   failurePolicy: Fail
-  name: vgitremote.kb.io
+  name: vremoteuser.kb.io
   rules:
   - apiGroups:
-    - kgio.dams.kgio
+    - syngit.syngit.io
     apiVersions:
-    - v1
+    - v3alpha3
     operations:
     - CREATE
     - UPDATE
     resources:
-    - gitremotes
+    - remoteusers
   sideEffects: None
 - admissionReviewVersions:
   - v1
@@ -34,17 +34,37 @@ webhooks:
     service:
       name: webhook-crd-service
       namespace: {{ .Release.Namespace }}
-      path: /validate-kgio-dams-kgio-v1-resourcesinterceptor
+      path: /validate-syngit-syngit-io-v3alpha3-remotesyncer
   failurePolicy: Fail
-  name: vresourcesinterceptor.kb.io
+  name: vremotesyncer.kb.io
   rules:
   - apiGroups:
-    - kgio.dams.kgio
+    - syngit.syngit.io
     apiVersions:
-    - v1
+    - v3alpha3
     operations:
     - CREATE
     - UPDATE
     resources:
-    - resourcesinterceptors
+    - remotesyncers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-crd-service
+      namespace: {{ .Release.Namespace }}
+      path: /reconcile-syngit-remoteuser-owner
+  failurePolicy: Fail
+  name: vremoteusers-owner.kb.io
+  rules:
+  - apiGroups:
+    - syngit.syngit.io
+    apiVersions:
+    - v3alpha3
+    operations:
+    - CREATE
+    - DELETE
+    resources:
+    - remoteusers
   sideEffects: None
