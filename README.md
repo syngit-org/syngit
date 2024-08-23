@@ -44,7 +44,7 @@ helm repo add syngit https://syngit-org.github.io/syngit
 1. Install the operator
 You can customize the values before installing the Helm chart.
 ```sh
-helm install syngit syngit/syngit --version 0.0.2
+helm install syngit syngit/syngit --version 0.0.3
 ```
 
 syngit is now installed on your cluster!
