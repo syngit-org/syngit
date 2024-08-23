@@ -71,4 +71,34 @@ resources:
   webhooks:
     validation: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: syngit.io
+  group: syngit
+  kind: RemoteSyncer
+  path: syngit.io/syngit/api/v3alpha3
+  version: v3alpha3
+  webhooks:
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: syngit.io
+  group: syngit
+  kind: RemoteUser
+  path: syngit.io/syngit/api/v3alpha3
+  version: v3alpha3
+  webhooks:
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: syngit.io
+  group: syngit
+  kind: RemoteUserBinding
+  path: syngit.io/syngit/api/v3alpha3
+  version: v3alpha3
 version: "3"

@@ -36,9 +36,6 @@ func (r *RemoteUser) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-syngit-syngit-io-v2alpha2-remoteuser,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remoteusers,verbs=create;update,versions=v2alpha2,name=vremoteuser.kb.io,admissionReviewVersions=v1
-//+kubebuilder:webhook:path=/reconcile-syngit-remoteuser-owner,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remoteusers,verbs=create;delete,versions=v2alpha2,admissionReviewVersions=v1,name=vremoteusers-owner.kb.io
-
 var _ webhook.Validator = &RemoteUser{}
 
 // Validate validates the RemoteUserSpec

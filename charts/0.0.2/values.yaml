@@ -7,7 +7,7 @@ webhook:
 
 controller:
   image:
-    prefix: ghcr.io/damsien
+    prefix: ghcr.io/syngit-org
     name: syngit
     tag: 0.0.2
 
