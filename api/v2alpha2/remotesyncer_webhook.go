@@ -39,8 +39,6 @@ func (r *RemoteSyncer) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-syngit-syngit-io-v2alpha2-remotesyncer,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remotesyncers,verbs=create;update,versions=v2alpha2,name=vremotesyncer.kb.io,admissionReviewVersions=v1
-
 var _ webhook.Validator = &RemoteSyncer{}
 
 // Validate validates the RemoteSyncerSpec

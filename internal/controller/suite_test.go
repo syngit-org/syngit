@@ -32,8 +32,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	syngit "syngit.io/syngit/api/v2alpha2"
+	syngit "syngit.io/syngit/api/v3alpha3"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -92,6 +94,11 @@ var _ = BeforeSuite(func() {
 		Scheme: k8sManager.GetScheme(),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
+
+	k8sManager.GetWebhookServer().Register("/reconcile-syngit-remoteuser-owner", &webhook.Admission{Handler: &RemoteUserWebhookHandler{
+		Client:  k8sManager.GetClient(),
+		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
+	}})
 
 	err = (&RemoteUserBindingReconciler{
 		Client: k8sManager.GetClient(),

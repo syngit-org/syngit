@@ -67,7 +67,6 @@ type RemoteUserStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:storageversion
 
 // RemoteUser is the Schema for the remoteusers API
 type RemoteUser struct {
