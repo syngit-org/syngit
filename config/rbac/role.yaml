@@ -25,9 +25,24 @@ rules:
   - update
   - watch
 - apiGroups:
-  - syngit.syngit.io
+  - corev1
   resources:
-  - remoteUser
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - corev1
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - corev1
+  resources:
+  - secrets
   verbs:
   - get
   - list
@@ -80,6 +95,32 @@ rules:
   - syngit.syngit.io
   resources:
   - remoteuserbindings/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - syngit.syngit.io
+  resources:
+  - remoteusers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - syngit.syngit.io
+  resources:
+  - remoteusers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - syngit.syngit.io
+  resources:
+  - remoteusers/status
   verbs:
   - get
   - patch

@@ -20,7 +20,6 @@ patches:
 # - path: patches/cainjection_in_remoteusers.yaml
 #- path: patches/cainjection_in_remoteuserbindings.yaml
 # - path: patches/cainjection_in_remotesyncers.yaml
-#- path: patches/cainjection_in_remoteusers.yaml
 #+kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # [WEBHOOK] To enable webhook, uncomment the following section

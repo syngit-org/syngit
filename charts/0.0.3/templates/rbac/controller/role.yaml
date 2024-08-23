@@ -1,21 +1,8 @@
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: operator-manager-rb
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: operator-manager-role
-subjects:
-  - kind: ServiceAccount
-    name: syngit-controller-manager
-    namespace: syngit-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: operator-manager-role
-  namespace: operator-system
+  name: {{ .Release.Name }}-manager-role
 rules:
 # Any resources can be pushed to the git repo.
 # The scope depends but the controller
@@ -28,7 +15,7 @@ rules:
   - get
   - list
   - watch
-# Create and patch events related to syngit objects in any namespace
+# Create and patch events related to kgio objects in any namespace
 - apiGroups:
   - ""
   resources:
@@ -116,4 +103,3 @@ rules:
   - get
   - patch
   - update
-

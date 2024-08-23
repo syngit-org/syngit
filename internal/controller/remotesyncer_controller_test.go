@@ -27,7 +27,7 @@ package controller
 
 // 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-// 	syngit "syngit.io/syngit/api/v2alpha2"
+// 	syngit "syngit.io/syngit/api/v3alpha3"
 // )
 
 // var _ = Describe("RemoteSyncer Controller", func() {

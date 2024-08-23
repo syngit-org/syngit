@@ -16,7 +16,7 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	syngit "syngit.io/syngit/api/v2alpha2"
+	syngit "syngit.io/syngit/api/v3alpha3"
 )
 
 type GitPusher struct {
@@ -101,8 +101,11 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 func (gp *GitPusher) pathConstructor(w *git.Worktree) (string, error) {
 	gvr := gp.interceptedGVR
 
-	tempPath := gp.remoteSyncer.Spec.RootPath
-	tempPath += "/" + gp.remoteSyncer.Namespace + "/" + gvr.Group + "/" + gvr.Version + "/" + gvr.Resource + "/"
+	tempPath := ""
+	if gp.remoteSyncer.Spec.RootPath != "" {
+		tempPath += gp.remoteSyncer.Spec.RootPath + "/"
+	}
+	tempPath += gp.remoteSyncer.Namespace + "/" + gvr.Group + "/" + gvr.Version + "/" + gvr.Resource + "/"
 
 	path, err := gp.validatePath(tempPath)
 	if err != nil {
