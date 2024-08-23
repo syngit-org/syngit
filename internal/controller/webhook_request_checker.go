@@ -157,22 +157,21 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 		InsecureSkipTlsVerify: false,
 	}
 
+	var remoteUserBindings = &syngit.RemoteUserBindingList{}
+	err = wrc.k8sClient.List(ctx, remoteUserBindings, client.InNamespace(wrc.remoteSyncer.Namespace))
+	if err != nil {
+		errMsg := err.Error()
+		details.messageAddition = errMsg
+		return false, errors.New(errMsg)
+	}
+
 	userCountLoop := 0 // Prevent non-unique name attack
-	for _, ref := range wrc.remoteSyncer.Spec.AuthorizedUsers {
-		namespacedName := &types.NamespacedName{
-			Namespace: wrc.remoteSyncer.Namespace,
-			Name:      ref.Name,
-		}
-		remoteUserBinding := &syngit.RemoteUserBinding{}
-		err := wrc.k8sClient.Get(ctx, *namespacedName, remoteUserBinding)
-		if err != nil {
-			continue
-		}
+	for _, remoteUserBinding := range remoteUserBindings.Items {
 
 		// The subject name can not be unique -> in specific conditions, a commit can be done as another user
 		// Need to be studied
 		if remoteUserBinding.Spec.Subject.Name == incomingUser.Username {
-			remoteConf, gitUser, err = wrc.searchForGitToken(*remoteUserBinding, fqdn, remoteConf)
+			remoteConf, gitUser, err = wrc.searchForGitTokenFromRemoteUserBinding(remoteUserBinding, fqdn, remoteConf)
 			if err != nil {
 				errMsg := err.Error()
 				details.messageAddition = errMsg
@@ -183,10 +182,35 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	}
 
 	if userCountLoop == 0 {
-		errMsg := "no RemoteUserBinding found for the user " + incomingUser.Username
-		details.messageAddition = errMsg
-		return false, errors.New(errMsg)
+
+		// Check if there is a default user that we can use
+		if wrc.remoteSyncer.Spec.DefaultUnauthorizedUserMode != syngit.UseDefaultUser || wrc.remoteSyncer.Spec.DefaultUser.Name == "" {
+			errMsg := "no RemoteUserBinding found for the user " + incomingUser.Username
+			details.messageAddition = errMsg
+			return false, errors.New(errMsg)
+		}
+
+		// Search for the default RemoteUser object
+		namespacedName := &types.NamespacedName{
+			Namespace: wrc.remoteSyncer.Namespace,
+			Name:      wrc.remoteSyncer.Spec.DefaultUser.Name,
+		}
+		remoteUser := &syngit.RemoteUser{}
+		err := wrc.k8sClient.Get(ctx, *namespacedName, remoteUser)
+		if err != nil {
+			errMsg := "the default user is not found : " + wrc.remoteSyncer.Spec.DefaultUser.Name
+			details.messageAddition = errMsg
+			return false, err
+		}
+
+		remoteConf, gitUser, err = wrc.searchForGitToken(*remoteUser, fqdn, remoteConf)
+		if err != nil {
+			errMsg := err.Error()
+			details.messageAddition = errMsg
+			return false, err
+		}
 	}
+
 	if userCountLoop > 1 {
 		const errMsg = "multiple RemoteUserBinding found OR the name of the user is not unique; this version of the operator work with the name as unique identifier for users"
 		details.messageAddition = errMsg
@@ -199,38 +223,23 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	return true, nil
 }
 
-func (wrc *WebhookRequestChecker) searchForGitToken(gub syngit.RemoteUserBinding, fqdn string, remoteConf *syngit.GitServerConfiguration) (*syngit.GitServerConfiguration, *gitUser, error) {
+func (wrc *WebhookRequestChecker) searchForGitToken(remoteUser syngit.RemoteUser, fqdn string, remoteConf *syngit.GitServerConfiguration) (*syngit.GitServerConfiguration, *gitUser, error) {
 	userGitName := ""
 	userGitEmail := ""
 	userGitToken := ""
+	namespace := wrc.remoteSyncer.Namespace
 
-	remoteUserCount := 0
 	secretCount := 0
 	ctx := context.Background()
 
-	namespace := wrc.remoteSyncer.Namespace
-	for _, ref := range gub.Spec.RemoteRefs {
-		namespacedName := &types.NamespacedName{
+	if remoteUser.Spec.GitBaseDomainFQDN == fqdn {
+		secretNamespacedName := &types.NamespacedName{
 			Namespace: namespace,
-			Name:      ref.Name,
+			Name:      remoteUser.Spec.SecretRef.Name,
 		}
-		remoteUser := &syngit.RemoteUser{}
-		err := wrc.k8sClient.Get(ctx, *namespacedName, remoteUser)
-		if err != nil {
-			continue
-		}
-
-		remoteUserCount++
-		if remoteUser.Spec.GitBaseDomainFQDN == fqdn {
-			secretNamespacedName := &types.NamespacedName{
-				Namespace: namespace,
-				Name:      remoteUser.Spec.SecretRef.Name,
-			}
-			secret := &corev1.Secret{}
-			err := wrc.k8sClient.Get(ctx, *secretNamespacedName, secret)
-			if err != nil {
-				continue
-			}
+		secret := &corev1.Secret{}
+		err := wrc.k8sClient.Get(ctx, *secretNamespacedName, secret)
+		if err == nil {
 			userGitName = string(secret.Data["username"])
 			userGitToken = string(secret.Data["password"])
 			secretCount++
@@ -248,20 +257,49 @@ func (wrc *WebhookRequestChecker) searchForGitToken(gub syngit.RemoteUserBinding
 		gitToken: userGitToken,
 	}
 
+	if secretCount == 0 {
+		return remoteConf, gitUser, errors.New("no Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
+	}
+	if userGitToken == "" {
+		return remoteConf, gitUser, errors.New("no token found in the secret; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth")
+	}
+
+	return remoteConf, gitUser, nil
+}
+
+func (wrc *WebhookRequestChecker) searchForGitTokenFromRemoteUserBinding(rub syngit.RemoteUserBinding, fqdn string, remoteConf *syngit.GitServerConfiguration) (*syngit.GitServerConfiguration, *gitUser, error) {
+	remoteUserCount := 0
+	ctx := context.Background()
+
+	var gitUser *gitUser
+
+	namespace := wrc.remoteSyncer.Namespace
+	for _, ref := range rub.Spec.RemoteRefs {
+		namespacedName := &types.NamespacedName{
+			Namespace: namespace,
+			Name:      ref.Name,
+		}
+		remoteUser := &syngit.RemoteUser{}
+		err := wrc.k8sClient.Get(ctx, *namespacedName, remoteUser)
+		if err != nil {
+			continue
+		}
+		remoteUserCount++
+
+		remoteConf, gitUser, err = wrc.searchForGitToken(*remoteUser, fqdn, remoteConf)
+		if err != nil {
+			return remoteConf, gitUser, err
+		}
+	}
+
 	if remoteUserCount == 0 {
 		return remoteConf, gitUser, errors.New("no RemoteUser found for the current user with this fqdn : " + fqdn)
 	}
 	if remoteUserCount > 1 {
 		return remoteConf, gitUser, errors.New("more than one RemoteUser found for the current user with this fqdn : " + fqdn)
 	}
-	if secretCount == 0 {
-		return remoteConf, gitUser, errors.New("no Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
-	}
 	if remoteUserCount > 1 {
 		return remoteConf, gitUser, errors.New("more than one Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
-	}
-	if userGitToken == "" {
-		return remoteConf, gitUser, errors.New("no token found in the secret; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth")
 	}
 
 	return remoteConf, gitUser, nil

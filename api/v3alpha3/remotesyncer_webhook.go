@@ -48,10 +48,10 @@ func (r *RemoteSyncerSpec) ValidateRemoteSyncerSpec() field.ErrorList {
 	var errors field.ErrorList
 
 	// Validate DefaultUserBind based on DefaultUnauthorizedUserMode
-	if r.DefaultUnauthorizedUserMode == Block && r.DefaultUserBind != nil {
-		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultUserBind"), r.DefaultUserBind, "should not be set when defaultUnauthorizedUserMode is set to \"Block\""))
-	} else if r.DefaultUnauthorizedUserMode == UserDefaultUserBind && r.DefaultUserBind == nil {
-		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultUserBind"), "should be set when defaultUnauthorizedUserMode is set to \"UseDefaultUserBind\""))
+	if r.DefaultUnauthorizedUserMode == Block && r.DefaultUser != nil {
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultUser"), r.DefaultUser, "should not be set when defaultUnauthorizedUserMode is set to \"Block\""))
+	} else if r.DefaultUnauthorizedUserMode == UseDefaultUser && r.DefaultUser == nil {
+		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultUser"), "should be set when defaultUnauthorizedUserMode is set to \"UseDefaultUser\""))
 	}
 
 	// Validate DefaultBlockAppliedMessage only exists if CommitProcess is set to ApplyCommit

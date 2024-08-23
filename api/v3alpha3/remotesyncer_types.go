@@ -36,16 +36,13 @@ type RemoteSyncerSpec struct {
 
 	Branch string `json:"branch"`
 
-	// +kubebuilder:validation:MinItems=1
-	AuthorizedUsers []corev1.ObjectReference `json:"authorizedUsers"` // Ref to a list of RemoteUserBinding object
-
 	// +optional
 	BypassInterceptionSubjects []rbacv1.Subject `json:"bypassInterceptionSubjects,omitempty"`
 
 	DefaultUnauthorizedUserMode DefaultUnauthorizedUserMode `json:"defaultUnauthorizedUserMode"`
 
 	// +optional
-	DefaultUserBind *corev1.ObjectReference `json:"defaultUserBind,omitempty"` // Ref to a RemoteUser object
+	DefaultUser *corev1.ObjectReference `json:"defaultUser,omitempty"` // Ref to a RemoteUser object
 
 	// +optional
 	ScopedResources ScopedResources `json:"scopedResources,omitempty"`
@@ -126,8 +123,8 @@ const (
 type DefaultUnauthorizedUserMode string
 
 const (
-	Block               DefaultUnauthorizedUserMode = "Block"
-	UserDefaultUserBind DefaultUnauthorizedUserMode = "UseDefaultUserBind"
+	Block          DefaultUnauthorizedUserMode = "Block"
+	UseDefaultUser DefaultUnauthorizedUserMode = "UseDefaultUser"
 )
 
 type ScopedResources struct {
