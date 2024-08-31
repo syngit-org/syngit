@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -239,7 +240,20 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 			return ctrl.Result{}, errUpdate
 		}
+
+		// For gitlab
 		gitReq.Header.Add("Private-Token", PAToken)
+
+		// If needed because there is a conflict between github and bitbucket
+		// They both uses the same key to authenticate but not the same value
+		if strings.Contains(authenticationEndpoint, "github.com") {
+			// For github
+			gitReq.Header.Set("Authorization", "token "+PAToken)
+		} else if strings.Contains(authenticationEndpoint, "bitbucket.org") {
+			// For bitbucket
+			bitbucketAuth := base64.StdEncoding.EncodeToString([]byte(username + ":" + PAToken))
+			gitReq.Header.Set("Authorization", "Basic "+bitbucketAuth)
+		}
 
 		resp, err := httpClient.Do(gitReq)
 		if err != nil {
