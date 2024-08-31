@@ -44,7 +44,7 @@ helm repo add syngit https://syngit-org.github.io/syngit
 1. Install the operator
 You can customize the values before installing the Helm chart.
 ```sh
-helm install syngit syngit/syngit --version 0.0.3
+helm install syngit syngit/syngit --version 0.0.4
 ```
 
 syngit is now installed on your cluster!
@@ -62,7 +62,6 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: git-server-my_git_username-auth
-  namespace: test
 type: kubernetes.io/basic-auth
 stringData:
   username: <MY_GIT_USERNAME>
@@ -74,7 +73,6 @@ apiVersion: syngit.syngit.io/v3alpha3
 kind: RemoteUser
 metadata:
   name: remoteuser-sample
-  namespace: test
 spec:
   gitBaseDomainFQDN: "github.com"
   testAuthentication: true
@@ -87,7 +85,7 @@ spec:
 Now, if you look at the status of the object, the user should be connected to the git server.
 
 ```sh
-kubectl get -n test remoteuser remoteuser-sample -o=jsonpath='{.status.connexionStatus}'
+kubectl get remoteuser remoteuser-sample -o=jsonpath='{.status.connexionStatus}'
 ```
 
 ### RemoteUserBinding
@@ -98,21 +96,20 @@ By default, the `ownRemoteUserBinding` field of the RemoteUser object automatica
 
 To get the associated RemoteUserBinding object, run :
 ```sh
-kubectl get -n test remoteuserbinding owned-rub-$(kubectl auth whoami -o=jsonpath='{.status.userInfo.username}')
+kubectl get remoteuserbinding owned-rub-$(kubectl auth whoami -o=jsonpath='{.status.userInfo.username}')
 ```
 
 ### RemoteSyncer
 
 The RemoteSyncer object contains the whole logic part of the operator.
 
-In this example, the RemoteSyncer will intercept all the *configmaps*. It will push them to *https://github.com/my_repo_path.git* in the branch *main* under the path `my_configmaps/`. Because the `commitProcess` is set to `CommitApply`, the changes will be pushed and then applied to the cluster.
+In this example, the RemoteSyncer will intercept all the *configmaps*. It will push them to *https://github.com/my_repo_path.git* in the branch *main* under the path `my_configmaps/`. Because the `commitProcess` is set to `CommitApply`, the changes will be pushed and then applied to the cluster. `CommitOnly` will only push the resource on the git server without applying it on the cluster.
 
 ```yaml
 apiVersion: syngit.syngit.io/v3alpha3
 kind: RemoteSyncer
 metadata:
   name: remotesyncer-sample
-  namespace: test
 spec:
   remoteRepository: https://github.com/my_repo_path.git
   branch: main
@@ -129,7 +126,7 @@ spec:
     - apiGroups: [""]
       apiVersions: ["v1"]
       resources: ["configmaps"]
-      operations: ["CREATE", "UPDATE", "DELETE"]
+      operations: ["CREATE", "UPDATE"]
 ```
 
 ### Catch the resource
@@ -141,7 +138,6 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: test-configmap
-  namespace: test
 data:
   somedata: here
 ```

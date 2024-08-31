@@ -203,7 +203,12 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 			return false, err
 		}
 
-		remoteConf, gitUser, err = wrc.searchForGitToken(*remoteUser, fqdn, remoteConf)
+		if remoteUser.Spec.GitBaseDomainFQDN != fqdn {
+			errMsg := "the fqdn of the default user does not match the associated RemoteSyncer (" + wrc.remoteSyncer.Name + ") fqdn (" + remoteUser.Spec.GitBaseDomainFQDN + ")"
+			details.messageAddition = errMsg
+			return false, err
+		}
+		remoteConf, gitUser, err = wrc.searchForGitToken(*remoteUser, remoteConf)
 		if err != nil {
 			errMsg := err.Error()
 			details.messageAddition = errMsg
@@ -223,7 +228,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	return true, nil
 }
 
-func (wrc *WebhookRequestChecker) searchForGitToken(remoteUser syngit.RemoteUser, fqdn string, remoteConf *syngit.GitServerConfiguration) (*syngit.GitServerConfiguration, *gitUser, error) {
+func (wrc *WebhookRequestChecker) searchForGitToken(remoteUser syngit.RemoteUser, remoteConf *syngit.GitServerConfiguration) (*syngit.GitServerConfiguration, *gitUser, error) {
 	userGitName := ""
 	userGitEmail := ""
 	userGitToken := ""
@@ -232,23 +237,21 @@ func (wrc *WebhookRequestChecker) searchForGitToken(remoteUser syngit.RemoteUser
 	secretCount := 0
 	ctx := context.Background()
 
-	if remoteUser.Spec.GitBaseDomainFQDN == fqdn {
-		secretNamespacedName := &types.NamespacedName{
-			Namespace: namespace,
-			Name:      remoteUser.Spec.SecretRef.Name,
-		}
-		secret := &corev1.Secret{}
-		err := wrc.k8sClient.Get(ctx, *secretNamespacedName, secret)
-		if err == nil {
-			userGitName = string(secret.Data["username"])
-			userGitToken = string(secret.Data["password"])
-			secretCount++
+	secretNamespacedName := &types.NamespacedName{
+		Namespace: namespace,
+		Name:      remoteUser.Spec.SecretRef.Name,
+	}
+	secret := &corev1.Secret{}
+	err := wrc.k8sClient.Get(ctx, *secretNamespacedName, secret)
+	if err == nil {
+		userGitName = string(secret.Data["username"])
+		userGitToken = string(secret.Data["password"])
+		secretCount++
 
-			userGitEmail = remoteUser.Spec.Email
+		userGitEmail = remoteUser.Spec.Email
 
-			remoteConf.CaBundle = remoteUser.Status.GitServerConfiguration.CaBundle
-			remoteConf.InsecureSkipTlsVerify = remoteUser.Status.GitServerConfiguration.InsecureSkipTlsVerify
-		}
+		remoteConf.CaBundle = remoteUser.Status.GitServerConfiguration.CaBundle
+		remoteConf.InsecureSkipTlsVerify = remoteUser.Status.GitServerConfiguration.InsecureSkipTlsVerify
 	}
 
 	gitUser := &gitUser{
@@ -258,7 +261,7 @@ func (wrc *WebhookRequestChecker) searchForGitToken(remoteUser syngit.RemoteUser
 	}
 
 	if secretCount == 0 {
-		return remoteConf, gitUser, errors.New("no Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
+		return remoteConf, gitUser, errors.New("no Secret found for the current user to log on the git repository with the RemoteUser : " + remoteUser.Name)
 	}
 	if userGitToken == "" {
 		return remoteConf, gitUser, errors.New("no token found in the secret; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth")
@@ -284,11 +287,13 @@ func (wrc *WebhookRequestChecker) searchForGitTokenFromRemoteUserBinding(rub syn
 		if err != nil {
 			continue
 		}
-		remoteUserCount++
 
-		remoteConf, gitUser, err = wrc.searchForGitToken(*remoteUser, fqdn, remoteConf)
-		if err != nil {
-			return remoteConf, gitUser, err
+		if remoteUser.Spec.GitBaseDomainFQDN == fqdn {
+			remoteUserCount++
+			remoteConf, gitUser, err = wrc.searchForGitToken(*remoteUser, remoteConf)
+			if err != nil {
+				return remoteConf, gitUser, err
+			}
 		}
 	}
 
