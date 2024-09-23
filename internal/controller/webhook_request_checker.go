@@ -476,12 +476,17 @@ func (wrc *WebhookRequestChecker) postcheck(details *wrcDetails) bool {
 
 func (wrc *WebhookRequestChecker) responseConstructor(details wrcDetails) admissionv1.AdmissionReview {
 
+	successMessage := defaultSuccessMessage
+	if wrc.remoteSyncer.Spec.DefaultBlockAppliedMessage != "" {
+		successMessage = wrc.remoteSyncer.Spec.DefaultBlockAppliedMessage
+	}
+
 	// Set the status and the message depending of the status of the webhook
 	status := "Failure"
 	message := defaultFailureMessage
 	if details.processPass {
 		status = "Success"
-		message = defaultSuccessMessage
+		message = successMessage
 	} else {
 		condition := &v1.Condition{
 			LastTransitionTime: v1.Now(),
