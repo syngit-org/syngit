@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-logr/logr"
 	admissionv1 "k8s.io/api/admission/v1"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -125,6 +126,21 @@ func (s *WebhookInterceptsAll) setupSignalHandler() {
 
 	// Block until a signal is received
 	<-sigs
+
+	ctx := context.Background()
+	validationWebhook := &admissionregistrationv1.ValidatingWebhookConfiguration{}
+	webhookNamespacedName := &types.NamespacedName{
+		Name: os.Getenv("DYNAMIC_WEBHOOK_NAME"),
+	}
+	err := s.k8sClient.Get(ctx, *webhookNamespacedName, validationWebhook)
+	if err != nil {
+		s.log.Error(err, "failed to gracefully delete the dynamic remote syncer webhook (fail to get the webhook)")
+	}
+	err = s.k8sClient.Delete(ctx, validationWebhook)
+	if err != nil {
+		s.log.Error(err, "failed to gracefully delete the dynamic remote syncer webhook")
+	}
+
 	s.Stop()
 }
 

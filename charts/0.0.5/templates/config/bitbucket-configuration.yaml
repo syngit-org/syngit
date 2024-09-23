@@ -1,0 +1,8 @@
+{{- if eq .Values.configuration.bitbucket true }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bitbucket.org
+data:
+  authenticationEndpoint: https://api.bitbucket.org/2.0/user
+{{- end }}
