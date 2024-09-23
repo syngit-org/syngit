@@ -111,7 +111,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Create the webhook specs for this specific RI
-	webhookObjectName := "remotesyncer.syngit.io"
+	webhookObjectName := os.Getenv("DYNAMIC_WEBHOOK_NAME")
 	var sideEffectsNone = admissionv1.SideEffectClassNone
 	webhookSpecificName := rSName + "." + rSNamespace + ".syngit.io"
 

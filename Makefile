@@ -68,9 +68,9 @@ dev-deploy: # Launch dev env on the cluster
 
 .PHONY: cleanup-deploy
 cleanup-deploy: # Cleanup
-	make undeploy
 	cd $(WEBHOOK_PATH) && mv secret.yaml.temp secret.yaml
 	cd $(WEBHOOK_PATH) && mv manifests.yaml.temp manifests.yaml
+	make undeploy
 
 # .PHONY: cleanup-run
 # cleanup-run: # Cleanup
@@ -121,7 +121,7 @@ build: manifests generate fmt vet ## Build manager binary.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	export MANAGER_NAMESPACE=operator-system DEV=true && go run ./cmd/main.go
+	export MANAGER_NAMESPACE=operator-system DYNAMIC_WEBHOOK_NAME=remotesyncer.syngit.io DEV=true && go run ./cmd/main.go
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
