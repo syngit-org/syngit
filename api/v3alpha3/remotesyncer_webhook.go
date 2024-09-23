@@ -54,9 +54,9 @@ func (r *RemoteSyncerSpec) ValidateRemoteSyncerSpec() field.ErrorList {
 		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultUser"), "should be set when defaultUnauthorizedUserMode is set to \"UseDefaultUser\""))
 	}
 
-	// Validate DefaultBlockAppliedMessage only exists if CommitProcess is set to ApplyCommit
-	if r.DefaultBlockAppliedMessage != "" && r.CommitProcess != "CommitApply" {
-		errors = append(errors, field.Forbidden(field.NewPath("spec").Child("defaultBlockAppliedMessage"), "should not be set if .spec.commitProcess is not set to \"CommitApply\""))
+	// Validate DefaultBlockAppliedMessage only exists if CommitProcess is set to CommitOnly
+	if r.DefaultBlockAppliedMessage != "" && r.CommitProcess != "CommitOnly" {
+		errors = append(errors, field.Forbidden(field.NewPath("spec").Child("defaultBlockAppliedMessage"), "should not be set if .spec.commitProcess is not set to \"CommitOnly\""))
 	}
 
 	// Validate that CommitProcess is either CommitApply or CommitOnly
