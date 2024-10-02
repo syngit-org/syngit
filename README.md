@@ -30,6 +30,7 @@ Another useful usage is the object logging. Automatic etcd snapshot can be sette
 - docker version 17.03+.
 - kubectl version v1.11.3+.
 - helm version v3.0.0+.
+- certmanager version 1.13+ on the cluster.
 - Access to a Kubernetes v1.11.3+ cluster.
 
 ### Installation
@@ -44,7 +45,7 @@ helm repo add syngit https://syngit-org.github.io/syngit
 1. Install the operator
 You can customize the values before installing the Helm chart.
 ```sh
-helm install syngit syngit/syngit --version 0.0.5
+helm install syngit syngit/syngit --version 1.0.0 -n syngit --create-namespace
 ```
 
 syngit is now installed on your cluster!
