@@ -1,0 +1,21 @@
+
+name: Roadmap/Governance discussion
+description: Suggest a change about the roadmap or the governance
+title: "[GD]: "
+body:
+  - type: dropdown
+    attributes:
+      label: Discussion subject
+      multiple: false
+      options:
+        - Details needed
+        - Change versionning on the roadmap
+        - Reorder feature on the roadmap
+        - Governance change proposal
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Give more details about the discussion subject
+    validations:
+      required: true
