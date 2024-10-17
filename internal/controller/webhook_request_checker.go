@@ -15,7 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	syngit "syngit.io/syngit/api/v3alpha3"
+	syngit "syngit.io/syngit/api/v1alpha4"
 )
 
 type gitUser struct {

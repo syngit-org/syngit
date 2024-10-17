@@ -45,7 +45,7 @@ helm repo add syngit https://syngit-org.github.io/syngit
 1. Install the operator
 You can customize the values before installing the Helm chart.
 ```sh
-helm install syngit syngit/syngit --version 1.0.0 -n syngit --create-namespace
+helm install syngit syngit/syngit --version 1.0.1 -n syngit --create-namespace
 ```
 
 syngit is now installed on your cluster!
@@ -70,7 +70,7 @@ stringData:
 ```
 
 ```yaml
-apiVersion: syngit.syngit.io/v3alpha3
+apiVersion: syngit.syngit.io/v1alpha4
 kind: RemoteUser
 metadata:
   name: remoteuser-sample
@@ -107,7 +107,7 @@ The RemoteSyncer object contains the whole logic part of the operator.
 In this example, the RemoteSyncer will intercept all the *configmaps*. It will push them to *https://github.com/my_repo_path.git* in the branch *main* under the path `my_configmaps/`. Because the `commitProcess` is set to `CommitApply`, the changes will be pushed and then applied to the cluster. `CommitOnly` will only push the resource on the git server without applying it on the cluster.
 
 ```yaml
-apiVersion: syngit.syngit.io/v3alpha3
+apiVersion: syngit.syngit.io/v1alpha4
 kind: RemoteSyncer
 metadata:
   name: remotesyncer-sample
