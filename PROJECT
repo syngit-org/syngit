@@ -47,8 +47,8 @@ resources:
   domain: syngit.io
   group: syngit
   kind: RemoteUser
-  path: syngit.io/syngit/api/v2alpha2
-  version: v2alpha2
+  path: syngit.io/syngit/api/v1alpha2
+  version: v1alpha2
   webhooks:
     validation: true
     webhookVersion: v1
@@ -58,16 +58,16 @@ resources:
   domain: syngit.io
   group: syngit
   kind: RemoteUserBinding
-  path: syngit.io/syngit/api/v2alpha2
-  version: v2alpha2
+  path: syngit.io/syngit/api/v1alpha2
+  version: v1alpha2
 - api:
     crdVersion: v1
     namespaced: true
   domain: syngit.io
   group: syngit
   kind: RemoteSyncer
-  path: syngit.io/syngit/api/v2alpha2
-  version: v2alpha2
+  path: syngit.io/syngit/api/v1alpha2
+  version: v1alpha2
   webhooks:
     validation: true
     webhookVersion: v1
@@ -77,8 +77,8 @@ resources:
   domain: syngit.io
   group: syngit
   kind: RemoteSyncer
-  path: syngit.io/syngit/api/v3alpha3
-  version: v3alpha3
+  path: syngit.io/syngit/api/v1alpha3
+  version: v1alpha3
   webhooks:
     validation: true
     webhookVersion: v1
@@ -88,8 +88,8 @@ resources:
   domain: syngit.io
   group: syngit
   kind: RemoteUser
-  path: syngit.io/syngit/api/v3alpha3
-  version: v3alpha3
+  path: syngit.io/syngit/api/v1alpha3
+  version: v1alpha3
   webhooks:
     validation: true
     webhookVersion: v1
@@ -99,6 +99,36 @@ resources:
   domain: syngit.io
   group: syngit
   kind: RemoteUserBinding
-  path: syngit.io/syngit/api/v3alpha3
-  version: v3alpha3
+  path: syngit.io/syngit/api/v1alpha3
+  version: v1alpha3
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: syngit.io
+  group: syngit
+  kind: RemoteUserBinding
+  path: syngit.io/syngit/api/v1alpha4
+  version: v1alpha4
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: syngit.io
+  group: syngit
+  kind: RemoteUser
+  path: syngit.io/syngit/api/v1alpha4
+  version: v1alpha4
+  webhooks:
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: syngit.io
+  group: syngit
+  kind: RemoteSyncer
+  path: syngit.io/syngit/api/v1alpha4
+  version: v1alpha4
+  webhooks:
+    validation: true
+    webhookVersion: v1
 version: "3"

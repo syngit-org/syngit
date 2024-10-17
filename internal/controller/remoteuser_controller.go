@@ -41,7 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	syngit "syngit.io/syngit/api/v3alpha3"
+	syngit "syngit.io/syngit/api/v1alpha4"
 )
 
 // RemoteUserReconciler reconciles a RemoteUser object

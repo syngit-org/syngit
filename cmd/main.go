@@ -36,8 +36,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	syngitv1alpha1 "syngit.io/syngit/api/v1alpha1"
-	syngitv2alpha2 "syngit.io/syngit/api/v2alpha2"
-	syngitv3alpha3 "syngit.io/syngit/api/v3alpha3"
+	syngitv1alpha2 "syngit.io/syngit/api/v1alpha2"
+	syngitv1alpha3 "syngit.io/syngit/api/v1alpha3"
+	syngitv1alpha4 "syngit.io/syngit/api/v1alpha4"
 	"syngit.io/syngit/internal/controller"
 	//+kubebuilder:scaffold:imports
 )
@@ -51,8 +52,9 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(syngitv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(syngitv2alpha2.AddToScheme(scheme))
-	utilruntime.Must(syngitv3alpha3.AddToScheme(scheme))
+	utilruntime.Must(syngitv1alpha2.AddToScheme(scheme))
+	utilruntime.Must(syngitv1alpha3.AddToScheme(scheme))
+	utilruntime.Must(syngitv1alpha4.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -158,14 +160,26 @@ func main() {
 		os.Exit(1)
 	}
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
-		if err = (&syngitv3alpha3.RemoteSyncer{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = (&syngitv1alpha3.RemoteSyncer{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteSyncer")
 			os.Exit(1)
 		}
 	}
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
-		if err = (&syngitv3alpha3.RemoteUser{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = (&syngitv1alpha3.RemoteUser{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUser")
+			os.Exit(1)
+		}
+	}
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = (&syngitv1alpha4.RemoteUser{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUser")
+			os.Exit(1)
+		}
+	}
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = (&syngitv1alpha4.RemoteSyncer{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteSyncer")
 			os.Exit(1)
 		}
 	}
