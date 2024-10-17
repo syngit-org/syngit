@@ -27,7 +27,7 @@ package controller
 
 // 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-// 	syngit "syngit.io/syngit/api/v3alpha3"
+// 	syngit "syngit.io/syngit/api/v1alpha4"
 // )
 
 // var _ = Describe("RemoteUserBinding Controller", func() {

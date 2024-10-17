@@ -1,4 +1,4 @@
-apiVersion: syngit.syngit.io/v3alpha3
+apiVersion: syngit.syngit.io/v1alpha3
 kind: RemoteUserBinding
 metadata:
   labels:
