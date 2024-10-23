@@ -2,7 +2,7 @@
 
 # syngit
 
-syngit is a Kubernetes operator that allows you to push resources on a git repository and manage their lifecycle. It leverage the gitops by unifying the source of truth between your cluster and your git repository. It acts as a proxy between your client tool (`kubectl` or any UI) and the cluster.
+syngit is a Kubernetes operator that allows you to push resources on a git repository and manage their lifecycle. It leverage the gitops by unifying the source of truth between your cluster and your git repository. It acts as a proxy between your client tool (`kubectl`, `oc` or any UI) and the cluster.
 
 ![syngit-proxy](./img/wiki/conception/commitonly-proxy.png)
 
