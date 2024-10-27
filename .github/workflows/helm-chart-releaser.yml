@@ -38,5 +38,6 @@ jobs:
         with:
           charts_dir: charts
           config: charts/release_config.yml
+          skip_existing: true
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
