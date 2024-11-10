@@ -16,69 +16,98 @@ limitations under the License.
 
 package controller
 
-// import (
-// 	"context"
+import (
+	"context"
+	"time"
 
-// 	. "github.com/onsi/ginkgo/v2"
-// 	. "github.com/onsi/gomega"
-// 	"k8s.io/apimachinery/pkg/api/errors"
-// 	"k8s.io/apimachinery/pkg/types"
-// 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 
-// 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	admissionv1 "k8s.io/api/admissionregistration/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-// 	syngit "syngit.io/syngit/api/v1alpha4"
-// )
+	syngit "syngit.io/syngit/api/v1beta1"
+)
 
-// var _ = Describe("RemoteSyncer Controller", func() {
-// 	Context("When reconciling a resource", func() {
-// 		const resourceName = "test-resource"
+var _ = Describe("RemoteSyncer Controller", func() {
 
-// 		ctx := context.Background()
+	const (
+		timeout  = time.Second * 10
+		duration = time.Second * 10
+		interval = time.Millisecond * 250
 
-// 		typeNamespacedName := types.NamespacedName{
-// 			Name:      resourceName,
-// 			Namespace: "default", // TODO(user):Modify as needed
-// 		}
-// 		remotesyncer := &syngit.RemoteSyncer{}
+		userNamespace = "default"
+	)
 
-// 		BeforeEach(func() {
-// 			By("creating the custom resource for the Kind RemoteSyncer")
-// 			err := k8sClient.Get(ctx, typeNamespacedName, remotesyncer)
-// 			if err != nil && errors.IsNotFound(err) {
-// 				resource := &syngit.RemoteSyncer{
-// 					ObjectMeta: metav1.ObjectMeta{
-// 						Name:      resourceName,
-// 						Namespace: "default",
-// 					},
-// 					// TODO(user): Specify other spec details if needed.
-// 				}
-// 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
-// 			}
-// 		})
+	Context("When reconciling a resource", func() {
 
-// 		AfterEach(func() {
-// 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-// 			resource := &syngit.RemoteSyncer{}
-// 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-// 			Expect(err).NotTo(HaveOccurred())
+		const (
+			remotesyncername = "test-remotesyncer"
+		)
 
-// 			By("Cleanup the specific resource instance RemoteSyncer")
-// 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-// 		})
-// 		It("should successfully reconcile the resource", func() {
-// 			By("Reconciling the created resource")
-// 			controllerReconciler := &RemoteSyncerReconciler{
-// 				Client: k8sClient,
-// 				Scheme: k8sClient.Scheme(),
-// 			}
+		typeNamespacedName := types.NamespacedName{
+			Name:      remotesyncername,
+			Namespace: userNamespace,
+		}
+		remotesyncer := &syngit.RemoteSyncer{}
 
-// 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-// 				NamespacedName: typeNamespacedName,
-// 			})
-// 			Expect(err).NotTo(HaveOccurred())
-// 			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-// 			// Example: If you expect a certain status condition after reconciliation, verify it here.
-// 		})
-// 	})
-// })
+		ctx := context.Background()
+
+		BeforeEach(func() {
+
+			By("Creating a RemoteSyncer with")
+			err := k8sClient.Get(ctx, typeNamespacedName, remotesyncer)
+			if err != nil && errors.IsNotFound(err) {
+				resource := &syngit.RemoteSyncer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      remotesyncername,
+						Namespace: userNamespace,
+					},
+					Spec: syngit.RemoteSyncerSpec{
+						DefaultBlockAppliedMessage:  "test",
+						DefaultBranch:               "main",
+						DefaultUnauthorizedUserMode: syngit.Block,
+						ExcludedFields:              []string{".metadata.uid"},
+						ProcessMode:                 syngit.CommitOnly,
+						PushMode:                    syngit.SameBranch,
+						RemoteRepository:            "https://dummy-git-server.com",
+						ScopedResources: syngit.ScopedResources{
+							Rules: []admissionv1.RuleWithOperations{admissionv1.RuleWithOperations{
+								Operations: []admissionv1.OperationType{
+									admissionv1.Create,
+								},
+								Rule: admissionv1.Rule{
+									APIGroups:   []string{"v1"},
+									APIVersions: []string{"v1"},
+									Resources:   []string{"configmaps"},
+								},
+							},
+							},
+						},
+					},
+				}
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			}
+		})
+
+		AfterEach(func() {
+			err := k8sClient.Get(ctx, typeNamespacedName, remotesyncer)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Cleanup the specific resource instance RemoteSyncer")
+			Expect(k8sClient.Delete(ctx, remotesyncer)).To(Succeed())
+		})
+
+		It("should successfully reconcile the resource", func() {
+			ruLookupKeyRS := types.NamespacedName{Name: remotesyncername, Namespace: userNamespace}
+			createdRemoteSyncer := &syngit.RemoteSyncer{}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, ruLookupKeyRS, createdRemoteSyncer)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+		})
+	})
+})

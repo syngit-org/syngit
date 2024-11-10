@@ -25,6 +25,15 @@ rules:
   - update
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - list
+  - patch
+  - watch
+- apiGroups:
   - corev1
   resources:
   - configmaps

@@ -1,9 +1,10 @@
 
 # Image URL to use all building/pushing image targets
 IMG ?= syngit-controller:latest
-DEV_CLUSTER ?= dev-cluster
+DEV_CLUSTER ?= syngit-dev-cluster
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.29.0
+CRD_OPTIONS ?= "crd"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -49,10 +50,9 @@ WEBHOOK_PATH ?= config/webhook
 IMAGE ?= syngit.io/op:dev
 .PHONY: dev-deploy
 dev-deploy: # Launch dev env on the cluster
+	kind create cluster --name $(DEV_CLUSTER) 2>/dev/null || true
 	make docker-build IMG=$(IMAGE)
-	kind load docker-image $(IMAGE) --name dev-cluster
-	cd $(WEBHOOK_PATH) && cp manifests.yaml manifests.yaml.temp
-	cd $(WEBHOOK_PATH) && cp secret.yaml secret.yaml.temp
+	kind load docker-image $(IMAGE) --name $(DEV_CLUSTER)
 	make deploy IMG=$(IMAGE)
 
 # .PHONY: dev-run
@@ -68,8 +68,7 @@ dev-deploy: # Launch dev env on the cluster
 
 .PHONY: cleanup-deploy
 cleanup-deploy: # Cleanup
-	cd $(WEBHOOK_PATH) && mv secret.yaml.temp secret.yaml
-	cd $(WEBHOOK_PATH) && mv manifests.yaml.temp manifests.yaml
+	cd $(WEBHOOK_PATH) && ./cleanup-injector.sh
 	make undeploy
 
 # .PHONY: cleanup-run
@@ -182,7 +181,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	cd $(WEBHOOK_PATH) && ./cert-injector.sh manifests.yaml
+	cd $(WEBHOOK_PATH) && ./cert-injector.sh manifests.yaml ../crd/patches
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
 .PHONY: undeploy

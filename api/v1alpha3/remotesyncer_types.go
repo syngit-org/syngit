@@ -77,6 +77,7 @@ type RemoteSyncerStatus struct {
 }
 
 //+kubebuilder:object:root=true
+//+kubebuilder:unservedversion
 //+kubebuilder:subresource:status
 
 // RemoteSyncer is the Schema for the remotesyncers API

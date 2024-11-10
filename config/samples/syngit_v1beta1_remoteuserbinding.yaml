@@ -1,0 +1,12 @@
+apiVersion: syngit.syngit.io/v1beta1
+kind: RemoteUserBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: remoteuserbinding
+    app.kubernetes.io/instance: remoteuserbinding-sample
+    app.kubernetes.io/part-of: syngit
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: syngit
+  name: remoteuserbinding-sample
+spec:
+  # TODO(user): Add fields here

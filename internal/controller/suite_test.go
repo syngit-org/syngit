@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	syngit "syngit.io/syngit/api/v1alpha4"
+	syngit "syngit.io/syngit/api/v1beta1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -89,16 +89,16 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta1-remoteuser-association", &webhook.Admission{Handler: &RemoteUserWebhookHandler{
+		Client:  k8sManager.GetClient(),
+		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
+	}})
+
 	err = (&RemoteUserReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
-
-	k8sManager.GetWebhookServer().Register("/reconcile-syngit-remoteuser-owner", &webhook.Admission{Handler: &RemoteUserWebhookHandler{
-		Client:  k8sManager.GetClient(),
-		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
-	}})
 
 	err = (&RemoteUserBindingReconciler{
 		Client: k8sManager.GetClient(),

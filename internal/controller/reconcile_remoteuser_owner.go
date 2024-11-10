@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	syngit "syngit.io/syngit/api/v1alpha4"
+	syngit "syngit.io/syngit/api/v1beta1"
 )
 
 /*
@@ -80,7 +80,7 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 			}
 		}
 
-		return admission.Allowed("This object has been removed from the " + name + " RemoteUserBinding owners")
+		return admission.Allowed("This object is not associated with the " + name + " RemoteUserBinding anymore")
 	}
 
 	ru := &syngit.RemoteUser{}
@@ -89,8 +89,8 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	if !ru.Spec.OwnRemoteUserBinding {
-		return admission.Allowed("This object does not own a RemoteUserBinding")
+	if !ru.Spec.AssociatedRemoteUserBinding {
+		return admission.Allowed("This object is not associated with any RemoteUserBinding")
 	}
 
 	objRef := corev1.ObjectReference{Name: ru.Name}
@@ -107,15 +107,15 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 		rub.Name = name
 		rub.Namespace = req.Namespace
 
-		ownerRef := v1.OwnerReference{
-			Name:       ru.Name,
-			APIVersion: ru.APIVersion,
-			Kind:       ru.GroupVersionKind().Kind,
-			UID:        ru.GetUID(),
-		}
-		ownerRefs := make([]v1.OwnerReference, 0)
-		ownerRefs = append(ownerRefs, ownerRef)
-		rub.ObjectMeta.OwnerReferences = ownerRefs
+		// ownerRef := v1.OwnerReference{
+		// 	Name:       ru.Name,
+		// 	APIVersion: ru.APIVersion,
+		// 	Kind:       ru.GroupVersionKind().Kind,
+		// 	UID:        ru.GetUID(),
+		// }
+		// ownerRefs := make([]v1.OwnerReference, 0)
+		// ownerRefs = append(ownerRefs, ownerRef)
+		// rub.ObjectMeta.OwnerReferences = ownerRefs
 
 		subject := &rbacv1.Subject{
 			Kind: "User",
@@ -135,15 +135,15 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 		// The RemoteUserBinding already exists
 
 		// Update the list of the RemoteUserBinding object
-		ownerRef := v1.OwnerReference{
-			Name:       ru.Name,
-			APIVersion: ru.APIVersion,
-			Kind:       ru.GroupVersionKind().Kind,
-			UID:        ru.GetUID(),
-		}
-		ownerRefs := rub.ObjectMeta.DeepCopy().OwnerReferences
-		ownerRefs = append(ownerRefs, ownerRef)
-		rub.ObjectMeta.OwnerReferences = ownerRefs
+		// ownerRef := v1.OwnerReference{
+		// 	Name:       ru.Name,
+		// 	APIVersion: ru.APIVersion,
+		// 	Kind:       ru.GroupVersionKind().Kind,
+		// 	UID:        ru.GetUID(),
+		// }
+		// ownerRefs := rub.ObjectMeta.DeepCopy().OwnerReferences
+		// ownerRefs = append(ownerRefs, ownerRef)
+		// rub.ObjectMeta.OwnerReferences = ownerRefs
 
 		remoteRefs := rub.DeepCopy().Spec.RemoteRefs
 		remoteRefs = append(remoteRefs, objRef)
@@ -156,5 +156,5 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 
 	}
 
-	return admission.Allowed("This object owns the " + name + " RemoteUserBinding")
+	return admission.Allowed("This object is associated to the " + name + " RemoteUserBinding")
 }
