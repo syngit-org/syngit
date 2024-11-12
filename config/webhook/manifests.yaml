@@ -10,14 +10,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-syngit-syngit-io-v1alpha4-remotesyncer
+      path: /validate-syngit-syngit-io-v1beta1-remotesyncer
   failurePolicy: Fail
-  name: vremotesyncer.kb.io
+  name: vremotesyncer.v1beta1.syngit.io
   rules:
   - apiGroups:
     - syngit.syngit.io
     apiVersions:
-    - v1alpha4
+    - v1beta1
     operations:
     - CREATE
     - UPDATE
@@ -30,14 +30,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-syngit-syngit-io-v1alpha4-remoteuser
+      path: /validate-syngit-syngit-io-v1beta1-remoteuser
   failurePolicy: Fail
-  name: vremoteuser.kb.io
+  name: vremoteuser.v1beta1.syngit.io
   rules:
   - apiGroups:
     - syngit.syngit.io
     apiVersions:
-    - v1alpha4
+    - v1beta1
     operations:
     - CREATE
     - UPDATE
@@ -50,14 +50,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /reconcile-syngit-remoteuser-owner
+      path: /syngit-v1beta1-remoteuser-association
   failurePolicy: Fail
-  name: vremoteusers-owner.kb.io
+  name: vremoteusers-association.v1beta1.syngit.io
   rules:
   - apiGroups:
     - syngit.syngit.io
     apiVersions:
-    - v1alpha4
+    - v1beta1
     operations:
     - CREATE
     - DELETE

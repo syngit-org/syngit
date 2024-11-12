@@ -1,0 +1,96 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  labels:
+    control-plane: controller-manager
+    app.kubernetes.io/name: deployment
+    app.kubernetes.io/instance: controller-manager
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        control-plane: controller-manager
+    spec:
+      {{- if .Values.controller.image.imagePullSecrets }}
+      imagePullSecrets:
+        {{ toYaml .Values.controller.image.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      containers:
+      {{- if eq .Values.controller.metrics.enable true }}
+      - name: kube-rbac-proxy
+        securityContext: {{ toYaml .Values.controller.rbacProxy.securityContext | nindent 10 }}
+        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
+        args:
+        - "--secure-listen-address=0.0.0.0:8443"
+        - "--upstream={{ .Values.controller.rbacProxy.upstreamAddress }}"
+        - "--logtostderr=true"
+        - "--v=0"
+        ports:
+        - containerPort: 8443
+          protocol: TCP
+          name: https
+        resources: {{ toYaml .Values.controller.rbacProxy.resources | nindent 10 }}
+      {{- end }}
+      - command:
+        - /manager
+        args:
+        - "--leader-elect"
+        {{- if eq .Values.controller.metrics.enable true }}
+        - "--health-probe-bind-address=:8081"
+        - "--metrics-bind-address={{ .Values.controller.metrics.bindAddress }}"
+        {{- end }}
+        image: {{ .Values.controller.image.prefix }}/{{ .Values.controller.image.name }}:{{ .Values.controller.image.tag }}
+        env:
+        - name: MANAGER_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: DYNAMIC_WEBHOOK_NAME
+          value: {{ .Values.controller.dynamicWebhookName }}
+        name: manager
+        securityContext: {{ toYaml .Values.controller.securityContext | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources: {{ toYaml .Values.controller.resources | nindent 10 }}
+        ports:
+        - containerPort: 9443
+          name: wbhk-crd-srv
+          protocol: TCP
+        - containerPort: 9444
+          name: wbhk-pusher-srv
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
+      serviceAccountName: {{ .Release.Name }}-controller-manager
+      terminationGracePeriodSeconds: 10
+      {{- if .Values.controller.tolerations }}
+      tolerations: {{ toYaml .Values.controller.tolerations | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: {{ .Values.webhook.certmanager.certificate.secret }}

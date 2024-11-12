@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	syngit "syngit.io/syngit/api/v1alpha4"
+	syngit "syngit.io/syngit/api/v1beta1"
 )
 
 // RemoteSyncerReconciler reconciles a RemoteSyncer object
@@ -47,6 +47,7 @@ type RemoteSyncerReconciler struct {
 //+kubebuilder:rbac:groups=syngit.syngit.io,resources=remotesyncers/finalizers,verbs=update
 //+kubebuilder:rbac:groups=*,resources=*,verbs=get;list;watch
 //+kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations,verbs=create;get;list;watch;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch;list;watch
 
 func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)

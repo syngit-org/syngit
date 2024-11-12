@@ -109,6 +109,9 @@ resources:
   kind: RemoteUserBinding
   path: syngit.io/syngit/api/v1alpha4
   version: v1alpha4
+  webhooks:
+    conversion: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true
@@ -129,6 +132,41 @@ resources:
   path: syngit.io/syngit/api/v1alpha4
   version: v1alpha4
   webhooks:
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: syngit.io
+  group: syngit
+  kind: RemoteUser
+  path: syngit.io/syngit/api/v1beta1
+  version: v1beta1
+  webhooks:
+    conversion: true
+    validation: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: syngit.io
+  group: syngit
+  kind: RemoteUserBinding
+  path: syngit.io/syngit/api/v1beta1
+  version: v1beta1
+  webhooks:
+    conversion: true
+    webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: syngit.io
+  group: syngit
+  kind: RemoteSyncer
+  path: syngit.io/syngit/api/v1beta1
+  version: v1beta1
+  webhooks:
+    conversion: true
     validation: true
     webhookVersion: v1
 version: "3"

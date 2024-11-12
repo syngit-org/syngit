@@ -42,6 +42,7 @@ type RemoteUserBindingStatus struct {
 }
 
 //+kubebuilder:object:root=true
+//+kubebuilder:unservedversion
 //+kubebuilder:subresource:status
 
 // RemoteUserBinding is the Schema for the remoteuserbindings API

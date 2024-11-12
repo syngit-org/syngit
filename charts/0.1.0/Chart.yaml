@@ -1,0 +1,11 @@
+apiVersion: v2
+name: syngit
+description: An operator to push resources onto git
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+home: https://github.com/syngit-org/syngit
+icon: https://raw.githubusercontent.com/syngit-org/syngit/main/img/icon.png
+maintainers:
+  - email: dassieu.damien@gmail.com
+    name: Damien

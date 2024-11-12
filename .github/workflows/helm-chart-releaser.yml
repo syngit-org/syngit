@@ -2,18 +2,14 @@ name: Release charts
 
 on:
   push:
-    branches:
-      - dev
     tags:
       - '*'
 
 jobs:
   release:
+    if: startsWith(github.ref, 'refs/tags/')
     # depending on default permission settings for your org (contents being read-only or read-write for workloads), you will have to add permissions
     # see: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#modifying-the-permissions-for-the-github_token
-    if: |
-      (github.event.repository.fork == true && github.ref == 'refs/heads/dev') || 
-      (github.event.repository.fork == false && startsWith(github.ref, 'refs/tags/'))
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -39,5 +35,6 @@ jobs:
           charts_dir: charts
           config: charts/release_config.yml
           skip_existing: true
+          mark_as_latest: true
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"

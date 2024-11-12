@@ -16,20 +16,21 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	syngit "syngit.io/syngit/api/v1alpha4"
+	syngit "syngit.io/syngit/api/v1beta1"
 )
 
 type GitPusher struct {
-	remoteSyncer        syngit.RemoteSyncer
-	interceptedYAML     string
-	interceptedGVR      schema.GroupVersionResource
-	interceptedName     string
-	branch              string
-	gitUser             string
-	gitEmail            string
-	gitToken            string
-	operation           admissionv1.Operation
-	remoteConfiguration syngit.GitServerConfiguration
+	remoteSyncer          syngit.RemoteSyncer
+	interceptedYAML       string
+	interceptedGVR        schema.GroupVersionResource
+	interceptedName       string
+	branch                string
+	gitUser               string
+	gitEmail              string
+	gitToken              string
+	operation             admissionv1.Operation
+	insecureSkipTlsVerify bool
+	caBundle              string
 }
 
 type GitPushResponse struct {
@@ -39,7 +40,7 @@ type GitPushResponse struct {
 
 func (gp *GitPusher) Push() (GitPushResponse, error) {
 	gpResponse := &GitPushResponse{path: "", commitHash: ""}
-	gp.branch = gp.remoteSyncer.Spec.Branch
+	gp.branch = gp.remoteSyncer.Spec.DefaultBranch
 
 	// Clone the repository into memory
 	cloneOption := &git.CloneOptions{
@@ -50,11 +51,10 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 			Password: gp.gitToken,
 		},
 		SingleBranch:    true,
-		InsecureSkipTLS: gp.remoteConfiguration.InsecureSkipTlsVerify,
-		CABundle:        []byte(gp.remoteConfiguration.CaBundle),
+		InsecureSkipTLS: gp.insecureSkipTlsVerify,
 	}
-	if gp.remoteConfiguration.CaBundle != "" {
-		cloneOption.CABundle = []byte(gp.remoteConfiguration.CaBundle)
+	if gp.caBundle != "" {
+		cloneOption.CABundle = []byte(gp.caBundle)
 	}
 	repo, err := git.Clone(memory.NewStorage(), memfs.New(), cloneOption)
 	if err != nil {
@@ -244,14 +244,17 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string) (string, e
 }
 
 func (gp *GitPusher) pushChanges(repo *git.Repository) error {
-	err := repo.Push(&git.PushOptions{
+	pushOptions := &git.PushOptions{
 		Auth: &http.BasicAuth{
 			Username: gp.gitUser,
 			Password: gp.gitToken,
 		},
-		InsecureSkipTLS: gp.remoteConfiguration.InsecureSkipTlsVerify,
-		CABundle:        []byte(gp.remoteConfiguration.CaBundle),
-	})
+		InsecureSkipTLS: gp.insecureSkipTlsVerify,
+	}
+	if gp.caBundle != "" {
+		pushOptions.CABundle = []byte(gp.caBundle)
+	}
+	err := repo.Push(pushOptions)
 	if err != nil {
 		errMsg := "failed to push changes: " + err.Error()
 		return errors.New(errMsg)

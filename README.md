@@ -45,7 +45,7 @@ helm repo add syngit https://syngit-org.github.io/syngit
 1. Install the operator
 You can customize the values before installing the Helm chart.
 ```sh
-helm install syngit syngit/syngit --version 1.0.1 -n syngit --create-namespace
+helm install syngit syngit/syngit --version 0.1.0 -n syngit --create-namespace
 ```
 
 syngit is now installed on your cluster!
@@ -70,34 +70,33 @@ stringData:
 ```
 
 ```yaml
-apiVersion: syngit.syngit.io/v1alpha4
+apiVersion: syngit.syngit.io/v1beta1
 kind: RemoteUser
 metadata:
   name: remoteuser-sample
 spec:
   gitBaseDomainFQDN: "github.com"
-  testAuthentication: true
   email: your@email.com
-  ownRemoteUserBinding: true
+  associatedRemoteUserBinding: true
   secretRef:
     name: git-server-my_git_username-auth
 ```
 
-Now, if you look at the status of the object, the user should be connected to the git server.
+Now, if you look at the status of the object, the secret should be correctly bound.
 
 ```sh
-kubectl get remoteuser remoteuser-sample -o=jsonpath='{.status.connexionStatus}'
+kubectl get remoteuser remoteuser-sample -o=jsonpath='{.status.secretBoundStatus}'
 ```
 
 ### RemoteUserBinding
 
 The RemoteUserBinding bind the Kubernetes user with the remote git user. This is used by syngit when the user apply changes on the cluster. syngit will push on the git server with the associated git user.
 
-By default, the `ownRemoteUserBinding` field of the RemoteUser object automatically creates a RemoteUserBinding. The name of the object is `owned-rub-<kubernetes_user_id>`.
+By default, the `associatedRemoteUserBinding` field of the RemoteUser object automatically creates a RemoteUserBinding. The name of the object is `associated-rub-<kubernetes_user_id>`.
 
 To get the associated RemoteUserBinding object, run :
 ```sh
-kubectl get remoteuserbinding owned-rub-$(kubectl auth whoami -o=jsonpath='{.status.userInfo.username}')
+kubectl get remoteuserbinding associated-rub-$(kubectl auth whoami -o=jsonpath='{.status.userInfo.username}')
 ```
 
 ### RemoteSyncer
@@ -107,15 +106,17 @@ The RemoteSyncer object contains the whole logic part of the operator.
 In this example, the RemoteSyncer will intercept all the *configmaps*. It will push them to *https://github.com/my_repo_path.git* in the branch *main* under the path `my_configmaps/`. Because the `commitProcess` is set to `CommitApply`, the changes will be pushed and then applied to the cluster. `CommitOnly` will only push the resource on the git server without applying it on the cluster.
 
 ```yaml
-apiVersion: syngit.syngit.io/v1alpha4
+apiVersion: syngit.syngit.io/v1beta1
 kind: RemoteSyncer
 metadata:
   name: remotesyncer-sample
 spec:
   remoteRepository: https://github.com/my_repo_path.git
-  branch: main
-  commitProcess: CommitApply
+  defaultBranch: main
+  processMode: CommitApply
+  pushMode: SameBranch
   defaultUnauthorizedUserMode: Block
+  rootPath: "my_configmaps"
   excludedFields:
     - metadata.managedFields
     - metadata.creationTimestamp

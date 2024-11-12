@@ -7,11 +7,6 @@
 *.dylib
 bin/*
 Dockerfile.cross
-config/samples/test
-config/webhook/manifests.yaml
-config/webhook/secret.yaml
-config/webhook/manifests.yaml.temp
-config/webhook/secret.yaml.temp
 
 # Test binary, built with `go test -c`
 *.test
@@ -31,3 +26,9 @@ go.work
 *.swp
 *.swo
 *~
+
+# cert-injector on manifests
+**/*.bak
+
+# developer's specific tests
+config/samples/test
