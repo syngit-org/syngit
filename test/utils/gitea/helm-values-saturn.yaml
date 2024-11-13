@@ -1,0 +1,30 @@
+redis-cluster:
+  enabled: false
+redis:
+  enabled: false
+postgresql:
+  enabled: false
+postgresql-ha:
+  enabled: false
+
+persistence:
+  enabled: false
+
+# Set Gitea to use SQLite (already default in Gitea, but you can explicitly specify it)
+gitea:
+  config:
+    database:
+      DB_TYPE: sqlite3
+    session:
+      PROVIDER: memory
+    cache:
+      ADAPTER: memory
+    queue:
+      TYPE: level
+
+# Set service type to NodePort (optional, as per your previous script)
+service:
+  http:
+    type: NodePort
+    name: gitea-http
+    port: 4000

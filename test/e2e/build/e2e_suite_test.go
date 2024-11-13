@@ -14,19 +14,36 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2e
+package e2e_build
 
 import (
 	"fmt"
+	"os/exec"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"syngit.io/syngit/test/utils"
 )
+
+const namespace = "syngit-system"
 
 // Run e2e tests using the Ginkgo runner.
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
-	fmt.Fprintf(GinkgoWriter, "Starting syngit suite\n")
+	fmt.Fprintf(GinkgoWriter, "Starting syngit build suite\n")
 	RunSpecs(t, "e2e suite")
 }
+
+var _ = BeforeSuite(func() {
+
+	By("creating manager namespace")
+	cmd := exec.Command("kubectl", "create", "ns", namespace)
+	_, _ = utils.Run(cmd)
+})
+
+var _ = AfterSuite(func() {
+	By("removing manager namespace")
+	cmd := exec.Command("kubectl", "delete", "ns", namespace)
+	_, _ = utils.Run(cmd)
+})

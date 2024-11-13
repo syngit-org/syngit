@@ -1,7 +1,10 @@
 package controller
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -244,19 +247,27 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string) (string, e
 }
 
 func (gp *GitPusher) pushChanges(repo *git.Repository) error {
+	variables := fmt.Sprintf("Repository: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
+		gp.remoteSyncer.Spec.RemoteRepository,
+		plumbing.ReferenceName(gp.branch),
+		gp.gitUser,
+		gp.gitEmail,
+	)
+	var verboseOutput bytes.Buffer
 	pushOptions := &git.PushOptions{
 		Auth: &http.BasicAuth{
 			Username: gp.gitUser,
 			Password: gp.gitToken,
 		},
 		InsecureSkipTLS: gp.insecureSkipTlsVerify,
+		Progress:        io.MultiWriter(&verboseOutput), // Capture verbose output
 	}
 	if gp.caBundle != "" {
 		pushOptions.CABundle = []byte(gp.caBundle)
 	}
 	err := repo.Push(pushOptions)
 	if err != nil {
-		errMsg := "failed to push changes: " + err.Error()
+		errMsg := fmt.Sprintf("failed to push changes: %s\nVerbose output:%s\nVariables: %s\n", err.Error(), verboseOutput.String(), variables)
 		return errors.New(errMsg)
 	}
 
