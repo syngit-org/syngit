@@ -52,7 +52,7 @@ syngit is now installed on your cluster!
 
 ## Use syngit
 
-There is 3 custom objects that are necessary to create in order to use syngit. More information about the usage can be found in the [wiki](https://github.com/syngit-org/syngit/wiki/Usage).
+There is 3 custom objects that are necessary to create in order to use syngit. More information about the usage can be found in the [wiki](https://github.com/syngit-org/syngit/wiki/📖-Usage). The detailled descricription of each object can be found [here](https://github.com/syngit-org/syngit/wiki/🔧-Resources-Definition).
 
 ### RemoteUser
 
@@ -154,7 +154,7 @@ Using the `CommitApply` mode, the automatic reconciliation will not have any eff
 
 **What if the connection with my git repository does not work?**
 
-As explained [here](https://github.com/syngit-org/syngit/wiki/Architecture), by default, the webhook logic will first try to commit & push and then apply the changes to the cluster. If, for any reason, the resource has not been pushed, the resource will not be applied. Therefore, the GitOps philosophy is not broken.
+As explained [here](https://github.com/syngit-org/syngit/wiki/🏗-Architecture), by default, the webhook logic will first try to commit & push and then apply the changes to the cluster. If, for any reason, the resource has not been pushed, the resource will not be applied. Therefore, the GitOps philosophy is not broken.
 
 ## Wiki
 
@@ -162,11 +162,11 @@ The [wiki](https://github.com/syngit-org/syngit/wiki) contains all the informati
 
 ## Contribute
 
-Please refer to the [Contribute](https://github.com/syngit-org/syngit/wiki/Contribute) page of the wiki.
+Please refer to the [Contribute](https://github.com/syngit-org/syngit/wiki/🤝-Contribute) page of the wiki.
 
 ## Roadmap
 
-Please refer to the [Roadmap](https://github.com/syngit-org/syngit/wiki/Roadmap) page of the wiki.
+Please refer to the [Roadmap](https://github.com/syngit-org/syngit/wiki/📜-Roadmap) page of the wiki.
 
 ## License
 
