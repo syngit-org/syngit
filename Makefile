@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= syngit-controller:latest
+IMG ?= local/syngit-controller:dev
 DEV_CLUSTER ?= syngit-dev-cluster
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.29.0
@@ -44,10 +44,23 @@ all: build
 help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
+##@ e2e Custom deployments
+
+.PHONY: setup-gitea
+setup-gitea:
+	./test/utils/gitea/launch-gitea-setup.sh
+
+.PHONY: cleanup-gitea
+cleanup-gitea:
+	helm uninstall gitea -n jupyter
+	kubectl delete ns jupyter
+	helm uninstall gitea -n saturn
+	kubectl delete ns saturn
+
 ##@ Development
 
 WEBHOOK_PATH ?= config/webhook
-IMAGE ?= syngit.io/op:dev
+IMAGE ?= local.cluster/syngit-controller:dev
 .PHONY: dev-deploy
 dev-deploy: # Launch dev env on the cluster
 	kind create cluster --name $(DEV_CLUSTER) 2>/dev/null || true
@@ -55,29 +68,23 @@ dev-deploy: # Launch dev env on the cluster
 	kind load docker-image $(IMAGE) --name $(DEV_CLUSTER)
 	make deploy IMG=$(IMAGE)
 
-# .PHONY: dev-run
-# dev-run: # Deploy fake webhook & launch dev env in cli
-# 	cd $(WEBHOOK_PATH) && cp dev-webhook.yaml dev-webhook.yaml.temp
-# 	cd $(WEBHOOK_PATH) && cp secret.yaml secret.yaml.temp
-# 	cd $(WEBHOOK_PATH) && ./cert-injector.sh dev-webhook.yaml
-# 	cd $(WEBHOOK_PATH) && mv kustomization.yaml kustomization.yaml.temp
-# 	cd $(WEBHOOK_PATH) && mv kustomization-dev.yaml kustomization.yaml
-# 	cd $(WEBHOOK_PATH) && $(KUSTOMIZE) edit set image controller=${IMG}
-# 	cd $(WEBHOOK_PATH) && $(KUSTOMIZE) build | $(KUBECTL) apply -f -
-# 	make run
+LATEST_CHART ?= $(shell find charts -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -V | tail -n 1)
+.PHONY: chart-install
+chart-install:
+	helm install syngit charts/$(LATEST_CHART) -n syngit --create-namespace \
+		--set controller.image.prefix=local.cluster \
+		--set controller.image.name=syngit-controller \
+		--set controller.image.tag=dev \
+		--set controller.image.imagePullPolicy=IfNotPresent
+
+.PHONY: chart-uninstall
+chart-uninstall:
+	helm uninstall syngit -n syngit
 
 .PHONY: cleanup-deploy
 cleanup-deploy: # Cleanup
 	cd $(WEBHOOK_PATH) && ./cleanup-injector.sh
 	make undeploy
-
-# .PHONY: cleanup-run
-# cleanup-run: # Cleanup
-# 	$(KUSTOMIZE) build $(WEBHOOK_PATH) | $(KUBECTL) delete --ignore-not-found=true -f -
-# 	cd $(WEBHOOK_PATH) && mv secret.yaml.temp secret.yaml
-# 	cd $(WEBHOOK_PATH) && mv dev-webhook.yaml.temp dev-webhook.yaml
-# 	cd $(WEBHOOK_PATH) && mv kustomization.yaml kustomization-dev.yaml
-# 	cd $(WEBHOOK_PATH) && mv kustomization.yaml.temp kustomization.yaml
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
@@ -102,7 +109,8 @@ test: manifests generate fmt vet envtest ## Run tests.
 # Utilize Kind or modify the e2e tests to load the image locally, enabling compatibility with other vendors.
 .PHONY: test-e2e  # Run the e2e tests against a Kind k8s instance that is spun up.
 test-e2e:
-	go test ./test/e2e/ -v -ginkgo.v
+	go test ./test/e2e/build -v -ginkgo.v
+	go test ./test/e2e/syngit -v -ginkgo.v
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter & yamllint

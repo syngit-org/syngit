@@ -30,7 +30,7 @@ const (
 	prometheusOperatorURL     = "https://github.com/prometheus-operator/prometheus-operator/" +
 		"releases/download/%s/bundle.yaml"
 
-	certmanagerVersion = "v1.5.3"
+	certmanagerVersion = "v1.13.3"
 	certmanagerURLTmpl = "https://github.com/jetstack/cert-manager/releases/download/%s/cert-manager.yaml"
 )
 
@@ -76,18 +76,50 @@ func UninstallPrometheusOperator() {
 }
 
 // UninstallCertManager uninstalls the cert manager
+//
+//	func UninstallCertManager() {
+//		url := fmt.Sprintf(certmanagerURLTmpl, certmanagerVersion)
+//		cmd := exec.Command("kubectl", "delete", "-f", url)
+//		if _, err := Run(cmd); err != nil {
+//			warnError(err)
+//		}
+//	}
 func UninstallCertManager() {
-	url := fmt.Sprintf(certmanagerURLTmpl, certmanagerVersion)
-	cmd := exec.Command("kubectl", "delete", "-f", url)
+	cmd := exec.Command("helm", "uninstall", "-n", "cert-manager", "cert-manager")
 	if _, err := Run(cmd); err != nil {
 		warnError(err)
 	}
 }
 
 // InstallCertManager installs the cert manager bundle.
+// func InstallCertManager() error {
+// 	url := fmt.Sprintf(certmanagerURLTmpl, certmanagerVersion)
+// 	cmd := exec.Command("kubectl", "apply", "--force", "-f", url)
+// 	if _, err := Run(cmd); err != nil {
+// 		return err
+// 	}
+// 	// Wait for cert-manager-webhook to be ready, which can take time if cert-manager
+// 	// was re-installed after uninstalling on a cluster.
+// 	cmd = exec.Command("kubectl", "wait", "deployment.apps/cert-manager-webhook",
+// 		"--for", "condition=Available",
+// 		"--namespace", "cert-manager",
+// 		"--timeout", "5m",
+// 	)
+
+// 	_, err := Run(cmd)
+// 	if err != nil {
+// 		return err
+// 	}
+
+//		return err
+//	}
 func InstallCertManager() error {
-	url := fmt.Sprintf(certmanagerURLTmpl, certmanagerVersion)
-	cmd := exec.Command("kubectl", "apply", "-f", url)
+	cmd := exec.Command("helm", "repo", "add", "jetstack", "https://charts.jetstack.io")
+	if _, err := Run(cmd); err != nil {
+		warnError(err)
+	}
+
+	cmd = exec.Command("helm", "install", "cert-manager", "-n", "cert-manager", "--version", "v1.16.2", "--create-namespace", "jetstack/cert-manager", "--set", "installCRDs=true")
 	if _, err := Run(cmd); err != nil {
 		return err
 	}
@@ -100,12 +132,16 @@ func InstallCertManager() error {
 	)
 
 	_, err := Run(cmd)
+	if err != nil {
+		return err
+	}
+
 	return err
 }
 
 // LoadImageToKindCluster loads a local docker image to the kind cluster
 func LoadImageToKindClusterWithName(name string) error {
-	cluster := "kind"
+	cluster := "syngit-dev-cluster"
 	if v, ok := os.LookupEnv("KIND_CLUSTER"); ok {
 		cluster = v
 	}
@@ -129,12 +165,13 @@ func GetNonEmptyLines(output string) []string {
 	return res
 }
 
-// GetProjectDir will return the directory where the project is
+// GetProjectDir will return the directory where the project is err="secrets \"cert-manager-webhook-ca\" already exists"
 func GetProjectDir() (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return wd, err
 	}
-	wd = strings.Replace(wd, "/test/e2e", "", -1)
+	fmt.Println(wd)
+	wd = strings.Split(wd, "/test/e2e")[0]
 	return wd, nil
 }

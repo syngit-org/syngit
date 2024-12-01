@@ -18,14 +18,9 @@ if [ ! -f "$1.bak" ]; then
   done
 fi
 
-# Generate CA
-
-mkdir -p /tmp/k8s-webhook-server/serving-certs
-tmp_path=/tmp/k8s-webhook-server/serving-certs
 # Generate the certificates
-cd ${tmp_path}
-./gen-certs-serv-cli.sh &> /dev/null
-cd -
+./gen-certs-serv-cli.sh
+tmp_path=/tmp/k8s-webhook-server/serving-certs
 
 # Encode certificates to base64
 server_crt_base64=$(cat ${tmp_path}/server.crt | base64 | tr -d '\n')
