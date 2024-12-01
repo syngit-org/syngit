@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	syngit "syngit.io/syngit/api/v1beta1"
+	syngit "syngit.io/syngit/api/v1beta2"
 )
 
 // RemoteSyncerReconciler reconciles a RemoteSyncer object

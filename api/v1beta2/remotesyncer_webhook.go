@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package v1beta2
 
 import (
 	"regexp"
@@ -38,6 +38,8 @@ func (r *RemoteSyncer) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
+//+kubebuilder:webhook:path=/validate-syngit-syngit-io-v1beta2-remotesyncer,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remotesyncers,verbs=create;update,versions=v1beta2,name=vremotesyncer.v1beta2.syngit.io,admissionReviewVersions=v1
+
 var _ webhook.Validator = &RemoteSyncer{}
 
 // Validate validates the RemoteSyncerSpec
@@ -46,9 +48,9 @@ func (r *RemoteSyncerSpec) ValidateRemoteSyncerSpec() field.ErrorList {
 
 	// Validate DefaultUserBind based on DefaultUnauthorizedUserMode
 	if r.DefaultUnauthorizedUserMode == Block && r.DefaultRemoteUserRef != nil {
-		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultUser"), r.DefaultRemoteUserRef, "should not be set when defaultUnauthorizedUserMode is set to \"Block\""))
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultRemoteUserRef"), r.DefaultRemoteUserRef, "should not be set when defaultUnauthorizedUserMode is set to \"Block\""))
 	} else if r.DefaultUnauthorizedUserMode == UseDefaultUser && r.DefaultRemoteUserRef == nil {
-		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultUser"), "must be set when defaultUnauthorizedUserMode is set to \"UseDefaultUser\""))
+		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultRemoteUserRef"), "must be set when defaultUnauthorizedUserMode is set to \"UseDefaultUser\""))
 	}
 
 	// Validate DefaultBlockAppliedMessage only exists if ProcessMode is set to CommitOnly

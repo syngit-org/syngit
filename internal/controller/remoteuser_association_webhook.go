@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	syngit "syngit.io/syngit/api/v1beta1"
+	syngit "syngit.io/syngit/api/v1beta2"
 )
 
 /*
@@ -89,7 +89,7 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	if !ru.Spec.AssociatedRemoteUserBinding {
+	if ru.Annotations["syngit.syngit.io/associated-remote-userbinding"] == "" || ru.Annotations["syngit.syngit.io/associated-remote-userbinding"] == "false" {
 		return admission.Allowed("This object is not associated with any RemoteUserBinding")
 	}
 

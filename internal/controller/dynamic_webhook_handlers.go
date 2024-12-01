@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	syngit "syngit.io/syngit/api/v1beta1"
+	syngit "syngit.io/syngit/api/v1beta2"
 )
 
 type WebhookInterceptsAll struct {

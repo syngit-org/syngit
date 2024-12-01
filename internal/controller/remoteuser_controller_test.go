@@ -28,7 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	syngit "syngit.io/syngit/api/v1beta1"
+	syngit "syngit.io/syngit/api/v1beta2"
 )
 
 var _ = Describe("RemoteUser Controller", func() {
@@ -88,11 +88,13 @@ var _ = Describe("RemoteUser Controller", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceNameAssociated,
 						Namespace: userNamespace,
+						Annotations: map[string]string{
+							"syngit.syngit.io/associated-remote-userbinding": "true",
+						},
 					},
 					Spec: syngit.RemoteUserSpec{
-						Email:                       "sample@email.com",
-						GitBaseDomainFQDN:           "sample-git-server.com",
-						AssociatedRemoteUserBinding: true,
+						Email:             "sample@email.com",
+						GitBaseDomainFQDN: "sample-git-server.com",
 						SecretRef: corev1.SecretReference{
 							Name: secretRefName,
 						},
