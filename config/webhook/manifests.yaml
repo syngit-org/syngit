@@ -12,7 +12,7 @@ webhooks:
       namespace: system
       path: /validate-syngit-syngit-io-v1beta2-remotesyncer
   failurePolicy: Fail
-  name: vremotesyncer.v1beta2.syngit.io
+  name: vremotesyncer-v1beta2.kb.io
   rules:
   - apiGroups:
     - syngit.syngit.io
@@ -32,7 +32,7 @@ webhooks:
       namespace: system
       path: /validate-syngit-syngit-io-v1beta2-remoteuser
   failurePolicy: Fail
-  name: vremoteuser.v1beta2.syngit.io
+  name: vremoteuser-v1beta2.kb.io
   rules:
   - apiGroups:
     - syngit.syngit.io
