@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package v1beta2
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -22,22 +22,14 @@ import (
 )
 
 type RemoteUserSpec struct {
-	SecretRef corev1.SecretReference `json:"secretRef"`
+	// +kubebuilder:validation:Required
+	SecretRef corev1.SecretReference `json:"secretRef" protobuf:"bytes,1,name=secretRef"`
 
-	Email string `json:"email"`
+	// +kubebuilder:validation:Required
+	Email string `json:"email" protobuf:"bytes,2,name=email"`
 
-	GitBaseDomainFQDN string `json:"gitBaseDomainFQDN"`
-
-	OwnRemoteUserBinding bool `json:"ownRemoteUserBinding"`
-
-	// +optional
-	CustomGitServerConfigRef corev1.ObjectReference `json:"customGitServerConfigRef,omitempty"`
-
-	// +optional
-	TestAuthentication bool `json:"testAuthentication,omitempty"`
-
-	// +optional
-	InsecureSkipTlsVerify bool `json:"insecureSkipTlsVerify,omitempty"`
+	// +kubebuilder:validation:Required
+	GitBaseDomainFQDN string `json:"gitBaseDomainFQDN" protobuf:"bytes,3,name=gitBaseDomainFQDN"`
 }
 
 type RemoteUserStatus struct {
@@ -60,14 +52,12 @@ type RemoteUserStatus struct {
 
 	// +optional
 	SecretBoundStatus SecretBoundStatus `json:"secretBoundStatus,omitempty"`
-
-	// +optional
-	GitServerConfiguration GitServerConfiguration `json:"gitServerConfiguration,omitempty"`
 }
 
 //+kubebuilder:object:root=true
-//+kubebuilder:unservedversion
-// +kubebuilder:skipversion
+//+kubebuilder:subresource:status
+//+kubebuilder:storageversion
+//+kubebuilder:resource:path=remoteusers,shortName=ru;rus,categories=syngit
 
 // RemoteUser is the Schema for the remoteusers API
 type RemoteUser struct {
@@ -95,17 +85,6 @@ func init() {
 	STATUS EXTENSION
 */
 
-type GitServerConfiguration struct {
-	// +optional
-	Inherited bool `json:"inherited,omitempty" yaml:"inherited,omitempty"`
-	//+ optional
-	AuthenticationEndpoint string `json:"authenticationEndpoint,omitempty" yaml:"authenticationEndpoint,omitempty"`
-	// +optional
-	CaBundle string `json:"caBundle,omitempty" yaml:"caBundle,omitempty"`
-	// +optional
-	InsecureSkipTlsVerify bool `json:"insecureSkipTlsVerify,omitempty" yaml:"insecureSkipTlsVerify,omitempty"`
-}
-
 type RemoteUserConnexionStatus struct {
 	Status RemoteUserConnexionStatusReason `json:"status,omitempty"`
 	// +optional
@@ -131,6 +110,7 @@ type SecretBoundStatus string
 
 const (
 	SecretBound     SecretBoundStatus = "Secret bound"
+	SecretFound     SecretBoundStatus = "Secret found"
 	SecretNotFound  SecretBoundStatus = "Secret not found"
 	SecretWrongType SecretBoundStatus = "Secret type is not set to BasicAuth"
 )

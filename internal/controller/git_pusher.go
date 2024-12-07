@@ -19,7 +19,7 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	syngit "syngit.io/syngit/api/v1beta1"
+	syngit "syngit.io/syngit/api/v1beta2"
 )
 
 type GitPusher struct {

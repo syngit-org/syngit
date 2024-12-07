@@ -18,6 +18,7 @@ spec:
           namespace: {{ .Release.Namespace }}
           name: webhook-crd-service
           path: /convert
+          port: 443
       conversionReviewVersions:
       - v1
   group: syngit.syngit.io
@@ -28,7 +29,8 @@ spec:
     singular: remotesyncer
   scope: Namespaced
   versions:
-  - name: v1alpha4
+  - deprecated: true
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: RemoteSyncer is the Schema for the remotesyncers API
@@ -51,9 +53,8 @@ spec:
           metadata:
             type: object
           spec:
+            description: RemoteSyncerSpec defines the desired state of RemoteSyncer
             properties:
-              branch:
-                type: string
               bypassInterceptionSubjects:
                 items:
                   description: |-
@@ -85,9 +86,24 @@ spec:
                   type: object
                   x-kubernetes-map-type: atomic
                 type: array
-              commitProcess:
-                type: string
+              caBundle:
+                description: |-
+                  SecretReference represents a Secret Reference. It has enough information to retrieve secret
+                  in any namespace
+                properties:
+                  name:
+                    description: name is unique within a namespace to reference a
+                      secret resource.
+                    type: string
+                  namespace:
+                    description: namespace defines the space within which the secret
+                      name must be unique.
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
               defaultBlockAppliedMessage:
+                type: string
+              defaultBranch:
                 type: string
               defaultUnauthorizedUserMode:
                 type: string
@@ -217,6 +233,12 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
+              insecureSkipTlsVerify:
+                type: boolean
+              processMode:
+                type: string
+              pushMode:
+                type: string
               remoteRepository:
                 format: uri
                 type: string
@@ -351,9 +373,9 @@ spec:
                     type: array
                 type: object
             required:
-            - branch
-            - commitProcess
             - defaultUnauthorizedUserMode
+            - processMode
+            - pushMode
             - remoteRepository
             type: object
           status:
@@ -570,11 +592,11 @@ spec:
                 type: object
             type: object
         type: object
-    served: false
+    served: true
     storage: false
     subresources:
       status: {}
-  - name: v1beta1
+  - name: v1beta2
     schema:
       openAPIV3Schema:
         description: RemoteSyncer is the Schema for the remotesyncers API
@@ -630,7 +652,7 @@ spec:
                   type: object
                   x-kubernetes-map-type: atomic
                 type: array
-              caBundle:
+              caBundleSecretRef:
                 description: |-
                   SecretReference represents a Secret Reference. It has enough information to retrieve secret
                   in any namespace

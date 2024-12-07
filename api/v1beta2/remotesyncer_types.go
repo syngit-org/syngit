@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha3
+package v1beta2
 
 import (
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -25,36 +25,59 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// RemoteSyncerSpec defines the desired state of RemoteSyncer
 type RemoteSyncerSpec struct {
-	CommitProcess CommitProcess `json:"commitProcess"`
 
-	// +optional
-	DefaultBlockAppliedMessage string `json:"defaultBlockAppliedMessage"`
-
+	// +kubebuilder:validation:Required
+	// +kubebuilder:example="https://git.example.com/my-repo.git"
 	// +kubebuilder:validation:Format=uri
-	RemoteRepository string `json:"remoteRepository"`
+	RemoteRepository string `json:"remoteRepository" protobuf:"bytes,1,name=remoteRepository"`
 
-	Branch string `json:"branch"`
+	// +kubebuilder:example="main"
+	// +kubebuilder:validation:Optional
+	DefaultBranch string `json:"defaultBranch,omitempty" protobuf:"bytes,opt,2,name=defaultBranch"`
 
-	// +optional
-	BypassInterceptionSubjects []rbacv1.Subject `json:"bypassInterceptionSubjects,omitempty"`
+	// +kubebuilder:default:value={}
+	// +kubebuilder:validation:Required
+	ScopedResources ScopedResources `json:"scopedResources" protobuf:"bytes,3,name=scopedResources,casttype=ScopedResources"`
 
-	DefaultUnauthorizedUserMode DefaultUnauthorizedUserMode `json:"defaultUnauthorizedUserMode"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:default:value="CommitApply"
+	// +kubebuilder:validation:Enum=CommitOnly;CommitApply
+	ProcessMode ProcessMode `json:"processMode" protobuf:"bytes,4,name=processMode"`
 
-	// +optional
-	DefaultUser *corev1.ObjectReference `json:"defaultUser,omitempty"` // Ref to a RemoteUser object
+	// +kubebuilder:validation:Required
+	// +kubebuilder:default:value="SameBranch"
+	// +kubebuilder:validation:Enum=SameBranch;MultipleBranch;MergeRequest
+	PushMode PushMode `json:"pushMode" protobuf:"bytes,5,name=pushMode"`
 
-	// +optional
-	ScopedResources ScopedResources `json:"scopedResources,omitempty"`
+	// +kubebuilder:validation:Optional
+	DefaultBlockAppliedMessage string `json:"defaultBlockAppliedMessage,omitempty" protobuf:"bytes,opt,6,name=defaultBlockAppliedMessage"`
 
-	// +optional
-	RootPath string `json:"rootPath,omitempty"`
+	// +kubebuilder:validation:Optional
+	ExcludedFields []string `json:"excludedFields,omitempty" protobuf:"bytes,opt,7,name=excludedFields"`
 
-	// +optional
-	ExcludedFields []string `json:"excludedFields,omitempty"`
+	// +kubebuilder:validation:Optional
+	ExcludedFieldsConfigMapRef *corev1.ObjectReference `json:"excludedFieldsConfig,omitempty" protobuf:"bytes,opt,8,name=excludedFieldsConfig"` // Ref to a ConfigMap
 
-	// +optional
-	ExcludedFieldsConfig *corev1.ObjectReference `json:"excludedFieldsConfig,omitempty"` // Ref to a ConfigMap
+	// +kubebuilder:validation:Optional
+	RootPath string `json:"rootPath,omitempty" protobuf:"bytes,opt,9,name=rootPath"`
+
+	// +kubebuilder:validation:Optional
+	BypassInterceptionSubjects []rbacv1.Subject `json:"bypassInterceptionSubjects,omitempty" protobuf:"bytes,opt,10,name=bypassInterceptionSubjects"`
+
+	// +kubebuilder:default:value="Block"
+	// +kubebuilder:validation:Enum=Block;UseDefaultUser
+	DefaultUnauthorizedUserMode DefaultUnauthorizedUserMode `json:"defaultUnauthorizedUserMode" protobuf:"bytes,opt,11,name=defaultUnauthorizedUserMode"`
+
+	// +kubebuilder:validation:Optional
+	DefaultRemoteUserRef *corev1.ObjectReference `json:"defaultRemoteUserRef,omitempty" protobuf:"bytes,opt,12,name=defaultRemoteUserRef"` // Ref to a RemoteUser object
+
+	// +kubebuilder:validation:Optional
+	InsecureSkipTlsVerify bool `json:"insecureSkipTlsVerify,omitempty" protobuf:"bytes,opt,13,name=insecureSkipTlsVerify"`
+
+	// +kubebuilder:validation:Optional
+	CABundleSecretRef corev1.SecretReference `json:"caBundleSecretRef,omitempty" protobuf:"bytes,opt,14,name=caBundleSecretRef"`
 }
 
 type RemoteSyncerStatus struct {
@@ -77,8 +100,9 @@ type RemoteSyncerStatus struct {
 }
 
 //+kubebuilder:object:root=true
-//+kubebuilder:unservedversion
-// +kubebuilder:skipversion
+//+kubebuilder:subresource:status
+//+kubebuilder:storageversion
+//+kubebuilder:resource:path=remotesyncers,shortName=rs;rss,categories=syngit
 
 // RemoteSyncer is the Schema for the remotesyncers API
 type RemoteSyncer struct {
@@ -106,18 +130,19 @@ func init() {
 	SPEC EXTENSION
 */
 
-type CommitMode string
+type PushMode string
 
 const (
-	Commit       CommitMode = "Commit"
-	MergeRequest CommitMode = "MergeRequest"
+	SameBranch     PushMode = "SameBranch"
+	MultipleBranch PushMode = "MultipleBranch"
+	MergeRequest   PushMode = "MergeRequest"
 )
 
-type CommitProcess string
+type ProcessMode string
 
 const (
-	CommitOnly  CommitProcess = "CommitOnly"
-	CommitApply CommitProcess = "CommitApply"
+	CommitOnly  ProcessMode = "CommitOnly"
+	CommitApply ProcessMode = "CommitApply"
 )
 
 type DefaultUnauthorizedUserMode string

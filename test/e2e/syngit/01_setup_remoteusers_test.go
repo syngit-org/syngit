@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	syngit "syngit.io/syngit/api/v1beta1"
+	syngit "syngit.io/syngit/api/v1beta2"
 	. "syngit.io/syngit/test/utils"
 )
 
@@ -70,11 +70,13 @@ var _ = Describe("01 Create RemoteUsers", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "remoteuser-luffy",
 				Namespace: namespace,
+				Annotations: map[string]string{
+					"syngit.syngit.io/associated-remote-userbinding": "true",
+				},
 			},
 			Spec: syngit.RemoteUserSpec{
-				Email:                       "sample@email.com",
-				GitBaseDomainFQDN:           GitP1Fqdn,
-				AssociatedRemoteUserBinding: true,
+				Email:             "sample@email.com",
+				GitBaseDomainFQDN: GitP1Fqdn,
 				SecretRef: corev1.SecretReference{
 					Name: luffySecretName,
 				},
@@ -82,6 +84,7 @@ var _ = Describe("01 Create RemoteUsers", func() {
 		}
 		Eventually(func() bool {
 			err := client.As(Luffy).Create(ctx, resource)
+			fmt.Println(err)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 		nnRuLuffy := types.NamespacedName{

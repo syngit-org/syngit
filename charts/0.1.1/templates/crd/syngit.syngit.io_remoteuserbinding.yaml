@@ -18,6 +18,7 @@ spec:
           namespace: {{ .Release.Namespace }}
           name: webhook-crd-service
           path: /convert
+          port: 443
       conversionReviewVersions:
       - v1
   group: syngit.syngit.io
@@ -28,7 +29,8 @@ spec:
     singular: remoteuserbinding
   scope: Namespaced
   versions:
-  - name: v1alpha4
+  - deprecated: true
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: RemoteUserBinding is the Schema for the remoteuserbindings API
@@ -190,11 +192,11 @@ spec:
                 type: string
             type: object
         type: object
-    served: false
+    served: true
     storage: false
     subresources:
       status: {}
-  - name: v1beta1
+  - name: v1beta2
     schema:
       openAPIV3Schema:
         description: RemoteUserBinding is the Schema for the remoteuserbindings API
@@ -360,5 +362,4 @@ spec:
     storage: true
     subresources:
       status: {}
-
 {{- end }}

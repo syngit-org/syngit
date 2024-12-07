@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha3
+package v1beta2
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -23,12 +23,15 @@ import (
 )
 
 const (
-	RubPrefix = "owned-rub-"
+	RubPrefix = "associated-rub-"
 )
 
 type RemoteUserBindingSpec struct {
-	Subject    rbacv1.Subject           `json:"subject"`
-	RemoteRefs []corev1.ObjectReference `json:"remoteRefs"` // Ref to the listed RemoteUser objects
+	// +kubebuilder:validation:Required
+	Subject rbacv1.Subject `json:"subject" protobuf:"bytes,1,name=subject"`
+
+	// +kubebuilder:validation:Required
+	RemoteRefs []corev1.ObjectReference `json:"remoteRefs" protobuf:"bytes,2,name=remoteRefs"` // Ref to the listed RemoteUser objects
 }
 
 type RemoteUserBindingStatus struct {
@@ -46,8 +49,9 @@ type RemoteUserBindingStatus struct {
 }
 
 //+kubebuilder:object:root=true
-//+kubebuilder:unservedversion
-// +kubebuilder:skipversion
+//+kubebuilder:subresource:status
+//+kubebuilder:storageversion
+//+kubebuilder:resource:path=remoteuserbindings,shortName=rub;rubs,categories=syngit
 
 // RemoteUserBinding is the Schema for the remoteuserbindings API
 type RemoteUserBinding struct {
