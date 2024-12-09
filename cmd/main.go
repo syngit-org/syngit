@@ -42,6 +42,7 @@ import (
 	syngitv1beta1 "syngit.io/syngit/api/v1beta1"
 	syngitv1beta2 "syngit.io/syngit/api/v1beta2"
 	"syngit.io/syngit/internal/controller"
+	webhooksyngitv1beta2 "syngit.io/syngit/internal/webhook/v1beta2"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -141,10 +142,6 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "RemoteUser")
 		os.Exit(1)
 	}
-	mgr.GetWebhookServer().Register("/syngit-v1beta2-remoteuser-association", &webhook.Admission{Handler: &controller.RemoteUserWebhookHandler{
-		Client:  mgr.GetClient(),
-		Decoder: admission.NewDecoder(mgr.GetScheme()),
-	}})
 
 	if err = (&controller.RemoteUserBindingReconciler{
 		Client:   mgr.GetClient(),
@@ -163,20 +160,26 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "RemoteSyncer")
 		os.Exit(1)
 	}
+	// nolint:goconst
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
-		if err = (&syngitv1beta2.RemoteUser{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = webhooksyngitv1beta2.SetupRemoteUserWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUser")
 			os.Exit(1)
 		}
-		if err = (&syngitv1beta2.RemoteUserBinding{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUserBinding")
-			os.Exit(1)
-		}
-		if err = (&syngitv1beta2.RemoteSyncer{}).SetupWebhookWithManager(mgr); err != nil {
+		if err = webhooksyngitv1beta2.SetupRemoteSyncerWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteSyncer")
 			os.Exit(1)
 		}
+		if err = webhooksyngitv1beta2.SetupRemoteUserBindingWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUserBinding")
+			os.Exit(1)
+		}
 	}
+	mgr.GetWebhookServer().Register("/syngit-v1beta2-remoteuser-association", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteUserWebhookHandler{
+		Client:  mgr.GetClient(),
+		Decoder: admission.NewDecoder(mgr.GetScheme()),
+	}})
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

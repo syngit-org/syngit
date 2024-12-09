@@ -19,15 +19,17 @@ package v1beta2
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+
+	syngitv1beta2 "syngit.io/syngit/api/v1beta2"
 )
 
+// nolint:unused
 // log is for logging in this package.
 var remoteuserbindinglog = logf.Log.WithName("remoteuserbinding-resource")
 
-// SetupWebhookWithManager will setup the manager to manage the webhooks
-func (r *RemoteUserBinding) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+// SetupRemoteUserBindingWebhookWithManager registers the webhook for RemoteUserBinding in the manager.
+func SetupRemoteUserBindingWebhookWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewWebhookManagedBy(mgr).For(&syngitv1beta2.RemoteUserBinding{}).
 		Complete()
 }
 

@@ -82,4 +82,6 @@ jobs:
         sudo apt-get install -y make
 
     - name: Run tests
-      run: make test-e2e
+      run: |
+        make kustomize
+        make test-e2e

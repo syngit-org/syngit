@@ -128,7 +128,7 @@ build: manifests generate fmt vet ## Build manager binary.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	export MANAGER_NAMESPACE=operator-system DYNAMIC_WEBHOOK_NAME=remotesyncer.syngit.io DEV=true && go run ./cmd/main.go
+	export MANAGER_NAMESPACE=operator-system DYNAMIC_WEBHOOK_NAME=remotesyncer.syngit.io DEV=true && go run cmd/main.go
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
@@ -220,6 +220,7 @@ GOLANGCI_LINT_VERSION ?= v1.54.2
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
 	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
+
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.

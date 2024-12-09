@@ -17,33 +17,46 @@ limitations under the License.
 package v1beta2
 
 import (
+	"context"
+	"fmt"
 	"regexp"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	. "syngit.io/syngit/api/v1beta2"
+	syngitv1beta2 "syngit.io/syngit/api/v1beta2"
 )
 
+// nolint:unused
 // log is for logging in this package.
 var remotesyncerlog = logf.Log.WithName("remotesyncer-resource")
 
-// SetupWebhookWithManager will setup the manager to manage the webhooks
-func (r *RemoteSyncer) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
+// SetupRemoteSyncerWebhookWithManager registers the webhook for RemoteSyncer in the manager.
+func SetupRemoteSyncerWebhookWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewWebhookManagedBy(mgr).For(&syngitv1beta2.RemoteSyncer{}).
+		WithValidator(&RemoteSyncerCustomValidator{}).
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-syngit-syngit-io-v1beta2-remotesyncer,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remotesyncers,verbs=create;update,versions=v1beta2,name=vremotesyncer.v1beta2.syngit.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/validate-syngit-syngit-io-v1beta2-remotesyncer,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remotesyncers,verbs=create;update,versions=v1beta2,name=vremotesyncer-v1beta2.kb.io,admissionReviewVersions=v1
 
-var _ webhook.Validator = &RemoteSyncer{}
+// NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
+// as this struct is used only for temporary operations and does not need to be deeply copied.
+type RemoteSyncerCustomValidator struct {
+	//TODO(user): Add more fields as needed for validation
+}
+
+var _ webhook.CustomValidator = &RemoteSyncerCustomValidator{}
 
 // Validate validates the RemoteSyncerSpec
-func (r *RemoteSyncerSpec) ValidateRemoteSyncerSpec() field.ErrorList {
+func validateRemoteSyncerSpec(r *RemoteSyncerSpec) field.ErrorList {
 	var errors field.ErrorList
 
 	// Validate DefaultUserBind based on DefaultUnauthorizedUserMode
@@ -96,9 +109,9 @@ func isValidYAMLPath(path string) bool {
 	return yamlPathRegex.MatchString(path)
 }
 
-func (r *RemoteSyncer) ValidateRemoteSyncer() error {
+func validateRemoteSyncer(remoteSyncer *syngitv1beta2.RemoteSyncer) error {
 	var allErrs field.ErrorList
-	if err := r.Spec.ValidateRemoteSyncerSpec(); err != nil {
+	if err := validateRemoteSyncerSpec(&remoteSyncer.Spec); err != nil {
 		allErrs = append(allErrs, err...)
 	}
 	if len(allErrs) == 0 {
@@ -106,28 +119,39 @@ func (r *RemoteSyncer) ValidateRemoteSyncer() error {
 	}
 
 	return apierrors.NewInvalid(
-		r.GroupVersionKind().GroupKind(),
-		r.Name, allErrs)
+		schema.GroupKind{Group: "syngit.syngit.io", Kind: "RemoteSyncer"},
+		remoteSyncer.Name, allErrs)
 }
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *RemoteSyncer) ValidateCreate() (admission.Warnings, error) {
-	remotesyncerlog.Info("validate create", "name", r.Name)
+// ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type RemoteSyncer.
+func (v *RemoteSyncerCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	remotesyncer, ok := obj.(*syngitv1beta2.RemoteSyncer)
+	if !ok {
+		return nil, fmt.Errorf("expected a RemoteSyncer object but got %T", obj)
+	}
+	remotesyncerlog.Info("Validation for RemoteSyncer upon creation", "name", remotesyncer.GetName())
 
-	return nil, r.ValidateRemoteSyncer()
+	return nil, validateRemoteSyncer(remotesyncer)
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *RemoteSyncer) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	remotesyncerlog.Info("validate update", "name", r.Name)
+// ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type RemoteSyncer.
+func (v *RemoteSyncerCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+	remotesyncer, ok := newObj.(*syngitv1beta2.RemoteSyncer)
+	if !ok {
+		return nil, fmt.Errorf("expected a RemoteSyncer object for the newObj but got %T", newObj)
+	}
+	remotesyncerlog.Info("Validation for RemoteSyncer upon update", "name", remotesyncer.GetName())
 
-	return nil, r.ValidateRemoteSyncer()
+	return nil, validateRemoteSyncer(remotesyncer)
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *RemoteSyncer) ValidateDelete() (admission.Warnings, error) {
-	remotesyncerlog.Info("validate delete", "name", r.Name)
+// ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type RemoteSyncer.
+func (v *RemoteSyncerCustomValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	remotesyncer, ok := obj.(*syngitv1beta2.RemoteSyncer)
+	if !ok {
+		return nil, fmt.Errorf("expected a RemoteSyncer object but got %T", obj)
+	}
+	remotesyncerlog.Info("Validation for RemoteSyncer upon deletion", "name", remotesyncer.GetName())
 
-	// Nothing to validate
 	return nil, nil
 }
