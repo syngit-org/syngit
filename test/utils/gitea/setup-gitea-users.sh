@@ -9,21 +9,21 @@ NO_RIGHT_PWD="no-right-user-pwd"
 
 POD_NAME=$(kubectl get pods -n $NS_JUPYTER -l app.kubernetes.io/name=gitea -o jsonpath="{.items[0].metadata.name}")
 kubectl exec -i $POD_NAME -n $NS_JUPYTER -- gitea admin user create \
-  --username $NO_RIGHT_USERNAME \
+  --username $SANJI_USERNAME \
   --password "1$NO_RIGHT_PWD" \
-  --email "$NO_RIGHT_USERNAME@syngit.io" 2>&1 > /dev/null
+  --email "$SANJI_USERNAME@syngit.io" 2>&1 > /dev/null
 kubectl exec -i $POD_NAME -n $NS_JUPYTER -- gitea admin user change-password \
-  --username $NO_RIGHT_USERNAME \
+  --username $SANJI_USERNAME \
   --password $NO_RIGHT_PWD \
   --must-change-password=false 2>&1 > /dev/null
 
 POD_NAME=$(kubectl get pods -n $NS_SATURN -l app.kubernetes.io/name=gitea -o jsonpath="{.items[0].metadata.name}")
 kubectl exec -i $POD_NAME -n $NS_SATURN -- gitea admin user create \
-  --username $NO_RIGHT_USERNAME \
+  --username $SANJI_USERNAME \
   --password "1$NO_RIGHT_PWD" \
-  --email "$NO_RIGHT_USERNAME@syngit.io" 2>&1 > /dev/null
+  --email "$SANJI_USERNAME@syngit.io" 2>&1 > /dev/null
 kubectl exec -i $POD_NAME -n $NS_SATURN -- gitea admin user change-password \
-  --username $NO_RIGHT_USERNAME \
+  --username $SANJI_USERNAME \
   --password $NO_RIGHT_PWD \
   --must-change-password=false 2>&1 > /dev/null
 

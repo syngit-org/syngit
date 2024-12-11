@@ -18,16 +18,11 @@ package e2e_build
 
 import (
 	"fmt"
-	"os/exec"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"syngit.io/syngit/test/utils"
 )
-
-const namespace = "syngit-system"
 
 // Run e2e tests using the Ginkgo runner.
 func TestE2E(t *testing.T) {
@@ -38,13 +33,7 @@ func TestE2E(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 
-	By("creating manager namespace")
-	cmd := exec.Command("kubectl", "create", "ns", namespace)
-	_, _ = utils.Run(cmd)
 })
 
 var _ = AfterSuite(func() {
-	By("removing manager namespace")
-	cmd := exec.Command("kubectl", "delete", "ns", namespace)
-	_, _ = utils.Run(cmd)
 })

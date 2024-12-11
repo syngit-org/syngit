@@ -24,12 +24,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"os/exec"
 	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -58,37 +58,15 @@ type Commit struct {
 	} `json:"author"`
 }
 
+type File struct {
+	Content []byte `json:"content"`
+	Path    string `json:"path"`
+}
+
 var Repos = map[string]Repo{}
 
 var GitP1Fqdn string
 var GitP2Fqdn string
-
-func RetrieveRepos() {
-	Repos[os.Getenv("PLATFORM1")+"-"+os.Getenv("REPO1")] = Repo{
-		Fqdn:  GitP1Fqdn,
-		Owner: os.Getenv("ADMIN_USERNAME"),
-		Name:  os.Getenv("REPO1"),
-	}
-	Repos[os.Getenv("PLATFORM1")+"-"+os.Getenv("REPO2")] = Repo{
-		Fqdn:  GitP1Fqdn,
-		Owner: os.Getenv("ADMIN_USERNAME"),
-		Name:  os.Getenv("REPO2"),
-	}
-	Repos[os.Getenv("PLATFORM2")+"-"+os.Getenv("REPO1")] = Repo{
-		Fqdn:  GitP2Fqdn,
-		Owner: os.Getenv("ADMIN_USERNAME"),
-		Name:  os.Getenv("REPO1"),
-	}
-	Repos[os.Getenv("PLATFORM2")+"-"+os.Getenv("REPO2")] = Repo{
-		Fqdn:  GitP2Fqdn,
-		Owner: os.Getenv("ADMIN_USERNAME"),
-		Name:  os.Getenv("REPO2"),
-	}
-}
-
-func GetRepoTree(repo Repo) ([]Tree, error) {
-	return getTree(repo.Fqdn, repo.Owner, repo.Name, "main")
-}
 
 func getAdminToken(baseFqdn string) (string, error) {
 	const (
@@ -207,62 +185,90 @@ func getTree(repoFqdn string, repoOwner string, repoName string, sha string) ([]
 	return allEntries, nil
 }
 
-func IsObjectInRepo(repo Repo, obj runtime.Object) (bool, error) {
-	tree, err := GetRepoTree(repo)
-	if err != nil {
-		return false, err
-	}
-	return isObjectInYAML(repo, tree, obj)
-}
-
-// IsValueInYAML checks if a YAML file in the tree contains the specified `.metadata.name` with the given value.
-func isObjectInYAML(repo Repo, tree []Tree, obj runtime.Object) (bool, error) {
+// searchForObjectInAllManifests checks if a YAML file in the tree contains the specified `.metadata.name` with the given value.
+func searchForObjectInAllManifests(repo Repo, tree []Tree, obj runtime.Object) (*File, error) {
 	for _, entry := range tree {
 		if entry.Type == "blob" { // Only process files
 			url := strings.Replace(entry.URL, "git.example.com", repo.Fqdn, 1)
 			content, err := fetchFileContent(url)
 			if err != nil {
-				return false, fmt.Errorf("failed to fetch content for %s: %w", entry.Path, err)
+				return nil, fmt.Errorf("failed to fetch content for %s: %w", entry.Path, err)
 			}
 
-			if containsYAMLMetadataName(content, obj) {
-				return true, nil
+			if containsYamlMetadataName(content, obj) {
+				return &File{Path: entry.Path, Content: content}, nil
 			}
 		} else {
-			exists, err := isObjectInYAML(repo, entry.Entries, obj)
+			file, err := searchForObjectInAllManifests(repo, entry.Entries, obj)
 			if err != nil {
-				return false, err
+				return nil, err
 			}
-			if exists {
-				return true, nil
+			if file != nil {
+				return file, nil
 			}
 		}
 	}
-	return false, nil
+	return nil, errors.New("object not found in all of the manifests of the repository")
 }
 
 // containsYAMLMetadataName parses the content of a YAML file and checks if `.metadata.name` matches the given value.
-func containsYAMLMetadataName(content []byte, obj runtime.Object) bool {
+func containsYamlMetadataName(content []byte, obj runtime.Object) bool {
 	meta, err := getObjectMetadata(obj)
 	if err != nil {
 		return false
 	}
 
-	var parsed map[string]interface{}
+	var parsed map[interface{}]interface{}
 	err = yaml.Unmarshal(content, &parsed)
 	if err != nil {
 		return false
 	}
 
-	// Traverse the YAML structure to check `.metadata.name`
-	metadata := parsed["metadata"].(map[interface{}]interface{})
-	apiVersion := parsed["apiVersion"].(string)
-	kind := parsed["kind"].(string)
-	name := metadata["name"].(string)
-	namespace := metadata["namespace"].(string)
+	apiVersion := ""
+	if apiVersionValue, ok := isFieldDefinedInYaml(parsed, "apiVersion"); ok {
+		apiVersion = apiVersionValue.(string)
+	}
+	kind := ""
+	if kindValue, ok := isFieldDefinedInYaml(parsed, "kind"); ok {
+		kind = kindValue.(string)
+	}
+	name := ""
+	if nameValue, ok := isFieldDefinedInYaml(parsed, "metadata.name"); ok {
+		name = nameValue.(string)
+	}
+	namespace := ""
+	if namespaceValue, ok := isFieldDefinedInYaml(parsed, "metadata.namespace"); ok {
+		namespace = namespaceValue.(string)
+	}
 
 	constructedApiVersion := obj.GetObjectKind().GroupVersionKind().Group + "/" + obj.GetObjectKind().GroupVersionKind().Version
 	return name == meta.GetName() && namespace == meta.GetNamespace() && (apiVersion == constructedApiVersion || (strings.HasPrefix(constructedApiVersion, "/") && !strings.Contains(apiVersion, "/"))) && kind == obj.GetObjectKind().GroupVersionKind().Kind
+}
+
+func isFieldDefinedInYaml(parsed map[interface{}]interface{}, path string) (interface{}, bool) {
+	// Split the path by dots to traverse the map
+	keys := strings.Split(path, ".")
+	current := parsed
+
+	for i, key := range keys {
+		if value, exists := current[key]; exists {
+			// Check if we are at the last key in the path
+			if i == len(keys)-1 {
+				return value, true
+			}
+
+			// Check if the value is a nested map
+			next, ok := value.(map[interface{}]interface{})
+			if ok {
+				return isFieldDefinedInYaml(next, strings.Join(keys[1:], "."))
+			} else {
+				return nil, false // Not a nested map, but there are more keys in the path
+			}
+		} else {
+			return nil, false // Key does not exist
+		}
+	}
+	return nil, false
 }
 
 // responseStruct represents the structure of the JSON response from Gitea.
@@ -315,65 +321,11 @@ func fetchFileContent(url string) ([]byte, error) {
 	return decodedContent, nil
 }
 
-// GetLatestCommit fetches metadata of the latest commit from the specified repository.
-func GetLatestCommit(repoUrl string, repoOwner string, repoName string) (*Commit, error) {
-	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/commits?limit=1", repoUrl, repoOwner, repoName)
-	req, err := http.NewRequest("GET", url, nil)
+func getObjectMetadata(obj runtime.Object) (metav1.Object, error) {
+	// Use meta.Accessor to get the metadata
+	metadata, err := meta.Accessor(obj)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+		return nil, fmt.Errorf("failed to access metadata: %w", err)
 	}
-
-	// Add basic auth header
-	token, err := getAdminToken(repoUrl)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("Authorization", "token "+token)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get latest commit: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get latest commit: %s", resp.Status)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	var commits []Commit
-	if err := json.Unmarshal(body, &commits); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
-	}
-
-	if len(commits) == 0 {
-		return nil, fmt.Errorf("no commits found in the repository")
-	}
-
-	return &commits[0], nil
-}
-
-func GetGiteaURL(namespace string) (string, error) {
-	// Run kubectl to get the NodePort of the gitea service in the given namespace
-	port, err := exec.Command("kubectl", "get", "svc", "gitea-http", "-n", namespace, "-o", "jsonpath={.spec.ports[0].nodePort}").Output()
-	if err != nil {
-		return "", err
-	}
-	ip, err := exec.Command("kubectl", "get", "node", "-o", "jsonpath={.items[0].status.addresses[0].address}").Output()
-	if err != nil {
-		return "", err
-	}
-
-	url := fmt.Sprintf("%s:%s", ip, port)
-	return url, nil
+	return metadata, nil
 }

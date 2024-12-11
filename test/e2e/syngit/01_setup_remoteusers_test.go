@@ -17,13 +17,10 @@ limitations under the License.
 package e2e_syngit
 
 import (
-	"context"
 	"fmt"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,43 +29,23 @@ import (
 	. "syngit.io/syngit/test/utils"
 )
 
-var _ = Describe("01 Create RemoteUsers", func() {
-	ctx := context.TODO()
+var _ = Describe("01 Create RemoteUser", func() {
 
 	const (
-		timeout  = time.Second * 60
-		duration = time.Second * 10
-		interval = time.Millisecond * 250
+		remoteUserLuffyName = "remoteuser-luffy"
+		remoteUserSanjiName = "remoteuser-sanji"
 	)
 
-	It("should instanciate the RemoteUsers correctly", func() {
+	It("should instanciate the RemoteUser correctly (with RemoteUserBinding)", func() {
 		By("adding syngit to scheme")
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		By("creating the Secret & RemoteUser for Luffy")
-		luffySecretName := "luffy-jupyter"
-		secretLuffyJupyter := &corev1.Secret{
+		By("creating the RemoteUser for Luffy")
+		luffySecretName := string(Luffy) + "-creds"
+		remoteUserLuffy := &syngit.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      luffySecretName,
-				Namespace: namespace,
-			},
-			StringData: map[string]string{
-				"username": string(Luffy),
-				"password": string(Luffy) + "-pwd",
-			},
-			Type: "kubernetes.io/basic-auth",
-		}
-		_, err = client.KAs(Luffy).CoreV1().Secrets(namespace).Create(ctx,
-			secretLuffyJupyter,
-			metav1.CreateOptions{},
-		)
-		Expect(err).NotTo(HaveOccurred())
-
-		Wait10()
-		resource := &syngit.RemoteUser{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "remoteuser-luffy",
+				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 				Annotations: map[string]string{
 					"syngit.syngit.io/associated-remote-userbinding": "true",
@@ -83,8 +60,7 @@ var _ = Describe("01 Create RemoteUsers", func() {
 			},
 		}
 		Eventually(func() bool {
-			err := client.As(Luffy).Create(ctx, resource)
-			fmt.Println(err)
+			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffy)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 		nnRuLuffy := types.NamespacedName{
@@ -92,7 +68,7 @@ var _ = Describe("01 Create RemoteUsers", func() {
 			Namespace: namespace,
 		}
 		ruLuffy := &syngit.RemoteUser{}
-		_ = client.As(Luffy).Get(ctx, nnRuLuffy, ruLuffy)
+		_ = sClient.As(Luffy).Get(nnRuLuffy, ruLuffy)
 
 		By("checking if the RemoteUserBinding for Luffy exists")
 		nnRubLuffy := types.NamespacedName{
@@ -101,96 +77,46 @@ var _ = Describe("01 Create RemoteUsers", func() {
 		}
 		rubLuffy := &syngit.RemoteUserBinding{}
 		Eventually(func() bool {
-			err := client.As(Luffy).Get(ctx, nnRubLuffy, rubLuffy)
+			err := sClient.As(Luffy).Get(nnRubLuffy, rubLuffy)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
-		repoUrl := "http://" + GitP1Fqdn + "/syngituser/blue.git"
-		const defaultDeniedMessage = "DENIED ON PURPOSE"
-		By("creating the RemoteSyncer")
-		remotesyncer := &syngit.RemoteSyncer{
+		By("creating the RemoteUser for Sanji (without RemoteUserBinding)")
+		sanjiSecretName := string(Sanji) + "-creds"
+		remoteUserSanji := &syngit.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "remotesyncer-test",
+				Name:      remoteUserSanjiName,
 				Namespace: namespace,
 			},
-			Spec: syngit.RemoteSyncerSpec{
-				DefaultBlockAppliedMessage:  defaultDeniedMessage,
-				DefaultBranch:               "main",
-				DefaultUnauthorizedUserMode: syngit.Block,
-				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitOnly,
-				PushMode:                    syngit.SameBranch,
-				RemoteRepository:            repoUrl,
-				ScopedResources: syngit.ScopedResources{
-					Rules: []admissionv1.RuleWithOperations{{
-						Operations: []admissionv1.OperationType{
-							admissionv1.Create,
-						},
-						Rule: admissionv1.Rule{
-							APIGroups:   []string{""},
-							APIVersions: []string{"v1"},
-							Resources:   []string{"configmaps"},
-						},
-					},
-					},
+			Spec: syngit.RemoteUserSpec{
+				Email:             "sample@email.com",
+				GitBaseDomainFQDN: GitP1Fqdn,
+				SecretRef: corev1.SecretReference{
+					Name: sanjiSecretName,
 				},
 			},
 		}
 		Eventually(func() bool {
-			err := client.As(Luffy).Create(ctx, remotesyncer)
+			err := sClient.As(Sanji).CreateOrUpdate(remoteUserSanji)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
-
-		Wait5()
-		By("creating a test configmap")
-		cm := &corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "ConfigMap",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{Name: "test-cm", Namespace: namespace},
-			Data:       map[string]string{"test": "oui"},
+		nnRuSanji := types.NamespacedName{
+			Name:      fmt.Sprintf("%s%s", syngit.RubPrefix, string(Sanji)),
+			Namespace: namespace,
 		}
-		_, err = client.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
-			cm,
-			metav1.CreateOptions{},
-		)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring(defaultDeniedMessage))
+		ruSanji := &syngit.RemoteUser{}
+		_ = sClient.As(Sanji).Get(nnRuSanji, ruSanji)
 
-		By("checking if the configmap is present on the repo")
-		repo := &Repo{
-			Fqdn:  GitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+		By("checking that the RemoteUserBinding for Sanji does not exist")
+		nnRubSanji := types.NamespacedName{
+			Name:      fmt.Sprintf("%s%s", syngit.RubPrefix, string(Sanji)),
+			Namespace: namespace,
 		}
-		exists, err := IsObjectInRepo(*repo, cm)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(exists).To(BeTrue())
+		rubSanji := &syngit.RemoteUserBinding{}
+
+		Wait10()
+		errRub := sClient.As(Sanji).Get(nnRubSanji, rubSanji)
+		Expect(errRub).To(HaveOccurred())
+		Expect(errRub.Error()).To(ContainSubstring("not found"))
 	})
-
-	// Context("Test File Existence", func() {
-	// 	It("should check if the file exists", func() {
-	// 		repoOwner := "user1"
-	// 		repoName := "example-repo"
-	// 		filePath := "src/main.go"
-	// 		tree, err := utils.GetRepoTree(repoOwner, repoName, "root_sha_of_repo")
-	// 		Expect(err).NotTo(HaveOccurred())
-
-	// 		// Check if the file exists
-	// 		exists := utils.IsFilePresent(tree, filePath)
-	// 		Expect(exists).To(BeTrue(), fmt.Sprintf("File '%s' should exist", filePath))
-	// 	})
-	// })
-
-	// Add more custom tests as needed...
 })
-
-func Wait5() {
-	time.Sleep(5 * time.Second)
-}
-
-func Wait10() {
-	time.Sleep(10 * time.Second)
-}
