@@ -46,6 +46,7 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 	gp.branch = gp.remoteSyncer.Spec.DefaultBranch
 
 	// Clone the repository into memory
+	var verboseOutput bytes.Buffer
 	cloneOption := &git.CloneOptions{
 		URL:           gp.remoteSyncer.Spec.RemoteRepository,
 		ReferenceName: plumbing.ReferenceName(gp.branch),
@@ -55,13 +56,20 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 		},
 		SingleBranch:    true,
 		InsecureSkipTLS: gp.insecureSkipTlsVerify,
+		Progress:        io.MultiWriter(os.Stdout, &verboseOutput),
 	}
 	if gp.caBundle != "" {
 		cloneOption.CABundle = []byte(gp.caBundle)
 	}
 	repo, err := git.Clone(memory.NewStorage(), memfs.New(), cloneOption)
 	if err != nil {
-		errMsg := "failed to clone repository: " + err.Error()
+		variables := fmt.Sprintf("\nRepository: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
+			gp.remoteSyncer.Spec.RemoteRepository,
+			plumbing.ReferenceName(gp.branch),
+			gp.gitUser,
+			gp.gitEmail,
+		)
+		errMsg := fmt.Sprintf("failed to clone repository: %s\nVerbose output: %s\nVariables: %s\n", err.Error(), verboseOutput.String(), variables)
 		return *gpResponse, errors.New(errMsg)
 	}
 
@@ -247,7 +255,7 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string) (string, e
 }
 
 func (gp *GitPusher) pushChanges(repo *git.Repository) error {
-	variables := fmt.Sprintf("Repository: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
+	variables := fmt.Sprintf("\nRepository: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
 		gp.remoteSyncer.Spec.RemoteRepository,
 		plumbing.ReferenceName(gp.branch),
 		gp.gitUser,

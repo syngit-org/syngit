@@ -124,7 +124,7 @@ func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
 		return wrc.responseConstructor(rDetails)
 	}
 
-	// STEP 5 : Post checking
+	// STEP 7 : Post checking
 	wrc.postcheck(&rDetails)
 
 	return wrc.responseConstructor(rDetails)

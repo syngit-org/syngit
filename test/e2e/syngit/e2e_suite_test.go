@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+	"time"
 
 	"github.com/joho/godotenv"
 	. "github.com/onsi/ginkgo/v2"
@@ -35,11 +36,18 @@ import (
 	. "syngit.io/syngit/test/utils"
 )
 
+const (
+	timeout  = time.Second * 60
+	duration = time.Second * 10
+	interval = time.Millisecond * 250
+)
+
 const operatorNamespace = "syngit"
 const namespace = "test"
+const defaultDeniedMessage = "DENIED ON PURPOSE"
 
 var cmd *exec.Cmd
-var client *SyngitTestUsersClientset
+var sClient *SyngitTestUsersClientset
 
 // Run e2e tests using the Ginkgo runner.
 func TestE2E(t *testing.T) {
@@ -86,14 +94,14 @@ var _ = BeforeSuite(func() {
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	By("setting the default client successfully")
-	client = &SyngitTestUsersClientset{}
-	err = client.Initialize()
+	sClient = &SyngitTestUsersClientset{}
+	err = sClient.Initialize()
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	By("creating global users with RBAC cluster-admin")
 	for _, username := range Users {
 		// Simulate a global user by creating a ClusterRoleBinding
-		_, err = client.KAs(Admin).RbacV1().ClusterRoleBindings().Create(ctx, &rbacv1.ClusterRoleBinding{
+		_, err = sClient.KAs(Admin).RbacV1().ClusterRoleBindings().Create(ctx, &rbacv1.ClusterRoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: fmt.Sprintf("%s-cluster-role-binding", username),
 			},
@@ -114,7 +122,7 @@ var _ = BeforeSuite(func() {
 
 		By(fmt.Sprintf("validating RBAC creation for the user %s", username))
 		crbName := fmt.Sprintf("%s-cluster-role-binding", username)
-		crb, err := client.KAs(Admin).RbacV1().ClusterRoleBindings().Get(ctx, crbName, metav1.GetOptions{})
+		crb, err := sClient.KAs(Admin).RbacV1().ClusterRoleBindings().Get(ctx, crbName, metav1.GetOptions{})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(crb.Subjects).To(ContainElement(rbacv1.Subject{
 			Kind:     "User",
@@ -123,21 +131,40 @@ var _ = BeforeSuite(func() {
 		}))
 	}
 
-	for _, username := range Users {
-		By(fmt.Sprintf("testing the impersonation for the user %s", username))
-		// Attempt to list namespaces as the impersonated user
-		namespaces, err := client.KAs(username).CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
-		Expect(err).NotTo(HaveOccurred()) // Ensure the user has permission to list namespaces
-		// Validate that the namespaces are listed successfully
-		Expect(namespaces.Items).NotTo(BeEmpty(), "User should be able to list namespaces")
-	}
-
 	By("creating the test namespace")
-	_, err = client.KAs(Admin).CoreV1().Namespaces().Create(ctx,
+	_, err = sClient.KAs(Admin).CoreV1().Namespaces().Create(ctx,
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}},
 		metav1.CreateOptions{},
 	)
 	Expect(err).NotTo(HaveOccurred())
+
+	for _, username := range Users {
+		By(fmt.Sprintf("testing the impersonation for the user %s", username))
+		// Attempt to list namespaces as the impersonated user
+		namespaces, err := sClient.KAs(username).CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+		Expect(err).NotTo(HaveOccurred()) // Ensure the user has permission to list namespaces
+		// Validate that the namespaces are listed successfully
+		Expect(namespaces.Items).NotTo(BeEmpty(), "User should be able to list namespaces")
+
+		By(fmt.Sprintf("creating the Secret creds (to connect to jupyter & saturn) for %s", username))
+		secretName := string(username) + "-creds"
+		secretCreds := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: namespace,
+			},
+			StringData: map[string]string{
+				"username": string(username),
+				"password": string(username) + "-pwd",
+			},
+			Type: "kubernetes.io/basic-auth",
+		}
+		_, err = sClient.KAs(username).CoreV1().Secrets(namespace).Create(ctx,
+			secretCreds,
+			metav1.CreateOptions{},
+		)
+		Expect(err).NotTo(HaveOccurred())
+	}
 })
 
 var _ = AfterSuite(func() {
@@ -165,14 +192,22 @@ var _ = AfterSuite(func() {
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	By("deleting the test namespace")
-	err = client.KAs(Admin).CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})
+	err = sClient.KAs(Admin).CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})
 	Expect(err).NotTo(HaveOccurred())
 
 	By("deleting the global user's RBAC")
 	for _, username := range Users {
 		By(fmt.Sprintf("deleting RBAC for the user %s", username))
-		err = client.KAs(Admin).RbacV1().ClusterRoleBindings().Delete(ctx, fmt.Sprintf("%s-cluster-role-binding", username), metav1.DeleteOptions{})
+		err = sClient.KAs(Admin).RbacV1().ClusterRoleBindings().Delete(ctx, fmt.Sprintf("%s-cluster-role-binding", username), metav1.DeleteOptions{})
 		Expect(err).NotTo(HaveOccurred())
 	}
 
 })
+
+func Wait5() {
+	time.Sleep(5 * time.Second)
+}
+
+func Wait10() {
+	time.Sleep(10 * time.Second)
+}

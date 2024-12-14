@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -16,7 +17,7 @@ type TestUser string
 
 var (
 	Admin   TestUser
-	NoRight TestUser
+	Sanji   TestUser
 	Chopper TestUser
 	Luffy   TestUser
 )
@@ -45,18 +46,27 @@ func (tu *SyngitTestUsersClientset) KAs(username TestUser) *Clientset {
 	}
 }
 
-func (tu *SyngitTestUsersClientset) As(username TestUser) client.Client {
+func (tu *SyngitTestUsersClientset) CAs(username TestUser) client.Client {
 	client, _ := tu.impersonate(username)
 	return client
 }
 
+func (tu *SyngitTestUsersClientset) As(username TestUser) CustomClient {
+	client, _ := tu.impersonate(username)
+	customClient := CustomClient{
+		ctx:    context.TODO(),
+		client: client,
+	}
+	return customClient
+}
+
 func (tu *SyngitTestUsersClientset) Initialize() error {
 	Admin = TestUser(os.Getenv("ADMIN_USERNAME"))
-	NoRight = TestUser(os.Getenv("NO_RIGHT_USERNAME"))
+	Sanji = TestUser(os.Getenv("SANJI_USERNAME"))
 	Chopper = TestUser(os.Getenv("CHOPPER_USERNAME"))
 	Luffy = TestUser(os.Getenv("LUFFY_USERNAME"))
 
-	Users = []TestUser{NoRight, Chopper, Luffy}
+	Users = []TestUser{Sanji, Chopper, Luffy}
 
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig == "" {

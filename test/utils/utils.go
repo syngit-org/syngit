@@ -171,7 +171,6 @@ func GetProjectDir() (string, error) {
 	if err != nil {
 		return wd, err
 	}
-	fmt.Println(wd)
 	wd = strings.Split(wd, "/test/e2e")[0]
 	return wd, nil
 }
