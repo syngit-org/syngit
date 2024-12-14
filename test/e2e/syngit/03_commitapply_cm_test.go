@@ -102,7 +102,7 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
+		Wait10()
 		By("creating a test configmap")
 		cm := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
