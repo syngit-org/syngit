@@ -20,12 +20,18 @@ spec:
           path: /convert
           port: 443
       conversionReviewVersions:
-      - v1
+      - v1beta2
+      - v1beta1
   group: syngit.syngit.io
   names:
+    categories:
+    - syngit
     kind: RemoteUserBinding
     listKind: RemoteUserBindingList
     plural: remoteuserbindings
+    shortNames:
+    - rub
+    - rubs
     singular: remoteuserbinding
   scope: Namespaced
   versions:

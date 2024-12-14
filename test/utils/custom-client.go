@@ -38,5 +38,14 @@ func (customClient CustomClient) Get(namespacedName types.NamespacedName, obj cl
 }
 
 func (customClient CustomClient) Delete(obj client.Object) error {
-	return customClient.client.Delete(customClient.ctx, obj)
+	// Create a deep copy of the object to avoid modifying the input
+	existingObj := obj.DeepCopyObject().(client.Object)
+
+	// Check if the object exists
+	err := customClient.client.Get(customClient.ctx, client.ObjectKeyFromObject(obj), existingObj)
+	if err == nil {
+		return customClient.client.Delete(customClient.ctx, obj)
+	}
+
+	return nil
 }

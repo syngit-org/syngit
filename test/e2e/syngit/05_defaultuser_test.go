@@ -18,6 +18,8 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
+	"os/exec"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -45,6 +47,11 @@ var _ = Describe("05 Use a default user", func() {
 		By("adding syngit to scheme")
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
+
+		By("deleting the current Sanji remote user")
+		cmd = exec.Command("kubectl", "delete", "remoteuser", "-n", namespace, remoteUserSanjiName)
+		res, _ := Run(cmd)
+		fmt.Println(string(res))
 
 		By("only creating the RemoteUser for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
@@ -83,29 +90,6 @@ var _ = Describe("05 Use a default user", func() {
 		}
 		Eventually(func() bool {
 			err := sClient.As(Chopper).CreateOrUpdate(remoteUserChopper)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
-
-		By("creating the RemoteUser & RemoteUserBinding for Sanji")
-		sanjiSecretName := string(Sanji) + "-creds"
-		remoteUserSanji := &syngit.RemoteUser{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteUserSanjiName,
-				Namespace: namespace,
-				Annotations: map[string]string{
-					"syngit.syngit.io/associated-remote-userbinding": "true",
-				},
-			},
-			Spec: syngit.RemoteUserSpec{
-				Email:             "sample@email.com",
-				GitBaseDomainFQDN: GitP1Fqdn,
-				SecretRef: corev1.SecretReference{
-					Name: sanjiSecretName,
-				},
-			},
-		}
-		Eventually(func() bool {
-			err := sClient.As(Sanji).CreateOrUpdate(remoteUserSanji)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -213,5 +197,6 @@ var _ = Describe("05 Use a default user", func() {
 			err := sClient.As(Luffy).Delete(remotesyncer)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
+
 	})
 })
