@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -30,30 +31,29 @@ import (
 	. "syngit.io/syngit/test/utils"
 )
 
-var _ = Describe("08 Webhook rbac checker", func() {
+var _ = Describe("09 Multi RemoteSyncer test", func() {
 
 	const (
 		remoteUserLuffyName = "remoteuser-luffy"
-		remoteUserBrookName = "remoteuser-brook"
-		remoteSyncer1Name   = "remotesyncer-test8.1"
-		remoteSyncer2Name   = "remotesyncer-test8.2"
-		cmName              = "test-cm8"
-		secretName          = "test-secret8"
+		remoteSyncer1Name   = "remotesyncer-test9.1"
+		remoteSyncer2Name   = "remotesyncer-test9.2"
+		cmName1             = "test-cm9.1"
+		cmName2             = "test-cm9.2"
 	)
 	ctx := context.TODO()
 
-	It("should deny the resource because of lack of permissions", func() {
+	It("should push the ConfigMap on 2 different repo", func() {
 
 		By("adding syngit to scheme")
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
 		Wait5()
-		By("creating the RemoteUser & RemoteUserBinding for Brook (test the RUB creation without the right permissions)")
-		brookSecretName := string(Brook) + "-creds"
-		remoteUserBrook := &syngit.RemoteUser{
+		By("creating the RemoteUser & RemoteUserBinding for Luffy")
+		luffySecretName := string(Luffy) + "-creds"
+		remoteUserLuffy := &syngit.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteUserBrookName,
+				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 				Annotations: map[string]string{
 					"syngit.syngit.io/associated-remote-userbinding": "true",
@@ -63,19 +63,19 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				Email:             "sample@email.com",
 				GitBaseDomainFQDN: gitP1Fqdn,
 				SecretRef: corev1.SecretReference{
-					Name: brookSecretName,
+					Name: luffySecretName,
 				},
 			},
 		}
 		Eventually(func() bool {
-			err := sClient.As(Brook).CreateOrUpdate(remoteUserBrook)
+			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffy)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
 		Wait5()
-		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
-		By("creating the RemoteSyncer for ConfigMaps")
-		remotesyncer := &syngit.RemoteSyncer{
+		blueUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
+		By("creating the RemoteSyncer for the blue repo")
+		blueRemotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer1Name,
 				Namespace: namespace,
@@ -86,7 +86,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				ExcludedFields:              []string{".metadata.uid"},
 				ProcessMode:                 syngit.CommitApply,
 				PushMode:                    syngit.SameBranch,
-				RemoteRepository:            repoUrl,
+				RemoteRepository:            blueUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
@@ -102,9 +102,40 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				},
 			},
 		}
-		err = sClient.As(Brook).CreateOrUpdate(remotesyncer)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring(permissionsDeniedMessage))
+		err = sClient.As(Luffy).CreateOrUpdate(blueRemotesyncer)
+		Expect(err).ToNot(HaveOccurred())
+
+		greenUrl := "http://" + gitP1Fqdn + "/syngituser/green.git"
+		By("creating the RemoteSyncer for the green repo")
+		greenRemotesyncer := &syngit.RemoteSyncer{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteSyncer2Name,
+				Namespace: namespace,
+			},
+			Spec: syngit.RemoteSyncerSpec{
+				DefaultBranch:               "main",
+				DefaultUnauthorizedUserMode: syngit.Block,
+				ExcludedFields:              []string{".metadata.uid"},
+				ProcessMode:                 syngit.CommitApply,
+				PushMode:                    syngit.SameBranch,
+				RemoteRepository:            greenUrl,
+				ScopedResources: syngit.ScopedResources{
+					Rules: []admissionv1.RuleWithOperations{{
+						Operations: []admissionv1.OperationType{
+							admissionv1.Create,
+						},
+						Rule: admissionv1.Rule{
+							APIGroups:   []string{""},
+							APIVersions: []string{"v1"},
+							Resources:   []string{"configmaps"},
+						},
+					},
+					},
+				},
+			},
+		}
+		err = sClient.As(Luffy).CreateOrUpdate(greenRemotesyncer)
+		Expect(err).ToNot(HaveOccurred())
 
 		Wait5()
 		By("creating a test configmap")
@@ -113,7 +144,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				Kind:       "ConfigMap",
 				APIVersion: "v1",
 			},
-			ObjectMeta: metav1.ObjectMeta{Name: cmName, Namespace: namespace},
+			ObjectMeta: metav1.ObjectMeta{Name: cmName1, Namespace: namespace},
 			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
@@ -124,19 +155,30 @@ var _ = Describe("08 Webhook rbac checker", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("checking that the configmap is not present in the repo")
-		repo := &Repo{
+		Wait5()
+		By("checking that the configmap is present in the blue repo")
+		blueRepo := &Repo{
 			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",
 			Name:  "blue",
 		}
-		exists, err := IsObjectInRepo(*repo, cm)
-		Expect(err).To(HaveOccurred())
-		Expect(exists).To(BeFalse())
+		exists, err := IsObjectInRepo(*blueRepo, cm)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(exists).To(BeTrue())
+
+		By("checking that the configmap is present in the green repo")
+		greenRepo := &Repo{
+			Fqdn:  gitP1Fqdn,
+			Owner: "syngituser",
+			Name:  "green",
+		}
+		exists, err = IsObjectInRepo(*greenRepo, cm)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(exists).To(BeTrue())
 
 		By("checking that the configmap is present on the cluster")
 		nnCm := types.NamespacedName{
-			Name:      cmName,
+			Name:      cmName1,
 			Namespace: namespace,
 		}
 		getCm := &corev1.ConfigMap{}
@@ -148,18 +190,18 @@ var _ = Describe("08 Webhook rbac checker", func() {
 
 	})
 
-	It("should create the resource using the minimum permissions", func() {
+	It("should push the resource & deny the request (because of locking resource)", func() {
 
 		By("adding syngit to scheme")
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
 		Wait5()
-		By("creating the RemoteUser & RemoteUserBinding for Brook (test the RUB creation without the right permissions)")
-		brookSecretName := string(Brook) + "-creds"
-		remoteUserBrook := &syngit.RemoteUser{
+		By("creating the RemoteUser & RemoteUserBinding for Luffy")
+		luffySecretName := string(Luffy) + "-creds"
+		remoteUserLuffy := &syngit.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteUserBrookName,
+				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 				Annotations: map[string]string{
 					"syngit.syngit.io/associated-remote-userbinding": "true",
@@ -169,19 +211,50 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				Email:             "sample@email.com",
 				GitBaseDomainFQDN: gitP1Fqdn,
 				SecretRef: corev1.SecretReference{
-					Name: brookSecretName,
+					Name: luffySecretName,
 				},
 			},
 		}
 		Eventually(func() bool {
-			err := sClient.As(Brook).CreateOrUpdate(remoteUserBrook)
+			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffy)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
 		Wait5()
-		By("creating a wrong RemoteSyncer for Secrets")
-		remotesyncer := &syngit.RemoteSyncer{
+		blueUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
+		By("creating the RemoteSyncer for the blue repo")
+		blueRemotesyncer := &syngit.RemoteSyncer{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteSyncer1Name,
+				Namespace: namespace,
+			},
+			Spec: syngit.RemoteSyncerSpec{
+				DefaultBranch:               "main",
+				DefaultUnauthorizedUserMode: syngit.Block,
+				ExcludedFields:              []string{".metadata.uid"},
+				ProcessMode:                 syngit.CommitApply,
+				PushMode:                    syngit.SameBranch,
+				RemoteRepository:            blueUrl,
+				ScopedResources: syngit.ScopedResources{
+					Rules: []admissionv1.RuleWithOperations{{
+						Operations: []admissionv1.OperationType{
+							admissionv1.Create,
+						},
+						Rule: admissionv1.Rule{
+							APIGroups:   []string{""},
+							APIVersions: []string{"v1"},
+							Resources:   []string{"configmaps"},
+						},
+					},
+					},
+				},
+			},
+		}
+		err = sClient.As(Luffy).CreateOrUpdate(blueRemotesyncer)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("creating the RemoteSyncer for the blue repo twice")
+		blueRemotesyncer2 := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer2Name,
 				Namespace: namespace,
@@ -192,42 +265,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				ExcludedFields:              []string{".metadata.uid"},
 				ProcessMode:                 syngit.CommitApply,
 				PushMode:                    syngit.SameBranch,
-				RemoteRepository:            repoUrl,
-				ScopedResources: syngit.ScopedResources{
-					Rules: []admissionv1.RuleWithOperations{{
-						Operations: []admissionv1.OperationType{
-							admissionv1.Create,
-							admissionv1.Delete,
-						},
-						Rule: admissionv1.Rule{
-							APIGroups:   []string{""},
-							APIVersions: []string{"v1"},
-							Resources:   []string{"secrets"},
-						},
-					},
-					},
-				},
-			},
-		}
-		err = sClient.As(Brook).CreateOrUpdate(remotesyncer)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring(permissionsDeniedMessage))
-		Expect(err.Error()).To(ContainSubstring("DELETE"))
-
-		Wait5()
-		By("creating a good RemoteSyncer for Secrets")
-		remotesyncer = &syngit.RemoteSyncer{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteSyncer2Name,
-				Namespace: namespace,
-			},
-			Spec: syngit.RemoteSyncerSpec{
-				DefaultBranch:               "main",
-				DefaultUnauthorizedUserMode: syngit.Block,
-				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
-				RemoteRepository:            repoUrl,
+				RemoteRepository:            blueUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
@@ -236,57 +274,55 @@ var _ = Describe("08 Webhook rbac checker", func() {
 						Rule: admissionv1.Rule{
 							APIGroups:   []string{""},
 							APIVersions: []string{"v1"},
-							Resources:   []string{"secrets"},
+							Resources:   []string{"configmaps"},
 						},
 					},
 					},
 				},
 			},
 		}
-		Eventually(func() bool {
-			err := sClient.As(Brook).CreateOrUpdate(remotesyncer)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
+		err = sClient.As(Luffy).CreateOrUpdate(blueRemotesyncer2)
+		Expect(err).ToNot(HaveOccurred())
 
 		Wait5()
-		By("creating a test secret")
-		secret := &corev1.Secret{
+		By("creating a test configmap")
+		cm := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
+				Kind:       "ConfigMap",
 				APIVersion: "v1",
 			},
-			ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
-			StringData: map[string]string{"test": "test1"},
+			ObjectMeta: metav1.ObjectMeta{Name: cmName2, Namespace: namespace},
+			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
-			_, err = sClient.KAs(Brook).CoreV1().Secrets(namespace).Create(ctx,
-				secret,
+			_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+				cm,
 				metav1.CreateOptions{},
 			)
-			return err == nil
+			return err != nil && strings.Contains(err.Error(), "cannot lock ref")
 		}, timeout, interval).Should(BeTrue())
 
 		Wait5()
-		By("checking that the secret present in the repo")
-		repo := &Repo{
+		By("checking that the configmap is not present in the blue repo")
+		blueRepo := &Repo{
 			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",
 			Name:  "blue",
 		}
-		exists, err := IsObjectInRepo(*repo, secret)
+		exists, err := IsObjectInRepo(*blueRepo, cm)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(exists).To(BeTrue())
 
-		By("checking that the secret is present on the cluster")
-		nnSecret := types.NamespacedName{
-			Name:      secretName,
+		By("checking that the configmap is present on the cluster")
+		nnCm := types.NamespacedName{
+			Name:      cmName2,
 			Namespace: namespace,
 		}
-		getSecret := &corev1.Secret{}
+		getCm := &corev1.ConfigMap{}
 
 		Eventually(func() bool {
-			err := sClient.As(Luffy).Get(nnSecret, getSecret)
-			return err == nil
+			err := sClient.As(Luffy).Get(nnCm, getCm)
+			return err != nil
 		}, timeout, interval).Should(BeTrue())
 
 	})

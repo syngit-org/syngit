@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -57,7 +58,7 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 			},
 			Spec: syngit.RemoteUserSpec{
 				Email:             "sample@email.com",
-				GitBaseDomainFQDN: GitP1Fqdn,
+				GitBaseDomainFQDN: gitP1Fqdn,
 				SecretRef: corev1.SecretReference{
 					Name: luffySecretName,
 				},
@@ -69,7 +70,7 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		Wait5()
-		repoUrl := "http://" + GitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -114,16 +115,17 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: cmName, Namespace: namespace},
 			Data:       map[string]string{"test": "oui"},
 		}
-		_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
-			cm,
-			metav1.CreateOptions{},
-		)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring(defaultDeniedMessage))
+		Eventually(func() bool {
+			_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+				cm,
+				metav1.CreateOptions{},
+			)
+			return err != nil && strings.Contains(err.Error(), defaultDeniedMessage)
+		}, timeout, interval).Should(BeTrue())
 
 		By("checking if the configmap is present on the repo")
 		repo := &Repo{
-			Fqdn:  GitP1Fqdn,
+			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",
 			Name:  "blue",
 		}
@@ -142,11 +144,5 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 		err = sClient.As(Luffy).Get(nnCm, getCm)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("not found"))
-
-		By("deleting the remote syncer from the cluster")
-		Eventually(func() bool {
-			err := sClient.As(Luffy).Delete(remotesyncer)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
 	})
 })

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"os/exec"
 
 	"gopkg.in/yaml.v2"
@@ -25,29 +24,6 @@ func GetGiteaURL(namespace string) (string, error) {
 
 	url := fmt.Sprintf("%s:%s", ip, port)
 	return url, nil
-}
-
-func RetrieveRepos() {
-	Repos[os.Getenv("PLATFORM1")+"-"+os.Getenv("REPO1")] = Repo{
-		Fqdn:  GitP1Fqdn,
-		Owner: os.Getenv("ADMIN_USERNAME"),
-		Name:  os.Getenv("REPO1"),
-	}
-	Repos[os.Getenv("PLATFORM1")+"-"+os.Getenv("REPO2")] = Repo{
-		Fqdn:  GitP1Fqdn,
-		Owner: os.Getenv("ADMIN_USERNAME"),
-		Name:  os.Getenv("REPO2"),
-	}
-	Repos[os.Getenv("PLATFORM2")+"-"+os.Getenv("REPO1")] = Repo{
-		Fqdn:  GitP2Fqdn,
-		Owner: os.Getenv("ADMIN_USERNAME"),
-		Name:  os.Getenv("REPO1"),
-	}
-	Repos[os.Getenv("PLATFORM2")+"-"+os.Getenv("REPO2")] = Repo{
-		Fqdn:  GitP2Fqdn,
-		Owner: os.Getenv("ADMIN_USERNAME"),
-		Name:  os.Getenv("REPO2"),
-	}
 }
 
 func AreObjectsUploaded(repo Repo, objects []runtime.Object) bool {

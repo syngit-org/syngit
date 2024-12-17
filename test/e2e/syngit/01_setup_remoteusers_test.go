@@ -54,7 +54,7 @@ var _ = Describe("01 Create RemoteUser", func() {
 			},
 			Spec: syngit.RemoteUserSpec{
 				Email:             "sample@email.com",
-				GitBaseDomainFQDN: GitP1Fqdn,
+				GitBaseDomainFQDN: gitP1Fqdn,
 				SecretRef: corev1.SecretReference{
 					Name: luffySecretName,
 				},
@@ -92,7 +92,7 @@ var _ = Describe("01 Create RemoteUser", func() {
 			},
 			Spec: syngit.RemoteUserSpec{
 				Email:             "sample@email.com",
-				GitBaseDomainFQDN: GitP1Fqdn,
+				GitBaseDomainFQDN: gitP1Fqdn,
 				SecretRef: corev1.SecretReference{
 					Name: sanjiSecretName,
 				},

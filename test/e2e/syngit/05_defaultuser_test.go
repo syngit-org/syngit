@@ -18,8 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
-	"fmt"
-	"os/exec"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -48,13 +47,6 @@ var _ = Describe("05 Use a default user", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		By("deleting the current Sanji remote user")
-		cmd = exec.Command("kubectl", "delete", "remoteuser", "-n", namespace, remoteUserSanjiName)
-		res, delErr := Run(cmd)
-		if delErr != nil {
-			fmt.Println(string(res))
-		}
-
 		Wait5()
 		By("only creating the RemoteUser for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
@@ -65,7 +57,7 @@ var _ = Describe("05 Use a default user", func() {
 			},
 			Spec: syngit.RemoteUserSpec{
 				Email:             "sample@email.com",
-				GitBaseDomainFQDN: GitP1Fqdn,
+				GitBaseDomainFQDN: gitP1Fqdn,
 				SecretRef: corev1.SecretReference{
 					Name: luffySecretName,
 				},
@@ -86,7 +78,7 @@ var _ = Describe("05 Use a default user", func() {
 			},
 			Spec: syngit.RemoteUserSpec{
 				Email:             "sample@email.com",
-				GitBaseDomainFQDN: GitP1Fqdn,
+				GitBaseDomainFQDN: gitP1Fqdn,
 				SecretRef: corev1.SecretReference{
 					Name: chopperSecretName,
 				},
@@ -98,7 +90,7 @@ var _ = Describe("05 Use a default user", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		Wait5()
-		repoUrl := "http://" + GitP1Fqdn + "/syngituser/green.git"
+		repoUrl := "http://" + gitP1Fqdn + "/syngituser/green.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -146,12 +138,13 @@ var _ = Describe("05 Use a default user", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: cmName, Namespace: namespace},
 			Data:       map[string]string{"test": "oui"},
 		}
-		_, err = sClient.KAs(Sanji).CoreV1().ConfigMaps(namespace).Create(ctx,
-			cm,
-			metav1.CreateOptions{},
-		)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("User permission denied for writing."))
+		Eventually(func() bool {
+			_, err = sClient.KAs(Sanji).CoreV1().ConfigMaps(namespace).Create(ctx,
+				cm,
+				metav1.CreateOptions{},
+			)
+			return err != nil && strings.Contains(err.Error(), "User permission denied for writing.")
+		}, timeout, interval).Should(BeTrue())
 
 		By("updating the RemoteSyncer to use Luffy instead of Chopper")
 		remotesyncer.Spec.DefaultRemoteUserRef.Name = remoteUserLuffyName
@@ -162,15 +155,17 @@ var _ = Describe("05 Use a default user", func() {
 
 		Wait5()
 		By("creating a test configmap that succeed (pushed as Luffy)")
-		_, err = sClient.KAs(Sanji).CoreV1().ConfigMaps(namespace).Create(ctx,
-			cm,
-			metav1.CreateOptions{},
-		)
-		Expect(err).ToNot(HaveOccurred())
+		Eventually(func() bool {
+			_, err = sClient.KAs(Sanji).CoreV1().ConfigMaps(namespace).Create(ctx,
+				cm,
+				metav1.CreateOptions{},
+			)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
 
 		By("checking if the configmap is present on the repo")
 		repo := &Repo{
-			Fqdn:  GitP1Fqdn,
+			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",
 			Name:  "green",
 		}
@@ -187,18 +182,6 @@ var _ = Describe("05 Use a default user", func() {
 
 		Eventually(func() bool {
 			err := sClient.As(Luffy).Get(nnCm, getCm)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
-
-		By("deleting the configmap from the cluster")
-		Eventually(func() bool {
-			err := sClient.As(Luffy).Delete(getCm)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
-
-		By("deleting the remote syncer from the cluster")
-		Eventually(func() bool {
-			err := sClient.As(Luffy).Delete(remotesyncer)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 

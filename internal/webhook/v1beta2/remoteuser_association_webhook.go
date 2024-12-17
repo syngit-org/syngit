@@ -80,11 +80,15 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 			return ruwh.removeRuFromRub(ctx, req, name, rub)
 		}
 
+		dontAppend := false
 		remoteRefs := rub.DeepCopy().Spec.RemoteRefs
 		for _, ruRef := range remoteRefs {
-			if ruRef.Name != ru.Name {
-				remoteRefs = append(remoteRefs, objRef)
+			if ruRef.Name == ru.Name {
+				dontAppend = true
 			}
+		}
+		if !dontAppend {
+			remoteRefs = append(remoteRefs, objRef)
 		}
 		rub.Spec.RemoteRefs = remoteRefs
 

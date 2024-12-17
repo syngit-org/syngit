@@ -65,9 +65,6 @@ type File struct {
 
 var Repos = map[string]Repo{}
 
-var GitP1Fqdn string
-var GitP2Fqdn string
-
 func getAdminToken(baseFqdn string) (string, error) {
 	const (
 		username = "syngituser"

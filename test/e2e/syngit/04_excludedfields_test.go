@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -58,7 +59,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 			},
 			Spec: syngit.RemoteUserSpec{
 				Email:             "sample@email.com",
-				GitBaseDomainFQDN: GitP1Fqdn,
+				GitBaseDomainFQDN: gitP1Fqdn,
 				SecretRef: corev1.SecretReference{
 					Name: luffySecretName,
 				},
@@ -70,7 +71,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		Wait5()
-		repoUrl := "http://" + GitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -129,16 +130,17 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 			}},
 			Data: map[string]string{"test": "oui"},
 		}
-		_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
-			cm,
-			metav1.CreateOptions{},
-		)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring(defaultDeniedMessage))
+		Eventually(func() bool {
+			_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+				cm,
+				metav1.CreateOptions{},
+			)
+			return err != nil && strings.Contains(err.Error(), defaultDeniedMessage)
+		}, timeout, interval).Should(BeTrue())
 
 		By("checking if the right fields are present on the ConfigMap on the repo")
 		repo := &Repo{
-			Fqdn:  GitP1Fqdn,
+			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",
 			Name:  "blue",
 		}
@@ -165,11 +167,6 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 		annotation3 := annotations[annotation3Key]
 		Expect(annotation3).To(Equal("test"))
 
-		By("deleting the remote syncer from the cluster")
-		Eventually(func() bool {
-			err := sClient.As(Luffy).Delete(remotesyncer)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
 	})
 
 	It("should exclude the fields (configured in the ConfigMap) from the git repo", func() {
@@ -189,7 +186,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 			},
 			Spec: syngit.RemoteUserSpec{
 				Email:             "sample@email.com",
-				GitBaseDomainFQDN: GitP1Fqdn,
+				GitBaseDomainFQDN: gitP1Fqdn,
 				SecretRef: corev1.SecretReference{
 					Name: luffySecretName,
 				},
@@ -218,7 +215,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		Wait5()
-		repoUrl := "http://" + GitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -273,16 +270,17 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 			}},
 			Data: map[string]string{"test": "oui"},
 		}
-		_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
-			cm,
-			metav1.CreateOptions{},
-		)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring(defaultDeniedMessage))
+		Eventually(func() bool {
+			_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+				cm,
+				metav1.CreateOptions{},
+			)
+			return err != nil && strings.Contains(err.Error(), defaultDeniedMessage)
+		}, timeout, interval).Should(BeTrue())
 
 		By("checking if the right fields are present on the ConfigMap on the repo")
 		repo := &Repo{
-			Fqdn:  GitP1Fqdn,
+			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",
 			Name:  "blue",
 		}
@@ -308,11 +306,5 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 		Expect(annotation2).To(BeNil())
 		annotation3 := annotations[annotation3Key]
 		Expect(annotation3).To(Equal("test"))
-
-		By("deleting the remote syncer from the cluster")
-		Eventually(func() bool {
-			err := sClient.As(Luffy).Delete(remotesyncer)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
 	})
 })
