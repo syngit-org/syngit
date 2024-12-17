@@ -2,17 +2,21 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: validating-webhook-configuration
+  name: {{ .Release.Namespace }}-validating-webhook-configuration
+  {{- if eq .Values.webhook.certmanager.enable true }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/operator-webhook-cert
+  {{- end }}
 webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
     service:
-      name: webhook-service
-      namespace: system
-      path: /validate-syngit-syngit-io-v1beta2-remotesyncer
+      name: webhook-crd-service
+      namespace: {{ .Release.Namespace }}
+      path: /validate-syngit-syngit-io-v1beta2-remoteuser
   failurePolicy: Fail
-  name: vremotesyncer-v1beta2.kb.io
+  name: vremoteuser.kb.io
   rules:
   - apiGroups:
     - syngit.syngit.io
@@ -22,14 +26,14 @@ webhooks:
     - CREATE
     - UPDATE
     resources:
-    - remotesyncers
+    - remoteusers
   sideEffects: None
 - admissionReviewVersions:
   - v1
   clientConfig:
     service:
-      name: webhook-service
-      namespace: system
+      name: webhook-crd-service
+      namespace: {{ .Release.Namespace }}
       path: /syngit-v1beta2-remotesyncer-rules-permissions
   failurePolicy: Fail
   name: vremotesyncers-rules-permissions.v1beta2.syngit.io
@@ -49,11 +53,11 @@ webhooks:
   - v1
   clientConfig:
     service:
-      name: webhook-service
-      namespace: system
-      path: /validate-syngit-syngit-io-v1beta2-remoteuser
+      name: webhook-crd-service
+      namespace: {{ .Release.Namespace }}
+      path: /validate-syngit-syngit-io-v1beta2-remotesyncer
   failurePolicy: Fail
-  name: vremoteuser-v1beta2.kb.io
+  name: vremotesyncer.kb.io
   rules:
   - apiGroups:
     - syngit.syngit.io
@@ -63,14 +67,14 @@ webhooks:
     - CREATE
     - UPDATE
     resources:
-    - remoteusers
+    - remotesyncers
   sideEffects: None
 - admissionReviewVersions:
   - v1
   clientConfig:
     service:
-      name: webhook-service
-      namespace: system
+      name: webhook-crd-service
+      namespace: {{ .Release.Namespace }}
       path: /syngit-v1beta2-remoteuser-association
   failurePolicy: Fail
   name: vremoteusers-association.v1beta2.syngit.io

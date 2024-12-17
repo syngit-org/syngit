@@ -30,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	. "syngit.io/syngit/api/v1beta2"
 	syngitv1beta2 "syngit.io/syngit/api/v1beta2"
 )
 
@@ -47,8 +46,6 @@ func SetupRemoteSyncerWebhookWithManager(mgr ctrl.Manager) error {
 
 // +kubebuilder:webhook:path=/validate-syngit-syngit-io-v1beta2-remotesyncer,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remotesyncers,verbs=create;update,versions=v1beta2,name=vremotesyncer-v1beta2.kb.io,admissionReviewVersions=v1
 
-// NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
-// as this struct is used only for temporary operations and does not need to be deeply copied.
 type RemoteSyncerCustomValidator struct {
 	//TODO(user): Add more fields as needed for validation
 }
@@ -56,13 +53,13 @@ type RemoteSyncerCustomValidator struct {
 var _ webhook.CustomValidator = &RemoteSyncerCustomValidator{}
 
 // Validate validates the RemoteSyncerSpec
-func validateRemoteSyncerSpec(r *RemoteSyncerSpec) field.ErrorList {
+func validateRemoteSyncerSpec(r *syngitv1beta2.RemoteSyncerSpec) field.ErrorList {
 	var errors field.ErrorList
 
 	// Validate DefaultUserBind based on DefaultUnauthorizedUserMode
-	if r.DefaultUnauthorizedUserMode == Block && r.DefaultRemoteUserRef != nil {
+	if r.DefaultUnauthorizedUserMode == syngitv1beta2.Block && r.DefaultRemoteUserRef != nil {
 		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultRemoteUserRef"), r.DefaultRemoteUserRef, "should not be set when defaultUnauthorizedUserMode is set to \"Block\""))
-	} else if r.DefaultUnauthorizedUserMode == UseDefaultUser && r.DefaultRemoteUserRef == nil {
+	} else if r.DefaultUnauthorizedUserMode == syngitv1beta2.UseDefaultUser && r.DefaultRemoteUserRef == nil {
 		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultRemoteUserRef"), "must be set when defaultUnauthorizedUserMode is set to \"UseDefaultUser\""))
 	}
 
@@ -90,12 +87,12 @@ func validateRemoteSyncerSpec(r *RemoteSyncerSpec) field.ErrorList {
 	}
 
 	// Validate that DefaultBranch exists if PushMode is set to "SameBranch"
-	if r.PushMode == SameBranch && r.DefaultBranch == "" {
+	if r.PushMode == syngitv1beta2.SameBranch && r.DefaultBranch == "" {
 		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultBranch"), "must be set when defaultBranch is set to \"SameBranch\""))
 	}
 
 	// Validate that DefaultBranch exists if DefaultUnauthorizedUser uses a default user
-	if r.DefaultUnauthorizedUserMode != Block && r.DefaultBranch == "" {
+	if r.DefaultUnauthorizedUserMode != syngitv1beta2.Block && r.DefaultBranch == "" {
 		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultBranch"), "must be set when the defaultUnauthorizedUserMode is set to UseDefaultUser"))
 	}
 

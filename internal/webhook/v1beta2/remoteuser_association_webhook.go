@@ -21,13 +21,26 @@ type RemoteUserWebhookHandler struct {
 	Decoder *admission.Decoder
 }
 
+// +kubebuilder:webhook:path=/syngit-v1beta2-remoteuser-association,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remoteusers,verbs=create;update;delete,versions=v1beta2,admissionReviewVersions=v1,name=vremoteusers-association.v1beta2.syngit.io
+
 func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.Request) admission.Response {
 
 	username := req.DeepCopy().UserInfo.Username
 	name := syngit.RubPrefix + username
 
+	rub := &syngit.RemoteUserBinding{}
+	webhookNamespacedName := &types.NamespacedName{
+		Name:      name,
+		Namespace: req.Namespace,
+	}
+	rubErr := ruwh.Client.Get(ctx, *webhookNamespacedName, rub)
+
 	if string(req.Operation) == "DELETE" {
-		return ruwh.removeRuFromRub(ctx, req, name)
+		if rubErr != nil {
+			return admission.Allowed("This object was not associated with any RemoteUserBinding")
+		} else {
+			return ruwh.removeRuFromRub(ctx, req, name, rub)
+		}
 	}
 
 	ru := &syngit.RemoteUser{}
@@ -35,15 +48,9 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
-
 	objRef := corev1.ObjectReference{Name: ru.Name}
-	rub := &syngit.RemoteUserBinding{}
-	webhookNamespacedName := &types.NamespacedName{
-		Name:      name,
-		Namespace: req.Namespace,
-	}
-	err = ruwh.Client.Get(ctx, *webhookNamespacedName, rub)
-	if err != nil {
+
+	if rubErr != nil {
 		// The RemoteUserBinding does not exists yet
 		if ru.Annotations["syngit.syngit.io/associated-remote-userbinding"] == "" || ru.Annotations["syngit.syngit.io/associated-remote-userbinding"] == "false" {
 			return admission.Allowed("This object is not associated with any RemoteUserBinding")
@@ -70,11 +77,15 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 	} else {
 		// The RemoteUserBinding already exists
 		if ru.Annotations["syngit.syngit.io/associated-remote-userbinding"] == "" || ru.Annotations["syngit.syngit.io/associated-remote-userbinding"] == "false" {
-			return ruwh.removeRuFromRub(ctx, req, name)
+			return ruwh.removeRuFromRub(ctx, req, name, rub)
 		}
 
 		remoteRefs := rub.DeepCopy().Spec.RemoteRefs
-		remoteRefs = append(remoteRefs, objRef)
+		for _, ruRef := range remoteRefs {
+			if ruRef.Name != ru.Name {
+				remoteRefs = append(remoteRefs, objRef)
+			}
+		}
 		rub.Spec.RemoteRefs = remoteRefs
 
 		updateErr := ruwh.Client.Update(ctx, rub)
@@ -87,21 +98,11 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 	return admission.Allowed("This object is associated to the " + name + " RemoteUserBinding")
 }
 
-func (ruwh *RemoteUserWebhookHandler) removeRuFromRub(ctx context.Context, req admission.Request, name string) admission.Response {
+func (ruwh *RemoteUserWebhookHandler) removeRuFromRub(ctx context.Context, req admission.Request, name string, rub *syngit.RemoteUserBinding) admission.Response {
 	ru := &syngit.RemoteUser{}
 	err := ruwh.Decoder.DecodeRaw(req.OldObject, ru)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
-	}
-
-	rub := &syngit.RemoteUserBinding{}
-	webhookNamespacedName := &types.NamespacedName{
-		Name:      name,
-		Namespace: req.Namespace,
-	}
-	rubErr := ruwh.Client.Get(ctx, *webhookNamespacedName, rub)
-	if rubErr != nil {
-		return admission.Errored(http.StatusBadRequest, rubErr)
 	}
 
 	remoteRefs := rub.Spec.DeepCopy().RemoteRefs
@@ -111,10 +112,10 @@ func (ruwh *RemoteUserWebhookHandler) removeRuFromRub(ctx context.Context, req a
 			newRemoteRefs = append(newRemoteRefs, rm)
 		}
 	}
-	rub.Spec.RemoteRefs = newRemoteRefs
 
 	if len(newRemoteRefs) != 0 {
 
+		rub.Spec.RemoteRefs = newRemoteRefs
 		deleteErr := ruwh.Client.Update(ctx, rub)
 		if deleteErr != nil {
 			return admission.Errored(http.StatusInternalServerError, deleteErr)

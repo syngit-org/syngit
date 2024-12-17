@@ -30,3 +30,12 @@ if [ "$ADDED" = "1" ]; then
   echo "User '$LUFFY_USERNAME' failed to be added to repository 'blue' with 'write' access on $PLATFORM2."
   exit 1
 fi
+
+#
+## BROOK
+#
+ADDED=$(add-collaborator $GITEA_URL $ADMIN_TOKEN "blue" $BROOK_USERNAME)
+if [ "$ADDED" = "1" ]; then
+  echo "User '$BROOK_USERNAME' failed to be added to repository 'blue' with 'write' access on $PLATFORM2."
+  exit 1
+fi

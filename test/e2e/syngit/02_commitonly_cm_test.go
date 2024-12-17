@@ -36,7 +36,7 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 	const (
 		cmName               = "test-cm2"
 		remoteUserLufffyName = "remoteuser-luffy"
-		remoteSyncerName     = "remotesyncer-test"
+		remoteSyncerName     = "remotesyncer-test2"
 	)
 
 	It("should not create the resource on the cluster", func() {
@@ -44,6 +44,7 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
+		Wait5()
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{

@@ -201,7 +201,7 @@ func searchForObjectInAllManifests(repo Repo, tree []Tree, obj runtime.Object) (
 		} else {
 			file, err := searchForObjectInAllManifests(repo, entry.Entries, obj)
 			if err != nil {
-				return nil, err
+				continue
 			}
 			if file != nil {
 				return file, nil

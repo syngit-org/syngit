@@ -2,8 +2,11 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: manager-role
+  name: {{ .Release.Name }}-manager-role
 rules:
+# Any resources can be pushed to the git repo.
+# The scope depends but the controller
+#  needs to be able to get,list,watch any of them
 - apiGroups:
   - '*'
   resources:
@@ -12,6 +15,14 @@ rules:
   - get
   - list
   - watch
+# Create and patch events related to kgio objects in any namespace
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
 - apiGroups:
   - admissionregistration.k8s.io
   resources:
@@ -25,39 +36,9 @@ rules:
   - update
   - watch
 - apiGroups:
-  - authorization.k8s.io
+  - syngit.syngit.io
   resources:
-  - subjectaccessreviews
-  verbs:
-  - create
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - list
-  - patch
-  - watch
-- apiGroups:
-  - corev1
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - corev1
-  resources:
-  - events
-  verbs:
-  - create
-  - patch
-- apiGroups:
-  - corev1
-  resources:
-  - secrets
+  - remoteusers
   verbs:
   - get
   - list
@@ -65,25 +46,7 @@ rules:
 - apiGroups:
   - syngit.syngit.io
   resources:
-  - remotesyncers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - syngit.syngit.io
-  resources:
-  - remotesyncers/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - syngit.syngit.io
-  resources:
-  - remotesyncers/status
+  - remoteusers/status
   verbs:
   - get
   - patch
@@ -117,7 +80,7 @@ rules:
 - apiGroups:
   - syngit.syngit.io
   resources:
-  - remoteusers
+  - remotesyncers
   verbs:
   - create
   - delete
@@ -129,14 +92,20 @@ rules:
 - apiGroups:
   - syngit.syngit.io
   resources:
-  - remoteusers/finalizers
+  - remotesyncers/finalizers
   verbs:
   - update
 - apiGroups:
   - syngit.syngit.io
   resources:
-  - remoteusers/status
+  - remotesyncers/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
