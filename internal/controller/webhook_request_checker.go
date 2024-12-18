@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/go-logr/logr"
@@ -537,6 +538,9 @@ func (wrc *WebhookRequestChecker) responseConstructor(details wrcDetails) admiss
 		status = "Success"
 		message = successMessage
 	} else {
+		if strings.Contains(details.messageAddition, "the same target repository") {
+			message = "The resource has been pushed to the remote repository only ONE time BUT it"
+		}
 		condition := &v1.Condition{
 			LastTransitionTime: v1.Now(),
 			Type:               "NotSynced",

@@ -41,7 +41,18 @@ type GitPushResponse struct {
 	commitHash string // The commit hash of the commit
 }
 
+var variables string
+
 func (gp *GitPusher) Push() (GitPushResponse, error) {
+	gvr := fmt.Sprintf("%s/%s %s", gp.interceptedGVR.Group, gp.interceptedGVR.Version, gp.interceptedGVR.Resource)
+	variables = fmt.Sprintf("\nRepository: %s\nReference: %s\nUsername: %s\nEmail: %s\nScoped resource: %s\n",
+		gp.remoteSyncer.Spec.RemoteRepository,
+		plumbing.ReferenceName(gp.branch),
+		gp.gitUser,
+		gp.gitEmail,
+		strings.Join([]string{gvr, gp.interceptedName}, " - "),
+	)
+
 	gpResponse := &GitPushResponse{path: "", commitHash: ""}
 	gp.branch = gp.remoteSyncer.Spec.DefaultBranch
 
@@ -63,12 +74,6 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 	}
 	repo, err := git.Clone(memory.NewStorage(), memfs.New(), cloneOption)
 	if err != nil {
-		variables := fmt.Sprintf("\nRepository: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
-			gp.remoteSyncer.Spec.RemoteRepository,
-			plumbing.ReferenceName(gp.branch),
-			gp.gitUser,
-			gp.gitEmail,
-		)
 		errMsg := fmt.Sprintf("failed to clone repository: %s\nVerbose output: %s\nVariables: %s\n", err.Error(), verboseOutput.String(), variables)
 		return *gpResponse, errors.New(errMsg)
 	}
@@ -255,12 +260,6 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string) (string, e
 }
 
 func (gp *GitPusher) pushChanges(repo *git.Repository) error {
-	variables := fmt.Sprintf("\nRepository: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
-		gp.remoteSyncer.Spec.RemoteRepository,
-		plumbing.ReferenceName(gp.branch),
-		gp.gitUser,
-		gp.gitEmail,
-	)
 	var verboseOutput bytes.Buffer
 	pushOptions := &git.PushOptions{
 		Auth: &http.BasicAuth{
@@ -275,7 +274,12 @@ func (gp *GitPusher) pushChanges(repo *git.Repository) error {
 	}
 	err := repo.Push(pushOptions)
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to push changes: %s\nVerbose output:%s\nVariables: %s\n", err.Error(), verboseOutput.String(), variables)
+		var errMsg string
+		if strings.Contains(err.Error(), "cannot lock ref") {
+			errMsg = fmt.Sprintf("failed to push changes for the X+1 time: two or more RemoteSyncers with the same target repository are scoping this resource.\nVariables: %s\n", variables)
+		} else {
+			errMsg = fmt.Sprintf("failed to push changes: %s\nVerbose output:%s\nVariables: %s\n", err.Error(), verboseOutput.String(), variables)
+		}
 		return errors.New(errMsg)
 	}
 
