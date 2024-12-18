@@ -33,19 +33,14 @@ func (customClient CustomClient) CreateOrUpdate(obj client.Object) error {
 	return customClient.client.Update(customClient.ctx, obj)
 }
 
+func (customClient CustomClient) List(namespace string, objList client.ObjectList) error {
+	return customClient.client.List(customClient.ctx, objList, &client.ListOptions{Namespace: namespace})
+}
+
 func (customClient CustomClient) Get(namespacedName types.NamespacedName, obj client.Object) error {
 	return customClient.client.Get(customClient.ctx, namespacedName, obj)
 }
 
 func (customClient CustomClient) Delete(obj client.Object) error {
-	// Create a deep copy of the object to avoid modifying the input
-	existingObj := obj.DeepCopyObject().(client.Object)
-
-	// Check if the object exists
-	err := customClient.client.Get(customClient.ctx, client.ObjectKeyFromObject(obj), existingObj)
-	if err == nil {
-		return customClient.client.Delete(customClient.ctx, obj)
-	}
-
-	return nil
+	return customClient.client.Delete(customClient.ctx, obj)
 }

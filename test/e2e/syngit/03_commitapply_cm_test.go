@@ -57,7 +57,7 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 			},
 			Spec: syngit.RemoteUserSpec{
 				Email:             "sample@email.com",
-				GitBaseDomainFQDN: GitP1Fqdn,
+				GitBaseDomainFQDN: gitP1Fqdn,
 				SecretRef: corev1.SecretReference{
 					Name: luffySecretName,
 				},
@@ -69,7 +69,7 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		Wait5()
-		repoUrl := "http://" + GitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -113,15 +113,17 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: cmName, Namespace: namespace},
 			Data:       map[string]string{"test": "oui"},
 		}
-		_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
-			cm,
-			metav1.CreateOptions{},
-		)
-		Expect(err).ToNot(HaveOccurred())
+		Eventually(func() bool {
+			_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+				cm,
+				metav1.CreateOptions{},
+			)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
 
 		By("checking if the configmap is present on the repo")
 		repo := &Repo{
-			Fqdn:  GitP1Fqdn,
+			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",
 			Name:  "blue",
 		}
@@ -141,16 +143,5 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("deleting the configmap from the cluster")
-		Eventually(func() bool {
-			err := sClient.As(Luffy).Delete(getCm)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
-
-		By("deleting the remote syncer from the cluster")
-		Eventually(func() bool {
-			err := sClient.As(Luffy).Delete(remotesyncer)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
 	})
 })

@@ -59,7 +59,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 			},
 			Spec: syngit.RemoteUserSpec{
 				Email:             "sample@email.com",
-				GitBaseDomainFQDN: GitP1Fqdn,
+				GitBaseDomainFQDN: gitP1Fqdn,
 				SecretRef: corev1.SecretReference{
 					Name: luffySecretName,
 				},
@@ -81,7 +81,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 			},
 			Spec: syngit.RemoteUserSpec{
 				Email:             "sample@email.com",
-				GitBaseDomainFQDN: GitP2Fqdn,
+				GitBaseDomainFQDN: gitP2Fqdn,
 				SecretRef: corev1.SecretReference{
 					Name: luffySecretName,
 				},
@@ -89,6 +89,29 @@ var _ = Describe("06 Test objects lifecycle", func() {
 		}
 		Eventually(func() bool {
 			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffySaturn)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		By("updating the RemoteUser & RemoteUserBinding for Luffy (saturn)")
+		remoteUserLuffySaturn2 := &syngit.RemoteUser{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteUserLuffySaturnName,
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"syngit.syngit.io/associated-remote-userbinding": "true",
+					"change": "something",
+				},
+			},
+			Spec: syngit.RemoteUserSpec{
+				Email:             "sample@email.com",
+				GitBaseDomainFQDN: gitP2Fqdn,
+				SecretRef: corev1.SecretReference{
+					Name: luffySecretName,
+				},
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffySaturn2)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -154,7 +177,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 			},
 			Spec: syngit.RemoteUserSpec{
 				Email:             "sample@email.com",
-				GitBaseDomainFQDN: GitP1Fqdn,
+				GitBaseDomainFQDN: gitP1Fqdn,
 				SecretRef: corev1.SecretReference{
 					Name: luffySecretName,
 				},
@@ -166,7 +189,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		Wait5()
-		repoUrl := "http://" + GitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -222,28 +245,5 @@ var _ = Describe("06 Test objects lifecycle", func() {
 		}
 		Expect(stsNb).To(Equal(1))
 
-		By("deleting the remote syncer from the cluster")
-		Eventually(func() bool {
-			err := sClient.As(Luffy).Delete(remotesyncer)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
-
-		// Wait5()
-		// By("checking that the webhook does not intercept anything")
-		// Eventually(func() bool {
-		// 	err := sClient.As(Luffy).Get(nnValidation, getValidation)
-		// 	return err == nil
-		// }, timeout, interval).Should(BeTrue())
-
-		// validations = getValidation.Webhooks
-		// stsNb = 0
-		// for _, validation := range validations {
-		// 	rule := validation.Rules[0]
-		// 	if rule.Resources[0] == remotesyncer.Spec.ScopedResources.Rules[0].Resources[0] {
-		// 		stsNb += 1
-		// 	}
-		// }
-		// Expect(stsNb).To(Equal(0))
-		// Expect(len(validations)).To(Equal(0))
 	})
 })

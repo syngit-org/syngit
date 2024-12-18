@@ -60,13 +60,13 @@ cleanup-gitea:
 ##@ Development
 
 WEBHOOK_PATH ?= config/webhook
-IMAGE ?= local/syngit-controller:dev
 .PHONY: dev-deploy
 dev-deploy: # Launch dev env on the cluster
+	make cleanup-e2e || true
 	kind create cluster --name $(DEV_CLUSTER) 2>/dev/null || true
-	make docker-build IMG=$(IMAGE)
-	kind load docker-image $(IMAGE) --name $(DEV_CLUSTER)
-	make deploy IMG=$(IMAGE)
+	make docker-build IMG=$(IMG)
+	kind load docker-image $(IMG) --name $(DEV_CLUSTER)
+	make deploy IMG=$(IMG)
 
 LATEST_CHART ?= $(shell find charts -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -V | tail -n 1)
 .PHONY: chart-install
@@ -108,8 +108,23 @@ test: manifests generate fmt vet envtest ## Run tests.
 # Utilize Kind or modify the e2e tests to load the image locally, enabling compatibility with other vendors.
 .PHONY: test-e2e  # Run the e2e tests against a Kind k8s instance that is spun up.
 test-e2e:
+	make cleanup-deploy || true
 	go test ./test/e2e/build -v -ginkgo.v
 	go test ./test/e2e/syngit -v -ginkgo.v
+
+.PHONY: fast-e2e
+fast-e2e:
+	make cleanup-deploy || true
+	make docker-build
+	make kind-load-image
+	go test ./test/e2e/syngit -v -ginkgo.v -setup fast
+
+.PHONY: cleanup-e2e
+cleanup-e2e:
+	helm uninstall -n syngit syngit || true
+	helm uninstall -n saturn gitea || true
+	helm uninstall -n jupyter gitea || true
+	helm uninstall -n cert-manager cert-manager || true
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter & yamllint
