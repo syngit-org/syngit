@@ -47,6 +47,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 
 		luffySecretName := string(Luffy) + "-creds"
 
+		Wait5()
 		By("creating the RemoteUser & RemoteUserBinding for Luffy (jupyter)")
 		remoteUserLuffyJupyter := &syngit.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
@@ -140,6 +141,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
+		Wait5()
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{

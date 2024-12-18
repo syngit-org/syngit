@@ -20,8 +20,11 @@ var (
 	Sanji   TestUser
 	Chopper TestUser
 	Luffy   TestUser
+	Brook   TestUser
 )
 
+var FullPermissionsUsers []TestUser
+var ReducedPermissionsUsers []TestUser
 var Users []TestUser
 
 type SyngitTestUsersClientset struct {
@@ -65,8 +68,11 @@ func (tu *SyngitTestUsersClientset) Initialize() error {
 	Sanji = TestUser(os.Getenv("SANJI_USERNAME"))
 	Chopper = TestUser(os.Getenv("CHOPPER_USERNAME"))
 	Luffy = TestUser(os.Getenv("LUFFY_USERNAME"))
+	Brook = TestUser(os.Getenv("BROOK_USERNAME"))
 
-	Users = []TestUser{Sanji, Chopper, Luffy}
+	FullPermissionsUsers = []TestUser{Sanji, Chopper, Luffy}
+	ReducedPermissionsUsers = []TestUser{Brook}
+	Users = append(FullPermissionsUsers, ReducedPermissionsUsers...)
 
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig == "" {

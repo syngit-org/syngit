@@ -60,7 +60,7 @@ cleanup-gitea:
 ##@ Development
 
 WEBHOOK_PATH ?= config/webhook
-IMAGE ?= local.cluster/syngit-controller:dev
+IMAGE ?= local/syngit-controller:dev
 .PHONY: dev-deploy
 dev-deploy: # Launch dev env on the cluster
 	kind create cluster --name $(DEV_CLUSTER) 2>/dev/null || true
@@ -72,10 +72,9 @@ LATEST_CHART ?= $(shell find charts -mindepth 1 -maxdepth 1 -type d -exec basena
 .PHONY: chart-install
 chart-install:
 	helm install syngit charts/$(LATEST_CHART) -n syngit --create-namespace \
-		--set controller.image.prefix=local.cluster \
+		--set controller.image.prefix=local \
 		--set controller.image.name=syngit-controller \
-		--set controller.image.tag=dev \
-		--set controller.image.imagePullPolicy=IfNotPresent
+		--set controller.image.tag=dev
 
 .PHONY: chart-uninstall
 chart-uninstall:

@@ -50,9 +50,12 @@ var _ = Describe("05 Use a default user", func() {
 
 		By("deleting the current Sanji remote user")
 		cmd = exec.Command("kubectl", "delete", "remoteuser", "-n", namespace, remoteUserSanjiName)
-		res, _ := Run(cmd)
-		fmt.Println(string(res))
+		res, delErr := Run(cmd)
+		if delErr != nil {
+			fmt.Println(string(res))
+		}
 
+		Wait5()
 		By("only creating the RemoteUser for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -73,6 +76,7 @@ var _ = Describe("05 Use a default user", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
+		Wait5()
 		By("only creating the RemoteUser for Chopper")
 		chopperSecretName := string(Chopper) + "-creds"
 		remoteUserChopper := &syngit.RemoteUser{

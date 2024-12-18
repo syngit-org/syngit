@@ -34,7 +34,7 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 	ctx := context.TODO()
 
 	const (
-		remoteSyncerName    = "remotesyncer-test"
+		remoteSyncerName    = "remotesyncer-test3"
 		remoteUserLuffyName = "remoteuser-luffy"
 		cmName              = "test-cm3"
 	)
@@ -44,6 +44,7 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
+		Wait5()
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{

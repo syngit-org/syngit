@@ -37,7 +37,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 		cmName1             = "test-cm4.1"
 		cmName2             = "test-cm4.2"
 		remoteUserLuffyName = "remoteuser-luffy"
-		remoteSyncerName    = "remotesyncer-test"
+		remoteSyncerName    = "remotesyncer-test4"
 	)
 
 	It("should exclude the selected fields from the git repo", func() {
@@ -45,6 +45,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
+		Wait5()
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -221,7 +222,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "remotesyncer-test",
+				Name:      remoteSyncerName,
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteSyncerSpec{

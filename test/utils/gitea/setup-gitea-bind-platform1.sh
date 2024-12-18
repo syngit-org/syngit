@@ -35,7 +35,6 @@ fi
 #
 ## LUFFY
 #
-add-collaborator $GITEA_URL $ADMIN_TOKEN "blue" $LUFFY_USERNAME
 ADDED=$(add-collaborator $GITEA_URL $ADMIN_TOKEN "blue" $LUFFY_USERNAME)
 if [ "$ADDED" = "1" ]; then
   echo "User '$LUFFY_USERNAME' failed to be added to repository 'blue' with 'write' access on $PLATFORM1."
@@ -45,5 +44,22 @@ fi
 ADDED=$(add-collaborator $GITEA_URL $ADMIN_TOKEN "green" $LUFFY_USERNAME)
 if [ "$ADDED" = "1" ]; then
   echo "User '$LUFFY_USERNAME' failed to be added to repository 'green' with 'write' access on $PLATFORM1."
+  exit 1
+fi
+
+
+
+#
+## BROOK
+#
+ADDED=$(add-collaborator $GITEA_URL $ADMIN_TOKEN "blue" $BROOK_USERNAME)
+if [ "$ADDED" = "1" ]; then
+  echo "User '$BROOK_USERNAME' failed to be added to repository 'blue' with 'write' access on $PLATFORM1."
+  exit 1
+fi
+
+ADDED=$(add-collaborator $GITEA_URL $ADMIN_TOKEN "green" $BROOK_USERNAME)
+if [ "$ADDED" = "1" ]; then
+  echo "User '$BROOK_USERNAME' failed to be added to repository 'green' with 'write' access on $PLATFORM1."
   exit 1
 fi

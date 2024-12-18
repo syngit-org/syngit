@@ -69,3 +69,31 @@ kubectl exec -i $POD_NAME -n $NS_SATURN -- gitea admin user change-password \
   --username $LUFFY_USERNAME \
   --password $LUFFY_PWD \
   --must-change-password=false 2>&1 > /dev/null
+
+
+# brook-jbg-sb
+# Have access to the blue and green repo on the jupyter gitea
+# Have access to the blue repo on the saturn gitea
+BROOK_PWD="brook-jbg-sb-pwd"
+
+POD_NAME=$(kubectl get pods -n $NS_JUPYTER -l app.kubernetes.io/name=gitea -o jsonpath="{.items[0].metadata.name}")
+kubectl exec -i $POD_NAME -n $NS_JUPYTER -- gitea admin user create \
+  --username $BROOK_USERNAME \
+  --password "1$BROOK_PWD" \
+  --email "$BROOK_USERNAME@syngit.io" 2>&1 > /dev/null
+
+kubectl exec -i $POD_NAME -n $NS_JUPYTER -- gitea admin user change-password \
+  --username $BROOK_USERNAME \
+  --password $BROOK_PWD \
+  --must-change-password=false 2>&1 > /dev/null
+
+POD_NAME=$(kubectl get pods -n $NS_SATURN -l app.kubernetes.io/name=gitea -o jsonpath="{.items[0].metadata.name}")
+kubectl exec -i $POD_NAME -n $NS_SATURN -- gitea admin user create \
+  --username $BROOK_USERNAME \
+  --password "1$BROOK_PWD" \
+  --email "$BROOK_USERNAME@syngit.io" 2>&1 > /dev/null
+
+kubectl exec -i $POD_NAME -n $NS_SATURN -- gitea admin user change-password \
+  --username $BROOK_USERNAME \
+  --password $BROOK_PWD \
+  --must-change-password=false 2>&1 > /dev/null

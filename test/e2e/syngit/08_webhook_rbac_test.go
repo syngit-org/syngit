@@ -23,7 +23,6 @@ import (
 	. "github.com/onsi/gomega"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -31,29 +30,30 @@ import (
 	. "syngit.io/syngit/test/utils"
 )
 
-var _ = Describe("07 Subject bypasses interception", func() {
+var _ = Describe("08 Webhook rbac checker", func() {
 
 	const (
 		remoteUserLuffyName = "remoteuser-luffy"
-		remoteSyncer1Name   = "remotesyncer-test7.1"
-		remoteSyncer2Name   = "remotesyncer-test7.2"
-		cmName              = "test-cm7"
+		remoteUserBrookName = "remoteuser-brook"
+		remoteSyncer1Name   = "remotesyncer-test8.1"
+		remoteSyncer2Name   = "remotesyncer-test8.2"
+		cmName              = "test-cm8"
+		secretName          = "test-secret8"
 	)
+	ctx := context.TODO()
 
-	It("should apply the resource on the cluster but not push it on the git repository (CommitApply)", func() {
-
-		ctx := context.TODO()
+	It("should deny the resource because of lack of permissions", func() {
 
 		By("adding syngit to scheme")
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
 		Wait5()
-		By("creating the RemoteUser & RemoteUserBinding for Luffy")
-		luffySecretName := string(Luffy) + "-creds"
-		remoteUserLuffy := &syngit.RemoteUser{
+		By("creating the RemoteUser & RemoteUserBinding for Brook (test the RUB creation without the right permissions)")
+		brookSecretName := string(Brook) + "-creds"
+		remoteUserBrook := &syngit.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteUserLuffyName,
+				Name:      remoteUserBrookName,
 				Namespace: namespace,
 				Annotations: map[string]string{
 					"syngit.syngit.io/associated-remote-userbinding": "true",
@@ -63,18 +63,18 @@ var _ = Describe("07 Subject bypasses interception", func() {
 				Email:             "sample@email.com",
 				GitBaseDomainFQDN: GitP1Fqdn,
 				SecretRef: corev1.SecretReference{
-					Name: luffySecretName,
+					Name: brookSecretName,
 				},
 			},
 		}
 		Eventually(func() bool {
-			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffy)
+			err := sClient.As(Brook).CreateOrUpdate(remoteUserBrook)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
 		Wait5()
 		repoUrl := "http://" + GitP1Fqdn + "/syngituser/blue.git"
-		By("creating the RemoteSyncer")
+		By("creating the RemoteSyncer for ConfigMaps")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer1Name,
@@ -83,15 +83,10 @@ var _ = Describe("07 Subject bypasses interception", func() {
 			Spec: syngit.RemoteSyncerSpec{
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
-				BypassInterceptionSubjects: []v1.Subject{{
-					APIGroup: "rbac.authorization.k8s.io",
-					Kind:     "User",
-					Name:     string(Luffy),
-				}},
-				ExcludedFields:   []string{".metadata.uid"},
-				ProcessMode:      syngit.CommitApply,
-				PushMode:         syngit.SameBranch,
-				RemoteRepository: repoUrl,
+				ExcludedFields:              []string{".metadata.uid"},
+				ProcessMode:                 syngit.CommitApply,
+				PushMode:                    syngit.SameBranch,
+				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
@@ -107,10 +102,9 @@ var _ = Describe("07 Subject bypasses interception", func() {
 				},
 			},
 		}
-		Eventually(func() bool {
-			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
+		err = sClient.As(Brook).CreateOrUpdate(remotesyncer)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring(permissionsDeniedMessage))
 
 		Wait5()
 		By("creating a test configmap")
@@ -128,7 +122,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 		)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("checking that the configmap is not present on the repo")
+		By("checking that the configmap is not present in the repo")
 		repo := &Repo{
 			Fqdn:  GitP1Fqdn,
 			Owner: "syngituser",
@@ -164,20 +158,18 @@ var _ = Describe("07 Subject bypasses interception", func() {
 
 	})
 
-	It("should apply the resource on the cluster but not push it on the git repository (CommitOnly)", func() {
-
-		ctx := context.TODO()
+	It("should create the resource using the minimum permissions", func() {
 
 		By("adding syngit to scheme")
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
 		Wait5()
-		By("creating the RemoteUser & RemoteUserBinding for Luffy")
-		luffySecretName := string(Luffy) + "-creds"
-		remoteUserLuffy := &syngit.RemoteUser{
+		By("creating the RemoteUser & RemoteUserBinding for Brook (test the RUB creation without the right permissions)")
+		brookSecretName := string(Brook) + "-creds"
+		remoteUserBrook := &syngit.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteUserLuffyName,
+				Name:      remoteUserBrookName,
 				Namespace: namespace,
 				Annotations: map[string]string{
 					"syngit.syngit.io/associated-remote-userbinding": "true",
@@ -187,18 +179,18 @@ var _ = Describe("07 Subject bypasses interception", func() {
 				Email:             "sample@email.com",
 				GitBaseDomainFQDN: GitP1Fqdn,
 				SecretRef: corev1.SecretReference{
-					Name: luffySecretName,
+					Name: brookSecretName,
 				},
 			},
 		}
 		Eventually(func() bool {
-			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffy)
+			err := sClient.As(Brook).CreateOrUpdate(remoteUserBrook)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		repoUrl := "http://" + GitP1Fqdn + "/syngituser/blue.git"
-		By("creating the RemoteSyncer")
+		Wait5()
+		By("creating a wrong RemoteSyncer for Secrets")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer2Name,
@@ -207,15 +199,45 @@ var _ = Describe("07 Subject bypasses interception", func() {
 			Spec: syngit.RemoteSyncerSpec{
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
-				BypassInterceptionSubjects: []v1.Subject{{
-					APIGroup: "rbac.authorization.k8s.io",
-					Kind:     "User",
-					Name:     string(Luffy),
-				}},
-				ExcludedFields:   []string{".metadata.uid"},
-				ProcessMode:      syngit.CommitOnly,
-				PushMode:         syngit.SameBranch,
-				RemoteRepository: repoUrl,
+				ExcludedFields:              []string{".metadata.uid"},
+				ProcessMode:                 syngit.CommitApply,
+				PushMode:                    syngit.SameBranch,
+				RemoteRepository:            repoUrl,
+				ScopedResources: syngit.ScopedResources{
+					Rules: []admissionv1.RuleWithOperations{{
+						Operations: []admissionv1.OperationType{
+							admissionv1.Create,
+							admissionv1.Delete,
+						},
+						Rule: admissionv1.Rule{
+							APIGroups:   []string{""},
+							APIVersions: []string{"v1"},
+							Resources:   []string{"secrets"},
+						},
+					},
+					},
+				},
+			},
+		}
+		err = sClient.As(Brook).CreateOrUpdate(remotesyncer)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring(permissionsDeniedMessage))
+		Expect(err.Error()).To(ContainSubstring("DELETE"))
+
+		Wait5()
+		By("creating a good RemoteSyncer for Secrets")
+		remotesyncer = &syngit.RemoteSyncer{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteSyncer2Name,
+				Namespace: namespace,
+			},
+			Spec: syngit.RemoteSyncerSpec{
+				DefaultBranch:               "main",
+				DefaultUnauthorizedUserMode: syngit.Block,
+				ExcludedFields:              []string{".metadata.uid"},
+				ProcessMode:                 syngit.CommitApply,
+				PushMode:                    syngit.SameBranch,
+				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
@@ -224,7 +246,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 						Rule: admissionv1.Rule{
 							APIGroups:   []string{""},
 							APIVersions: []string{"v1"},
-							Resources:   []string{"configmaps"},
+							Resources:   []string{"secrets"},
 						},
 					},
 					},
@@ -232,51 +254,52 @@ var _ = Describe("07 Subject bypasses interception", func() {
 			},
 		}
 		Eventually(func() bool {
-			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
+			err := sClient.As(Brook).CreateOrUpdate(remotesyncer)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
 		Wait5()
-		By("creating a test configmap")
-		cm := &corev1.ConfigMap{
+		By("creating a test secret")
+		secret := &corev1.Secret{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       "ConfigMap",
+				Kind:       "Secret",
 				APIVersion: "v1",
 			},
-			ObjectMeta: metav1.ObjectMeta{Name: cmName, Namespace: namespace},
-			Data:       map[string]string{"test": "oui"},
+			ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace},
+			StringData: map[string]string{"test": "test1"},
 		}
-		_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
-			cm,
+		_, err = sClient.KAs(Brook).CoreV1().Secrets(namespace).Create(ctx,
+			secret,
 			metav1.CreateOptions{},
 		)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("checking that the configmap is not present on the repo")
+		Wait5()
+		By("checking that the secret present in the repo")
 		repo := &Repo{
 			Fqdn:  GitP1Fqdn,
 			Owner: "syngituser",
 			Name:  "blue",
 		}
-		exists, err := IsObjectInRepo(*repo, cm)
-		Expect(err).To(HaveOccurred())
-		Expect(exists).To(BeFalse())
+		exists, err := IsObjectInRepo(*repo, secret)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(exists).To(BeTrue())
 
-		By("checking that the configmap is present on the cluster")
-		nnCm := types.NamespacedName{
-			Name:      cmName,
+		By("checking that the secret is present on the cluster")
+		nnSecret := types.NamespacedName{
+			Name:      secretName,
 			Namespace: namespace,
 		}
-		getCm := &corev1.ConfigMap{}
+		getSecret := &corev1.Secret{}
 
 		Eventually(func() bool {
-			err := sClient.As(Luffy).Get(nnCm, getCm)
+			err := sClient.As(Luffy).Get(nnSecret, getSecret)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("deleting the configmap from the cluster")
+		By("deleting the secret from the cluster")
 		Eventually(func() bool {
-			err := sClient.As(Luffy).Delete(getCm)
+			err := sClient.As(Luffy).Delete(getSecret)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -287,4 +310,5 @@ var _ = Describe("07 Subject bypasses interception", func() {
 		}, timeout, interval).Should(BeTrue())
 
 	})
+
 })

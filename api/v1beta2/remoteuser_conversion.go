@@ -45,9 +45,10 @@ func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
 
 	associatedRemoteUserBinding, err := strconv.ParseBool(src.Annotations["syngit.syngit.io/associated-remote-userbinding"])
 	if err != nil {
-		return err
+		dst.Spec.AssociatedRemoteUserBinding = false
+	} else {
+		dst.Spec.AssociatedRemoteUserBinding = associatedRemoteUserBinding
 	}
-	dst.Spec.AssociatedRemoteUserBinding = associatedRemoteUserBinding
 
 	return nil
 }

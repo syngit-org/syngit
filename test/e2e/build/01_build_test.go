@@ -47,10 +47,10 @@ var _ = Describe("01 Build & deploy controller", Ordered, func() {
 			err = utils.LoadImageToKindClusterWithName(projectimage)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-			By("installing CRDs")
-			cmd = exec.Command("make", "install")
-			_, err = utils.Run(cmd)
-			ExpectWithOffset(1, err).NotTo(HaveOccurred())
+			// By("installing CRDs")
+			// cmd = exec.Command("make", "install")
+			// _, err = utils.Run(cmd)
+			// ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 			By("deploying the controller-manager")
 			cmd = exec.Command("make", "dev-deploy")
@@ -93,17 +93,13 @@ var _ = Describe("01 Build & deploy controller", Ordered, func() {
 			}
 			EventuallyWithOffset(1, verifyControllerUp, time.Minute, time.Second).Should(Succeed())
 
-		})
-
-		It("should be uninstalled successfully", func() {
-			var err error
-
 			By("undeploying the controller-manager")
-			cmd := exec.Command("make", "cleanup-deploy")
+			cmd = exec.Command("make", "cleanup-deploy")
 			_, err = utils.Run(cmd)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 		})
+
 	})
 
 })
