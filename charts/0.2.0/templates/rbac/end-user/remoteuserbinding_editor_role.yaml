@@ -11,7 +11,7 @@ metadata:
   name: {{ .Release.Name }}-remoteuserbinding-editor-role
 rules:
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
   - remoteuserbindings
   verbs:
@@ -23,7 +23,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
   - remoteuserbindings/status
   verbs:

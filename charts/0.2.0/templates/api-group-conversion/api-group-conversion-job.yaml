@@ -1,0 +1,134 @@
+{{- if .Release.IsUpgrade -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: syngit-api-group-conversion
+  namespace: {{ .Release.Namespace }}
+spec:
+  template:
+    spec:
+      serviceAccountName: syngit-api-group-conversion
+      automountServiceAccountToken: true
+      containers:
+        - name: kubectl
+          image: bitnami/kubectl:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |-
+              #!/bin/sh
+
+              sleep 60
+
+              echo "Checking for remoteusers"
+              GLOBAL_RUS=$(kubectl get remoteusers.syngit.syngit.io -A --no-headers -o=custom-columns="NAMESPACE:.metadata.namespace")
+              for RU_NS in $GLOBAL_RUS; do
+                for RU_NAME in $(kubectl get remoteusers.syngit.syngit.io -n $RU_NS --no-headers -o=custom-columns="NAMESPACE:.metadata.name"); do
+
+                  RU_SPEC=$(kubectl get remoteuser.syngit.syngit.io -n $RU_NS $RU_NAME -o json | jq '.spec')
+                  RU_LABELS=$(kubectl get remoteuser.syngit.syngit.io -n $RU_NS $RU_NAME -o json | jq '.metadata.labels')
+                  RU_ANNOTATIONS=$(kubectl get remoteuser.syngit.syngit.io -n $RU_NS $RU_NAME -o json | jq '.metadata.annotations')
+
+                  echo "Creating new remoteuser: ${RU_NAME}"
+                  NEW_RU_YAML=$(jq -n --arg name "${RU_NAME}" \
+                                        --arg namespace "$RU_NS" \
+                                        --argjson labels "$RU_LABELS" \
+                                        --argjson annotations "$RU_ANNOTATIONS" \
+                                        --argjson spec "$RU_SPEC" \
+                                        '
+                                        {
+                                          apiVersion: "syngit.io/v1beta2",
+                                          kind: "RemoteUser",
+                                          metadata: {
+                                            name: $name,
+                                            namespace: $namespace,
+                                            labels: $labels,
+                                            annotations: $annotations
+                                          },
+                                          spec: $spec
+                                        }
+                                        ')
+                  echo "${NEW_RU_YAML}" | yq eval -P - | kubectl apply -f -
+
+                done
+              done
+
+              echo "Checking for remoteuserbindings"
+              GLOBAL_RUBS=$(kubectl get remoteuserbindings.syngit.syngit.io -A --no-headers -o=custom-columns="NAMESPACE:.metadata.namespace")
+              for RUB_NS in $GLOBAL_RUBS; do
+                for RUB_NAME in $(kubectl get remoteuserbindings.syngit.syngit.io -n $RUB_NS --no-headers -o=custom-columns="NAMESPACE:.metadata.name"); do
+
+                  RUB_SPEC=$(kubectl get remoteuserbinding.syngit.syngit.io -n $RUB_NS $RUB_NAME -o json | jq '.spec')
+                  RUB_LABELS=$(kubectl get remoteuserbinding.syngit.syngit.io -n $RUB_NS $RUB_NAME -o json | jq '.metadata.labels')
+                  RUB_ANNOTATIONS=$(kubectl get remoteuserbinding.syngit.syngit.io -n $RUB_NS $RUB_NAME -o json | jq '.metadata.annotations')
+                
+                  echo "Creating new remoteuserbinding: ${RUB_NAME}"
+                  NEW_RUB_YAML=$(jq -n --arg name "${RUB_NAME}" \
+                                        --arg namespace "$RUB_NS" \
+                                        --argjson labels "$RU_LABELS" \
+                                        --argjson annotations "$RUB_ANNOTATIONS" \
+                                        --argjson spec "$RUB_SPEC" \
+                                        '
+                                        {
+                                          apiVersion: "syngit.io/v1beta2",
+                                          kind: "RemoteUserBinding",
+                                          metadata: {
+                                            name: $name,
+                                            namespace: $namespace,
+                                            labels: $labels,
+                                            annotations: $annotations
+                                          },
+                                          spec: $spec
+                                        }
+                                        ')
+                  echo "${NEW_RUB_YAML}" | yq eval -P - | kubectl apply -f -
+
+                done
+              done
+
+              echo "Checking for remotesyncers"
+              GLOBAL_RSYS=$(kubectl get remotesyncers.syngit.syngit.io -A --no-headers -o=custom-columns="NAMESPACE:.metadata.namespace")
+              for RSY_NS in $GLOBAL_RSYS; do
+                for RSY_NAME in $(kubectl get remotesyncers.syngit.syngit.io -n $RSY_NS --no-headers -o=custom-columns="NAMESPACE:.metadata.name"); do
+
+                  RSY_SPEC=$(kubectl get remotesyncer.syngit.syngit.io -n $RSY_NS $RSY_NAME -o json | jq '.spec')
+                  RSY_LABELS=$(kubectl get remotesyncer.syngit.syngit.io -n $RSY_NS $RSY_NAME -o json | jq '.metadata.labels')
+                  RSY_ANNOTATIONS=$(kubectl get remotesyncer.syngit.syngit.io -n $RSY_NS $RSY_NAME -o json | jq '.metadata.annotations')
+                
+                  echo "Creating new remotesyncer: ${RSY_NAME}"
+                  NEW_RSY_YAML=$(jq -n --arg name "${RSY_NAME}" \
+                                        --arg namespace "$RSY_NS" \
+                                        --argjson labels "$RSY_LABELS" \
+                                        --argjson annotations "$RSY_ANNOTATIONS" \
+                                        --argjson spec "$RSY_SPEC" \
+                                        '
+                                        {
+                                          apiVersion: "syngit.io/v1beta2",
+                                          kind: "RemoteSyncer",
+                                          metadata: {
+                                            name: $name,
+                                            namespace: $namespace,
+                                            labels: $labels,
+                                            annotations: $annotations
+                                          },
+                                          spec: $spec
+                                        }
+                                        ')
+                  echo "${NEW_RSY_YAML}" | yq eval -P - | kubectl apply -f -
+                  
+                done
+              done
+
+              echo "Deleting the old resources"
+              kubectl delete remoteusers.syngit.syngit.io --all
+              kubectl delete remoteuserbindings.syngit.syngit.io --all
+              kubectl delete remotesyncers.syngit.syngit.io --all
+
+              echo "Deleting the old CRDs"
+              kubectl delete crd remoteusers.syngit.syngit.io
+              kubectl delete crd remoteuserbindings.syngit.syngit.io
+              kubectl delete crd remotesyncers.syngit.syngit.io
+
+              echo "Success"
+              exit 0
+      restartPolicy: Never
+{{- end }}

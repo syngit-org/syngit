@@ -54,7 +54,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 				Name:      remoteUserLuffyJupyterName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					"syngit.syngit.io/associated-remote-userbinding": "true",
+					"syngit.io/associated-remote-userbinding": "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -76,7 +76,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 				Name:      remoteUserLuffySaturnName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					"syngit.syngit.io/associated-remote-userbinding": "true",
+					"syngit.io/associated-remote-userbinding": "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -98,7 +98,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 				Name:      remoteUserLuffySaturnName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					"syngit.syngit.io/associated-remote-userbinding": "true",
+					"syngit.io/associated-remote-userbinding": "true",
 					"change": "something",
 				},
 			},
@@ -172,7 +172,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					"syngit.syngit.io/associated-remote-userbinding": "true",
+					"syngit.io/associated-remote-userbinding": "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{

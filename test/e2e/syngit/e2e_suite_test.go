@@ -156,7 +156,7 @@ func rbacSetup(ctx context.Context) {
 			},
 			{
 				Verbs:     []string{"create", "get", "list", "watch", "update", "delete"},
-				APIGroups: []string{"syngit.syngit.io"},
+				APIGroups: []string{"syngit.io"},
 				Resources: []string{"remotesyncers", "remoteusers"},
 			},
 		},

@@ -2,7 +2,7 @@
 # This file is used to track the info used to scaffold your project
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
-domain: syngit.io
+domain: io
 layout:
 - go.kubebuilder.io/v4
 projectName: syngit
@@ -12,7 +12,7 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteUser
   path: syngit.io/syngit/api/v1alpha1
@@ -24,7 +24,7 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteUserBinding
   path: syngit.io/syngit/api/v1alpha1
@@ -33,7 +33,7 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteSyncer
   path: syngit.io/syngit/api/v1alpha1
@@ -44,7 +44,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteUser
   path: syngit.io/syngit/api/v1alpha2
@@ -55,7 +55,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteUserBinding
   path: syngit.io/syngit/api/v1alpha2
@@ -63,7 +63,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteSyncer
   path: syngit.io/syngit/api/v1alpha2
@@ -74,7 +74,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteSyncer
   path: syngit.io/syngit/api/v1alpha3
@@ -85,7 +85,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteUser
   path: syngit.io/syngit/api/v1alpha3
@@ -96,7 +96,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteUserBinding
   path: syngit.io/syngit/api/v1alpha3
@@ -104,7 +104,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteUserBinding
   path: syngit.io/syngit/api/v1alpha4
@@ -115,7 +115,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteUser
   path: syngit.io/syngit/api/v1alpha4
@@ -126,7 +126,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteSyncer
   path: syngit.io/syngit/api/v1alpha4
@@ -137,7 +137,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteUser
   path: syngit.io/syngit/api/v1beta1
@@ -149,7 +149,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteUserBinding
   path: syngit.io/syngit/api/v1beta1
@@ -160,7 +160,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteSyncer
   path: syngit.io/syngit/api/v1beta1
@@ -172,7 +172,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteSyncer
   path: syngit.io/syngit/api/v1beta2
@@ -184,7 +184,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteUserBinding
   path: syngit.io/syngit/api/v1beta2
@@ -195,7 +195,7 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  domain: syngit.io
+  domain: io
   group: syngit
   kind: RemoteUser
   path: syngit.io/syngit/api/v1beta2

@@ -11,9 +11,9 @@ metadata:
   name: {{ .Release.Name }}-remotesyncers-editor-role
 rules:
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
-  - remotesyncerss
+  - remotesyncers
   verbs:
   - create
   - delete
@@ -23,8 +23,8 @@ rules:
   - update
   - watch
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
-  - remotesyncerss/status
+  - remotesyncers/status
   verbs:
   - get
