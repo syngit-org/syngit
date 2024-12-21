@@ -9,19 +9,25 @@ issues:
   # restore some of the defaults
   # (fill in the rest as needed)
   exclude-rules:
-    - path: "api/*"
+    - path: "test/utils/*"
       linters:
-        - lll
+        - errcheck
+    - path: "test/e2e/*"
+      linters:
+        - errcheck
     - path: "internal/*"
       linters:
         - dupl
-        - lll
+    - path: "api/v1alpha*"
+      linters:
+        - unused
+        - prealloc
 linters:
   disable-all: true
   enable:
     - dupl
     - errcheck
-    - exportloopref
+    - copyloopvar
     - goconst
     - gocyclo
     - gofmt
@@ -29,7 +35,7 @@ linters:
     - gosimple
     - govet
     - ineffassign
-    - lll
+    # - lll
     - misspell
     - nakedret
     - prealloc

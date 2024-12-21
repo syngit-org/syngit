@@ -65,7 +65,7 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	var isGloballyBound bool = false
 	var isGloballyNotBound bool = false
 
-	var gitUserHosts []syngit.GitUserHost
+	gitUserHosts := []syngit.GitUserHost{}
 	for _, remoteUserRef := range remoteUserBinding.Spec.RemoteRefs {
 
 		// Set already known values about this RemoteUser

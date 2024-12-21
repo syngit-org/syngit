@@ -74,7 +74,7 @@ var _ = Describe("RemoteSyncer Controller", func() {
 						PushMode:                    syngit.SameBranch,
 						RemoteRepository:            "https://dummy-git-server.com",
 						ScopedResources: syngit.ScopedResources{
-							Rules: []admissionv1.RuleWithOperations{admissionv1.RuleWithOperations{
+							Rules: []admissionv1.RuleWithOperations{{
 								Operations: []admissionv1.OperationType{
 									admissionv1.Create,
 								},

@@ -22,7 +22,7 @@ import (
 )
 
 // log is for logging in this package.
-var remoteuserbindinglog = logf.Log.WithName("remoteuserbinding-resource")
+var _ = logf.Log.WithName("remoteuserbinding-resource")
 
 // SetupWebhookWithManager will setup the manager to manage the webhooks
 func (r *RemoteUserBinding) SetupWebhookWithManager(mgr ctrl.Manager) error {

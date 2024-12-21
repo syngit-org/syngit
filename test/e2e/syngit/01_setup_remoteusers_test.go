@@ -36,7 +36,7 @@ var _ = Describe("01 Create RemoteUser", func() {
 		remoteUserSanjiName = "remoteuser-sanji"
 	)
 
-	It("should instanciate the RemoteUser correctly (with RemoteUserBinding)", func() {
+	It("should instantiate the RemoteUser correctly (with RemoteUserBinding)", func() {
 		By("adding syngit to scheme")
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())

@@ -255,7 +255,7 @@ func isSetupInstalled() bool {
 	By("checking the syngit installation")
 	cmd = exec.Command("helm", "status", "syngit", "-n", "syngit")
 	_, err = Run(cmd)
-	if err != nil {
+	if err != nil { //nolint:gosimple
 		return false
 	}
 
