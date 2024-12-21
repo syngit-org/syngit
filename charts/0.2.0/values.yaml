@@ -9,7 +9,7 @@ controller:
   image:
     prefix: ghcr.io/syngit-org
     name: syngit
-    tag: 0.2.0
+    tag: v0.2.0
     # imagePullSecrets:
     # imagePullPolicy:
 
