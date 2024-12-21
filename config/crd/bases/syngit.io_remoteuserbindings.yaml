@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.14.0
-  name: remoteuserbindings.syngit.syngit.io
+  name: remoteuserbindings.syngit.io
 spec:
-  group: syngit.syngit.io
+  group: syngit.io
   names:
     categories:
     - syngit

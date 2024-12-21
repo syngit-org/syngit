@@ -11,7 +11,7 @@ metadata:
   name: {{ .Release.Name }}-gitremote-viewer-role
 rules:
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
   - remoteusers
   verbs:
@@ -19,7 +19,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
   - remoteusers/status
   verbs:

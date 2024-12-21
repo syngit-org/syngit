@@ -21,7 +21,7 @@ type RemoteUserWebhookHandler struct {
 	Decoder *admission.Decoder
 }
 
-// +kubebuilder:webhook:path=/syngit-v1beta2-remoteuser-association,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remoteusers,verbs=create;update;delete,versions=v1beta2,admissionReviewVersions=v1,name=vremoteusers-association.v1beta2.syngit.io
+// +kubebuilder:webhook:path=/syngit-v1beta2-remoteuser-association,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remoteusers,verbs=create;update;delete,versions=v1beta2,admissionReviewVersions=v1,name=vremoteusers-association.v1beta2.syngit.io
 
 func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.Request) admission.Response {
 
@@ -52,7 +52,7 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 
 	if rubErr != nil {
 		// The RemoteUserBinding does not exists yet
-		if ru.Annotations["syngit.syngit.io/associated-remote-userbinding"] == "" || ru.Annotations["syngit.syngit.io/associated-remote-userbinding"] == "false" {
+		if ru.Annotations["syngit.io/associated-remote-userbinding"] == "" || ru.Annotations["syngit.io/associated-remote-userbinding"] == "false" {
 			return admission.Allowed("This object is not associated with any RemoteUserBinding")
 		}
 
@@ -76,7 +76,7 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 		}
 	} else {
 		// The RemoteUserBinding already exists
-		if ru.Annotations["syngit.syngit.io/associated-remote-userbinding"] == "" || ru.Annotations["syngit.syngit.io/associated-remote-userbinding"] == "false" {
+		if ru.Annotations["syngit.io/associated-remote-userbinding"] == "" || ru.Annotations["syngit.io/associated-remote-userbinding"] == "false" {
 			return ruwh.removeRuFromRub(ctx, req, name, rub)
 		}
 

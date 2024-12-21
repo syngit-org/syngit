@@ -40,7 +40,7 @@ func SetupRemoteUserWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/validate-syngit-syngit-io-v1beta2-remoteuser,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remoteusers,verbs=create;update,versions=v1beta2,name=vremoteuser-v1beta2.kb.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/validate-syngit-io-v1beta2-remoteuser,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remoteusers,verbs=create;update,versions=v1beta2,name=vremoteuser-v1beta2.kb.io,admissionReviewVersions=v1
 
 type RemoteUserCustomValidator struct {
 	//TODO(user): Add more fields as needed for validation

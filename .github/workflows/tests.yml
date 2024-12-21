@@ -3,16 +3,7 @@ name: Tests
 on:
   # run it on push to the default repository branch
   push:
-    branches:
-      - '*'
-    tags:
-      - '*'
   pull_request:
-    types:
-      - opened
-      - reopened
-    branches:
-      - main
 
 jobs:
 

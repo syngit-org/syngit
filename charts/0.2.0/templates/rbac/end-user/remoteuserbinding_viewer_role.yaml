@@ -11,7 +11,7 @@ metadata:
   name: {{ .Release.Name }}-remoteuserbinding-viewer-role
 rules:
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
   - remoteuserbindings
   verbs:
@@ -19,7 +19,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
   - remoteuserbindings/status
   verbs:

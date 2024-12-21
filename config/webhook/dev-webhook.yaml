@@ -7,12 +7,12 @@ webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
-    url: https://172.17.0.1:9443/validate-syngit-syngit-io-v1-remoteuser
+    url: https://172.17.0.1:9443/validate-syngit-io-v1-remoteuser
   failurePolicy: Fail
   name: vremoteuser.kb.io
   rules:
   - apiGroups:
-    - syngit.syngit.io
+    - syngit.io
     apiVersions:
     - v1
     operations:
@@ -24,12 +24,12 @@ webhooks:
 - admissionReviewVersions:
   - v1
   clientConfig:
-    url: https://172.17.0.1:9443/validate-syngit-syngit-io-v1-remotesyncer
+    url: https://172.17.0.1:9443/validate-syngit-io-v1-remotesyncer
   failurePolicy: Fail
   name: vremotesyncer.kb.io
   rules:
   - apiGroups:
-    - syngit.syngit.io
+    - syngit.io
     apiVersions:
     - v1
     operations:

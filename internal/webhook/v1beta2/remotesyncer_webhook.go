@@ -44,7 +44,7 @@ func SetupRemoteSyncerWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/validate-syngit-syngit-io-v1beta2-remotesyncer,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.syngit.io,resources=remotesyncers,verbs=create;update,versions=v1beta2,name=vremotesyncer-v1beta2.kb.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/validate-syngit-io-v1beta2-remotesyncer,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remotesyncers,verbs=create;update,versions=v1beta2,name=vremotesyncer-v1beta2.kb.io,admissionReviewVersions=v1
 
 type RemoteSyncerCustomValidator struct {
 	//TODO(user): Add more fields as needed for validation
@@ -116,7 +116,7 @@ func validateRemoteSyncer(remoteSyncer *syngitv1beta2.RemoteSyncer) error {
 	}
 
 	return apierrors.NewInvalid(
-		schema.GroupKind{Group: "syngit.syngit.io", Kind: "RemoteSyncer"},
+		schema.GroupKind{Group: "syngit.io", Kind: "RemoteSyncer"},
 		remoteSyncer.Name, allErrs)
 }
 

@@ -36,7 +36,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
   - remoteusers
   verbs:
@@ -44,7 +44,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
   - remoteusers/status
   verbs:
@@ -52,7 +52,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
   - remoteuserbindings
   verbs:
@@ -64,13 +64,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
   - remoteuserbindings/finalizers
   verbs:
   - update
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
   - remoteuserbindings/status
   verbs:
@@ -78,7 +78,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
   - remotesyncers
   verbs:
@@ -90,13 +90,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
   - remotesyncers/finalizers
   verbs:
   - update
 - apiGroups:
-  - syngit.syngit.io
+  - syngit.io
   resources:
   - remotesyncers/status
   verbs:

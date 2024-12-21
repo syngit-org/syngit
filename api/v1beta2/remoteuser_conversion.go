@@ -43,7 +43,7 @@ func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
 
 	// Renaming
 
-	associatedRemoteUserBinding, err := strconv.ParseBool(src.Annotations["syngit.syngit.io/associated-remote-userbinding"])
+	associatedRemoteUserBinding, err := strconv.ParseBool(src.Annotations["syngit.io/associated-remote-userbinding"])
 	if err != nil {
 		dst.Spec.AssociatedRemoteUserBinding = false
 	} else {
@@ -74,7 +74,7 @@ func (dst *RemoteUser) ConvertFrom(srcRaw conversion.Hub) error {
 	// Renaming
 
 	associatedRemoteUserBinding := strconv.FormatBool(src.Spec.AssociatedRemoteUserBinding)
-	dst.Annotations["syngit.syngit.io/associated-remote-userbinding"] = associatedRemoteUserBinding
+	dst.Annotations["syngit.io/associated-remote-userbinding"] = associatedRemoteUserBinding
 
 	return nil
 }

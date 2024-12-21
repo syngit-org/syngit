@@ -50,12 +50,12 @@ stringData:
 ```
 
 ```yaml
-apiVersion: syngit.syngit.io/v1beta2
+apiVersion: syngit.io/v1beta2
 kind: RemoteUser
 metadata:
   name: remoteuser-sample
   annotations:
-    syngit.syngit.io/associated-remote-userbinding: "true"
+    syngit.io/associated-remote-userbinding: "true"
 spec:
   gitBaseDomainFQDN: "github.com"
   email: your@email.com
@@ -70,7 +70,7 @@ The RemoteSyncer object contains the whole logic part of the operator.
 In this example, the RemoteSyncer will intercept all the *configmaps* of the *default* namespace. It will push them to *https://github.com/my_repo_path.git* in the branch *main* under the path `my_configmaps/`. Because the `processMode` is set to `CommitApply`, the changes will be pushed and then applied to the cluster. `CommitOnly` will only push the resource on the git server without applying it on the cluster.
 
 ```yaml
-apiVersion: syngit.syngit.io/v1beta2
+apiVersion: syngit.io/v1beta2
 kind: RemoteSyncer
 metadata:
   name: remotesyncer-sample

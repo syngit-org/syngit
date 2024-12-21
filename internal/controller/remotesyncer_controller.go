@@ -42,9 +42,9 @@ type RemoteSyncerReconciler struct {
 	Recorder      record.EventRecorder
 }
 
-//+kubebuilder:rbac:groups=syngit.syngit.io,resources=remotesyncers,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=syngit.syngit.io,resources=remotesyncers/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=syngit.syngit.io,resources=remotesyncers/finalizers,verbs=update
+//+kubebuilder:rbac:groups=syngit.io,resources=remotesyncers,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=syngit.io,resources=remotesyncers/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=syngit.io,resources=remotesyncers/finalizers,verbs=update
 //+kubebuilder:rbac:groups=*,resources=*,verbs=get;list;watch
 //+kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations,verbs=create;get;list;watch;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch;list;watch

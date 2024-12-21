@@ -54,7 +54,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					"syngit.syngit.io/associated-remote-userbinding": "true",
+					"syngit.io/associated-remote-userbinding": "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -181,7 +181,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 				Name:      "remoteuser-luffy",
 				Namespace: namespace,
 				Annotations: map[string]string{
-					"syngit.syngit.io/associated-remote-userbinding": "true",
+					"syngit.io/associated-remote-userbinding": "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{

@@ -56,7 +56,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				Name:      remoteUserBrookName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					"syngit.syngit.io/associated-remote-userbinding": "true",
+					"syngit.io/associated-remote-userbinding": "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -162,7 +162,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				Name:      remoteUserBrookName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					"syngit.syngit.io/associated-remote-userbinding": "true",
+					"syngit.io/associated-remote-userbinding": "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
