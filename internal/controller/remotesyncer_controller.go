@@ -172,7 +172,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 			condition.Reason = "WebhookNotUpdated"
 			condition.Message = "The webhook exists but has not been updated"
-			r.updateConditions(ctx, &remoteSyncer, *condition)
+			_ = r.updateConditions(ctx, &remoteSyncer, *condition)
 
 			return reconcile.Result{}, err
 		}
@@ -184,7 +184,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 			condition.Reason = "WebhookNotCreated"
 			condition.Message = "The webhook does not exists and has not been created"
-			r.updateConditions(ctx, &remoteSyncer, *condition)
+			_ = r.updateConditions(ctx, &remoteSyncer, *condition)
 
 			return reconcile.Result{}, err
 		}
@@ -194,7 +194,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	condition.Reason = "WebhookUpdated"
 	condition.Message = "The resources have been successfully assigned to the webhook"
 	condition.Status = "True"
-	r.updateConditions(ctx, &remoteSyncer, *condition)
+	_ = r.updateConditions(ctx, &remoteSyncer, *condition)
 
 	return ctrl.Result{}, nil
 }

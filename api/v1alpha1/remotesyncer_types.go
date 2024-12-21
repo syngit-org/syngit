@@ -150,7 +150,7 @@ type NamespaceScopedKinds struct {
 }
 
 /*
-	SPEC CONVERTION EXTENSION
+	SPEC CONVERSION EXTENSION
 */
 
 type GroupVersionKindName struct {

@@ -111,7 +111,7 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	condition.Status = "True"
 
 	// Update the status of RemoteUser
-	r.updateStatus(ctx, &remoteUser, *condition)
+	_ = r.updateStatus(ctx, &remoteUser, *condition)
 
 	return ctrl.Result{}, nil
 }

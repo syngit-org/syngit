@@ -40,7 +40,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 		cmName              = "test-cm7"
 	)
 
-	It("should apply the resource on the cluster but not push it on the git repository (CommitApply)", func() {
+	It("should apply the resource on the cluster but not push it on the git repository (CommitApply)", func() { //nolint:dupl
 
 		ctx := context.TODO()
 
@@ -154,7 +154,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 
 	})
 
-	It("should apply the resource on the cluster but not push it on the git repository (CommitOnly)", func() {
+	It("should apply the resource on the cluster but not push it on the git repository (CommitOnly)", func() { //nolint:dupl
 
 		ctx := context.TODO()
 

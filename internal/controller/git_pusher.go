@@ -126,10 +126,8 @@ func (gp *GitPusher) pathConstructor(w *git.Worktree) (string, error) {
 	_, err = w.Filesystem.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			pathDir := path
-
 			// If the end of the path ends with .yaml or .yml
-			pathDir, _ = gp.getFileDirName(path, "")
+			pathDir, _ := gp.getFileDirName(path, "")
 
 			// Path does not exist, create the directory structure
 			err = w.Filesystem.MkdirAll(pathDir, 0755)
@@ -214,9 +212,9 @@ func (gp *GitPusher) writeFile(path string, w *git.Worktree) (string, error) {
 		errMsg := "failed to write to file" + err.Error()
 		return fullFilePath, errors.New(errMsg)
 	}
-	file.Close()
+	err = file.Close()
 
-	return fullFilePath, nil
+	return fullFilePath, err
 }
 
 func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string) (string, error) {

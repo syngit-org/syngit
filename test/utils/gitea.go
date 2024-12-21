@@ -100,9 +100,7 @@ func getAdminToken(baseFqdn string) (string, error) {
 		return "", err
 	}
 
-	// Log the response body
 	defer resp.Body.Close()
-	// body, _ := io.ReadAll(resp.Body)
 
 	// Check HTTP status code
 	if resp.StatusCode != http.StatusCreated {
@@ -166,7 +164,7 @@ func getTree(repoFqdn string, repoOwner string, repoName string, sha string) ([]
 	}
 
 	// If there are directories, recurse into them
-	var allEntries []Tree
+	var allEntries []Tree //nolint:prealloc
 	for _, entry := range tree.Entries {
 		if entry.Type == "tree" { // Directory
 			// Recursively call GetRepoTree to get entries in the directory
