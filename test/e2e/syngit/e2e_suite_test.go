@@ -29,16 +29,16 @@ import (
 	"github.com/joho/godotenv"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/syngit-org/syngit/test/utils"
+	. "github.com/syngit-org/syngit/test/utils"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"syngit.io/syngit/test/utils"
-	. "syngit.io/syngit/test/utils"
 
-	syngit "syngit.io/syngit/api/v1beta2"
+	syngit "github.com/syngit-org/syngit/api/v1beta2"
 )
 
 const (

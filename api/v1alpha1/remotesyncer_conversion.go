@@ -17,8 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	v1beta1 "github.com/syngit-org/syngit/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
-	v1beta1 "syngit.io/syngit/api/v1beta1"
 )
 
 func (src *RemoteSyncer) ConvertTo(dstRaw conversion.Hub) error {

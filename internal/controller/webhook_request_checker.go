@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
+	syngit "github.com/syngit-org/syngit/api/v1beta2"
 	"gopkg.in/yaml.v3"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -16,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	syngit "syngit.io/syngit/api/v1beta2"
 )
 
 type gitUser struct {

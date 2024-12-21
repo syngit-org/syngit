@@ -35,14 +35,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	syngitv1alpha1 "syngit.io/syngit/api/v1alpha1"
-	syngitv1alpha2 "syngit.io/syngit/api/v1alpha2"
-	syngitv1alpha3 "syngit.io/syngit/api/v1alpha3"
-	syngitv1alpha4 "syngit.io/syngit/api/v1alpha4"
-	syngitv1beta1 "syngit.io/syngit/api/v1beta1"
-	syngitv1beta2 "syngit.io/syngit/api/v1beta2"
-	"syngit.io/syngit/internal/controller"
-	webhooksyngitv1beta2 "syngit.io/syngit/internal/webhook/v1beta2"
+	syngitv1alpha1 "github.com/syngit-org/syngit/api/v1alpha1"
+	syngitv1alpha2 "github.com/syngit-org/syngit/api/v1alpha2"
+	syngitv1alpha3 "github.com/syngit-org/syngit/api/v1alpha3"
+	syngitv1alpha4 "github.com/syngit-org/syngit/api/v1alpha4"
+	syngitv1beta1 "github.com/syngit-org/syngit/api/v1beta1"
+	syngitv1beta2 "github.com/syngit-org/syngit/api/v1beta2"
+	"github.com/syngit-org/syngit/internal/controller"
+	webhooksyngitv1beta2 "github.com/syngit-org/syngit/internal/webhook/v1beta2"
 	//+kubebuilder:scaffold:imports
 )
 

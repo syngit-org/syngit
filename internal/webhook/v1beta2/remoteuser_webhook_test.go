@@ -20,7 +20,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	syngitv1beta2 "syngit.io/syngit/api/v1beta2"
+	syngitv1beta2 "github.com/syngit-org/syngit/api/v1beta2"
 	// TODO (user): Add any additional imports if needed
 )
 

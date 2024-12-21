@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 
+	syngit "github.com/syngit-org/syngit/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -33,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	syngit "syngit.io/syngit/api/v1beta2"
 )
 
 // RemoteUserReconciler reconciles a RemoteUser object

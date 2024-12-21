@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"syngit.io/syngit/test/utils"
+	"github.com/syngit-org/syngit/test/utils"
 )
 
 const projectimage = "local/syngit-controller:dev"

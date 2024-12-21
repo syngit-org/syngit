@@ -19,8 +19,8 @@ package v1beta2
 import (
 	"strconv"
 
+	"github.com/syngit-org/syngit/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
-	"syngit.io/syngit/api/v1beta1"
 )
 
 func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
