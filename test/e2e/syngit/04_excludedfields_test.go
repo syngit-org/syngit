@@ -22,13 +22,13 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	syngit "github.com/syngit-org/syngit/api/v1beta2"
+	. "github.com/syngit-org/syngit/test/utils"
 	"gopkg.in/yaml.v2"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
-	syngit "syngit.io/syngit/api/v1beta2"
-	. "syngit.io/syngit/test/utils"
 )
 
 var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {

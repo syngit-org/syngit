@@ -4,12 +4,12 @@ import (
 	"context"
 	"net/http"
 
+	syngit "github.com/syngit-org/syngit/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	syngit "syngit.io/syngit/api/v1beta2"
 )
 
 /*

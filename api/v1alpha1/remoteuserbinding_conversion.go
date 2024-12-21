@@ -17,8 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/syngit-org/syngit/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
-	"syngit.io/syngit/api/v1beta1"
 )
 
 func (src *RemoteUserBinding) ConvertTo(dstRaw conversion.Hub) error {

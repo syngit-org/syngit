@@ -1,4 +1,4 @@
-module syngit.io/syngit
+module github.com/syngit-org/syngit
 
 go 1.22.0
 

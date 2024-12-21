@@ -6,7 +6,7 @@ domain: io
 layout:
 - go.kubebuilder.io/v4
 projectName: syngit
-repo: syngit.io/syngit
+repo: github.com/syngit-org/syngit
 resources:
 - api:
     crdVersion: v1
@@ -15,7 +15,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteUser
-  path: syngit.io/syngit/api/v1alpha1
+  path: github.com/syngit-org/syngit/api/v1alpha1
   version: v1alpha1
   webhooks:
     validation: true
@@ -27,7 +27,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteUserBinding
-  path: syngit.io/syngit/api/v1alpha1
+  path: github.com/syngit-org/syngit/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -36,7 +36,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteSyncer
-  path: syngit.io/syngit/api/v1alpha1
+  path: github.com/syngit-org/syngit/api/v1alpha1
   version: v1alpha1
   webhooks:
     validation: true
@@ -47,7 +47,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteUser
-  path: syngit.io/syngit/api/v1alpha2
+  path: github.com/syngit-org/syngit/api/v1alpha2
   version: v1alpha2
   webhooks:
     validation: true
@@ -58,7 +58,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteUserBinding
-  path: syngit.io/syngit/api/v1alpha2
+  path: github.com/syngit-org/syngit/api/v1alpha2
   version: v1alpha2
 - api:
     crdVersion: v1
@@ -66,7 +66,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteSyncer
-  path: syngit.io/syngit/api/v1alpha2
+  path: github.com/syngit-org/syngit/api/v1alpha2
   version: v1alpha2
   webhooks:
     validation: true
@@ -77,7 +77,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteSyncer
-  path: syngit.io/syngit/api/v1alpha3
+  path: github.com/syngit-org/syngit/api/v1alpha3
   version: v1alpha3
   webhooks:
     validation: true
@@ -88,7 +88,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteUser
-  path: syngit.io/syngit/api/v1alpha3
+  path: github.com/syngit-org/syngit/api/v1alpha3
   version: v1alpha3
   webhooks:
     validation: true
@@ -99,7 +99,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteUserBinding
-  path: syngit.io/syngit/api/v1alpha3
+  path: github.com/syngit-org/syngit/api/v1alpha3
   version: v1alpha3
 - api:
     crdVersion: v1
@@ -107,7 +107,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteUserBinding
-  path: syngit.io/syngit/api/v1alpha4
+  path: github.com/syngit-org/syngit/api/v1alpha4
   version: v1alpha4
   webhooks:
     conversion: true
@@ -118,7 +118,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteUser
-  path: syngit.io/syngit/api/v1alpha4
+  path: github.com/syngit-org/syngit/api/v1alpha4
   version: v1alpha4
   webhooks:
     validation: true
@@ -129,7 +129,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteSyncer
-  path: syngit.io/syngit/api/v1alpha4
+  path: github.com/syngit-org/syngit/api/v1alpha4
   version: v1alpha4
   webhooks:
     validation: true
@@ -140,7 +140,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteUser
-  path: syngit.io/syngit/api/v1beta1
+  path: github.com/syngit-org/syngit/api/v1beta1
   version: v1beta1
   webhooks:
     conversion: true
@@ -152,7 +152,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteUserBinding
-  path: syngit.io/syngit/api/v1beta1
+  path: github.com/syngit-org/syngit/api/v1beta1
   version: v1beta1
   webhooks:
     conversion: true
@@ -163,7 +163,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteSyncer
-  path: syngit.io/syngit/api/v1beta1
+  path: github.com/syngit-org/syngit/api/v1beta1
   version: v1beta1
   webhooks:
     conversion: true
@@ -175,7 +175,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteSyncer
-  path: syngit.io/syngit/api/v1beta2
+  path: github.com/syngit-org/syngit/api/v1beta2
   version: v1beta2
   webhooks:
     conversion: true
@@ -187,7 +187,7 @@ resources:
   domain: io
   group: syngit
   kind: RemoteUserBinding
-  path: syngit.io/syngit/api/v1beta2
+  path: github.com/syngit-org/syngit/api/v1beta2
   version: v1beta2
   webhooks:
     conversion: true
@@ -198,10 +198,10 @@ resources:
   domain: io
   group: syngit
   kind: RemoteUser
-  path: syngit.io/syngit/api/v1beta2
+  path: github.com/syngit-org/syngit/api/v1beta2
   version: v1beta2
   webhooks:
     conversion: true
     validation: true
     webhookVersion: v1
-version: "3"
+version: "4"

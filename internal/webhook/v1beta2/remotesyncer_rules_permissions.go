@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"strings"
 
+	syngit "github.com/syngit-org/syngit/api/v1beta2"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/authentication/v1"
 	authv1 "k8s.io/api/authorization/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	syngit "syngit.io/syngit/api/v1beta2"
 )
 
 type RemoteSyncerWebhookHandler struct {

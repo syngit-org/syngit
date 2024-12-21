@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 
+	syngit "github.com/syngit-org/syngit/api/v1beta2"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	syngit "syngit.io/syngit/api/v1beta2"
 )
 
 // RemoteSyncerReconciler reconciles a RemoteSyncer object

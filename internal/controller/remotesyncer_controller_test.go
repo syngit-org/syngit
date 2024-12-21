@@ -28,7 +28,7 @@ import (
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	syngit "syngit.io/syngit/api/v1beta2"
+	syngit "github.com/syngit-org/syngit/api/v1beta2"
 )
 
 var _ = Describe("RemoteSyncer Controller", func() {
