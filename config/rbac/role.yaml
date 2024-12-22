@@ -40,22 +40,7 @@ rules:
   - patch
   - watch
 - apiGroups:
-  - corev1
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - corev1
-  resources:
-  - events
-  verbs:
-  - create
-  - patch
-- apiGroups:
-  - corev1
+  - ""
   resources:
   - secrets
   verbs:

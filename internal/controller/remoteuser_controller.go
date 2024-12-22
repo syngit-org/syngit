@@ -47,9 +47,8 @@ type RemoteUserReconciler struct {
 // +kubebuilder:rbac:groups=syngit.io,resources=remoteusers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=syngit.io,resources=remoteusers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=syngit.io,resources=remoteusers/finalizers,verbs=update
-// +kubebuilder:rbac:groups=corev1,resources=secrets,verbs=get;list;watch
-// +kubebuilder:rbac:groups=corev1,resources=configmaps,verbs=get;list;watch
-// +kubebuilder:rbac:groups=corev1,resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 
 func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
