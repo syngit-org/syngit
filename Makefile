@@ -103,17 +103,21 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
+	cd $(WEBHOOK_PATH) && ./cert-injector.sh manifests.yaml ../crd/patches 1 >/dev/null
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+	cd $(WEBHOOK_PATH) && ./cleanup-injector.sh
 
 # Utilize Kind or modify the e2e tests to load the image locally, enabling compatibility with other vendors.
 .PHONY: test-e2e  # Run the e2e tests against a Kind k8s instance that is spun up.
 test-e2e:
+	kind create cluster --name $(DEV_CLUSTER) 2>/dev/null || true
 	make cleanup-deploy || true
 	go test ./test/e2e/build -v -ginkgo.v
 	go test ./test/e2e/syngit -v -ginkgo.v
 
 .PHONY: fast-e2e
 fast-e2e:
+	kind create cluster --name $(DEV_CLUSTER) 2>/dev/null || true
 	make cleanup-deploy || true
 	make docker-build
 	make kind-load-image

@@ -47,9 +47,8 @@ type RemoteUserReconciler struct {
 // +kubebuilder:rbac:groups=syngit.io,resources=remoteusers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=syngit.io,resources=remoteusers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=syngit.io,resources=remoteusers/finalizers,verbs=update
-// +kubebuilder:rbac:groups=corev1,resources=secrets,verbs=get;list;watch
-// +kubebuilder:rbac:groups=corev1,resources=configmaps,verbs=get;list;watch
-// +kubebuilder:rbac:groups=corev1,resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 
 func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
@@ -60,16 +59,17 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		// does not exists -> deleted
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-	gRNamespace := remoteUser.Namespace
-	gRName := remoteUser.Name
 
-	var prefixMsg = "[" + gRNamespace + "/" + gRName + "]"
-	log.Log.Info(prefixMsg + " Reconciling request received")
+	log.Log.Info("Reconcile request",
+		"resource", "remoteuser",
+		"namespace", remoteUser.Namespace,
+		"name", remoteUser.Name,
+	)
 
 	condition := &v1.Condition{
 		LastTransitionTime: v1.Now(),
-		Type:               "NotReady",
-		Status:             "False",
+		Type:               "SecretBound",
+		Status:             v1.ConditionFalse,
 	}
 
 	// Get the referenced Secret
@@ -80,17 +80,16 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		remoteUser.Status.ConnexionStatus.Status = ""
 
 		condition.Reason = "SecretNotFound"
+		condition.Status = v1.ConditionFalse
 		condition.Message = string(syngit.SecretNotFound)
-		err = r.updateStatus(ctx, &remoteUser, *condition)
+		_ = r.updateStatus(ctx, &remoteUser, *condition)
 
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil
 	}
 
 	remoteUser.Status.SecretBoundStatus = syngit.SecretFound
-	condition.Message = "Secret found but is not of type \"kubernetes.io/basic-auth\""
-	condition.Type = "NotReady"
 	condition.Reason = "SecretFound"
-	condition.Status = "False"
+	condition.Message = string(syngit.SecretFound)
 
 	// Check if the referenced Secret is a basic-auth type
 	if secret.Type != corev1.SecretTypeBasicAuth {
@@ -99,16 +98,16 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 		condition.Reason = "SecretWrongType"
 		condition.Message = string(syngit.SecretWrongType)
-		errUpdate := r.updateStatus(ctx, &remoteUser, *condition)
+		_ = r.updateStatus(ctx, &remoteUser, *condition)
 
-		return ctrl.Result{}, errUpdate
+		return ctrl.Result{}, nil
 	}
 
 	remoteUser.Status.SecretBoundStatus = syngit.SecretBound
-	condition.Message = "Secret bound"
-	condition.Type = "Ready"
+	condition.Message = string(syngit.SecretBound)
+	condition.Type = "SecretBound"
 	condition.Reason = "SecretBound"
-	condition.Status = "True"
+	condition.Status = v1.ConditionTrue
 
 	// Update the status of RemoteUser
 	_ = r.updateStatus(ctx, &remoteUser, *condition)
@@ -116,25 +115,8 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	return ctrl.Result{}, nil
 }
 
-func (r *RemoteUserReconciler) updateConditions(remoteUser syngit.RemoteUser, condition v1.Condition) []v1.Condition {
-	added := false
-	var conditions []v1.Condition
-	for _, cond := range remoteUser.Status.Conditions {
-		if cond.Type == condition.Type {
-			conditions = append(conditions, condition)
-			added = true
-		} else {
-			conditions = append(conditions, cond)
-		}
-	}
-	if !added {
-		conditions = append(conditions, condition)
-	}
-	return conditions
-}
-
 func (r *RemoteUserReconciler) updateStatus(ctx context.Context, remoteUser *syngit.RemoteUser, condition v1.Condition) error {
-	conditions := r.updateConditions(*remoteUser, condition)
+	conditions := typeBasedConditionUpdater(remoteUser.Status.DeepCopy().Conditions, condition)
 
 	remoteUser.Status.Conditions = conditions
 	if err := r.Status().Update(ctx, remoteUser); err != nil {
