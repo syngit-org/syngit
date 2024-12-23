@@ -71,8 +71,11 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		rSName = remoteSyncer.Name
 	}
 
-	var prefixMsg = "[" + rSNamespace + "/" + rSName + "]"
-	log.Log.Info(prefixMsg + " Reconciling request received")
+	log.Log.Info("Reconcile request",
+		"resource", "remotesyncer",
+		"namespace", rSNamespace,
+		"name", rSName,
+	)
 
 	// Define the webhook path
 	webhookPath := "/syngit/validate/" + rSNamespace + "/" + rSName
@@ -147,8 +150,8 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	condition := &v1.Condition{
 		LastTransitionTime: v1.Now(),
-		Type:               "NotReady",
-		Status:             "False",
+		Type:               "WebhookReconciled",
+		Status:             v1.ConditionFalse,
 	}
 
 	if err == nil {
@@ -172,7 +175,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 			condition.Reason = "WebhookNotUpdated"
 			condition.Message = "The webhook exists but has not been updated"
-			_ = r.updateConditions(ctx, &remoteSyncer, *condition)
+			_ = r.updateStatus(ctx, &remoteSyncer, *condition)
 
 			return reconcile.Result{}, err
 		}
@@ -184,43 +187,25 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 			condition.Reason = "WebhookNotCreated"
 			condition.Message = "The webhook does not exists and has not been created"
-			_ = r.updateConditions(ctx, &remoteSyncer, *condition)
+			_ = r.updateStatus(ctx, &remoteSyncer, *condition)
 
 			return reconcile.Result{}, err
 		}
 	}
 
-	condition.Type = "Ready"
 	condition.Reason = "WebhookUpdated"
 	condition.Message = "The resources have been successfully assigned to the webhook"
-	condition.Status = "True"
-	_ = r.updateConditions(ctx, &remoteSyncer, *condition)
+	condition.Status = v1.ConditionTrue
+	_ = r.updateStatus(ctx, &remoteSyncer, *condition)
 
 	return ctrl.Result{}, nil
 }
 
-func (r *RemoteSyncerReconciler) updateConditions(ctx context.Context, rs *syngit.RemoteSyncer, condition v1.Condition) error {
-	added := false
-	var conditions []v1.Condition
-	for _, cond := range rs.Status.Conditions {
-		if cond.Type == condition.Type {
-			if cond.Reason != condition.Reason {
-				r.Recorder.Event(rs, "Normal", "WebhookUpdated", "The resources have been successfully assigned to the webhook")
-				conditions = append(conditions, condition)
-			} else {
-				conditions = append(conditions, cond)
-			}
-			added = true
-		} else {
-			conditions = append(conditions, cond)
-		}
-	}
-	if !added {
-		conditions = append(conditions, condition)
-	}
+func (r *RemoteSyncerReconciler) updateStatus(ctx context.Context, remoteSyncer *syngit.RemoteSyncer, condition v1.Condition) error {
+	conditions := typeBasedConditionUpdater(remoteSyncer.Status.DeepCopy().Conditions, condition)
 
-	rs.Status.Conditions = conditions
-	if err := r.Status().Update(ctx, rs); err != nil {
+	remoteSyncer.Status.Conditions = conditions
+	if err := r.Status().Update(ctx, remoteSyncer); err != nil {
 		return err
 	}
 	return nil

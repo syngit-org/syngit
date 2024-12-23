@@ -2,7 +2,10 @@ package controller
 
 import (
 	pathpkg "path"
+	"slices"
 	"strings"
+
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Remove the specified path from the json object
@@ -99,4 +102,25 @@ func ParsePath(givenPath string) []string {
 	}
 
 	return components
+}
+
+func typeBasedConditionUpdater(conditions []v1.Condition, condition v1.Condition) []v1.Condition {
+	conditions = typeBasedConditionRemover(conditions, condition.Type)
+	conditions = append(conditions, condition)
+
+	return conditions
+}
+
+func typeBasedConditionRemover(conditions []v1.Condition, typeKind string) []v1.Condition {
+	removeIndex := -1
+	for i, statusCondition := range conditions {
+		if typeKind == statusCondition.Type {
+			removeIndex = i
+		}
+	}
+	if removeIndex != -1 {
+		conditions = slices.Delete(conditions, removeIndex, removeIndex+1)
+	}
+
+	return conditions
 }

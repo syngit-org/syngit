@@ -98,11 +98,6 @@ func installationSetup() {
 	By("loading the the manager(Operator) image on Kind")
 	err = utils.LoadImageToKindClusterWithName(projectimage)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-	By("installing the syngit chart")
-	cmd = exec.Command("make", "chart-install")
-	_, err = Run(cmd)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 }
 
 func rbacSetup(ctx context.Context) {
@@ -248,13 +243,6 @@ func isSetupInstalled() bool {
 	By("checking the cert-manager installation")
 	cmd = exec.Command("helm", "status", "cert-manager", "-n", "cert-manager")
 	_, err = Run(cmd)
-	if err != nil {
-		return false
-	}
-
-	By("checking the syngit installation")
-	cmd = exec.Command("helm", "status", "syngit", "-n", "syngit")
-	_, err = Run(cmd)
 	if err != nil { //nolint:gosimple
 		return false
 	}
@@ -272,6 +260,12 @@ var _ = BeforeSuite(func() {
 	if setupType == "fast" && !isSetupInstalled() {
 		installationSetup()
 	}
+
+	By("installing the syngit chart")
+	cmd = exec.Command("make", "chart-install")
+	_, errChartSyngit := Run(cmd)
+	ExpectWithOffset(1, errChartSyngit).NotTo(HaveOccurred())
+
 	rbacSetup(ctx)
 	namespaceSetup(ctx)
 
@@ -293,10 +287,6 @@ func uninstallSetup() {
 
 	By("uninstalling the cert-manager bundle")
 	UninstallCertManager()
-
-	By("uninstalling the syngit chart")
-	cmd = exec.Command("make", "chart-uninstall")
-	_, err = Run(cmd)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	By("deleting the manager namespace")
@@ -327,11 +317,18 @@ func deleteRbac(ctx context.Context) {
 
 var _ = AfterSuite(func() {
 	ctx := context.TODO()
+
+	By("uninstalling the syngit chart")
+	cmd = exec.Command("make", "chart-uninstall")
+	_, err := Run(cmd)
+	Expect(err).NotTo(HaveOccurred())
+
 	if setupType == "full" {
 		uninstallSetup()
 	}
 	By("uninstalling the Prometheus manager bundle")
 	UninstallPrometheusOperator()
+
 	deleteNamespace(ctx)
 	deleteRbac(ctx)
 })

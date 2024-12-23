@@ -54,23 +54,22 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		// does not exists -> deleted
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-	rUBNamespace := remoteUserBinding.Namespace
-	rUBName := remoteUserBinding.Name
 	subject := remoteUserBinding.Spec.Subject
 
-	var prefixMsg = "[" + rUBNamespace + "/" + rUBName + "]"
-	log.Log.Info(prefixMsg + " Reconciling request received")
+	log.Log.Info("Reconcile request",
+		"resource", "remoteuserbinding",
+		"namespace", remoteUserBinding.Namespace,
+		"name", remoteUserBinding.Name,
+	)
 
 	// Get the referenced RemoteUsers
-	var isGloballyBound bool = false
-	var isGloballyNotBound bool = false
+	var isGloballyBound bool = true
 
 	gitUserHosts := []syngit.GitUserHost{}
 	for _, remoteUserRef := range remoteUserBinding.Spec.RemoteRefs {
 
 		// Set already known values about this RemoteUser
 		var gitUserHost syngit.GitUserHost = syngit.GitUserHost{}
-		gitUserHost.State = syngit.NotBound
 		gitUserHost.RemoteUserUsed = remoteUserRef.Name
 
 		var remoteUser syngit.RemoteUser
@@ -78,14 +77,14 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 		// Get the concerned RemoteUser
 		if err := r.Get(ctx, retrievedRemoteUser, &remoteUser); err != nil {
+			gitUserHost.State = syngit.NotBound
 			r.Recorder.Event(&remoteUserBinding, "Warning", "NotBound", gitUserHost.RemoteUserUsed+" not bound")
-			isGloballyNotBound = true
+			isGloballyBound = false
 		} else {
 			gitUserHost.GitFQDN = remoteUser.Spec.GitBaseDomainFQDN
 			gitUserHost.SecretRef = remoteUser.Spec.SecretRef
 			gitUserHost.State = syngit.Bound
 			r.Recorder.Event(&remoteUserBinding, "Normal", "Bound", gitUserHost.RemoteUserUsed+" bound")
-			isGloballyBound = true
 		}
 
 		gitUserHosts = append(gitUserHosts, gitUserHost)
@@ -93,25 +92,19 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 	remoteUserBinding.Status.GitUserHosts = gitUserHosts
 
-	if isGloballyBound && isGloballyNotBound {
+	if !isGloballyBound {
 		remoteUserBinding.Status.GlobalState = syngit.PartiallyBound
-		r.Recorder.Event(&remoteUserBinding, "Warning", "PartiallyBound", "Some of the git repos are not bound")
+		const partiallyBoundMessage = "Some of the remote users are not bound"
+		r.Recorder.Event(&remoteUserBinding, "Warning", "PartiallyBound", partiallyBoundMessage)
 	} else {
-		if isGloballyBound {
-			remoteUserBinding.Status.GlobalState = syngit.Bound
-			r.Recorder.Event(&remoteUserBinding, "Normal", "Bound", "Every git repos are bound")
-		} else {
-			remoteUserBinding.Status.GlobalState = syngit.NotBound
-			r.Recorder.Event(&remoteUserBinding, "Warning", "NotBound", "None of the git repos are bound")
-		}
+		remoteUserBinding.Status.GlobalState = syngit.Bound
+		const boundMessage = "Every remote users are bound"
+		r.Recorder.Event(&remoteUserBinding, "Normal", "Bound", boundMessage)
 	}
 
 	remoteUserBinding.Status.UserKubernetesID = subject.Name
 
-	if err := r.Status().Update(ctx, &remoteUserBinding); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
+	_ = r.Status().Update(ctx, &remoteUserBinding)
 	return ctrl.Result{}, nil
 }
 
