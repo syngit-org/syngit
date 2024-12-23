@@ -27,21 +27,6 @@ spec:
         {{ toYaml .Values.controller.image.imagePullSecrets | nindent 8 }}
       {{- end }}
       containers:
-      {{- if eq .Values.controller.metrics.enabled true }}
-      - name: kube-rbac-proxy
-        securityContext: {{ toYaml .Values.controller.rbacProxy.securityContext | nindent 10 }}
-        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
-        args:
-        - "--secure-listen-address=0.0.0.0:8443"
-        - "--upstream={{ .Values.controller.rbacProxy.upstreamAddress }}"
-        - "--logtostderr=true"
-        - "--v=0"
-        ports:
-        - containerPort: 8443
-          protocol: TCP
-          name: https
-        resources: {{ toYaml .Values.controller.rbacProxy.resources | nindent 10 }}
-      {{- end }}
       - command:
         - /manager
         {{- if .Values.controller.image.imagePullPolicy }}
@@ -49,10 +34,8 @@ spec:
         {{- end }}
         args:
         - "--leader-elect"
-        {{- if eq .Values.controller.metrics.enabled true }}
         - "--health-probe-bind-address=:8081"
-        - "--metrics-bind-address={{ .Values.controller.metrics.bindAddress }}"
-        {{- end }}
+        - "--metrics-bind-address=:8443"
         image: {{ .Values.controller.image.prefix }}/{{ .Values.controller.image.name }}:{{ .Values.controller.image.tag }}
         env:
         - name: MANAGER_NAMESPACE

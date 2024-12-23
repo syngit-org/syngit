@@ -28,21 +28,6 @@ spec:
         {{ toYaml .Values.providers.github.controller.imagePullSecrets | nindent 8 }}
       {{- end }}
       containers:
-      {{- if eq .Values.providers.github.controller.metrics.enabled true }}
-      - name: kube-rbac-proxy
-        securityContext: {{ toYaml .Values.providers.github.controller.rbacProxy.securityContext | nindent 10 }}
-        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.15.0
-        args:
-        - "--secure-listen-address=0.0.0.0:8443"
-        - "--upstream={{ .Values.providers.github.rbacProxy.controller.upstreamAddress }}"
-        - "--logtostderr=true"
-        - "--v=0"
-        ports:
-        - containerPort: 8443
-          protocol: TCP
-          name: https
-        resources: {{ toYaml .Values.providers.github.rbacProxy.controller.resources | nindent 10 }}
-      {{- end }}
       - command:
         - /manager
         {{- if .Values.providers.github.controller.imagePullPolicy }}
@@ -50,10 +35,8 @@ spec:
         {{- end }}
         args:
         - "--leader-elect"
-        {{- if eq .Values.providers.github.controller.metrics.enabled true }}
         - "--health-probe-bind-address=:8081"
-        - "--metrics-bind-address={{ .Values.providers.github.controller.metrics.bindAddress }}"
-        {{- end }}
+        - "--metrics-bind-address=:8443"
         image: ghcr.io/syngit-org/syngit-provider-github:v0.0.1
         env:
         - name: MANAGER_NAMESPACE
