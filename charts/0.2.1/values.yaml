@@ -40,52 +40,41 @@ monitoring:
 installCRD: true
 
 providers:
+
+  controller:
+    securityContext:
+      runAsUser: 1000
+      allowPrivilegeEscalation: false
+      privileged: false
+      runAsNonRoot: true
+      seccompProfile:
+        type: "RuntimeDefault"
+      capabilities:
+        drop:
+        - "ALL"
+    resources:
+      limits:
+        cpu: 500m
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 64Mi
+    tolerations: []
+
   gitlab:
     enabled: false
-    controller:
+    image:
+      prefix: ghcr.io/syngit-org
+      name: syngit-provider-gitlab-controller
+      tag: v0.0.1
       # imagePullSecrets:
       # imagePullPolicy:
-
-      securityContext:
-        runAsUser: 1000
-        allowPrivilegeEscalation: false
-        privileged: false
-        runAsNonRoot: true
-        seccompProfile:
-          type: "RuntimeDefault"
-        capabilities:
-          drop:
-          - "ALL"
-      resources:
-        limits:
-          cpu: 500m
-          memory: 128Mi
-        requests:
-          cpu: 10m
-          memory: 64Mi
-      tolerations: []
 
   github:
     enabled: false
-    controller:
+    image:
+      prefix: ghcr.io/syngit-org
+      name: syngit-provider-github-controller
+      tag: v0.0.1
       # imagePullSecrets:
       # imagePullPolicy:
-
-      securityContext:
-        runAsUser: 1000
-        allowPrivilegeEscalation: false
-        privileged: false
-        runAsNonRoot: true
-        seccompProfile:
-          type: "RuntimeDefault"
-        capabilities:
-          drop:
-          - "ALL"
-      resources:
-        limits:
-          cpu: 500m
-          memory: 128Mi
-        requests:
-          cpu: 10m
-          memory: 64Mi
-      tolerations: []

@@ -26,7 +26,7 @@ resources:
 # [PROMETHEUS] To enable prometheus monitor, uncomment all sections with 'PROMETHEUS'.
 #- ../prometheus
 # [METRICS] Expose the controller manager metrics service.
-- metrics_service.yaml
+# - metrics_service.yaml
 
 patches:
 # [METRICS] The following patch will enable the metrics endpoint using HTTPS and the port :8443.

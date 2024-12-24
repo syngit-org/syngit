@@ -21,6 +21,7 @@ import (
 	"os"
 
 	syngit "github.com/syngit-org/syngit/api/v1beta2"
+	"github.com/syngit-org/syngit/internal/utils"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -116,7 +117,7 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 }
 
 func (r *RemoteUserReconciler) updateStatus(ctx context.Context, remoteUser *syngit.RemoteUser, condition v1.Condition) error {
-	conditions := typeBasedConditionUpdater(remoteUser.Status.DeepCopy().Conditions, condition)
+	conditions := utils.TypeBasedConditionUpdater(remoteUser.Status.DeepCopy().Conditions, condition)
 
 	remoteUser.Status.Conditions = conditions
 	if err := r.Status().Update(ctx, remoteUser); err != nil {
@@ -128,7 +129,7 @@ func (r *RemoteUserReconciler) updateStatus(ctx context.Context, remoteUser *syn
 func (r *RemoteUserReconciler) findObjectsForSecret(ctx context.Context, secret client.Object) []reconcile.Request {
 	attachedRemoteUsers := &syngit.RemoteUserList{}
 	listOps := &client.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector(secretRefField, secret.GetName()),
+		FieldSelector: fields.OneTermEqualSelector(syngit.SecretRefField, secret.GetName()),
 		Namespace:     secret.GetNamespace(),
 	}
 	err := r.List(ctx, attachedRemoteUsers, listOps)
@@ -148,14 +149,9 @@ func (r *RemoteUserReconciler) findObjectsForSecret(ctx context.Context, secret 
 	return requests
 }
 
-const (
-	secretRefField            = ".spec.secretRef.name"
-	gitProviderConfigRefField = ".spec.CustomGitServerConfigRef.name"
-)
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *RemoteUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &syngit.RemoteUser{}, secretRefField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &syngit.RemoteUser{}, syngit.SecretRefField, func(rawObj client.Object) []string {
 		// Extract the Secret name from the RemoteUser Spec, if one is provided
 		remoteUser := rawObj.(*syngit.RemoteUser)
 		if remoteUser.Spec.SecretRef.Name == "" {

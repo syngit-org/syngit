@@ -111,7 +111,7 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 func (r *RemoteUserBindingReconciler) findObjectsForRemoteUser(ctx context.Context, remoteUser client.Object) []reconcile.Request {
 	attachedRemoteUserBindings := &syngit.RemoteUserBindingList{}
 	listOps := &client.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector(remoteRefsField, remoteUser.GetName()),
+		FieldSelector: fields.OneTermEqualSelector(syngit.RemoteRefsField, remoteUser.GetName()),
 		Namespace:     remoteUser.GetNamespace(),
 	}
 	err := r.List(ctx, attachedRemoteUserBindings, listOps)
@@ -131,13 +131,9 @@ func (r *RemoteUserBindingReconciler) findObjectsForRemoteUser(ctx context.Conte
 	return requests
 }
 
-const (
-	remoteRefsField = ".spec.remoteRefs"
-)
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *RemoteUserBindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &syngit.RemoteUserBinding{}, remoteRefsField, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &syngit.RemoteUserBinding{}, syngit.RemoteRefsField, func(rawObj client.Object) []string {
 
 		remoteUserRefsName := []string{}
 
