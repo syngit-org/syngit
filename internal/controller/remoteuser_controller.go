@@ -180,5 +180,6 @@ func (r *RemoteUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSecret),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(r)
 }

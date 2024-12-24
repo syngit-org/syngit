@@ -165,5 +165,6 @@ func (r *RemoteUserBindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForRemoteUser),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(r)
 }
