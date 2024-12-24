@@ -114,3 +114,7 @@ const (
 	SecretNotFound  SecretBoundStatus = "Secret not found"
 	SecretWrongType SecretBoundStatus = "Secret type is not set to BasicAuth"
 )
+
+const (
+	SecretRefField = "spec.secretRef.name"
+)

@@ -21,6 +21,7 @@ import (
 	"os"
 
 	syngit "github.com/syngit-org/syngit/api/v1beta2"
+	"github.com/syngit-org/syngit/internal/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -202,7 +203,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 func (r *RemoteSyncerReconciler) updateStatus(ctx context.Context, remoteSyncer *syngit.RemoteSyncer, condition v1.Condition) error {
-	conditions := typeBasedConditionUpdater(remoteSyncer.Status.DeepCopy().Conditions, condition)
+	conditions := utils.TypeBasedConditionUpdater(remoteSyncer.Status.DeepCopy().Conditions, condition)
 
 	remoteSyncer.Status.Conditions = conditions
 	if err := r.Status().Update(ctx, remoteSyncer); err != nil {

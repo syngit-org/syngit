@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-logr/logr"
 	syngit "github.com/syngit-org/syngit/api/v1beta2"
+	"github.com/syngit-org/syngit/internal/utils"
 	"gopkg.in/yaml.v3"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -401,7 +402,7 @@ func (wrc *WebhookRequestChecker) convertToYaml(details *wrcDetails) error {
 
 	// Remove unwanted fields
 	for _, path := range paths {
-		ExcludedFieldsFromJson(data, path)
+		utils.ExcludedFieldsFromJson(data, path)
 	}
 
 	// Marshal back to YAML

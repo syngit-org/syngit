@@ -94,3 +94,7 @@ type GitUserHost struct {
 	State          GitUserBindingState    `json:"state,omitempty"`
 	LastUsedTime   metav1.Time            `json:"lastUsedTime,omitempty"`
 }
+
+const (
+	RemoteRefsField = "spec.remoteRefs"
+)
