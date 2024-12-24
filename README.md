@@ -14,8 +14,8 @@ Syngit is a Kubernetes operator that allows you to push resources on a git repos
 ## Quick start
 
 ### Prerequisites
+- ⚠️ Cert Manager version 1.13+ on the cluster.
 - Helm version v3.0.0+.
-- Cert Manager version 1.13+ on the cluster.
 - Access to a Kubernetes v1.11.3+ cluster.
 
 ### Installation
@@ -27,7 +27,7 @@ helm repo add syngit https://syngit-org.github.io/syngit
 
 2. Install the operator
 ```sh
-helm install syngit syngit/syngit --version 0.2.0 -n syngit --create-namespace
+helm install syngit syngit/syngit --version 0.2.1 -n syngit --create-namespace --set providers.github.enabled="true"
 ```
 
 syngit is now installed on the cluster! More information about the configuration can be found on the [wiki](https://github.com/syngit-org/syngit/wiki/Installation).
@@ -56,6 +56,7 @@ metadata:
   name: remoteuser-sample
   annotations:
     syngit.io/associated-remote-userbinding: "true"
+    github.syngit.io/auth.test: "true"
 spec:
   gitBaseDomainFQDN: "github.com"
   email: your@email.com
@@ -139,7 +140,7 @@ As explained [here](https://github.com/syngit-org/syngit/wiki/🏗-Architecture)
 
 ## Wiki
 
-The [wiki](https://github.com/syngit-org/syngit/wiki) contains all the information needed!
+The [📚 Wiki](https://github.com/syngit-org/syngit/wiki) contains all the information needed!
 
 To dive deeper in the usage of Syngit (with ArgoCD for example), please refer to the [📖 Usage](https://github.com/syngit-org/syngit/wiki/📖-Usage) page.
 

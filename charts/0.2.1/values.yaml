@@ -1,0 +1,91 @@
+webhook:
+  certmanager:
+    enabled: true
+    certificate:
+      name: webhook-cert
+      secret: webhook-server-cert
+
+controller:
+  image:
+    prefix: ghcr.io/syngit-org
+    name: syngit
+    tag: v0.2.0
+    # imagePullSecrets:
+    # imagePullPolicy:
+
+  securityContext:
+    runAsUser: 1000
+    allowPrivilegeEscalation: false
+    privileged: false
+    runAsNonRoot: true
+    seccompProfile:
+      type: "RuntimeDefault"
+    capabilities:
+      drop:
+      - "ALL"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+  tolerations: []
+
+  dynamicWebhookName: "remotesyncer.syngit.io"
+
+monitoring:
+  enabled: false
+
+installCRD: true
+
+providers:
+  gitlab:
+    enabled: false
+    controller:
+      # imagePullSecrets:
+      # imagePullPolicy:
+
+      securityContext:
+        runAsUser: 1000
+        allowPrivilegeEscalation: false
+        privileged: false
+        runAsNonRoot: true
+        seccompProfile:
+          type: "RuntimeDefault"
+        capabilities:
+          drop:
+          - "ALL"
+      resources:
+        limits:
+          cpu: 500m
+          memory: 128Mi
+        requests:
+          cpu: 10m
+          memory: 64Mi
+      tolerations: []
+
+  github:
+    enabled: false
+    controller:
+      # imagePullSecrets:
+      # imagePullPolicy:
+
+      securityContext:
+        runAsUser: 1000
+        allowPrivilegeEscalation: false
+        privileged: false
+        runAsNonRoot: true
+        seccompProfile:
+          type: "RuntimeDefault"
+        capabilities:
+          drop:
+          - "ALL"
+      resources:
+        limits:
+          cpu: 500m
+          memory: 128Mi
+        requests:
+          cpu: 10m
+          memory: 64Mi
+      tolerations: []
