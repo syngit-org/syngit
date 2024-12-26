@@ -18,8 +18,8 @@ CN = webhook-service-client
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = syngit-webhook-service.syngit-system.svc
-DNS.2 = syngit-remote-syncer-webhook-service.syngit-system.svc
+DNS.1 = syngit-webhook-service.syngit.svc
+DNS.2 = syngit-remote-syncer-webhook-service.syngit.svc
 IP.1 = 172.17.0.1
 EOF
 

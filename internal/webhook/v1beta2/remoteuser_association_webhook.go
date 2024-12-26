@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	syngit "github.com/syngit-org/syngit/api/v1beta2"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/types"

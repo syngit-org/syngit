@@ -31,7 +31,7 @@ import (
 
 	admissionv1 "k8s.io/api/admission/v1"
 
-	syngitv1beta2 "github.com/syngit-org/syngit/api/v1beta2"
+	syngitv1beta2 "github.com/syngit-org/syngit/pkg/api/v1beta2"
 
 	// +kubebuilder:scaffold:imports
 	apimachineryruntime "k8s.io/apimachinery/pkg/runtime"
