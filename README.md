@@ -9,14 +9,14 @@ Syngit is a Kubernetes operator that allows you to push resources on a git repos
 
 ----
 
-![demo-gif](./img/gif-syngit.gif)
+![demo-gif](./img/gif-syngit-commitapply.gif)
 
 ## Quick start
 
 ### Prerequisites
+- Access to a Kubernetes v1.11.3+ cluster.
 - ⚠️ Cert Manager version 1.13+ on the cluster.
 - Helm version v3.0.0+.
-- Access to a Kubernetes v1.11.3+ cluster.
 
 ### Installation
 
@@ -27,7 +27,7 @@ helm repo add syngit https://syngit-org.github.io/syngit
 
 2. Install the operator
 ```sh
-helm install syngit syngit/syngit --version 0.2.1 -n syngit --create-namespace --set providers.github.enabled="true"
+helm install syngit syngit/syngit --version 0.3.0 -n syngit --create-namespace --set providers.github.enabled="true"
 ```
 
 syngit is now installed on the cluster! More information about the configuration can be found on the [wiki](https://github.com/syngit-org/syngit/wiki/Installation).
@@ -58,7 +58,7 @@ metadata:
     syngit.io/associated-remote-userbinding: "true"
     github.syngit.io/auth.test: "true"
 spec:
-  gitBaseDomainFQDN: "github.com"
+  gitBaseDomainFQDN: github.com
   email: your@email.com
   secretRef:
     name: git-server-my_git_username-auth
@@ -81,7 +81,7 @@ spec:
   processMode: CommitApply
   pushMode: SameBranch
   defaultUnauthorizedUserMode: Block
-  rootPath: "my_configmaps"
+  rootPath: my_configmaps
   excludedFields:
     - metadata.managedFields
     - metadata.creationTimestamp
@@ -104,9 +104,9 @@ Now, let's apply this configmap :
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: test-configmap
+  name: configmap-sample
 data:
-  somedata: here
+  my-data: test1
 ```
 
 The configmap has been applied on the cluster and it has been pushed on the remote git repository as well!
