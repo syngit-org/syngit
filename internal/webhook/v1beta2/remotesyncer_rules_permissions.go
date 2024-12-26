@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	syngit "github.com/syngit-org/syngit/api/v1beta2"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/api/authentication/v1"
 	authv1 "k8s.io/api/authorization/v1"

@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	syngitv1beta2 "github.com/syngit-org/syngit/api/v1beta2"
+	syngitv1beta2 "github.com/syngit-org/syngit/pkg/api/v1beta2"
 )
 
 // nolint:unused

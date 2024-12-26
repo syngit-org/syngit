@@ -26,7 +26,7 @@ import (
 	"github.com/syngit-org/syngit/test/utils"
 )
 
-const namespace = "syngit-system"
+const namespace = "syngit"
 
 // Run e2e tests using the Ginkgo runner.
 func TestE2E(t *testing.T) {

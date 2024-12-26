@@ -20,8 +20,9 @@ import (
 	"context"
 	"os"
 
-	syngit "github.com/syngit-org/syngit/api/v1beta2"
-	"github.com/syngit-org/syngit/internal/utils"
+	. "github.com/syngit-org/syngit/internal/interceptor"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
+	"github.com/syngit-org/syngit/pkg/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -228,8 +229,8 @@ func (r *RemoteSyncerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	// Initialize the webhookServer
 	r.webhookServer = WebhookInterceptsAll{
-		k8sClient: mgr.GetClient(),
-		dev:       r.Dev,
+		K8sClient: mgr.GetClient(),
+		Dev:       r.Dev,
 	}
 	r.webhookServer.Start()
 

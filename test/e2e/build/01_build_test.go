@@ -47,7 +47,7 @@ var _ = Describe("01 Build & deploy controller", Ordered, func() {
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 			By("deploying the controller-manager")
-			cmd = exec.Command("make", "dev-deploy")
+			cmd = exec.Command("make", "deploy-all")
 			_, err = utils.Run(cmd)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
@@ -88,7 +88,7 @@ var _ = Describe("01 Build & deploy controller", Ordered, func() {
 			EventuallyWithOffset(1, verifyControllerUp, time.Minute, time.Second).Should(Succeed())
 
 			By("undeploying the controller-manager")
-			cmd = exec.Command("make", "cleanup-deploy")
+			cmd = exec.Command("make", "undeploy-all")
 			_, err = utils.Run(cmd)
 			ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
