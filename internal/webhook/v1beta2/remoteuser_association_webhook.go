@@ -16,14 +16,14 @@ import (
 	Handle webhook and get kubernetes user id
 */
 
-type RemoteUserWebhookHandler struct {
+type RemoteUserAssociationWebhookHandler struct {
 	Client  client.Client
 	Decoder *admission.Decoder
 }
 
 // +kubebuilder:webhook:path=/syngit-v1beta2-remoteuser-association,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remoteusers,verbs=create;update;delete,versions=v1beta2,admissionReviewVersions=v1,name=vremoteusers-association.v1beta2.syngit.io
 
-func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.Request) admission.Response {
+func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req admission.Request) admission.Response {
 
 	username := req.DeepCopy().UserInfo.Username
 	name := syngit.RubPrefix + username
@@ -35,7 +35,7 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 	}
 	rubErr := ruwh.Client.Get(ctx, *webhookNamespacedName, rub)
 
-	if string(req.Operation) == "DELETE" {
+	if string(req.Operation) == "DELETE" { //nolint:goconst
 		if rubErr != nil {
 			return admission.Allowed("This object was not associated with any RemoteUserBinding")
 		} else {
@@ -102,7 +102,7 @@ func (ruwh *RemoteUserWebhookHandler) Handle(ctx context.Context, req admission.
 	return admission.Allowed("This object is associated to the " + name + " RemoteUserBinding")
 }
 
-func (ruwh *RemoteUserWebhookHandler) removeRuFromRub(ctx context.Context, req admission.Request, name string, rub *syngit.RemoteUserBinding) admission.Response {
+func (ruwh *RemoteUserAssociationWebhookHandler) removeRuFromRub(ctx context.Context, req admission.Request, name string, rub *syngit.RemoteUserBinding) admission.Response {
 	ru := &syngit.RemoteUser{}
 	err := ruwh.Decoder.DecodeRaw(req.OldObject, ru)
 	if err != nil {

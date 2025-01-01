@@ -50,7 +50,8 @@ const (
 const operatorNamespace = "syngit"
 const namespace = "test"
 const defaultDeniedMessage = "DENIED ON PURPOSE"
-const permissionsDeniedMessage = "is not allowed to scope"
+const rsPermissionsDeniedMessage = "is not allowed to scope"
+const ruPermissionsDeniedMessage = "is not allowed to get the secret"
 
 var cmd *exec.Cmd
 var sClient *SyngitTestUsersClientset
@@ -145,9 +146,20 @@ func rbacSetup(ctx context.Context) {
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
+				Verbs:     []string{"create"},
+				APIGroups: []string{""},
+				Resources: []string{"secrets"},
+			},
+			{
+				Verbs:         []string{"get", "list", "watch"},
+				APIGroups:     []string{""},
+				Resources:     []string{"secrets"},
+				ResourceNames: []string{string(Brook) + "-creds"},
+			},
+			{
 				Verbs:     []string{"create", "get", "list", "watch"},
 				APIGroups: []string{""},
-				Resources: []string{"namespaces", "secrets"},
+				Resources: []string{"namespaces"},
 			},
 			{
 				Verbs:     []string{"create", "get", "list", "watch", "update", "delete"},

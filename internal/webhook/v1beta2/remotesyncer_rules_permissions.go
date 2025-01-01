@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
-	admissionv1 "k8s.io/api/admissionregistration/v1"
+	utils "github.com/syngit-org/syngit/pkg/utils"
 	v1 "k8s.io/api/authentication/v1"
 	authv1 "k8s.io/api/authorization/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,7 +27,7 @@ func (rswh *RemoteSyncerWebhookHandler) Handle(ctx context.Context, req admissio
 
 	rs := &syngit.RemoteSyncer{}
 
-	if string(req.Operation) != "DELETE" {
+	if string(req.Operation) != "DELETE" { //nolint:goconst
 		err := rswh.Decoder.Decode(req, rs)
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
@@ -61,7 +61,7 @@ func (rswh *RemoteSyncerWebhookHandler) hasRightResourcesPermissions(rs syngit.R
 					forbiddenOperations := []string{}
 
 					for _, operation := range rule.Operations {
-						verbs, err := operationToVerb(operation)
+						verbs, err := utils.OperationToVerb(operation)
 						if err != nil {
 							// Skipping unsupported operation
 							continue
@@ -120,21 +120,6 @@ func (rswh *RemoteSyncerWebhookHandler) hasRightResourcesPermissions(rs syngit.R
 	}
 
 	return len(forbiddenResources) == 0, forbiddenResources, nil
-}
-
-func operationToVerb(operation admissionv1.OperationType) ([]string, error) {
-	switch operation {
-	case admissionv1.Create:
-		return []string{"create"}, nil
-	case admissionv1.Delete:
-		return []string{"delete"}, nil
-	case admissionv1.Update:
-		return []string{"update", "patch"}, nil
-	case admissionv1.Connect:
-		return []string{"connect"}, nil
-	default:
-		return nil, fmt.Errorf("unsupported operation: %v", operation)
-	}
 }
 
 // Handle wrong apiVersion/Kind combination

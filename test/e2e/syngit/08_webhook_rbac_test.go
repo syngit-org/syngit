@@ -104,7 +104,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 		}
 		err = sClient.As(Brook).CreateOrUpdate(remotesyncer)
 		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring(permissionsDeniedMessage))
+		Expect(err.Error()).To(ContainSubstring(rsPermissionsDeniedMessage))
 
 		Wait5()
 		By("creating a test configmap")
@@ -211,7 +211,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 		}
 		err = sClient.As(Brook).CreateOrUpdate(remotesyncer)
 		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring(permissionsDeniedMessage))
+		Expect(err.Error()).To(ContainSubstring(rsPermissionsDeniedMessage))
 		Expect(err.Error()).To(ContainSubstring("DELETE"))
 
 		Wait5()

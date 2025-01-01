@@ -197,15 +197,19 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUserBinding")
 			os.Exit(1)
 		}
+		mgr.GetWebhookServer().Register("/syngit-v1beta2-remoteuser-association", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteUserAssociationWebhookHandler{
+			Client:  mgr.GetClient(),
+			Decoder: admission.NewDecoder(mgr.GetScheme()),
+		}})
+		mgr.GetWebhookServer().Register("/syngit-v1beta2-remoteuser-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteUserPermissionsWebhookHandler{
+			Client:  mgr.GetClient(),
+			Decoder: admission.NewDecoder(mgr.GetScheme()),
+		}})
+		mgr.GetWebhookServer().Register("/syngit-v1beta2-remotesyncer-rules-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteSyncerWebhookHandler{
+			Client:  mgr.GetClient(),
+			Decoder: admission.NewDecoder(mgr.GetScheme()),
+		}})
 	}
-	mgr.GetWebhookServer().Register("/syngit-v1beta2-remoteuser-association", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteUserWebhookHandler{
-		Client:  mgr.GetClient(),
-		Decoder: admission.NewDecoder(mgr.GetScheme()),
-	}})
-	mgr.GetWebhookServer().Register("/syngit-v1beta2-remotesyncer-rules-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteSyncerWebhookHandler{
-		Client:  mgr.GetClient(),
-		Decoder: admission.NewDecoder(mgr.GetScheme()),
-	}})
 
 	//+kubebuilder:scaffold:builder
 
