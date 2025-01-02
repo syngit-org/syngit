@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	. "github.com/syngit-org/syngit/internal/interceptor"
@@ -37,11 +38,13 @@ import (
 // RemoteSyncerReconciler reconciles a RemoteSyncer object
 type RemoteSyncerReconciler struct {
 	client.Client
-	Scheme        *runtime.Scheme
-	webhookServer WebhookInterceptsAll
-	Namespace     string
-	Dev           bool
-	Recorder      record.EventRecorder
+	Scheme         *runtime.Scheme
+	webhookServer  WebhookInterceptsAll
+	Namespace      string
+	devMode        bool
+	devWebhookHost string
+	devWebhookCert string
+	Recorder       record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=syngit.io,resources=remotesyncers,verbs=get;list;watch;create;update;patch;delete
@@ -63,7 +66,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	var remoteSyncer syngit.RemoteSyncer
 	if err := r.Get(ctx, req.NamespacedName, &remoteSyncer); err != nil {
 		// does not exists -> deleted
-		r.webhookServer.DestroyPathHandler(req.NamespacedName)
+		r.webhookServer.Unregister(req.NamespacedName)
 		isDeleted = true
 		rSName = req.Name
 		rSNamespace = req.Namespace
@@ -82,14 +85,24 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Define the webhook path
 	webhookPath := "/syngit/validate/" + rSNamespace + "/" + rSName
 	// When rs reconciled, then create a path handled by the dynamic webhook server
-	r.webhookServer.CreatePathHandler(remoteSyncer, webhookPath)
+	r.webhookServer.Register(remoteSyncer, webhookPath)
 
 	// Read the content of the certificate file
-	caCert, err := os.ReadFile("/tmp/k8s-webhook-server/serving-certs/tls.crt")
-	if err != nil {
-		log.Log.Error(err, "failed to read the cert file /tmp/k8s-webhook-server/serving-certs/tls.crt")
-		r.Recorder.Event(&remoteSyncer, "Warning", "WebhookCertFail", "Operator internal error : the certificate file failed to be read")
-		return reconcile.Result{}, err
+	var caCert []byte
+	var certError error
+	if !r.devMode {
+		const certPath = "/tmp/k8s-webhook-server/serving-certs/tls.crt"
+		if caCert, certError = os.ReadFile(certPath); certError != nil {
+			log.Log.Error(certError, fmt.Sprintf("failed to read the cert file %s", certPath))
+			r.Recorder.Event(&remoteSyncer, "Warning", "WebhookCertFail", "Operator internal error : the certificate file failed to be read")
+			return reconcile.Result{}, certError
+		}
+	} else {
+		if caCert, certError = os.ReadFile(r.devWebhookCert); certError != nil {
+			log.Log.Error(certError, fmt.Sprintf("failed to read the cert file %s", r.devWebhookCert))
+			r.Recorder.Event(&remoteSyncer, "Warning", "WebhookCertFail", "Operator internal error : the certificate file failed to be read")
+			return reconcile.Result{}, certError
+		}
 	}
 
 	// The service is located in the manager/controller namespace
@@ -104,18 +117,16 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		CABundle: caCert,
 	}
 
-	annotations := make(map[string]string)
-	// Development mode
-	if r.Dev {
-		url := "https://172.17.0.1:9444" + webhookPath
+	if r.devMode {
+		url := "https://" + r.devWebhookHost + "/" + webhookPath
 		clientConfig = admissionv1.WebhookClientConfig{
 			URL:      &url,
 			CABundle: caCert,
 		}
 	}
-	if !r.Dev {
-		annotations["cert-manager.io/inject-ca-from"] = "operator-webhook-cert"
-	}
+
+	annotations := make(map[string]string)
+	annotations["cert-manager.io/inject-ca-from"] = "operator-webhook-cert"
 
 	// Create the webhook specs for this specific RI
 	webhookObjectName := os.Getenv("DYNAMIC_WEBHOOK_NAME")
@@ -148,7 +159,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Check if the webhook already exists
 	found := &admissionv1.ValidatingWebhookConfiguration{}
-	err = r.Get(ctx, *webhookNamespacedName, found)
+	err := r.Get(ctx, *webhookNamespacedName, found)
 
 	condition := &v1.Condition{
 		LastTransitionTime: v1.Now(),
@@ -220,17 +231,15 @@ func (r *RemoteSyncerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Recorder = recorder
 
 	managerNamespace := os.Getenv("MANAGER_NAMESPACE")
-	dev := os.Getenv("DEV")
+	r.devMode = os.Getenv("DEV_MODE") == "true"
+	r.devWebhookHost = os.Getenv("DEV_WEBHOOK_HOST")
+	r.devWebhookCert = os.Getenv("DEV_WEBHOOK_CERT")
 	r.Namespace = managerNamespace
-	r.Dev = false
-	if dev == "true" {
-		r.Dev = true
-	}
 
 	// Initialize the webhookServer
 	r.webhookServer = WebhookInterceptsAll{
 		K8sClient: mgr.GetClient(),
-		Dev:       r.Dev,
+		Manager:   mgr,
 	}
 	r.webhookServer.Start()
 

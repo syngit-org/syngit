@@ -2,14 +2,11 @@ package utils
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	. "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -63,7 +60,7 @@ func (tu *SyngitTestUsersClientset) As(username TestUser) CustomClient {
 	return customClient
 }
 
-func (tu *SyngitTestUsersClientset) Initialize() error {
+func (tu *SyngitTestUsersClientset) Initialize(cfg *rest.Config) error {
 	Admin = TestUser(os.Getenv("ADMIN_USERNAME"))
 	Sanji = TestUser(os.Getenv("SANJI_USERNAME"))
 	Chopper = TestUser(os.Getenv("CHOPPER_USERNAME"))
@@ -74,19 +71,9 @@ func (tu *SyngitTestUsersClientset) Initialize() error {
 	ReducedPermissionsUsers = []TestUser{Brook}
 	Users = append(FullPermissionsUsers, ReducedPermissionsUsers...)
 
-	kubeconfig := os.Getenv("KUBECONFIG")
-	if kubeconfig == "" {
-		if home := homedir.HomeDir(); home != "" {
-			kubeconfig = fmt.Sprintf("%s/.kube/config", home)
-		}
-	}
+	tu.config = cfg
 
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		return err
-	}
-	tu.config = config
-
+	var err error
 	tu.admin, err = NewForConfig(tu.config)
 
 	return err

@@ -56,7 +56,7 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 		},
 		SingleBranch:    true,
 		InsecureSkipTLS: gp.insecureSkipTlsVerify,
-		Progress:        io.MultiWriter(os.Stdout, &verboseOutput),
+		Progress:        io.MultiWriter(&verboseOutput),
 	}
 	if gp.caBundle != "" {
 		cloneOption.CABundle = []byte(gp.caBundle)

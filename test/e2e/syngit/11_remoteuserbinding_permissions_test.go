@@ -41,7 +41,6 @@ var _ = Describe("11 RemoteUserBinding permissions checker", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		Wait5()
 		By("creating the RemoteUser")
 		brookSecretName := string(Brook) + "-creds"
 		remoteUserBrook := &syngit.RemoteUser{
@@ -62,7 +61,6 @@ var _ = Describe("11 RemoteUserBinding permissions checker", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		By("creating the RemoteUserBinding using a not allowed remoteuser name")
 		remoteUserBindingBrook := &syngit.RemoteUserBinding{
 			ObjectMeta: metav1.ObjectMeta{
@@ -91,7 +89,6 @@ var _ = Describe("11 RemoteUserBinding permissions checker", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		Wait5()
 		By("creating the RemoteUser using an allowed secret name")
 		brookSecretName := string(Brook) + "-creds"
 		remoteUserBrook := &syngit.RemoteUser{
@@ -112,7 +109,6 @@ var _ = Describe("11 RemoteUserBinding permissions checker", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		By("creating the RemoteUserBinding")
 		remoteUserBindingBrook := &syngit.RemoteUserBinding{
 			ObjectMeta: metav1.ObjectMeta{

@@ -59,39 +59,6 @@ cleanup-gitea:
 
 ##@ Development
 
-WEBHOOK_PATH ?= config/webhook
-.PHONY: deploy-all
-deploy-all: # Launch dev env on the cluster
-	make cleanup-e2e || true
-	kind create cluster --name $(DEV_CLUSTER) 2>/dev/null || true
-	make docker-build IMG=$(IMG)
-	kind load docker-image $(IMG) --name $(DEV_CLUSTER)
-	make deploy IMG=$(IMG)
-
-LATEST_CHART ?= $(shell find charts -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -V | tail -n 1)
-.PHONY: chart-install
-chart-install:
-	helm install syngit charts/$(LATEST_CHART) -n syngit --create-namespace \
-		--set controller.image.prefix=local \
-		--set controller.image.name=syngit-controller \
-		--set controller.image.tag=dev
-
-.PHONY: chart-upgrade
-chart-upgrade:
-	helm upgrade syngit charts/$(LATEST_CHART) -n syngit \
-		--set controller.image.prefix=local \
-		--set controller.image.name=syngit-controller \
-		--set controller.image.tag=dev
-
-.PHONY: chart-uninstall
-chart-uninstall:
-	helm uninstall syngit -n syngit
-
-.PHONY: undeploy-all
-undeploy-all: # Cleanup
-	cd $(WEBHOOK_PATH) && ./cleanup-injector.sh
-	make undeploy
-
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
@@ -108,27 +75,31 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-.PHONY: test
-test: manifests generate fmt vet envtest ## Run tests.
-	cd $(WEBHOOK_PATH) && ./cert-injector.sh manifests.yaml ../crd/patches 1 >/dev/null
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
-	cd $(WEBHOOK_PATH) && ./cleanup-injector.sh
+##@ Test
 
-# Utilize Kind or modify the e2e tests to load the image locally, enabling compatibility with other vendors.
+.PHONY: test
+test: test-build-deploy test-e2e ## Run all the tests.
+
+.PHONY: test-controller
+test-controller: manifests generate fmt vet envtest ## Run tests emebeded in the controller package & webhook package.
+	cd $(WEBHOOK_PATH) && ./cert-injector.sh . 1 >/dev/null
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+	cd $(WEBHOOK_PATH) && ./cleanup-injector.sh .
+
+.PHONY: test-build-deploy
+test-build-deploy: ## Run tests to build the Docker image and deploy all the manifests.
+	go test ./test/e2e/build -v -ginkgo.v
+
+DEPREACTED_API_VERSIONS = $(shell go list ./... | grep -oP 'v\d+\w+\d+' | sort -uV | awk 'NR == 1 {latest = $$0} NR > 1 {print prev} {prev = $$0}' | grep -v '^$$' | paste -sd "|" -)
+COVERPKG = $(shell go list ./... | grep -v 'test' | grep -v -E "$(DEPREACTED_API_VERSIONS)" | paste -sd "," -)
+
 .PHONY: test-e2e  # Run the e2e tests against a Kind k8s instance that is spun up.
 test-e2e:
-	kind create cluster --name $(DEV_CLUSTER) 2>/dev/null || true
-	make undeploy-all || true
-	go test ./test/e2e/build -v -ginkgo.v
-	go test ./test/e2e/syngit -v -ginkgo.v
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./test/e2e/syngit -v -ginkgo.v -cover -coverpkg=$(COVERPKG)
 
 .PHONY: fast-e2e
 fast-e2e:
-	kind create cluster --name $(DEV_CLUSTER) 2>/dev/null || true
-	make undeploy-all || true
-	make docker-build
-	make kind-load-image
-	go test ./test/e2e/syngit -v -ginkgo.v -setup fast
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./test/e2e/syngit -v -ginkgo.v -cover -coverpkg=$(COVERPKG) -setup fast
 
 .PHONY: cleanup-e2e
 cleanup-e2e:
@@ -154,7 +125,7 @@ build: manifests generate fmt vet ## Build manager binary.
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
 	cd $(WEBHOOK_PATH) && ./gen-certs-serv-cli.sh 1 >/dev/null
-	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=remotesyncer.syngit.io DEV=true && go run cmd/main.go
+	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=remotesyncer.syngit.io DEV_MODE="true" DEV_WEBHOOK_HOST="https://127.0.0.1:9443" DEV_WEBHOOK_CERT="/tmp/k8s-webhook-server/serving-certs/server.tls" && go run cmd/main.go
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
@@ -166,10 +137,6 @@ docker-build: ## Build docker image with the manager.
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
 	$(CONTAINER_TOOL) push ${IMG}
-
-.PHONY: kind-load-image
-kind-load-image: ## Load the image in KIND
-	kind load docker-image ${IMG} --name ${DEV_CLUSTER}
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
@@ -208,19 +175,64 @@ endif
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
 
+.PHONY: install-webhooks
+install-webhooks: manifests kustomize ## Deploy webhooks into the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build config/webhook | $(KUBECTL) apply -f -
+
 .PHONY: uninstall
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
+.PHONY: uninstall-webhooks
+uninstall-webhooks: manifests kustomize ## Undeploy webhooks into the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build config/webhook | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+
+WEBHOOK_PATH ?= config/webhook
+
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	cd $(WEBHOOK_PATH) && ./cert-injector.sh manifests.yaml ../crd/patches
+	cd $(WEBHOOK_PATH) && ./cert-injector.sh .
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	cd $(WEBHOOK_PATH) && ./cleanup-injector.sh .
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+
+.PHONY: deploy-all
+deploy-all: kind-create-cluster docker-build kind-load-image cleanup-e2e deploy # Launch dev env on the cluster
+
+.PHONY: undeploy-all
+undeploy-all: undeploy
+
+BEFORE_LATEST_CHART ?= $(shell ls -v charts | tail -3 | head -1)
+LATEST_CHART ?= $(shell find charts -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -V | tail -n 1)
+.PHONY: chart-install
+chart-install:
+	helm install syngit charts/$(LATEST_CHART) -n syngit --create-namespace \
+		--set controller.image.prefix=local \
+		--set controller.image.name=syngit-controller \
+		--set controller.image.tag=dev
+
+.PHONY: chart-upgrade
+chart-upgrade:
+	helm upgrade syngit charts/$(LATEST_CHART) -n syngit \
+		--set controller.image.prefix=local \
+		--set controller.image.name=syngit-controller \
+		--set controller.image.tag=dev
+
+.PHONY: chart-uninstall
+chart-uninstall:
+	helm uninstall syngit -n syngit
+
+.PHONY: kind-create-cluster
+kind-create-cluster: ## Create a KinD cluster
+	kind create cluster --name ${DEV_CLUSTER} || true
+
+.PHONY: kind-load-image
+kind-load-image: ## Load the image in KinD
+	kind load docker-image ${IMG} --name ${DEV_CLUSTER}
 
 ##@ Dependencies
 

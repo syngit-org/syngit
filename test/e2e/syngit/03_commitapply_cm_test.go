@@ -44,7 +44,6 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		Wait5()
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -68,7 +67,6 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
@@ -103,8 +101,8 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait10()
 		By("creating a test configmap")
+		Wait3()
 		cm := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "ConfigMap",
@@ -122,6 +120,7 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking if the configmap is present on the repo")
+		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",

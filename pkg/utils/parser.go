@@ -2,24 +2,36 @@ package utils
 
 // Remove the specified path from the json object
 // Path examples :
-
-//  test1.test2
-//  test1:
-//    test2: value
-
-//  .test3
-//  test3: value
-
-//  test7
-//  test7: value
-
+//
+// INPUT
+//
+//	test1.test2
+//
+// OUTPUT
+//
+//	test1:
+//	  test2: value
+//
+// INPUT
+//
+//	.test3
+//	test3: value
+//
+// OUTPUT
+//
+//	test7
+//	test7: value
+//
+// # INPUT
+//
 // .test4[this.string-is:the/same*key]test5[test6]
-/*
-    test4:
-	  "this.string-is:the/same*key":
-	    test5:
-	      test6: value
-*/
+//
+// OUTPUT
+//
+//	test4:
+//	"this.string-is:the/same*key":
+//	  test5:
+//	    test6: value
 func ExcludedFieldsFromJson(data map[string]interface{}, path string) {
 	parts := make([]string, 0)
 

@@ -48,7 +48,6 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		Wait5()
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -72,7 +71,6 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		blueUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer for the blue repo")
 		blueRemotesyncer := &syngit.RemoteSyncer{
@@ -137,8 +135,8 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 		err = sClient.As(Luffy).CreateOrUpdate(greenRemotesyncer)
 		Expect(err).ToNot(HaveOccurred())
 
-		Wait5()
 		By("creating a test configmap")
+		Wait3()
 		cm := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "ConfigMap",
@@ -155,8 +153,8 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		By("checking that the configmap is present in the blue repo")
+		Wait3()
 		blueRepo := &Repo{
 			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",
@@ -196,7 +194,6 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		Wait5()
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -220,7 +217,6 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		blueUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer for the blue repo")
 		blueRemotesyncer := &syngit.RemoteSyncer{
@@ -284,8 +280,8 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 		err = sClient.As(Luffy).CreateOrUpdate(blueRemotesyncer2)
 		Expect(err).ToNot(HaveOccurred())
 
-		Wait5()
 		By("creating a test configmap")
+		Wait3()
 		cm := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "ConfigMap",
@@ -302,8 +298,8 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 			return err != nil && strings.Contains(err.Error(), "cannot lock ref")
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		By("checking that the configmap is not present in the blue repo")
+		Wait3()
 		blueRepo := &Repo{
 			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",

@@ -5,3 +5,5 @@ resources:
 
 configurations:
 - kustomizeconfig.yaml
+
+namespace: syngit
