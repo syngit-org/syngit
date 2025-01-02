@@ -47,11 +47,14 @@ const (
 	interval = time.Millisecond * 250
 )
 
-const operatorNamespace = "syngit"
-const namespace = "test"
-const defaultDeniedMessage = "DENIED ON PURPOSE"
-const rsPermissionsDeniedMessage = "is not allowed to scope"
-const ruPermissionsDeniedMessage = "is not allowed to get the secret"
+const (
+	operatorNamespace           = "syngit"
+	namespace                   = "test"
+	defaultDeniedMessage        = "DENIED ON PURPOSE"
+	rsPermissionsDeniedMessage  = "is not allowed to scope"
+	ruPermissionsDeniedMessage  = "is not allowed to get the secret"
+	rubPermissionsDeniedMessage = "is not allowed to get the referenced remoteuser"
+)
 
 var cmd *exec.Cmd
 var sClient *SyngitTestUsersClientset
@@ -89,9 +92,6 @@ func installationSetup() {
 	cmd = exec.Command("make", "setup-gitea")
 	_, err := Run(cmd)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-	By("installing prometheus operator")
-	Expect(InstallPrometheusOperator()).To(Succeed())
 
 	By("installing the cert-manager")
 	Expect(InstallCertManager()).To(Succeed())
@@ -147,8 +147,8 @@ func rbacSetup(ctx context.Context) {
 		Rules: []rbacv1.PolicyRule{
 			{
 				Verbs:     []string{"create"},
-				APIGroups: []string{""},
-				Resources: []string{"secrets"},
+				APIGroups: []string{"", "syngit.io"},
+				Resources: []string{"secrets", "remoteusers", "remoteuserbindings"},
 			},
 			{
 				Verbs:         []string{"get", "list", "watch"},
@@ -164,7 +164,19 @@ func rbacSetup(ctx context.Context) {
 			{
 				Verbs:     []string{"create", "get", "list", "watch", "update", "delete"},
 				APIGroups: []string{"syngit.io"},
-				Resources: []string{"remotesyncers", "remoteusers"},
+				Resources: []string{"remotesyncers"},
+			},
+			{
+				Verbs:         []string{"get", "list", "watch", "update", "delete"},
+				APIGroups:     []string{"syngit.io"},
+				Resources:     []string{"remoteusers"},
+				ResourceNames: []string{"remoteuser-brook"},
+			},
+			{
+				Verbs:         []string{"get", "list", "watch", "update", "delete"},
+				APIGroups:     []string{"syngit.io"},
+				Resources:     []string{"remoteuserbindings"},
+				ResourceNames: []string{"remoteuserbinding-brook"},
 			},
 		},
 	}, metav1.CreateOptions{})
@@ -272,6 +284,9 @@ var _ = BeforeSuite(func() {
 	if setupType == "fast" && !isSetupInstalled() {
 		installationSetup()
 	}
+
+	By("installing prometheus operator")
+	Expect(InstallPrometheusOperator()).To(Succeed())
 
 	By("installing the syngit chart")
 	cmd = exec.Command("make", "chart-install")

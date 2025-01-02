@@ -27,16 +27,8 @@ func (rswh *RemoteSyncerWebhookHandler) Handle(ctx context.Context, req admissio
 
 	rs := &syngit.RemoteSyncer{}
 
-	if string(req.Operation) != "DELETE" { //nolint:goconst
-		err := rswh.Decoder.Decode(req, rs)
-		if err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-	} else {
-		err := rswh.Decoder.DecodeRaw(req.OldObject, rs)
-		if err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
+	if err := utils.GetObjectFromWebhookRequest(rswh.Decoder, rs, req); err != nil {
+		return admission.Errored(http.StatusBadRequest, err)
 	}
 
 	if authorized, forbiddenResources, err := rswh.hasRightResourcesPermissions(*rs, user); err != nil {
