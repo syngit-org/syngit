@@ -75,6 +75,27 @@ webhooks:
     service:
       name: webhook-crd-service
       namespace: {{ .Release.Namespace }}
+      path: /syngit-v1beta2-remoteuserbinding-permissions
+  failurePolicy: Fail
+  name: vremoteuserbindings-permissions.v1beta2.syngit.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta2
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - remoteuserbindings
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-crd-service
+      namespace: {{ .Release.Namespace }}
       path: /syngit-v1beta2-remoteuser-association
   failurePolicy: Fail
   name: vremoteusers-association.v1beta2.syngit.io

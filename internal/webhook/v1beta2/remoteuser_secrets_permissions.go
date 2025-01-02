@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
+	utils "github.com/syngit-org/syngit/pkg/utils"
 	authv1 "k8s.io/api/authorization/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -28,16 +29,8 @@ func (ruwh *RemoteUserPermissionsWebhookHandler) Handle(ctx context.Context, req
 
 	ru := &syngit.RemoteUser{}
 
-	if string(req.Operation) != "DELETE" { //nolint:goconst
-		err := ruwh.Decoder.Decode(req, ru)
-		if err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-	} else {
-		err := ruwh.Decoder.DecodeRaw(req.OldObject, ru)
-		if err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
+	if err := utils.GetObjectFromWebhookRequest(ruwh.Decoder, ru, req); err != nil {
+		return admission.Errored(http.StatusBadRequest, err)
 	}
 
 	namespace := ru.GetNamespace()

@@ -205,6 +205,10 @@ func main() {
 			Client:  mgr.GetClient(),
 			Decoder: admission.NewDecoder(mgr.GetScheme()),
 		}})
+		mgr.GetWebhookServer().Register("/syngit-v1beta2-remoteuserbinding-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteUserBindingPermissionsWebhookHandler{
+			Client:  mgr.GetClient(),
+			Decoder: admission.NewDecoder(mgr.GetScheme()),
+		}})
 		mgr.GetWebhookServer().Register("/syngit-v1beta2-remotesyncer-rules-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteSyncerWebhookHandler{
 			Client:  mgr.GetClient(),
 			Decoder: admission.NewDecoder(mgr.GetScheme()),

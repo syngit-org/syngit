@@ -1,11 +1,5 @@
 package utils
 
-import (
-	"fmt"
-
-	admissionv1 "k8s.io/api/admissionregistration/v1"
-)
-
 // Remove the specified path from the json object
 // Path examples :
 
@@ -84,20 +78,5 @@ func ExcludedFieldsFromJson(data map[string]interface{}, path string) {
 		}
 		// Update data for next iteration
 		data = next
-	}
-}
-
-func OperationToVerb(operation admissionv1.OperationType) ([]string, error) {
-	switch operation {
-	case admissionv1.Create:
-		return []string{"create"}, nil
-	case admissionv1.Delete:
-		return []string{"delete"}, nil
-	case admissionv1.Update:
-		return []string{"update", "patch"}, nil
-	case admissionv1.Connect:
-		return []string{"connect"}, nil
-	default:
-		return nil, fmt.Errorf("unsupported operation: %v", operation)
 	}
 }
