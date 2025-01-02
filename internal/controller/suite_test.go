@@ -32,10 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	webhooksyngitv1beta2 "github.com/syngit-org/syngit/internal/webhook/v1beta2"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
 	//+kubebuilder:scaffold:imports
 )
@@ -90,10 +87,10 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	k8sManager.GetWebhookServer().Register("/syngit-v1beta1-remoteuser-association", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteUserWebhookHandler{
-		Client:  k8sManager.GetClient(),
-		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
-	}})
+	// k8sManager.GetWebhookServer().Register("/syngit-v1beta2-remoteuser-association", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteUserAssociationsWebhookHandler{
+	// 	Client:  k8sManager.GetClient(),
+	// 	Decoder: admission.NewDecoder(k8sManager.GetScheme()),
+	// }})
 
 	err = (&RemoteUserReconciler{
 		Client: k8sManager.GetClient(),
