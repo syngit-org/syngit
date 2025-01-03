@@ -35,6 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const WebhookServiceName = "syngit-webhook-service"
+
 // RemoteSyncerReconciler reconciles a RemoteSyncer object
 type RemoteSyncerReconciler struct {
 	client.Client
@@ -106,11 +108,10 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// The service is located in the manager/controller namespace
-	serviceName := "syngit-remote-syncer-webhook-service"
 	operatorNamespace := r.Namespace
 	clientConfig := admissionv1.WebhookClientConfig{
 		Service: &admissionv1.ServiceReference{
-			Name:      serviceName,
+			Name:      WebhookServiceName,
 			Namespace: operatorNamespace,
 			Path:      &webhookPath,
 		},

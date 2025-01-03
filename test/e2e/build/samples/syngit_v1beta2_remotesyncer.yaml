@@ -1,0 +1,17 @@
+apiVersion: syngit.io/v1beta2
+kind: RemoteSyncer
+metadata:
+  name: remotesyncer-sample
+spec:
+  remoteRepository: "https://git-fake-server.com/fake-repo.git"
+  defaultBranch: main
+  pushMode: SameBranch
+  processMode: CommitOnly
+  defaultUnauthorizedUserMode: Block
+  scopedResources:
+    rules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["configmaps"]
+      operations: ["CREATE"]
+

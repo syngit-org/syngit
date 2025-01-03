@@ -17,14 +17,18 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"os"
+	"sync"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	admissionv1 "k8s.io/api/admissionregistration/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -227,13 +231,34 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
+	k8sClient := mgr.GetClient()
+
+	signalCh := ctrl.SetupSignalHandler()
+	var wg sync.WaitGroup
+	wg.Add(1)
+
 	go func() {
-		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		defer wg.Done() // Notify the WaitGroup when the manager shuts down
+		if err := mgr.Start(signalCh); err != nil {
 			setupLog.Error(err, "problem running manager")
 			os.Exit(1)
 		}
+
+		webhookName := os.Getenv("DYNAMIC_WEBHOOK_NAME")
+		// Delete the dynamic webhooks (can be re-created when the manager is running again and if RemoteSyncers are not deleted)
+		webhookConfig := &admissionv1.ValidatingWebhookConfiguration{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: webhookName,
+			},
+		}
+		err := k8sClient.Delete(context.Background(), webhookConfig)
+		if err != nil {
+			setupLog.Error(err, "failed to delete ValidatingWebhookConfiguration", "name", webhookName)
+		} else {
+			setupLog.Info("Successfully deleted ValidatingWebhookConfiguration", "name", webhookName)
+		}
 	}()
 
-	// To allow dynamic webhook registration
-	select {}
+	// Block the main goroutine until the signal is received and the manager shuts down
+	wg.Wait() // Wait for the manager goroutine to finish
 }
