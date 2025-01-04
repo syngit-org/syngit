@@ -77,7 +77,7 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         - name: DYNAMIC_WEBHOOK_NAME
-          value: remotesyncer.syngit.io
+          value: syngit-dynamic-remotesyncer-webhook
         name: manager
         securityContext:
           allowPrivilegeEscalation: false

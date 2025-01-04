@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"crypto/tls"
 	"flag"
 	"os"
@@ -27,8 +26,6 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	admissionv1 "k8s.io/api/admissionregistration/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -231,7 +228,6 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	k8sClient := mgr.GetClient()
 
 	signalCh := ctrl.SetupSignalHandler()
 	var wg sync.WaitGroup
@@ -242,20 +238,6 @@ func main() {
 		if err := mgr.Start(signalCh); err != nil {
 			setupLog.Error(err, "problem running manager")
 			os.Exit(1)
-		}
-
-		webhookName := os.Getenv("DYNAMIC_WEBHOOK_NAME")
-		// Delete the dynamic webhooks (can be re-created when the manager is running again and if RemoteSyncers are not deleted)
-		webhookConfig := &admissionv1.ValidatingWebhookConfiguration{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: webhookName,
-			},
-		}
-		err := k8sClient.Delete(context.Background(), webhookConfig)
-		if err != nil {
-			setupLog.Error(err, "failed to delete ValidatingWebhookConfiguration", "name", webhookName)
-		} else {
-			setupLog.Info("Successfully deleted ValidatingWebhookConfiguration", "name", webhookName)
 		}
 	}()
 

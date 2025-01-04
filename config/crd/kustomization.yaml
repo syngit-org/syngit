@@ -27,5 +27,3 @@ patches:
 
 configurations:
 - kustomizeconfig.yaml
-
-namespace: syngit
