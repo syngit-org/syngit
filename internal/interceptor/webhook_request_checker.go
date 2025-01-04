@@ -8,7 +8,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/go-logr/logr"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
 	"github.com/syngit-org/syngit/pkg/utils"
 	"gopkg.in/yaml.v3"
@@ -18,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type gitUser struct {
@@ -55,8 +55,9 @@ type wrcDetails struct {
 }
 
 const (
-	defaultFailureMessage = "The changes have not been pushed to the remote git repository:"
-	defaultSuccessMessage = "The changes were correctly been pushed on the remote git repository."
+	defaultFailureMessage   = "The changes have not been pushed to the remote git repository:"
+	defaultSuccessMessage   = "The changes were correctly been pushed on the remote git repository."
+	statusUpdateRetryNumber = 5
 )
 
 type WebhookRequestChecker struct {
@@ -66,8 +67,6 @@ type WebhookRequestChecker struct {
 	remoteSyncer syngit.RemoteSyncer
 	// The kubernetes client to make request to the api
 	k8sClient client.Client
-	// Logger
-	log *logr.Logger
 	// Status and condition mutex
 	sync.RWMutex
 }
@@ -149,7 +148,7 @@ func (wrc *WebhookRequestChecker) retrieveRequestDetails() (wrcDetails, error) {
 
 	details.interceptedName = wrc.admReview.Request.Name
 
-	wrc.updateStatus("LastObservedObjectState", *details)
+	wrc.updateStatusState("LastObservedObjectState", *details)
 
 	return *details, nil
 }
@@ -349,7 +348,7 @@ func (wrc *WebhookRequestChecker) isBypassSubject(details *wrcDetails) (bool, er
 func (wrc *WebhookRequestChecker) letPassRequest(details *wrcDetails) admissionv1.AdmissionReview {
 	details.webhookPass = true
 
-	wrc.updateStatus("LastBypassedObjectState", *details)
+	wrc.updateStatusState("LastBypassedObjectState", *details)
 
 	return wrc.responseConstructor(*details)
 }
@@ -494,7 +493,7 @@ func (wrc *WebhookRequestChecker) gitPushPostChecker(isPushed bool, err error, d
 		details.pushDetails = err.Error()
 	}
 
-	wrc.updateStatus("LastPushedObjectState", *details)
+	wrc.updateStatusState("LastPushedObjectState", *details)
 	condition := &v1.Condition{
 		LastTransitionTime: v1.Now(),
 		Type:               "Synced",
@@ -606,12 +605,35 @@ func (wrc *WebhookRequestChecker) updateConditions(condition v1.Condition) {
 	wrc.remoteSyncer.Status.Conditions = conditions
 
 	ctx := context.Background()
-	if err := wrc.k8sClient.Status().Update(ctx, &wrc.remoteSyncer); err != nil {
-		wrc.log.Error(err, "can't update the conditions of the remote syncer "+wrc.remoteSyncer.Namespace+"/"+wrc.remoteSyncer.Name)
-	}
+	wrc.updateStatus(ctx, statusUpdateRetryNumber)
 }
 
-func (wrc *WebhookRequestChecker) updateStatus(kind string, details wrcDetails) {
+func (wrc *WebhookRequestChecker) updateStatus(ctx context.Context, retryNumber int) {
+	_ = log.FromContext(ctx)
+
+	namespacedName := types.NamespacedName{
+		Namespace: wrc.remoteSyncer.Namespace,
+		Name:      wrc.remoteSyncer.Name,
+	}
+	var remoteSyncer syngit.RemoteSyncer
+	if err := wrc.k8sClient.Get(ctx, namespacedName, &remoteSyncer); err != nil {
+		log.Log.Error(err, "can't get the remote syncer "+wrc.remoteSyncer.Namespace+"/"+wrc.remoteSyncer.Name)
+	}
+
+	remoteSyncer.Status = *wrc.remoteSyncer.Status.DeepCopy()
+
+	err := wrc.k8sClient.Status().Update(ctx, &remoteSyncer)
+	if err != nil {
+		if retryNumber > 0 {
+			wrc.updateStatus(ctx, retryNumber-1)
+		} else {
+			log.Log.Error(err, "can't update the conditions of the remote syncer "+wrc.remoteSyncer.Namespace+"/"+wrc.remoteSyncer.Name)
+		}
+	}
+
+}
+
+func (wrc *WebhookRequestChecker) updateStatusState(kind string, details wrcDetails) {
 	wrc.Lock()
 	defer wrc.Unlock()
 
@@ -650,8 +672,6 @@ func (wrc *WebhookRequestChecker) updateStatus(kind string, details wrcDetails) 
 	}
 
 	ctx := context.Background()
-	if err := wrc.k8sClient.Status().Update(ctx, &wrc.remoteSyncer); err != nil {
-		wrc.log.Error(err, "can't update the status of the remote syncer "+wrc.remoteSyncer.Namespace+"/"+wrc.remoteSyncer.Name)
-	}
+	wrc.updateStatus(ctx, statusUpdateRetryNumber)
 
 }

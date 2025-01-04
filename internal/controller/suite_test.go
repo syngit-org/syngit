@@ -87,11 +87,6 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	// k8sManager.GetWebhookServer().Register("/syngit-v1beta2-remoteuser-association", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteUserAssociationsWebhookHandler{
-	// 	Client:  k8sManager.GetClient(),
-	// 	Decoder: admission.NewDecoder(k8sManager.GetScheme()),
-	// }})
-
 	err = (&RemoteUserReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),

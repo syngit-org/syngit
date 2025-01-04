@@ -45,7 +45,6 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		Wait5()
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -69,7 +68,6 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
@@ -105,8 +103,8 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		By("creating a test configmap")
+		Wait3()
 		cm := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "ConfigMap",
@@ -124,6 +122,7 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking if the configmap is present on the repo")
+		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",
@@ -140,7 +139,6 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 		}
 		getCm := &corev1.ConfigMap{}
 
-		Wait10()
 		err = sClient.As(Luffy).Get(nnCm, getCm)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("not found"))

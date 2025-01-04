@@ -7,8 +7,8 @@ on:
 
 jobs:
 
-  tests:
-    name: Controllers tests
+  tests-build-deploy:
+    name: Build & deploy tests
     runs-on: ubuntu-latest
 
     steps:
@@ -39,11 +39,8 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y make
 
-    - name: Setup the tls certs
-      run: ./config/webhook/gen-certs-serv-cli.sh
-
     - name: Run tests
-      run: make test
+      run: make test-build-deploy
 
   tests-e2e:
     name: End-to-end tests
@@ -76,6 +73,11 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y make
+
+    - name: Install kubernetes binaries
+      run: |
+        make envtest
+        ./bin/setup-envtest-latest use --bin-dir ./bin
 
     - name: Run tests
       run: make test-e2e

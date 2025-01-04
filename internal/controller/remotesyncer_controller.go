@@ -18,7 +18,9 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"slices"
 
 	. "github.com/syngit-org/syngit/internal/interceptor"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
@@ -29,19 +31,30 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+)
+
+const (
+	WebhookServiceName = "syngit-webhook-service"
+	certificateName    = "operator-webhook-cert"
 )
 
 // RemoteSyncerReconciler reconciles a RemoteSyncer object
 type RemoteSyncerReconciler struct {
 	client.Client
-	Scheme        *runtime.Scheme
-	webhookServer WebhookInterceptsAll
-	Namespace     string
-	Dev           bool
-	Recorder      record.EventRecorder
+	Scheme             *runtime.Scheme
+	webhookServer      WebhookInterceptsAll
+	dynamicWebhookName string
+	Namespace          string
+	devMode            bool
+	devWebhookHost     string
+	devWebhookCert     string
+	Recorder           record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=syngit.io,resources=remotesyncers,verbs=get;list;watch;create;update;patch;delete
@@ -63,7 +76,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	var remoteSyncer syngit.RemoteSyncer
 	if err := r.Get(ctx, req.NamespacedName, &remoteSyncer); err != nil {
 		// does not exists -> deleted
-		r.webhookServer.DestroyPathHandler(req.NamespacedName)
+		r.webhookServer.Unregister(req.NamespacedName)
 		isDeleted = true
 		rSName = req.Name
 		rSNamespace = req.Namespace
@@ -82,22 +95,31 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Define the webhook path
 	webhookPath := "/syngit/validate/" + rSNamespace + "/" + rSName
 	// When rs reconciled, then create a path handled by the dynamic webhook server
-	r.webhookServer.CreatePathHandler(remoteSyncer, webhookPath)
+	r.webhookServer.Register(remoteSyncer, webhookPath)
 
 	// Read the content of the certificate file
-	caCert, err := os.ReadFile("/tmp/k8s-webhook-server/serving-certs/tls.crt")
-	if err != nil {
-		log.Log.Error(err, "failed to read the cert file /tmp/k8s-webhook-server/serving-certs/tls.crt")
-		r.Recorder.Event(&remoteSyncer, "Warning", "WebhookCertFail", "Operator internal error : the certificate file failed to be read")
-		return reconcile.Result{}, err
+	var caCert []byte
+	var certError error
+	if !r.devMode {
+		const certPath = "/tmp/k8s-webhook-server/serving-certs/tls.crt"
+		if caCert, certError = os.ReadFile(certPath); certError != nil {
+			log.Log.Error(certError, fmt.Sprintf("failed to read the cert file %s", certPath))
+			r.Recorder.Event(&remoteSyncer, "Warning", "WebhookCertFail", "Operator internal error : the certificate file failed to be read")
+			return reconcile.Result{}, certError
+		}
+	} else {
+		if caCert, certError = os.ReadFile(r.devWebhookCert); certError != nil {
+			log.Log.Error(certError, fmt.Sprintf("failed to read the cert file %s", r.devWebhookCert))
+			r.Recorder.Event(&remoteSyncer, "Warning", "WebhookCertFail", "Operator internal error : the certificate file failed to be read")
+			return reconcile.Result{}, certError
+		}
 	}
 
 	// The service is located in the manager/controller namespace
-	serviceName := "syngit-remote-syncer-webhook-service"
 	operatorNamespace := r.Namespace
 	clientConfig := admissionv1.WebhookClientConfig{
 		Service: &admissionv1.ServiceReference{
-			Name:      serviceName,
+			Name:      WebhookServiceName,
 			Namespace: operatorNamespace,
 			Path:      &webhookPath,
 		},
@@ -105,20 +127,18 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	annotations := make(map[string]string)
-	// Development mode
-	if r.Dev {
-		url := "https://172.17.0.1:9444" + webhookPath
+	if r.devMode {
+		url := "https://" + r.devWebhookHost + "/" + webhookPath
 		clientConfig = admissionv1.WebhookClientConfig{
 			URL:      &url,
 			CABundle: caCert,
 		}
-	}
-	if !r.Dev {
-		annotations["cert-manager.io/inject-ca-from"] = "operator-webhook-cert"
+	} else {
+		annotations["cert-manager.io/inject-ca-from"] = fmt.Sprintf("%s:%s", r.Namespace, certificateName)
 	}
 
 	// Create the webhook specs for this specific RI
-	webhookObjectName := os.Getenv("DYNAMIC_WEBHOOK_NAME")
+	webhookObjectName := r.dynamicWebhookName
 	var sideEffectsNone = admissionv1.SideEffectClassNone
 	webhookSpecificName := rSName + "." + rSNamespace + ".syngit.io"
 
@@ -148,7 +168,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Check if the webhook already exists
 	found := &admissionv1.ValidatingWebhookConfiguration{}
-	err = r.Get(ctx, *webhookNamespacedName, found)
+	err := r.Get(ctx, *webhookNamespacedName, found)
 
 	condition := &v1.Condition{
 		LastTransitionTime: v1.Now(),
@@ -157,18 +177,27 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if err == nil {
-		// Search for the webhook spec associated to this RI
+		isExactlyTheSame := false
+
+		// Search for the webhook spec associated to this RSy
 		var currentWebhookCopy []admissionv1.ValidatingWebhook
-		for _, riWebhook := range found.Webhooks {
-			if riWebhook.Name != webhookSpecificName {
-				currentWebhookCopy = append(currentWebhookCopy, riWebhook)
+		for _, rsyWebhook := range found.Webhooks {
+			if rsyWebhook.Name != webhookSpecificName {
+				currentWebhookCopy = append(currentWebhookCopy, rsyWebhook)
+			} else {
+				isExactlyTheSame = slices.EqualFunc(rsyWebhook.Rules, webhook.Rules, rulesAreEqual)
 			}
 		}
 		if !isDeleted {
 			currentWebhookCopy = append(currentWebhookCopy, *webhook)
 		}
 
-		// If not found, then just add the new webhook spec for this RI
+		// The webhook already exists and is exactly the same -> do not update
+		if isExactlyTheSame {
+			return reconcile.Result{}, err
+		}
+
+		// If not found, then just add the new webhook spec for this RSy
 		found.Webhooks = currentWebhookCopy
 
 		err = r.Update(ctx, found)
@@ -182,7 +211,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return reconcile.Result{}, err
 		}
 	} else {
-		// Create a new webhook if not found -> if it is the first RI to be created
+		// Create a new webhook if not found -> if it is the first RSy to be created
 		err := r.Create(ctx, webhookConf)
 		if err != nil {
 			r.Recorder.Event(&remoteSyncer, "Warning", "WebhookNotCreated", "The webhook does not exists and has not been created")
@@ -203,6 +232,22 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, nil
 }
 
+func rulesAreEqual(r1, r2 admissionv1.RuleWithOperations) bool {
+	if !slices.Equal(r1.APIGroups, r2.APIGroups) {
+		return false
+	}
+	if !slices.Equal(r1.APIVersions, r2.APIVersions) {
+		return false
+	}
+	if !slices.Equal(r1.Resources, r2.Resources) {
+		return false
+	}
+	if !slices.Equal(r1.Operations, r2.Operations) {
+		return false
+	}
+	return true
+}
+
 func (r *RemoteSyncerReconciler) updateStatus(ctx context.Context, remoteSyncer *syngit.RemoteSyncer, condition v1.Condition) error {
 	conditions := utils.TypeBasedConditionUpdater(remoteSyncer.Status.DeepCopy().Conditions, condition)
 
@@ -213,28 +258,55 @@ func (r *RemoteSyncerReconciler) updateStatus(ctx context.Context, remoteSyncer 
 	return nil
 }
 
+func (r *RemoteSyncerReconciler) findObjectsForDynamicWebhook(ctx context.Context, webhook client.Object) []reconcile.Request {
+	attachedRemoteSyncers := &syngit.RemoteSyncerList{}
+	listOps := &client.ListOptions{
+		Namespace: "",
+	}
+	// List all the RemoteSyncers of the cluster
+	err := r.List(ctx, attachedRemoteSyncers, listOps)
+	if err != nil {
+		return []reconcile.Request{}
+	}
+
+	// Returns back all the RemoteSyncer of the cluster
+	requests := make([]reconcile.Request, len(attachedRemoteSyncers.Items))
+	for i, item := range attachedRemoteSyncers.Items {
+		requests[i] = reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      item.GetName(),
+				Namespace: item.GetNamespace(),
+			},
+		}
+	}
+	return requests
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *RemoteSyncerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	recorder := mgr.GetEventRecorderFor("remotesyncer-controller")
 	r.Recorder = recorder
 
-	managerNamespace := os.Getenv("MANAGER_NAMESPACE")
-	dev := os.Getenv("DEV")
-	r.Namespace = managerNamespace
-	r.Dev = false
-	if dev == "true" {
-		r.Dev = true
-	}
+	r.devMode = os.Getenv("DEV_MODE") == "true"
+	r.devWebhookHost = os.Getenv("DEV_WEBHOOK_HOST")
+	r.devWebhookCert = os.Getenv("DEV_WEBHOOK_CERT")
+	r.Namespace = os.Getenv("MANAGER_NAMESPACE")
+	r.dynamicWebhookName = os.Getenv("DYNAMIC_WEBHOOK_NAME")
 
 	// Initialize the webhookServer
 	r.webhookServer = WebhookInterceptsAll{
 		K8sClient: mgr.GetClient(),
-		Dev:       r.Dev,
+		Manager:   mgr,
 	}
 	r.webhookServer.Start()
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&syngit.RemoteSyncer{}).
+		Watches(
+			&admissionv1.ValidatingWebhookConfiguration{},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDynamicWebhook),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
 }

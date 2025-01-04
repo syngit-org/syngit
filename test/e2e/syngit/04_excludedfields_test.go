@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -46,7 +47,6 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		Wait5()
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -70,7 +70,6 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
@@ -111,8 +110,8 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		By("creating a test configmap")
+		Wait3()
 		const (
 			annotation1Key = "test-annotation1"
 			annotation2Key = "test-annotation2"
@@ -135,10 +134,12 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
+			fmt.Println(err)
 			return err != nil && strings.Contains(err.Error(), defaultDeniedMessage)
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking if the right fields are present on the ConfigMap on the repo")
+		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",
@@ -214,7 +215,6 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 		)
 		Expect(err).ToNot(HaveOccurred())
 
-		Wait5()
 		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
@@ -253,8 +253,8 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		By("creating a test configmap")
+		Wait3()
 		const annotation1Key = "test-annotation1"
 		const annotation2Key = "test-annotation2"
 		const annotation3Key = "test-annotation3"
@@ -279,6 +279,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking if the right fields are present on the ConfigMap on the repo")
+		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",

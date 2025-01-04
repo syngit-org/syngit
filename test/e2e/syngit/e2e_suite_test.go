@@ -18,10 +18,14 @@ package e2e_syngit
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -29,14 +33,22 @@ import (
 	"github.com/joho/godotenv"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	controllerssyngit "github.com/syngit-org/syngit/internal/controller"
+	webhooksyngitv1beta2 "github.com/syngit-org/syngit/internal/webhook/v1beta2"
 	"github.com/syngit-org/syngit/test/utils"
 	. "github.com/syngit-org/syngit/test/utils"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
 )
@@ -56,14 +68,27 @@ const (
 	rubPermissionsDeniedMessage = "is not allowed to get the referenced remoteuser"
 )
 
+// CMD & CLIENT
 var cmd *exec.Cmd
 var sClient *SyngitTestUsersClientset
 
-const projectimage = "local/syngit-controller:dev"
-
-var setupType string
+// PLATFORMS FQDN
 var gitP1Fqdn string
 var gitP2Fqdn string
+
+// KIND CLUSTER
+var clusterAlreadyExistsBefore = false
+
+// RBAC
+const reducedPermissionsCRName = "secret-rs-ru-cluster-role"
+
+// MANAGER
+var k8sManager ctrl.Manager
+var cfg *rest.Config
+var testEnv *envtest.Environment
+
+// FULL OR FAST
+var setupType string
 
 func init() {
 	flag.StringVar(&setupType, "setup", "full", "Specify the setup type: fast or full")
@@ -85,26 +110,136 @@ func TestE2E(t *testing.T) {
 	RunSpecs(t, "e2e suite syngit")
 }
 
-const reducedPermissionsCRName = "secret-rs-ru-cluster-role"
+// setupCluster creates a kind cluster if it doesn't exist using the .env file for the name.
+func setupCluster() {
+	By("creating the cluster")
+	cmd = exec.Command("kind", "create", "cluster", "--name", os.Getenv("CLUSTER_NAME"))
+	_, err := Run(cmd)
+	if err != nil {
+		clusterAlreadyExistsBefore = true
+	}
+}
 
-func installationSetup() {
+// setupGitea installs the 2 gitea platforms charts and initialize the repos & users permissions.
+func setupGitea() {
 	By("setuping gitea repos & users")
 	cmd = exec.Command("make", "setup-gitea")
 	_, err := Run(cmd)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-	By("installing the cert-manager")
-	Expect(InstallCertManager()).To(Succeed())
-
-	By("loading the the manager(Operator) image on Kind")
-	err = utils.LoadImageToKindClusterWithName(projectimage)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 }
 
+// setupManager creates the manager and the webhooks for the tests.
+func setupManager() {
+
+	os.Setenv("MANAGER_NAMESPACE", "syngit")
+	os.Setenv("DYNAMIC_WEBHOOK_NAME", "remotesyncer.syngit.io")
+
+	By("bootstrapping test environment")
+	testEnv = &envtest.Environment{
+		WebhookInstallOptions: envtest.WebhookInstallOptions{
+			Paths: []string{filepath.Join(".", "config", "webhook", "manifests.yaml")},
+		},
+		CRDDirectoryPaths: []string{filepath.Join(".", "config", "crd", "bases")},
+
+		BinaryAssetsDirectory: filepath.Join(".", "bin", "k8s",
+			fmt.Sprintf("1.29.0-%s-%s", runtime.GOOS, runtime.GOARCH)),
+
+		ControlPlaneStartTimeout: 5 * 30 * time.Second,
+	}
+
+	var errTest error
+	cfg, errTest = testEnv.Start()
+	Expect(errTest).NotTo(HaveOccurred())
+	Expect(cfg).NotTo(BeNil())
+
+	errScheme := syngit.AddToScheme(scheme.Scheme)
+	Expect(errScheme).NotTo(HaveOccurred())
+
+	By("creating the manager")
+	webhookInstallOptions := &testEnv.WebhookInstallOptions
+	var errK8sManager error
+	k8sManager, errK8sManager = ctrl.NewManager(cfg, ctrl.Options{
+		Scheme: scheme.Scheme,
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Host:    webhookInstallOptions.LocalServingHost,
+			Port:    webhookInstallOptions.LocalServingPort,
+			CertDir: webhookInstallOptions.LocalServingCertDir,
+		}),
+		LeaderElection: false,
+	})
+	Expect(errK8sManager).ToNot(HaveOccurred())
+
+	By("setting up the webhooks dev variables")
+	os.Setenv("DEV_MODE", "true")
+	os.Setenv("DEV_WEBHOOK_HOST", fmt.Sprintf("%s:%d", webhookInstallOptions.LocalServingHost, webhookInstallOptions.LocalServingPort))
+	os.Setenv("DEV_WEBHOOK_CERT", webhookInstallOptions.LocalServingCertDir+"/tls.crt")
+
+	By("registring webhook server")
+	errWebhook := webhooksyngitv1beta2.SetupRemoteUserWebhookWithManager(k8sManager)
+	Expect(errWebhook).NotTo(HaveOccurred())
+	errWebhook = webhooksyngitv1beta2.SetupRemoteSyncerWebhookWithManager(k8sManager)
+	Expect(errWebhook).NotTo(HaveOccurred())
+	errWebhook = webhooksyngitv1beta2.SetupRemoteUserBindingWebhookWithManager(k8sManager)
+	Expect(errWebhook).NotTo(HaveOccurred())
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta2-remoteuser-association", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteUserAssociationWebhookHandler{
+		Client:  k8sManager.GetClient(),
+		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
+	}})
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta2-remoteuser-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteUserPermissionsWebhookHandler{
+		Client:  k8sManager.GetClient(),
+		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
+	}})
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta2-remoteuserbinding-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteUserBindingPermissionsWebhookHandler{
+		Client:  k8sManager.GetClient(),
+		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
+	}})
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta2-remotesyncer-rules-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteSyncerWebhookHandler{
+		Client:  k8sManager.GetClient(),
+		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
+	}})
+
+	By("setting up the controllers")
+	errController := (&controllerssyngit.RemoteUserReconciler{
+		Client: k8sManager.GetClient(),
+		Scheme: k8sManager.GetScheme(),
+	}).SetupWithManager(k8sManager)
+	Expect(errController).ToNot(HaveOccurred())
+	errController = (&controllerssyngit.RemoteUserBindingReconciler{
+		Client: k8sManager.GetClient(),
+		Scheme: k8sManager.GetScheme(),
+	}).SetupWithManager(k8sManager)
+	Expect(errController).ToNot(HaveOccurred())
+	errController = (&controllerssyngit.RemoteSyncerReconciler{
+		Client: k8sManager.GetClient(),
+		Scheme: k8sManager.GetScheme(),
+	}).SetupWithManager(k8sManager)
+	Expect(errController).ToNot(HaveOccurred())
+
+	By("starting the manager")
+	go func() {
+		defer GinkgoRecover()
+		err := k8sManager.Start(ctrl.SetupSignalHandler())
+		Expect(err).ToNot(HaveOccurred(), "failed to run manager")
+	}()
+
+	// wait for the webhook server to get ready.
+	dialer := &net.Dialer{Timeout: time.Second}
+	addrPort := fmt.Sprintf("%s:%d", webhookInstallOptions.LocalServingHost, webhookInstallOptions.LocalServingPort)
+	Eventually(func() error {
+		conn, err := tls.DialWithDialer(dialer, "tcp", addrPort, &tls.Config{InsecureSkipVerify: true})
+		if err != nil {
+			return err
+		}
+
+		return conn.Close()
+	}).Should(Succeed())
+}
+
+// rbacSetup creates the RBAC permissions of the k8s users (listed in the mock-users.go Users array).
 func rbacSetup(ctx context.Context) {
 	By("setting the default client successfully")
 	sClient = &SyngitTestUsersClientset{}
-	err := sClient.Initialize()
+	err := sClient.Initialize(cfg)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	By("creating users with RBAC cluster-admin for global users")
@@ -215,6 +350,7 @@ func rbacSetup(ctx context.Context) {
 	}
 }
 
+// namespaceSetup creates the test namespace and the secrets for the users to connect to the gitea platforms.
 func namespaceSetup(ctx context.Context) {
 
 	By("creating the test namespace")
@@ -251,7 +387,8 @@ func namespaceSetup(ctx context.Context) {
 	}
 }
 
-func isSetupInstalled() bool {
+// isGitlabInstalled checks if the gitea charts are installed on the 2 platform's namespace.
+func isGiteaInstalled() bool {
 	By("checking the gitea installation")
 	cmd = exec.Command("helm", "status", "gitea", "-n", os.Getenv("PLATFORM1"))
 	_, err := Run(cmd)
@@ -260,18 +397,7 @@ func isSetupInstalled() bool {
 	}
 	cmd = exec.Command("helm", "status", "gitea", "-n", os.Getenv("PLATFORM2"))
 	_, err = Run(cmd)
-	if err != nil {
-		return false
-	}
-
-	By("checking the cert-manager installation")
-	cmd = exec.Command("helm", "status", "cert-manager", "-n", "cert-manager")
-	_, err = Run(cmd)
-	if err != nil { //nolint:gosimple
-		return false
-	}
-
-	return true
+	return err == nil
 }
 
 var _ = BeforeSuite(func() {
@@ -279,20 +405,14 @@ var _ = BeforeSuite(func() {
 	log.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 	if setupType == "full" {
-		installationSetup()
+		setupCluster()
+		setupGitea()
 	}
-	if setupType == "fast" && !isSetupInstalled() {
-		installationSetup()
+	if setupType == "fast" && !isGiteaInstalled() {
+		setupGitea()
 	}
 
-	By("installing prometheus operator")
-	Expect(InstallPrometheusOperator()).To(Succeed())
-
-	By("installing the syngit chart")
-	cmd = exec.Command("make", "chart-install")
-	_, errChartSyngit := Run(cmd)
-	ExpectWithOffset(1, errChartSyngit).NotTo(HaveOccurred())
-
+	setupManager()
 	rbacSetup(ctx)
 	namespaceSetup(ctx)
 
@@ -306,29 +426,23 @@ var _ = BeforeSuite(func() {
 	fmt.Printf("  Gitea URL for %s: %s\n", os.Getenv("PLATFORM2"), gitP2Fqdn)
 })
 
+// uninstallSetup deletes the kind cluster it did not exist before and uninstall the gitea charts.
 func uninstallSetup() {
+	if !clusterAlreadyExistsBefore {
+		By("deleting the old cluster")
+		cmd = exec.Command("kind", "delete", "cluster", "--name", os.Getenv("CLUSTER_NAME"))
+		_, err := Run(cmd)
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	}
+
 	By("uninstalling gitea")
 	cmd = exec.Command("make", "cleanup-gitea")
 	_, err := Run(cmd)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-	By("uninstalling the cert-manager bundle")
-	UninstallCertManager()
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-	By("deleting the manager namespace")
-	cmd = exec.Command("kubectl", "delete", "ns", operatorNamespace)
-	_, err = Run(cmd)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 }
 
-func deleteNamespace(ctx context.Context) {
-
-	By("deleting the test namespace")
-	err := sClient.KAs(Admin).CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{GracePeriodSeconds: func() *int64 { i := int64(0); return &i }()})
-	Expect(err).NotTo(HaveOccurred())
-}
-
+// deleteRbac deletes the RBAC permissions of the k8s users.
 func deleteRbac(ctx context.Context) {
 
 	By("deleting the global user's RBAC")
@@ -345,19 +459,17 @@ func deleteRbac(ctx context.Context) {
 var _ = AfterSuite(func() {
 	ctx := context.TODO()
 
-	By("uninstalling the syngit chart")
-	cmd = exec.Command("make", "chart-uninstall")
-	_, err := Run(cmd)
-	Expect(err).NotTo(HaveOccurred())
+	deleteRbac(ctx)
+
+	By("tearing down the test environment")
+	Eventually(func() bool {
+		errTestEnv := testEnv.Stop()
+		return errTestEnv == nil
+	}, timeout, interval).Should(BeTrue())
 
 	if setupType == "full" {
 		uninstallSetup()
 	}
-	By("uninstalling the Prometheus manager bundle")
-	UninstallPrometheusOperator()
-
-	deleteNamespace(ctx)
-	deleteRbac(ctx)
 })
 
 var _ = AfterEach(func() {
@@ -448,10 +560,7 @@ var _ = AfterEach(func() {
 
 })
 
-func Wait5() {
-	time.Sleep(5 * time.Second)
-}
-
-func Wait10() {
-	time.Sleep(10 * time.Second)
+// Wait3 sleeps for 3 seconds
+func Wait3() {
+	time.Sleep(3 * time.Second)
 }

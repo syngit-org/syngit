@@ -48,7 +48,6 @@ var _ = Describe("08 Webhook rbac checker", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		Wait5()
 		By("creating the RemoteUser & RemoteUserBinding for Brook (test the RUB creation without the right permissions)")
 		brookSecretName := string(Brook) + "-creds"
 		remoteUserBrook := &syngit.RemoteUser{
@@ -72,7 +71,6 @@ var _ = Describe("08 Webhook rbac checker", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer for ConfigMaps")
 		remotesyncer := &syngit.RemoteSyncer{
@@ -106,8 +104,8 @@ var _ = Describe("08 Webhook rbac checker", func() {
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(rsPermissionsDeniedMessage))
 
-		Wait5()
 		By("creating a test configmap")
+		Wait3()
 		cm := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "ConfigMap",
@@ -125,6 +123,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that the configmap is not present in the repo")
+		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",
@@ -135,6 +134,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 		Expect(exists).To(BeFalse())
 
 		By("checking that the configmap is present on the cluster")
+		Wait3()
 		nnCm := types.NamespacedName{
 			Name:      cmName,
 			Namespace: namespace,
@@ -154,7 +154,6 @@ var _ = Describe("08 Webhook rbac checker", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		Wait5()
 		By("creating the RemoteUser & RemoteUserBinding for Brook (test the RUB creation without the right permissions)")
 		brookSecretName := string(Brook) + "-creds"
 		remoteUserBrook := &syngit.RemoteUser{
@@ -179,7 +178,6 @@ var _ = Describe("08 Webhook rbac checker", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
-		Wait5()
 		By("creating a wrong RemoteSyncer for Secrets")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -214,7 +212,6 @@ var _ = Describe("08 Webhook rbac checker", func() {
 		Expect(err.Error()).To(ContainSubstring(rsPermissionsDeniedMessage))
 		Expect(err.Error()).To(ContainSubstring("DELETE"))
 
-		Wait5()
 		By("creating a good RemoteSyncer for Secrets")
 		remotesyncer = &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -248,8 +245,8 @@ var _ = Describe("08 Webhook rbac checker", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		By("creating a test secret")
+		Wait3()
 		secret := &corev1.Secret{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Secret",
@@ -266,8 +263,8 @@ var _ = Describe("08 Webhook rbac checker", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Wait5()
 		By("checking that the secret present in the repo")
+		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",

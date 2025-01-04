@@ -40,7 +40,6 @@ var _ = Describe("10 RemoteUser secret permissions checker", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		Wait5()
 		By("creating the RemoteUser using a not allowed secret name")
 		brookSecretName := "not-allowed-secret-name"
 		remoteUserBrook := &syngit.RemoteUser{
@@ -69,7 +68,6 @@ var _ = Describe("10 RemoteUser secret permissions checker", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		Wait5()
 		By("creating the RemoteUser using an allowed secret name")
 		brookSecretName := string(Brook) + "-creds"
 		remoteUserBrook := &syngit.RemoteUser{
