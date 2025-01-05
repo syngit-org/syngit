@@ -80,7 +80,7 @@ run-full: manifests generate fmt vet install-crds install-dev-webhooks ## Instal
 	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(DEV_WEBHOOK_HOST) DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && go run cmd/main.go
 
 .PHONY: cleanup-run
-cleanup-run: uninstall-crds uninstall-dev-webhooks ## Cleanup the resources created by make run.
+cleanup-run: uninstall-crds uninstall-dev-webhooks ## Cleanup the resources created by run-fast or run-full.
 
 .PHONY: reset-certs
 reset-certs: ## Reset the temporary certificates for the webhook (/tmp/k8s-webhook-server/serving-certs).
