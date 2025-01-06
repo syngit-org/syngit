@@ -51,7 +51,7 @@ help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 .PHONY: pre-commit-check
-pre-commit-check: manifests generate test lint ## Run all the tests and linters.
+pre-commit-check: cleanup-run manifests generate test lint ## Run all the tests and linters.
 
 ##@ Dev environment
 
@@ -109,7 +109,7 @@ vet: ## Run go vet against code.
 ##@ Test
 
 .PHONY: test
-test: test-controller test-build-deploy test-e2e ## Run all the tests.
+test: test-controller test-build-deploy test-e2e test-chart-install test-chart-upgrade ## Run all the tests.
 
 .PHONY: test-controller
 test-controller: manifests generate fmt vet envtest ## Run tests embeded in the controller package & webhook package.
@@ -139,7 +139,14 @@ cleanup-tests: ## Uninstall all the charts needed for the tests.
 	helm uninstall -n syngit syngit || true
 	helm uninstall -n saturn gitea || true
 	helm uninstall -n jupyter gitea || true
-	helm uninstall -n cert-manager cert-manager || true
+
+.PHONY: test-chart-install
+test-chart-install: ## Run tests to install the chart.
+	go test ./test/e2e/helm/install -v -ginkgo.v
+
+.PHONY: test-chart-upgrade
+test-chart-upgrade: ## Run tests to upgrade the chart.
+	go test ./test/e2e/helm/upgrade -v -ginkgo.v
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter & yamllint
@@ -241,7 +248,7 @@ BEFORE_LATEST_CHART ?= $(shell ls -v charts | tail -3 | head -1)
 LATEST_CHART ?= $(shell find charts -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -V | tail -n 1)
 
 .PHONY: chart-install
-chart-install: ## Install the latest chart version listed in the charts/ folder.
+chart-install: ## Install the latest chart version listed in the charts/ folder with 3 replicas.
 	helm install syngit charts/$(LATEST_CHART) -n syngit --create-namespace \
 		--set controller.image.prefix=local \
 		--set controller.image.name=syngit-controller \

@@ -81,3 +81,73 @@ jobs:
 
     - name: Run tests
       run: make test-e2e
+
+  test-helm-install:
+    name: Helm install test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v1
+      with:
+        version: 'latest'
+
+    - name: Set up KinD
+      uses: helm/kind-action@v1.2.0
+      with:
+        version: v0.23.0
+        cluster_name: syngit-dev-cluster
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: '1.22'
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y make
+
+    - name: Run tests
+      run: make test-chart-install
+
+  test-helm-upgrade:
+    name: Helm upgrade test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v1
+      with:
+        version: 'latest'
+
+    - name: Set up KinD
+      uses: helm/kind-action@v1.2.0
+      with:
+        version: v0.23.0
+        cluster_name: syngit-dev-cluster
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: '1.22'
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y make
+
+    - name: Run tests
+      run: make test-chart-upgrade

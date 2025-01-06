@@ -76,7 +76,7 @@ func (s *WebhookInterceptsAll) Start() {
 				}
 
 				// If found in k8s api, add it to the cached map and handle the request
-				s.Register(*found, path)
+				handler := s.Register(*found, path)
 				handler.Handle(w, r)
 			}
 
