@@ -33,6 +33,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -41,7 +42,7 @@ import (
 
 const (
 	WebhookServiceName = "syngit-webhook-service"
-	certificateName    = "operator-webhook-cert"
+	certificateName    = "syngit-webhook-cert"
 )
 
 // RemoteSyncerReconciler reconciles a RemoteSyncer object
@@ -152,7 +153,6 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		NamespaceSelector: &v1.LabelSelector{
 			MatchLabels: map[string]string{"kubernetes.io/metadata.name": rSNamespace},
 		},
-		// FailurePolicy: DON'T FAIL,
 	}
 	webhookConf := &admissionv1.ValidatingWebhookConfiguration{
 		ObjectMeta: v1.ObjectMeta{
@@ -282,6 +282,20 @@ func (r *RemoteSyncerReconciler) findObjectsForDynamicWebhook(ctx context.Contex
 	return requests
 }
 
+func (r *RemoteSyncerReconciler) webhookNamePredicate(name string) predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return e.Object.GetName() == name
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return e.ObjectNew.GetName() == name
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return e.Object.GetName() == name
+		},
+	}
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *RemoteSyncerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
@@ -306,7 +320,7 @@ func (r *RemoteSyncerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&admissionv1.ValidatingWebhookConfiguration{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDynamicWebhook),
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+			builder.WithPredicates(r.webhookNamePredicate(r.dynamicWebhookName)),
 		).
 		Complete(r)
 }
