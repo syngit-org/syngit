@@ -52,7 +52,7 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 				Name:      remoteUserLufffyName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					"syngit.io/associated-remote-userbinding": "true",
+					syngit.RubAnnotation: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{

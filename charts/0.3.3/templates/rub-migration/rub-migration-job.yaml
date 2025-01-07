@@ -1,0 +1,62 @@
+{{- if .Release.IsUpgrade -}}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-rub-migration
+  labels:
+    app.kubernetes.io/name: job
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: rub-migration
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+  annotations:
+    "helm.sh/hook": post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    spec:
+      serviceAccountName: rub-migration
+      automountServiceAccountToken: true
+      containers:
+        - name: rub-migration
+          image: bitnami/kubectl:1.32.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Get all remoteuserbindings with names starting with "associated-rub-"
+              kubectl get remoteuserbindings.syngit.io -A -o json | jq -c '.items[] | select(.metadata.name | startswith("associated-rub-"))' | while read -r resource; do
+                # Extract the name & the namespace of the resource
+                name=$(echo "$resource" | jq -r '.metadata.name')
+                namespace=$(echo "$resource" | jq -r '.metadata.namespace')
+                
+                # Extract the username from the resource name (after "associated-rub-")
+                username="${name#associated-rub-}"
+                
+                # Prepare the patch for updating the annotation and adding labels
+                patch=$(cat <<EOF
+              {
+                "metadata": {
+                  "annotations": {
+                    "syngit.io/associated-remote-userbinding": null,
+                    "syngit.io/associated-remoteuserbinding": "true"
+                  },
+                  "labels": {
+                    "managed-by": "syngit.io",
+                    "syngit.io/k8s-user": "$username"
+                  }
+                }
+              }
+              EOF
+                )
+
+                # Apply the patch using kubectl
+                kubectl patch remoteuserbindings.syngit.io "$name" -n "$namespace" --type merge -p "$patch"
+                
+                echo "Updated resource: $namespace/$name with username: $username"
+              done
+
+      restartPolicy: Never
+  backoffLimit: 4
+{{- end }}
