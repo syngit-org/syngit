@@ -27,7 +27,7 @@ helm repo add syngit https://syngit-org.github.io/syngit
 
 2. Install the operator
 ```sh
-helm install syngit syngit/syngit --version 0.3.0 -n syngit --create-namespace --set providers.github.enabled="true"
+helm install syngit syngit/syngit --version 0.3.2 -n syngit --create-namespace --set providers.github.enabled="true"
 ```
 
 syngit is now installed on the cluster! More information about the configuration can be found on the [wiki](https://github.com/syngit-org/syngit/wiki/Installation).
