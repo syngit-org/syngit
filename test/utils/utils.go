@@ -30,8 +30,8 @@ const (
 	prometheusOperatorURL     = "https://github.com/prometheus-operator/prometheus-operator/" +
 		"releases/download/%s/bundle.yaml"
 
-	// certmanagerVersion = "v1.13.3"
-	// certmanagerURLTmpl = "https://github.com/jetstack/cert-manager/releases/download/%s/cert-manager.yaml"
+	certmanagerVersion = "v1.13.3"
+	certmanagerURLTmpl = "https://github.com/jetstack/cert-manager/releases/download/%s/cert-manager.yaml"
 )
 
 func warnError(err error) {
@@ -76,16 +76,14 @@ func UninstallPrometheusOperator() {
 }
 
 // UninstallCertManager uninstalls the cert manager
-//
-//	func UninstallCertManager() {
-//		url := fmt.Sprintf(certmanagerURLTmpl, certmanagerVersion)
-//		cmd := exec.Command("kubectl", "delete", "-f", url)
-//		if _, err := Run(cmd); err != nil {
-//			warnError(err)
-//		}
-//	}
+
 func UninstallCertManager() {
-	cmd := exec.Command("helm", "uninstall", "-n", "cert-manager", "cert-manager")
+	url := fmt.Sprintf(certmanagerURLTmpl, certmanagerVersion)
+	cmd := exec.Command("kubectl", "delete", "-f", url)
+	if _, err := Run(cmd); err != nil {
+		warnError(err)
+	}
+	cmd = exec.Command("helm", "uninstall", "-n", "cert-manager", "cert-manager")
 	if _, err := Run(cmd); err != nil {
 		warnError(err)
 	}
@@ -111,8 +109,9 @@ func UninstallCertManager() {
 // 		return err
 // 	}
 
-//		return err
-//	}
+// 	return err
+// }
+
 func InstallCertManager() error {
 	cmd := exec.Command("helm", "repo", "add", "jetstack", "https://charts.jetstack.io")
 	if _, err := Run(cmd); err != nil {

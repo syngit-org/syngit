@@ -45,11 +45,13 @@ var _ = BeforeSuite(func() {
 
 	By("creating manager namespace")
 	cmd := exec.Command("kubectl", "create", "ns", namespace)
-	_, _ = utils.Run(cmd)
+	_, errNs := utils.Run(cmd)
+	ExpectWithOffset(1, errNs).NotTo(HaveOccurred())
 
 	By("creating test namespace")
 	cmd = exec.Command("kubectl", "create", "ns", testNamespace)
-	_, _ = utils.Run(cmd)
+	_, errNs = utils.Run(cmd)
+	ExpectWithOffset(1, errNs).NotTo(HaveOccurred())
 
 	var controllerPodName string
 	var err error
