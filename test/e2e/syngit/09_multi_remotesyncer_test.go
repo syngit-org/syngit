@@ -55,7 +55,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					"syngit.io/associated-remote-userbinding": "true",
+					syngit.RubAnnotation: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -201,7 +201,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					"syngit.io/associated-remote-userbinding": "true",
+					syngit.RubAnnotation: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{

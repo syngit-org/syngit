@@ -48,7 +48,7 @@ var _ = Describe("01 Create RemoteUser", func() {
 				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					"syngit.io/associated-remote-userbinding": "true",
+					syngit.RubAnnotation: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{

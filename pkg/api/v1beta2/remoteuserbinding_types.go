@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	RubPrefix = "associated-rub-"
+	RubPrefix     = "associated-rub-"
+	RubAnnotation = "syngit.io/associated-remoteuserbinding"
 )
 
 type RemoteUserBindingSpec struct {

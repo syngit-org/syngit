@@ -2,12 +2,13 @@ package v1beta2
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -21,6 +22,12 @@ type RemoteUserAssociationWebhookHandler struct {
 	Decoder *admission.Decoder
 }
 
+const (
+	managedByLabelKey   = "managed-by"
+	managedByLabelValue = "syngit.io"
+	k8sUserLabelKey     = "syngit.io/k8s-user"
+)
+
 // +kubebuilder:webhook:path=/syngit-v1beta2-remoteuser-association,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remoteusers,verbs=create;update;delete,versions=v1beta2,admissionReviewVersions=v1,name=vremoteusers-association.v1beta2.syngit.io
 
 func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req admission.Request) admission.Response {
@@ -28,18 +35,30 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 	username := req.DeepCopy().UserInfo.Username
 	name := syngit.RubPrefix + username
 
-	rub := &syngit.RemoteUserBinding{}
-	webhookNamespacedName := &types.NamespacedName{
-		Name:      name,
+	rubs := &syngit.RemoteUserBindingList{}
+	listOps := &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(labels.Set{
+			managedByLabelKey: managedByLabelValue,
+			k8sUserLabelKey:   username,
+		}),
 		Namespace: req.Namespace,
 	}
-	rubErr := ruwh.Client.Get(ctx, *webhookNamespacedName, rub)
+	rubErr := ruwh.Client.List(ctx, rubs, listOps)
+	if rubErr != nil {
+		return admission.Errored(http.StatusInternalServerError, rubErr)
+	}
+
+	if len(rubs.Items) > 1 {
+		return admission.Errored(http.StatusBadRequest,
+			fmt.Errorf("only one RemoteUserBinding for the user %s should be managed by Syngit", username))
+	}
 
 	if string(req.Operation) == "DELETE" { //nolint:goconst
-		if rubErr != nil {
+		if len(rubs.Items) <= 0 {
 			return admission.Allowed("This object was not associated with any RemoteUserBinding")
 		} else {
-			return ruwh.removeRuFromRub(ctx, req, name, rub)
+			rub := rubs.Items[0]
+			return ruwh.removeRuFromRub(ctx, req, &rub)
 		}
 	}
 
@@ -50,15 +69,23 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 	}
 	objRef := corev1.ObjectReference{Name: ru.Name}
 
-	if rubErr != nil {
+	if len(rubs.Items) <= 0 {
 		// The RemoteUserBinding does not exists yet
-		if ru.Annotations["syngit.io/associated-remote-userbinding"] == "" || ru.Annotations["syngit.io/associated-remote-userbinding"] == "false" {
+		rub := &syngit.RemoteUserBinding{}
+
+		if ru.Annotations[syngit.RubAnnotation] == "" || ru.Annotations[syngit.RubAnnotation] == "false" {
 			return admission.Allowed("This object is not associated with any RemoteUserBinding")
 		}
 
 		// Create the RemoteUserBinding object
 		rub.Name = name
 		rub.Namespace = req.Namespace
+
+		// Set the labels
+		rub.Labels = map[string]string{
+			managedByLabelKey: managedByLabelValue,
+			k8sUserLabelKey:   username,
+		}
 
 		subject := &rbacv1.Subject{
 			Kind: "User",
@@ -76,8 +103,12 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 		}
 	} else {
 		// The RemoteUserBinding already exists
-		if ru.Annotations["syngit.io/associated-remote-userbinding"] == "" || ru.Annotations["syngit.io/associated-remote-userbinding"] == "false" {
-			return ruwh.removeRuFromRub(ctx, req, name, rub)
+
+		rub := rubs.Items[0]
+		name = rub.Name
+
+		if ru.Annotations[syngit.RubAnnotation] == "" || ru.Annotations[syngit.RubAnnotation] == "false" {
+			return ruwh.removeRuFromRub(ctx, req, &rub)
 		}
 
 		dontAppend := false
@@ -92,7 +123,7 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 		}
 		rub.Spec.RemoteRefs = remoteRefs
 
-		updateErr := ruwh.Client.Update(ctx, rub)
+		updateErr := ruwh.Client.Update(ctx, &rub)
 		if updateErr != nil {
 			return admission.Errored(http.StatusInternalServerError, updateErr)
 		}
@@ -102,7 +133,9 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 	return admission.Allowed("This object is associated to the " + name + " RemoteUserBinding")
 }
 
-func (ruwh *RemoteUserAssociationWebhookHandler) removeRuFromRub(ctx context.Context, req admission.Request, name string, rub *syngit.RemoteUserBinding) admission.Response {
+func (ruwh *RemoteUserAssociationWebhookHandler) removeRuFromRub(ctx context.Context, req admission.Request, rub *syngit.RemoteUserBinding) admission.Response {
+	name := rub.DeepCopy().Name
+
 	ru := &syngit.RemoteUser{}
 	err := ruwh.Decoder.DecodeRaw(req.OldObject, ru)
 	if err != nil {
