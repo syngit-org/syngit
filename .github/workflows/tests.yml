@@ -80,7 +80,7 @@ jobs:
         ./bin/setup-envtest-latest use --bin-dir ./bin
 
     - name: Run tests
-      run: make test-e2e
+      run: make test-behavior
 
   test-helm-install:
     name: Helm install test

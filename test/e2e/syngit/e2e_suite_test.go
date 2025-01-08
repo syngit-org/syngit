@@ -107,7 +107,7 @@ func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
 	fmt.Fprintf(GinkgoWriter, "Starting syngit suite\n")
 	flag.Parse()
-	RunSpecs(t, "e2e suite syngit")
+	RunSpecs(t, "behavior suite syngit")
 }
 
 // setupCluster creates a kind cluster if it doesn't exist using the .env file for the name.
