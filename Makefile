@@ -109,7 +109,7 @@ vet: ## Run go vet against code.
 ##@ Test
 
 .PHONY: test
-test: test-controller test-build-deploy test-e2e test-chart-install test-chart-upgrade ## Run all the tests.
+test: test-controller test-build-deploy test-behavior test-chart-install test-chart-upgrade ## Run all the tests.
 
 .PHONY: test-controller
 test-controller: manifests generate fmt vet envtest ## Run tests embeded in the controller package & webhook package.
@@ -126,12 +126,12 @@ DEPREACTED_API_VERSIONS = $(shell go list ./... | grep -oP 'v\d+\w+\d+' | sort -
 # COVERPKG is a list of packages to be covered by the tests (internal/, pkg/ & cmd/).
 COVERPKG = $(shell go list ./... | grep -v 'test' | grep -v -E "$(DEPREACTED_API_VERSIONS)" | paste -sd "," -)
 
-.PHONY: test-e2e
-test-e2e: ## Install the test env (gitea). Run the e2e tests against a Kind k8s instance that is spun up. Cleanup when finished.
+.PHONY: test-behavior
+test-behavior: ## Install the test env (gitea). Run the behavior tests against a Kind k8s instance that is spun up. Cleanup when finished.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./test/e2e/syngit -v -ginkgo.v -cover -coverpkg=$(COVERPKG)
 
-.PHONY: fast-e2e
-fast-e2e: ## Install the test env if not already installed. Run the e2e tests against a Kind k8s instance that is spun up. Does not cleanup when finished (meant to be run often).
+.PHONY: fast-behavior
+fast-behavior: ## Install the test env if not already installed. Run the behavior tests against a Kind k8s instance that is spun up. Does not cleanup when finished (meant to be run often).
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./test/e2e/syngit -v -ginkgo.v -cover -coverpkg=$(COVERPKG) -setup fast
 
 .PHONY: cleanup-tests

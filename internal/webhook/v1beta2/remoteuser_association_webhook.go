@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -70,15 +72,18 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 	objRef := corev1.ObjectReference{Name: ru.Name}
 
 	if len(rubs.Items) <= 0 {
-		// The RemoteUserBinding does not exists yet
-		rub := &syngit.RemoteUserBinding{}
 
 		if ru.Annotations[syngit.RubAnnotation] == "" || ru.Annotations[syngit.RubAnnotation] == "false" {
 			return admission.Allowed("This object is not associated with any RemoteUserBinding")
 		}
 
+		// Geneate the RUB object with the right name
+		rub, generateErr := ruwh.generateRemoteUserBinding(ctx, name, req.Namespace, 0)
+		if generateErr != nil {
+			return admission.Errored(http.StatusInternalServerError, generateErr)
+		}
+
 		// Create the RemoteUserBinding object
-		rub.Name = name
 		rub.Namespace = req.Namespace
 
 		// Set the labels
@@ -131,6 +136,31 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 	}
 
 	return admission.Allowed("This object is associated to the " + name + " RemoteUserBinding")
+}
+
+func (ruwh *RemoteUserAssociationWebhookHandler) generateRemoteUserBinding(ctx context.Context, name string, namespace string, suffixNumber int) (*syngit.RemoteUserBinding, error) {
+	// The RemoteUserBinding does not exists yet
+	rub := &syngit.RemoteUserBinding{}
+
+	newName := name
+	if suffixNumber > 0 {
+		newName = fmt.Sprintf("%s-%d", name, suffixNumber)
+	}
+	webhookNamespacedName := &types.NamespacedName{
+		Name:      newName,
+		Namespace: namespace,
+	}
+	rubErr := ruwh.Client.Get(ctx, *webhookNamespacedName, rub)
+	if rubErr == nil {
+		return ruwh.generateRemoteUserBinding(ctx, name, namespace, suffixNumber+1)
+	} else {
+		if strings.Contains(rubErr.Error(), "not found") {
+			rub.Name = newName
+			rub.Namespace = namespace
+			return rub, nil
+		}
+		return nil, rubErr
+	}
 }
 
 func (ruwh *RemoteUserAssociationWebhookHandler) removeRuFromRub(ctx context.Context, req admission.Request, rub *syngit.RemoteUserBinding) admission.Response {

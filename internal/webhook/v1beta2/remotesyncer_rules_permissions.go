@@ -78,7 +78,7 @@ func (rswh *RemoteSyncerWebhookHandler) hasRightResourcesPermissions(rs syngit.R
 							err := rswh.Client.Create(context.Background(), sar)
 							if err != nil {
 
-								if isInvalidCombinationError(err) {
+								if rswh.isInvalidCombinationError(err) {
 									// Skipping invalid combination
 									allowed = true
 									break
@@ -115,7 +115,7 @@ func (rswh *RemoteSyncerWebhookHandler) hasRightResourcesPermissions(rs syngit.R
 }
 
 // Handle wrong apiVersion/Kind combination
-func isInvalidCombinationError(err error) bool {
+func (rswh *RemoteSyncerWebhookHandler) isInvalidCombinationError(err error) bool {
 	errMsg := err.Error()
 	if strings.Contains(errMsg, "no matches for kind") ||
 		strings.Contains(errMsg, "could not find the requested resource") {
