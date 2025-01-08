@@ -4,5 +4,7 @@ resources:
 - service.yaml
 - secret.yaml
 
+namespace: syngit
+
 configurations:
 - kustomizeconfig.yaml
