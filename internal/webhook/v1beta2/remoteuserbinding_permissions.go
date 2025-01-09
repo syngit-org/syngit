@@ -29,7 +29,7 @@ func (rubwh *RemoteUserBindingPermissionsWebhookHandler) Handle(ctx context.Cont
 
 	rub := &syngit.RemoteUserBinding{}
 
-	if err := utils.GetObjectFromWebhookRequest(rubwh.Decoder, rub, req); err != nil {
+	if err := utils.GetObjectFromWebhookRequest(*rubwh.Decoder, rub, req); err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 

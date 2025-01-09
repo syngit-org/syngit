@@ -27,7 +27,7 @@ func (rswh *RemoteSyncerWebhookHandler) Handle(ctx context.Context, req admissio
 
 	rs := &syngit.RemoteSyncer{}
 
-	if err := utils.GetObjectFromWebhookRequest(rswh.Decoder, rs, req); err != nil {
+	if err := utils.GetObjectFromWebhookRequest(*rswh.Decoder, rs, req); err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
