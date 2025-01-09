@@ -29,6 +29,7 @@ go.work
 
 # cert-injector on manifests
 **/*.bak
+config/local/dev-webhook.yaml
 
 # developer's specific tests
 config/samples/test

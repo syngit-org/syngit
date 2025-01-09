@@ -53,7 +53,7 @@ help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 .PHONY: pre-commit-check
-pre-commit-check: cleanup-run manifests generate test lint ## Run all the tests and linters.
+pre-commit-check: cleanup-tests manifests generate test lint ## Run all the tests and linters.
 
 ##@ Dev environment
 
@@ -80,7 +80,7 @@ run-full: manifests generate fmt vet install-crds install-dev-webhooks ## Instal
 
 .PHONY: cleanup-run
 cleanup-run: uninstall-crds uninstall-dev-webhooks ## Cleanup the resources created by run-fast or run-full.
-	kubectl delete validatingwebhookconfigurations.admissionregistration.k8s.io syngit-dynamic-remotesyncer-webhook
+	kubectl delete validatingwebhookconfigurations.admissionregistration.k8s.io syngit-dynamic-remotesyncer-webhook || true
 
 .PHONY: delete-certs
 delete-certs: ## Delete the temporary certificates for the webhook (/tmp/k8s-webhook-server/serving-certs).
@@ -114,7 +114,7 @@ test: test-controller test-build-deploy test-behavior test-chart-install test-ch
 .PHONY: test-controller
 test-controller: manifests generate fmt vet envtest install-dev-webhooks ## Run tests embeded in the controller package & webhook package.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
-	cd $(WEBHOOK_PATH) && ./cleanup-injector.sh . || true
+	make cleanup-run
 
 .PHONY: test-build-deploy
 test-build-deploy: ## Run tests to build the Docker image and deploy all the manifests.
@@ -134,8 +134,9 @@ fast-behavior: ## Install the test env if not already installed. Run the behavio
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./test/e2e/syngit -v -ginkgo.v -cover -coverpkg=$(COVERPKG) -setup fast
 
 .PHONY: cleanup-tests
-cleanup-tests: ## Uninstall all the charts needed for the tests.
+cleanup-tests: cleanup-run ## Uninstall all the charts needed for the tests.
 	helm uninstall -n syngit syngit || true
+	helm uninstall -n cert-manager cert-manager || true
 	helm uninstall -n saturn gitea || true
 	helm uninstall -n jupyter gitea || true
 
@@ -222,8 +223,8 @@ uninstall-crds: manifests kustomize ## Uninstall CRDs from the K8s cluster speci
 .PHONY: uninstall-dev-webhooks
 uninstall-dev-webhooks: manifests kustomize ## Undeploy dev webhooks using the docker bridge host into the K8s cluster specified in ~/.kube/config.
 	cd $(DEV_WEBHOOK_PATH) && ./cleanup-injector.sh . || true
-	$(KUSTOMIZE) build $(DEV_WEBHOOK_PATH) | $(KUBECTL) delete -f -
-	rm $(DEV_WEBHOOK_PATH)/dev-webhook.yaml
+	$(KUSTOMIZE) build $(DEV_WEBHOOK_PATH) | $(KUBECTL) delete -f - || true
+	rm $(DEV_WEBHOOK_PATH)/dev-webhook.yaml || true
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy syngit to the K8s cluster specified in ~/.kube/config.
@@ -252,6 +253,15 @@ chart-install: ## Install the latest chart version listed in the charts/ folder 
 		--set controller.image.prefix=local \
 		--set controller.image.name=syngit-controller \
 		--set controller.image.tag=dev
+
+.PHONY: chart-install-providers
+chart-install-providers: ## Install the latest chart version listed in the charts/ folder with 3 replicas.
+	helm install syngit charts/$(LATEST_CHART) -n syngit --create-namespace \
+		--set controller.image.prefix=local \
+		--set controller.image.name=syngit-controller \
+		--set controller.image.tag=dev \
+		--set providers.github.enabled="true" \
+		--set providers.gitlab.enabled="true"
 
 .PHONY: chart-upgrade
 chart-upgrade: ## Upgrade to the latest chart version listed in the charts/ folder.
