@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
-	"os"
+	"strings"
 	"sync"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
@@ -418,37 +418,23 @@ func (wrc *WebhookRequestChecker) convertToYaml(details *wrcDetails) error {
 }
 
 func (wrc *WebhookRequestChecker) tlsContructor(details *wrcDetails) error {
-	insecureSkipTlsVerify := false
-	caBundle := ""
-
-	ctx := context.Background()
-	errMsg := "the CA bundle secret must be of type \"kubernetes.io/ts\""
-
 	// Step 1: Search for the global CA Bundle of the server located in the syngit namespace
-	globalNamespacedName := types.NamespacedName{Namespace: os.Getenv("MANAGER_NAMESPACE"), Name: details.repoHost + "-ca-bundle"}
-	caBundleSecret := &corev1.Secret{}
-	err := wrc.k8sClient.Get(ctx, globalNamespacedName, caBundleSecret)
-	if err == nil {
-		if caBundleSecret.Type != "kubernetes.io/tls" {
-			details.messageAddition = errMsg
-			return errors.New(errMsg)
-		}
-		caBundle = caBundleSecret.StringData["tls.crt"]
+	caBundle, caErr := utils.FindGlobalCABundle(wrc.k8sClient, details.repoHost)
+	if caErr != nil && strings.Contains(caErr.Error(), utils.CaSecretWrongTypeErrorMessage) {
+		return caErr
 	}
 
 	// Step 2: Search for a specific CA Bundle located in the current namespace
 	caBundleSecretRef := wrc.remoteSyncer.Spec.CABundleSecretRef
-	namespacedName := types.NamespacedName{Namespace: caBundleSecretRef.Namespace, Name: caBundleSecretRef.Name}
-	err = wrc.k8sClient.Get(ctx, namespacedName, caBundleSecret)
-	if err == nil {
-		if caBundleSecret.Type != "kubernetes.io/tls" {
-			details.messageAddition = errMsg
-			return errors.New(errMsg)
-		}
-		caBundle = caBundleSecret.StringData["tls.crt"]
+	caBundleRsy, caErr := utils.FindCABundle(wrc.k8sClient, caBundleSecretRef.Namespace, caBundleSecretRef.Name)
+	if caErr != nil {
+		return caErr
+	}
+	if caBundleRsy != "" {
+		caBundle = caBundleRsy
 	}
 
-	details.insecureSkipTlsVerify = insecureSkipTlsVerify
+	details.insecureSkipTlsVerify = wrc.remoteSyncer.Spec.InsecureSkipTlsVerify
 	details.caBundle = caBundle
 
 	return nil

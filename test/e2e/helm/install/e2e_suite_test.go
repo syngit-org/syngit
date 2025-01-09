@@ -62,7 +62,7 @@ var _ = BeforeSuite(func() {
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	By("installing the syngit chart")
-	cmd = exec.Command("make", "chart-install")
+	cmd = exec.Command("make", "chart-install-providers")
 	_, err = utils.Run(cmd)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
