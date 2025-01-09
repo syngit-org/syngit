@@ -23,7 +23,7 @@ func OperationToVerb(operation admissionv1.OperationType) ([]string, error) {
 	}
 }
 
-func GetObjectFromWebhookRequest(decoder *admission.Decoder, obj runtime.Object, req admission.Request) error {
+func GetObjectFromWebhookRequest(decoder admission.Decoder, obj runtime.Object, req admission.Request) error {
 
 	if string(req.Operation) != "DELETE" {
 		err := decoder.Decode(req, obj)
