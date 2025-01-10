@@ -47,7 +47,7 @@ type wrcDetails struct {
 	commitHash            string
 	gitUser               gitUser
 	insecureSkipTlsVerify bool
-	caBundle              string
+	caBundle              []byte
 	pushDetails           string
 
 	// Error
@@ -430,7 +430,7 @@ func (wrc *WebhookRequestChecker) tlsContructor(details *wrcDetails) error {
 	if caErr != nil {
 		return caErr
 	}
-	if caBundleRsy != "" {
+	if caBundleRsy != nil {
 		caBundle = caBundleRsy
 	}
 

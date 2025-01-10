@@ -33,7 +33,7 @@ type GitPusher struct {
 	gitToken              string
 	operation             admissionv1.Operation
 	insecureSkipTlsVerify bool
-	caBundle              string
+	caBundle              []byte
 }
 
 type GitPushResponse struct {
@@ -58,8 +58,8 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 		InsecureSkipTLS: gp.insecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput),
 	}
-	if gp.caBundle != "" {
-		cloneOption.CABundle = []byte(gp.caBundle)
+	if gp.caBundle != nil {
+		cloneOption.CABundle = gp.caBundle
 	}
 	repo, err := git.Clone(memory.NewStorage(), memfs.New(), cloneOption)
 	if err != nil {
@@ -268,8 +268,8 @@ func (gp *GitPusher) pushChanges(repo *git.Repository) error {
 		InsecureSkipTLS: gp.insecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput), // Capture verbose output
 	}
-	if gp.caBundle != "" {
-		pushOptions.CABundle = []byte(gp.caBundle)
+	if gp.caBundle != nil {
+		pushOptions.CABundle = gp.caBundle
 	}
 	err := repo.Push(pushOptions)
 	if err != nil {
