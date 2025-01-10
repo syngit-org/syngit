@@ -2,6 +2,9 @@
 
 mkdir -p $GITEA_TEMP_CERT_DIR
 
+kubectl delete secret tls gitea-tls-secret -n $PLATFORM1 || true
+kubectl delete secret tls gitea-tls-secret -n $PLATFORM2 || true
+
 openssl genrsa -out $GITEA_TEMP_CERT_DIR/ca.key 2048
 openssl req -x509 -new -nodes -key $GITEA_TEMP_CERT_DIR/ca.key -sha256 -days 365 \
   -out $GITEA_TEMP_CERT_DIR/ca.crt -subj "/CN=Gitea Root CA"

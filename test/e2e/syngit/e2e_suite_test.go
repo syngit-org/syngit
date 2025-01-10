@@ -67,6 +67,7 @@ const (
 	ruPermissionsDeniedMessage  = "is not allowed to get the secret"
 	rubPermissionsDeniedMessage = "is not allowed to get the referenced remoteuser"
 	x509ErrorMessage            = "x509: certificate signed by unknown authority"
+	crossRubErrorMessage        = "the RemoteUser is already bound in the RemoteUserBinding"
 )
 
 // CMD & CLIENT
