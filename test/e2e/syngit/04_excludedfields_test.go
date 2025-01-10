@@ -18,7 +18,6 @@ package e2e_syngit
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -70,7 +69,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -78,6 +77,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
 				DefaultBlockAppliedMessage:  defaultDeniedMessage,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
@@ -134,7 +134,6 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			fmt.Println(err)
 			return err != nil && strings.Contains(err.Error(), defaultDeniedMessage)
 		}, timeout, interval).Should(BeTrue())
 
@@ -215,7 +214,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 		)
 		Expect(err).ToNot(HaveOccurred())
 
-		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -223,6 +222,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
 				DefaultBlockAppliedMessage:  defaultDeniedMessage,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,

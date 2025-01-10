@@ -71,7 +71,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -79,6 +79,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				BypassInterceptionSubjects: []v1.Subject{{
@@ -184,7 +185,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -192,6 +193,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				BypassInterceptionSubjects: []v1.Subject{{

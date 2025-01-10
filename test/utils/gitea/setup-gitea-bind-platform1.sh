@@ -4,7 +4,7 @@ SERVICE_PORT=$(kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath="{.spec.p
 NODE_IP=$(kubectl get nodes -o jsonpath="{.items[0].status.addresses[?(@.type=='InternalIP')].address}")
 
 # Formulate the Gitea URL for API access
-GITEA_URL="http://$NODE_IP:$SERVICE_PORT"
+GITEA_URL="https://$NODE_IP:$SERVICE_PORT"
 
 POD_NAME=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=gitea -o jsonpath="{.items[0].metadata.name}")
 TOKEN_RESPONSE=$(kubectl exec -i $POD_NAME -n $NAMESPACE -- gitea admin user generate-access-token \

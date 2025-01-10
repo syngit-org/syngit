@@ -47,7 +47,7 @@ type wrcDetails struct {
 	commitHash            string
 	gitUser               gitUser
 	insecureSkipTlsVerify bool
-	caBundle              string
+	caBundle              []byte
 	pushDetails           string
 
 	// Error
@@ -419,18 +419,24 @@ func (wrc *WebhookRequestChecker) convertToYaml(details *wrcDetails) error {
 
 func (wrc *WebhookRequestChecker) tlsContructor(details *wrcDetails) error {
 	// Step 1: Search for the global CA Bundle of the server located in the syngit namespace
-	caBundle, caErr := utils.FindGlobalCABundle(wrc.k8sClient, details.repoHost)
+	caBundle, caErr := utils.FindGlobalCABundle(wrc.k8sClient, strings.Split(details.repoHost, ":")[0])
 	if caErr != nil && strings.Contains(caErr.Error(), utils.CaSecretWrongTypeErrorMessage) {
+		details.messageAddition = caErr.Error()
 		return caErr
 	}
 
 	// Step 2: Search for a specific CA Bundle located in the current namespace
 	caBundleSecretRef := wrc.remoteSyncer.Spec.CABundleSecretRef
-	caBundleRsy, caErr := utils.FindCABundle(wrc.k8sClient, caBundleSecretRef.Namespace, caBundleSecretRef.Name)
+	ns := caBundleSecretRef.Namespace
+	if ns == "" {
+		ns = wrc.remoteSyncer.Namespace
+	}
+	caBundleRsy, caErr := utils.FindCABundle(wrc.k8sClient, ns, caBundleSecretRef.Name)
 	if caErr != nil {
+		details.messageAddition = caErr.Error()
 		return caErr
 	}
-	if caBundleRsy != "" {
+	if caBundleRsy != nil {
 		caBundle = caBundleRsy
 	}
 

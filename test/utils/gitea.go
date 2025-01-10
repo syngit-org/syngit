@@ -18,6 +18,7 @@ package utils
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -70,7 +71,7 @@ func getAdminToken(baseFqdn string) (string, error) {
 		username = "syngituser"
 		password = "syngit_password"
 	)
-	url := fmt.Sprintf("http://%s/api/v1/users/%s/tokens", baseFqdn, username)
+	url := fmt.Sprintf("https://%s/api/v1/users/%s/tokens", baseFqdn, username)
 
 	// Prepare the request payload
 	tokenName := "admin-e2e-token"
@@ -93,8 +94,15 @@ func getAdminToken(baseFqdn string) (string, error) {
 	req.SetBasicAuth(username, password)
 	req.Header.Set("Content-Type", "application/json")
 
+	// Skip Tls verify
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true, // Skip TLS verification
+		},
+	}
+
 	// Send the request
-	client := &http.Client{}
+	client := &http.Client{Transport: tr}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
@@ -124,7 +132,7 @@ func getAdminToken(baseFqdn string) (string, error) {
 
 // GetRepoTree fetches the full tree of the specified repository.
 func getTree(repoFqdn string, repoOwner string, repoName string, sha string) ([]Tree, error) {
-	url := fmt.Sprintf("http://%s/api/v1/repos/%s/%s/git/trees/%s", repoFqdn, repoOwner, repoName, sha)
+	url := fmt.Sprintf("https://%s/api/v1/repos/%s/%s/git/trees/%s", repoFqdn, repoOwner, repoName, sha)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
@@ -137,7 +145,14 @@ func getTree(repoFqdn string, repoOwner string, repoName string, sha string) ([]
 	}
 	req.Header.Add("Authorization", "token "+token)
 
-	client := &http.Client{}
+	// Skip Tls verify
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true, // Skip TLS verification
+		},
+	}
+
+	client := &http.Client{Transport: tr}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP GET failed: %w", err)
@@ -274,8 +289,15 @@ type responseStruct struct {
 
 // fetchFileContent fetches the content of a file from the given URL.
 func fetchFileContent(url string) ([]byte, error) {
+	// Skip Tls verify
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true, // Skip TLS verification
+		},
+	}
+
 	// Create an HTTP client
-	client := &http.Client{}
+	client := &http.Client{Transport: tr}
 
 	// Create a new HTTP GET request
 	req, err := http.NewRequest("GET", url, nil)

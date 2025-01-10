@@ -66,6 +66,7 @@ const (
 	rsPermissionsDeniedMessage  = "is not allowed to scope"
 	ruPermissionsDeniedMessage  = "is not allowed to get the secret"
 	rubPermissionsDeniedMessage = "is not allowed to get the referenced remoteuser"
+	x509ErrorMessage            = "x509: certificate signed by unknown authority"
 )
 
 // CMD & CLIENT
@@ -81,6 +82,9 @@ var clusterAlreadyExistsBefore = false
 
 // RBAC
 const reducedPermissionsCRName = "secret-rs-ru-cluster-role"
+
+// Dynamic webhook name
+const dynamicWebhookName = "syngit-dynamic-remotesyncer-webhook"
 
 // MANAGER
 var k8sManager ctrl.Manager
@@ -131,8 +135,9 @@ func setupGitea() {
 // setupManager creates the manager and the webhooks for the tests.
 func setupManager() {
 
-	os.Setenv("MANAGER_NAMESPACE", "syngit")
-	os.Setenv("DYNAMIC_WEBHOOK_NAME", "remotesyncer.syngit.io")
+	os.Setenv("MANAGER_NAMESPACE", operatorNamespace)
+	os.Setenv("DYNAMIC_WEBHOOK_NAME", dynamicWebhookName)
+	os.Setenv("GITEA_TEMP_CERT_DIR", "/tmp/gitea-certs")
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
@@ -353,8 +358,15 @@ func rbacSetup(ctx context.Context) {
 // namespaceSetup creates the test namespace and the secrets for the users to connect to the gitea platforms.
 func namespaceSetup(ctx context.Context) {
 
-	By("creating the test namespace")
+	By("creating the syngit namespace")
 	_, err := sClient.KAs(Admin).CoreV1().Namespaces().Create(ctx,
+		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: operatorNamespace}},
+		metav1.CreateOptions{},
+	)
+	Expect(err).NotTo(HaveOccurred())
+
+	By("creating the test namespace")
+	_, err = sClient.KAs(Admin).CoreV1().Namespaces().Create(ctx,
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}},
 		metav1.CreateOptions{},
 	)
@@ -470,6 +482,7 @@ var _ = AfterSuite(func() {
 	if setupType == "full" {
 		uninstallSetup()
 	}
+
 })
 
 var _ = AfterEach(func() {

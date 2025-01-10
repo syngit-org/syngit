@@ -5,7 +5,7 @@ SERVICE_PORT=$(kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath="{.spec.p
 NODE_IP=$(kubectl get nodes -o jsonpath="{.items[0].status.addresses[?(@.type=='InternalIP')].address}")
 
 # Formulate the Gitea URL for API access
-GITEA_URL="http://$NODE_IP:$SERVICE_PORT"
+GITEA_URL="https://$NODE_IP:$SERVICE_PORT"
 
 # Create an admin user using Gitea CLI inside the Gitea pod
 POD_NAME=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=gitea -o jsonpath="{.items[0].metadata.name}")
@@ -48,7 +48,7 @@ EOF
 )
 
 # Make the API call to create the repository
-response=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+response=$(curl -s -o /dev/null -w "%{http_code}" -X POST -k \
   -H "Content-Type: application/json" \
   -d "$JSON_PAYLOAD" \
   "$CREATE_REPO_ENDPOINT?access_token=$GIT_TOKEN")
@@ -76,7 +76,7 @@ EOF
 )
 
 # Make the API call to create the repository
-response=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+response=$(curl -s -o /dev/null -w "%{http_code}" -X POST -k \
   -H "Content-Type: application/json" \
   -d "$JSON_PAYLOAD" \
   "$CREATE_REPO_ENDPOINT?access_token=$GIT_TOKEN")

@@ -87,7 +87,7 @@ var _ = Describe("05 Use a default user", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "http://" + gitP1Fqdn + "/syngituser/green.git"
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/green.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -95,6 +95,7 @@ var _ = Describe("05 Use a default user", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.UseDefaultUser,
 				ExcludedFields:              []string{".metadata.uid"},

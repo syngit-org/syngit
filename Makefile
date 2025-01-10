@@ -294,6 +294,7 @@ setup-gitea: ## Setup the 2 gitea platforms in the cluster
 
 .PHONY: cleanup-gitea
 cleanup-gitea: ## Cleanup the 2 gitea platforms from the cluster.
+	rm -rf /tmp/gitea-certs
 	helm uninstall gitea -n jupyter
 	kubectl delete ns jupyter
 	helm uninstall gitea -n saturn

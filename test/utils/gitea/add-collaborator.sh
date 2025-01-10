@@ -21,7 +21,7 @@ EOF
 )
 
 # API request to add the user as a collaborator
-response=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+response=$(curl -s -o /dev/null -w "%{http_code}" -X PUT -k \
   -H "Content-Type: application/json" \
   -H "Authorization: token $ADMIN_TOKEN" \
   -d "$JSON_PAYLOAD" \

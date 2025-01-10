@@ -71,7 +71,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		blueUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
+		blueUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer for the blue repo")
 		blueRemotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -79,6 +79,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
@@ -103,7 +104,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 		err = sClient.As(Luffy).CreateOrUpdate(blueRemotesyncer)
 		Expect(err).ToNot(HaveOccurred())
 
-		greenUrl := "http://" + gitP1Fqdn + "/syngituser/green.git"
+		greenUrl := "https://" + gitP1Fqdn + "/syngituser/green.git"
 		By("creating the RemoteSyncer for the green repo")
 		greenRemotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -111,6 +112,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
@@ -217,7 +219,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		blueUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
+		blueUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer for the blue repo")
 		blueRemotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -225,6 +227,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
@@ -256,6 +259,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},

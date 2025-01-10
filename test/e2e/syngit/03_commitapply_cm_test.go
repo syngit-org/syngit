@@ -67,7 +67,7 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -75,6 +75,7 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},

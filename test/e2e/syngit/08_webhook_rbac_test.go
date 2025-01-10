@@ -71,7 +71,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer for ConfigMaps")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -79,6 +79,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
@@ -177,7 +178,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating a wrong RemoteSyncer for Secrets")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -185,6 +186,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
@@ -219,6 +221,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},

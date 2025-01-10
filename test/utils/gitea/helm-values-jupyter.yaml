@@ -13,6 +13,10 @@ persistence:
 # Set Gitea to use SQLite (already default in Gitea, but you can explicitly specify it)
 gitea:
   config:
+    server:
+      PROTOCOL: https
+      CERT_FILE: /data/tls/tls.crt
+      KEY_FILE: /data/tls/tls.key
     database:
       DB_TYPE: sqlite3
     session:
@@ -21,6 +25,16 @@ gitea:
       ADAPTER: memory
     queue:
       TYPE: level
+
+extraVolumes:
+  - name: gitea-tls
+    secret:
+      secretName: gitea-tls-secret
+      
+extraVolumeMounts:
+  - name: gitea-tls
+    mountPath: /data/tls
+    readOnly: true
 
 # Set service type to NodePort (optional, as per your previous script)
 service:

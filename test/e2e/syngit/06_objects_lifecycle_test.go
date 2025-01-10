@@ -33,11 +33,10 @@ import (
 var _ = Describe("06 Test objects lifecycle", func() {
 
 	const (
-		remoteUserLuffyName               = "remoteuser-luffy"
-		remoteUserLuffyJupyterName        = "remoteuser-luffy"
-		remoteUserLuffySaturnName         = "remoteuser-luffy-saturn"
-		remotesyncerValidationWebhookName = "remotesyncer.syngit.io"
-		remoteSyncerName                  = "remotesyncer-test6"
+		remoteUserLuffyName        = "remoteuser-luffy"
+		remoteUserLuffyJupyterName = "remoteuser-luffy"
+		remoteUserLuffySaturnName  = "remoteuser-luffy-saturn"
+		remoteSyncerName           = "remotesyncer-test6"
 	)
 
 	It("should properly manage the RemoteUserBinding associated webhooks", func() {
@@ -185,7 +184,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "http://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -193,6 +192,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
@@ -222,7 +222,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 		By("checking that the ValidationWebhhok scopes sts")
 		Wait3()
 		nnValidation := types.NamespacedName{
-			Name: remotesyncerValidationWebhookName,
+			Name: dynamicWebhookName,
 		}
 		getValidation := &admissionv1.ValidatingWebhookConfiguration{}
 
