@@ -2,9 +2,6 @@ resources:
 - dynamic-webhook.yaml
 - manifests.yaml
 - service.yaml
-- secret.yaml
-
-namespace: syngit
 
 configurations:
 - kustomizeconfig.yaml

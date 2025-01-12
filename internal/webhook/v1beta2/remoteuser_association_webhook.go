@@ -37,11 +37,6 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 	username := req.DeepCopy().UserInfo.Username
 	name := syngit.RubPrefix + username
 
-	isAlreadyDefined, rubFoundName, definedErr := ruwh.isAlreadyReferenced(ctx, req.Name, req.Namespace)
-	if definedErr != nil {
-		return admission.Errored(http.StatusInternalServerError, definedErr)
-	}
-
 	rubs := &syngit.RemoteUserBindingList{}
 	listOps := &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{
@@ -74,6 +69,11 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 	objRef := corev1.ObjectReference{Name: ru.Name}
+
+	isAlreadyDefined, rubFoundName, definedErr := ruwh.isAlreadyReferenced(ctx, req.Name, req.Namespace)
+	if definedErr != nil {
+		return admission.Errored(http.StatusInternalServerError, definedErr)
+	}
 
 	if len(rubs.Items) <= 0 {
 

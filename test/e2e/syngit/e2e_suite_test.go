@@ -177,7 +177,8 @@ func setupManager() {
 
 	By("setting up the webhooks dev variables")
 	os.Setenv("DEV_MODE", "true")
-	os.Setenv("DEV_WEBHOOK_HOST", fmt.Sprintf("%s:%d", webhookInstallOptions.LocalServingHost, webhookInstallOptions.LocalServingPort))
+	os.Setenv("DEV_WEBHOOK_HOST", webhookInstallOptions.LocalServingHost)
+	os.Setenv("DEV_WEBHOOK_PORT", fmt.Sprint(webhookInstallOptions.LocalServingPort))
 	os.Setenv("DEV_WEBHOOK_CERT", webhookInstallOptions.LocalServingCertDir+"/tls.crt")
 
 	By("registring webhook server")

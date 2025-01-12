@@ -1,0 +1,8 @@
+resources:
+- crd
+- webhook
+- service.yaml
+
+namespace: syngit
+
+namePrefix: syngit-

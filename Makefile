@@ -26,8 +26,10 @@ SHELL = /usr/bin/env bash -o pipefail
 
 # WEBHOOK_PATH is the path to the cluster webhook directory.
 WEBHOOK_PATH ?= config/webhook
-# DEV_WEBHOOK_PATH is the path to the local webhook directory.
-DEV_WEBHOOK_PATH ?= config/local
+# CRD_PATH is the path to the cluster crd directory.
+CRD_PATH ?= config/crd
+# DEV_LOCAL_PATH is the path to the local dev env directory.
+DEV_LOCAL_PATH ?= config/local
 
 # DYNAMIC_WEBHOOK_NAME is the name of the webhook that handle the interception logic of RemoteSyncers
 DYNAMIC_WEBHOOK_NAME ?= syngit-dynamic-remotesyncer-webhook
@@ -57,36 +59,33 @@ pre-commit-check: cleanup-tests manifests generate test lint ## Run all the test
 
 ##@ Dev environment
 
-# DEV_WEBHOOK_HOST is a IP:PORT combination. The static & dynamic webhooks will be served on this host.
-DEV_WEBHOOK_HOST ?= "172.17.0.1:9443" # 172.17.0.1 is the default docker0 bridge IP.
+# LOCALHOST_BRIDGE is a IP:PORT combination. The static & dynamic webhooks will be served on this host.
+LOCALHOST_BRIDGE ?= $(shell docker network inspect bridge --format='{{(index .IPAM.Config 0).Gateway}}') # 172.17.0.1 is the default docker0 bridge IP.for linux user
+# SYNGIT_SERVICE_NAME is the name of the Service object to serve the webhook server
+SYNGIT_SERVICE_NAME="syngit-webhook-service.syngit.svc"
+# TEMP_CERT_DIR is the path to the certificate that will be used by the webhook server.
+TEMP_CERT_DIR ?= "/tmp/k8s-webhook-server/serving-certs"
 # DEV_WEBHOOK_CERT is the path to the certificate that will be used by the webhook server.
-DEV_WEBHOOK_CERT ?= "/tmp/k8s-webhook-server/serving-certs/tls.crt"
+DEV_WEBHOOK_CERT ?= $(TEMP_CERT_DIR)/tls.crt
 
 .PHONY: run-fast
-run-fast: manifests generate fmt vet ## Run a controller from your host. No resources are installed. No resources are deleted when killed (meant to be run often).
-	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(DEV_WEBHOOK_HOST) DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && go run cmd/main.go
+run-fast: manifests generate fmt vet ## Run a controller from your host. Install CRDs & webhooks if does not exists. No resources are deleted when killed (meant to be run often).
+	@if ! kubectl get crd remoteusers.syngit.io &> /dev/null; then \
+		make install-crds && make setup-webhooks-for-run; \
+	fi
+	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(LOCALHOST_BRIDGE) DEV_WEBHOOK_PORT=9443 DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && go run cmd/main.go
 
 .PHONY: run
-run: manifests generate fmt vet install-crds install-dev-webhooks ## Install CRDs, webhooks & run a controller from your host. All resources are deleted when killed.
-	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(DEV_WEBHOOK_HOST) DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && \
+run: manifests generate fmt vet install-crds setup-webhooks-for-run ## Install CRDs, webhooks & run a controller from your host. All resources are deleted when killed.
+	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(LOCALHOST_BRIDGE) DEV_WEBHOOK_PORT=9443 DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && \
 	{ \
 		trap 'echo "Cleanup resources"; make cleanup-run; exit' SIGINT; \
 		go run cmd/main.go; \
 	}
 
-.PHONY: run-full
-run-full: manifests generate fmt vet install-crds install-dev-webhooks ## Install CRDs, webhooks & run a controller from your host. No resources are deleted when killed (meant to be run often).
-	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(DEV_WEBHOOK_HOST) DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && go run cmd/main.go
-
 .PHONY: cleanup-run
-cleanup-run: uninstall-crds uninstall-dev-webhooks ## Cleanup the resources created by run-fast or run-full.
+cleanup-run: uninstall-crds cleanup-webhooks-for-run ## Cleanup the resources created by run-fast.
 	kubectl delete validatingwebhookconfigurations.admissionregistration.k8s.io syngit-dynamic-remotesyncer-webhook || true
-
-.PHONY: delete-certs
-delete-certs: ## Delete the temporary certificates for the webhook (/tmp/k8s-webhook-server/serving-certs).
-	cd $(WEBHOOK_PATH) && ./cleanup-injector.sh . || true
-	cd $(DEV_WEBHOOK_PATH) && ./cleanup-injector.sh . || true
-	rm -rf /tmp/k8s-webhook-server/serving-certs
 
 ##@ Development
 
@@ -112,9 +111,9 @@ vet: ## Run go vet against code.
 test: test-controller test-build-deploy test-behavior test-chart-install test-chart-upgrade ## Run all the tests.
 
 .PHONY: test-controller
-test-controller: manifests generate fmt vet envtest install-dev-webhooks ## Run tests embeded in the controller package & webhook package.
+test-controller: manifests generate fmt vet envtest setup-webhooks-for-run ## Run tests embeded in the controller package & webhook package.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
-	make cleanup-run
+	make cleanup-webhooks-for-run
 
 .PHONY: test-build-deploy
 test-build-deploy: ## Run tests to build the Docker image and deploy all the manifests.
@@ -134,11 +133,12 @@ fast-behavior: ## Install the test env if not already installed. Run the behavio
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./test/e2e/syngit -v -ginkgo.v -cover -coverpkg=$(COVERPKG) -setup fast
 
 .PHONY: cleanup-tests
-cleanup-tests: cleanup-run ## Uninstall all the charts needed for the tests.
+cleanup-tests: ## Uninstall all the charts needed for the tests.
 	helm uninstall -n syngit syngit || true
 	helm uninstall -n cert-manager cert-manager || true
 	helm uninstall -n saturn gitea || true
 	helm uninstall -n jupyter gitea || true
+	./hack/webhooks/cleanup-injector.sh $(TEMP_CERT_DIR) || true
 
 .PHONY: test-chart-install
 test-chart-install: ## Run tests to install the chart.
@@ -210,35 +210,54 @@ endif
 install-crds: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
 
-.PHONY: install-dev-webhooks
-install-dev-webhooks: manifests kustomize ## Deploy dev webhooks using the docker bridge host into the K8s cluster specified in ~/.kube/config.
-	./$(DEV_WEBHOOK_PATH)/generate-dev-webhook.sh $(WEBHOOK_PATH)/manifests.yaml $(DEV_WEBHOOK_PATH)/dev-webhook.yaml $(DEV_WEBHOOK_HOST)
-	cd $(DEV_WEBHOOK_PATH) && ./cert-injector.sh .
-	$(KUSTOMIZE) build $(DEV_WEBHOOK_PATH) | $(KUBECTL) apply -f -
-
 .PHONY: uninstall-crds
 uninstall-crds: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
-.PHONY: uninstall-dev-webhooks
-uninstall-dev-webhooks: manifests kustomize ## Undeploy dev webhooks using the docker bridge host into the K8s cluster specified in ~/.kube/config.
-	cd $(DEV_WEBHOOK_PATH) && ./cleanup-injector.sh . || true
-	$(KUSTOMIZE) build $(DEV_WEBHOOK_PATH) | $(KUBECTL) delete -f - || true
-	rm $(DEV_WEBHOOK_PATH)/dev-webhook.yaml || true
-
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy syngit to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	cd $(WEBHOOK_PATH) && ./cert-injector.sh .
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+	make setup-webhooks-for-deploy
 
 .PHONY: undeploy
-undeploy: kustomize ## Undeploy syngit from the K8s cluster specified in ~/.kube/config. Can be use after deploy or deploy-all.
-	cd $(WEBHOOK_PATH) && ./cleanup-injector.sh . || true
+undeploy: kustomize cleanup-webhooks-for-deploy ## Undeploy syngit from the K8s cluster specified in ~/.kube/config. Can be use after deploy or deploy-all.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy-all
 deploy-all: kind-create-cluster docker-build kind-load-image cleanup-tests deploy # Create the dev cluster, build the image, load it in the cluster and deploy syngit.
+
+##@ Webhook injection
+
+.PHONY: setup-webhooks-for-run
+setup-webhooks-for-run: manifests kustomize ## Setup webhooks using auto-generated certs & docker bridge host (make run).
+	./hack/webhooks/cert-injector.sh $(WEBHOOK_PATH) $(CRD_PATH) $(DEV_LOCAL_PATH)/run $(TEMP_CERT_DIR) $(LOCALHOST_BRIDGE)
+	./hack/webhooks/run/inject-for-run.sh $(LOCALHOST_BRIDGE)
+	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/run | $(KUBECTL) apply -f -
+
+.PHONY: cleanup-webhooks-for-run
+cleanup-webhooks-for-run: manifests kustomize ## Cleanup webhooks using auto-generated certs & docker bridge host (make run).
+	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/run | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	./hack/webhooks/cleanup-injector.sh $(TEMP_CERT_DIR) || true
+
+.PHONY: setup-webhooks-for-deploy
+setup-webhooks-for-deploy: manifests kustomize ## Setup webhooks using auto-generated certs (make deploy).
+	./hack/webhooks/cert-injector.sh $(WEBHOOK_PATH) $(CRD_PATH) $(DEV_LOCAL_PATH)/deploy $(TEMP_CERT_DIR) $(SYNGIT_SERVICE_NAME)
+	./hack/webhooks/deploy/inject-for-deploy.sh $(TEMP_CERT_DIR) $(WEBHOOK_PATH)
+	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/deploy | $(KUBECTL) apply -f -
+
+.PHONY: cleanup-webhooks-for-deploy
+cleanup-webhooks-for-deploy: manifests kustomize ## Cleanup webhooks using auto-generated certs (make deploy).
+	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/deploy | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	./hack/webhooks/cleanup-injector.sh $(TEMP_CERT_DIR) || true
+
+.PHONY: force-cleanup
+force-cleanup: ## Force cleanup of the resources (for dev purpose)
+	$(KUBECTL) delete crd remotesyncers.syngit.io --ignore-not-found=$(ignore-not-found)
+	$(KUBECTL) delete crd remoteusers.syngit.io --ignore-not-found=$(ignore-not-found)
+	$(KUBECTL) delete crd remoteuserbindings.syngit.io --ignore-not-found=$(ignore-not-found)
+	$(KUBECTL) delete validatingwebhookconfigurations.admissionregistration.k8s.io syngit-dynamic-remotesyncer-webhook --ignore-not-found=$(ignore-not-found)
+	./hack/webhooks/cleanup-injector.sh $(TEMP_CERT_DIR) || true
 
 ##@ KinD & Helm
 
