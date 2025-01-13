@@ -21,7 +21,6 @@ var (
 )
 
 var FullPermissionsUsers []TestUser
-var ReducedPermissionsUsers []TestUser
 var Users []TestUser
 
 type SyngitTestUsersClientset struct {
@@ -68,8 +67,7 @@ func (tu *SyngitTestUsersClientset) Initialize(cfg *rest.Config) error {
 	Brook = TestUser(os.Getenv("BROOK_USERNAME"))
 
 	FullPermissionsUsers = []TestUser{Sanji, Chopper, Luffy}
-	ReducedPermissionsUsers = []TestUser{Brook}
-	Users = append(FullPermissionsUsers, ReducedPermissionsUsers...)
+	Users = append(FullPermissionsUsers, Brook)
 
 	tu.config = cfg
 

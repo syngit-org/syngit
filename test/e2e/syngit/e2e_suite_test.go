@@ -281,7 +281,7 @@ func rbacSetup(ctx context.Context) {
 			APIGroup: "rbac.authorization.k8s.io",
 		}))
 	}
-	By("creating users with reduced RBAC for reduced users")
+	By("creating users with reduced RBAC for Brook")
 	_, err = sClient.KAs(Admin).RbacV1().ClusterRoles().Create(ctx, &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: reducedPermissionsCRName,
@@ -324,37 +324,35 @@ func rbacSetup(ctx context.Context) {
 	}, metav1.CreateOptions{})
 	Expect(err).NotTo(HaveOccurred())
 
-	for _, username := range ReducedPermissionsUsers {
-		By(fmt.Sprintf("creating ClusterRoleBinding for the user %s", username))
-		_, err = sClient.KAs(Admin).RbacV1().ClusterRoleBindings().Create(ctx, &rbacv1.ClusterRoleBinding{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("%s-cluster-role-binding", username),
-			},
-			Subjects: []rbacv1.Subject{
-				{
-					Kind:     "User", // Represents a real user
-					Name:     string(username),
-					APIGroup: "rbac.authorization.k8s.io",
-				},
-			},
-			RoleRef: rbacv1.RoleRef{
-				Kind:     "ClusterRole",
-				Name:     reducedPermissionsCRName,
+	By("creating ClusterRoleBinding for the user Brook")
+	_, err = sClient.KAs(Admin).RbacV1().ClusterRoleBindings().Create(ctx, &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-cluster-role-binding", string(Brook)),
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:     "User", // Represents a real user
+				Name:     string(Brook),
 				APIGroup: "rbac.authorization.k8s.io",
 			},
-		}, metav1.CreateOptions{})
-		Expect(err).NotTo(HaveOccurred())
-
-		By(fmt.Sprintf("validating RBAC creation for the user %s", username))
-		crbName := fmt.Sprintf("%s-cluster-role-binding", username)
-		crb, err := sClient.KAs(Admin).RbacV1().ClusterRoleBindings().Get(ctx, crbName, metav1.GetOptions{})
-		Expect(err).NotTo(HaveOccurred())
-		Expect(crb.Subjects).To(ContainElement(rbacv1.Subject{
-			Kind:     "User",
-			Name:     string(username),
+		},
+		RoleRef: rbacv1.RoleRef{
+			Kind:     "ClusterRole",
+			Name:     reducedPermissionsCRName,
 			APIGroup: "rbac.authorization.k8s.io",
-		}))
-	}
+		},
+	}, metav1.CreateOptions{})
+	Expect(err).NotTo(HaveOccurred())
+
+	By("validating RBAC creation for the user Brook")
+	crbName := fmt.Sprintf("%s-cluster-role-binding", string(Brook))
+	crb, err := sClient.KAs(Admin).RbacV1().ClusterRoleBindings().Get(ctx, crbName, metav1.GetOptions{})
+	Expect(err).NotTo(HaveOccurred())
+	Expect(crb.Subjects).To(ContainElement(rbacv1.Subject{
+		Kind:     "User",
+		Name:     string(Brook),
+		APIGroup: "rbac.authorization.k8s.io",
+	}))
 }
 
 // namespaceSetup creates the test namespace and the secrets for the users to connect to the gitea platforms.

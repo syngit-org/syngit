@@ -19,6 +19,7 @@ package e2e_build
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -46,7 +47,9 @@ var _ = BeforeSuite(func() {
 	By("creating manager namespace")
 	cmd := exec.Command("kubectl", "create", "ns", namespace)
 	_, errNs := utils.Run(cmd)
-	ExpectWithOffset(1, errNs).NotTo(HaveOccurred())
+	if errNs != nil && !strings.Contains(errNs.Error(), "already exists") {
+		ExpectWithOffset(1, errNs).NotTo(HaveOccurred())
+	}
 
 	By("creating test namespace")
 	cmd = exec.Command("kubectl", "create", "ns", testNamespace)
