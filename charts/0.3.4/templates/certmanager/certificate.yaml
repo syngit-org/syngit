@@ -1,0 +1,34 @@
+{{- if eq .Values.webhook.certmanager.enabled true }}
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  labels:
+    app.kubernetes.io/name: certificate
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: certificate
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+  name: {{ .Release.Name }}-selfsigned-issuer
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  labels:
+    app.kubernetes.io/name: certificate
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: certificate
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+  name: syngit-webhook-cert
+spec:
+  dnsNames:
+  - syngit-webhook-service.{{ .Release.Namespace }}.svc
+  - syngit-webhook-service.{{ .Release.Namespace }}.svc.local
+  issuerRef:
+    kind: Issuer
+    name: {{ .Release.Name }}-selfsigned-issuer
+  secretName: {{ .Values.webhook.certmanager.certificate.secret }}
+{{- end }}
