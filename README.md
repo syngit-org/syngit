@@ -1,13 +1,17 @@
-<p align="center" style="margin-bottom: -20px">
-  <img src="./img/logo.png" width="400">
-</p>
-<p align="center">
-  <img src="./img/wiki/conception/commitonly-proxy.png" width="700">
-</p>
+# Syngit
+
+<img src="./img/wiki/conception/commitonly-proxy.png" width="700">
 
 Syngit is a Kubernetes operator that allows you to push resources on a git repository and manage their lifecycle. It leverage the gitops by unifying the source of truth between your cluster and your git repository. It acts as a proxy between your client tool (`kubectl`, `oc` or any UI) and the cluster.
 
-----
+## Features
+
+- 🤩 Intercept scoped resources and push them on Git
+- 🛡️ End-to-end RBAC management and separation of concerns
+- 🌍 Gitlab and Github external providers
+- ✏️ Highly customizable configuration
+
+## Demo
 
 ![demo-gif](./img/gif-syngit-commitapply.gif)
 

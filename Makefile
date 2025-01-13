@@ -250,6 +250,7 @@ setup-webhooks-for-deploy: manifests kustomize ## Setup webhooks using auto-gene
 cleanup-webhooks-for-deploy: manifests kustomize ## Cleanup webhooks using auto-generated certs (make deploy).
 	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/deploy | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 	./hack/webhooks/cleanup-injector.sh $(TEMP_CERT_DIR) || true
+	mv $(DEV_LOCAL_PATH)/deploy/webhook/secret.yaml.bak $(DEV_LOCAL_PATH)/deploy/webhook/secret.yaml || true
 
 .PHONY: force-cleanup
 force-cleanup: ## Force cleanup of the resources (for dev purpose)
