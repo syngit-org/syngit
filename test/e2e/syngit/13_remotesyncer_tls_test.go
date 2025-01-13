@@ -32,7 +32,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
-var _ = Describe("13 TLS insecure & custom CA bundle test", func() {
+var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() {
 	ctx := context.TODO()
 
 	const (

@@ -51,8 +51,7 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 	}
 
 	if len(rubs.Items) > 1 {
-		return admission.Errored(http.StatusBadRequest,
-			fmt.Errorf("only one RemoteUserBinding for the user %s should be managed by Syngit", username))
+		return admission.Denied(fmt.Sprintf("only one RemoteUserBinding for the user %s should be managed by Syngit", username))
 	}
 
 	if string(req.Operation) == "DELETE" { //nolint:goconst
@@ -71,6 +70,11 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 	}
 	objRef := corev1.ObjectReference{Name: ru.Name}
 
+	isAlreadyDefined, rubFoundName, definedErr := ruwh.isAlreadyReferenced(ctx, req.Name, req.Namespace)
+	if definedErr != nil {
+		return admission.Errored(http.StatusInternalServerError, definedErr)
+	}
+
 	if len(rubs.Items) <= 0 {
 
 		if ru.Annotations[syngit.RubAnnotation] == "" || ru.Annotations[syngit.RubAnnotation] == "false" {
@@ -81,6 +85,9 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 		rub, generateErr := ruwh.generateRemoteUserBinding(ctx, name, req.Namespace, 0)
 		if generateErr != nil {
 			return admission.Errored(http.StatusInternalServerError, generateErr)
+		}
+		if isAlreadyDefined && name != rubFoundName {
+			return admission.Denied(fmt.Sprintf("the RemoteUser is already bound in the RemoteUserBinding %s", rubFoundName))
 		}
 
 		// Create the RemoteUserBinding object
@@ -112,6 +119,9 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 		rub := rubs.Items[0]
 		name = rub.Name
 
+		if isAlreadyDefined && name != rubFoundName {
+			return admission.Denied(fmt.Sprintf("the RemoteUser is already bound in the RemoteUserBinding %s", rubFoundName))
+		}
 		if ru.Annotations[syngit.RubAnnotation] == "" || ru.Annotations[syngit.RubAnnotation] == "false" {
 			return ruwh.removeRuFromRub(ctx, req, &rub)
 		}
@@ -136,6 +146,29 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 	}
 
 	return admission.Allowed("This object is associated to the " + name + " RemoteUserBinding")
+}
+
+func (ruwh *RemoteUserAssociationWebhookHandler) isAlreadyReferenced(ctx context.Context, ruName string, ruNamespace string) (bool, string, error) {
+	rubs := &syngit.RemoteUserBindingList{}
+	listOps := &client.ListOptions{
+		Namespace: ruNamespace,
+	}
+	rubErr := ruwh.Client.List(ctx, rubs, listOps)
+	if rubErr != nil {
+		return false, "", rubErr
+	}
+
+	for _, rub := range rubs.Items {
+		for _, ru := range rub.Spec.RemoteRefs {
+			if ru.Name == ruName {
+				if ru.Namespace == "" || (ru.Namespace == ruNamespace) {
+					return true, rub.Name, nil
+				}
+			}
+		}
+	}
+
+	return false, "", nil
 }
 
 func (ruwh *RemoteUserAssociationWebhookHandler) generateRemoteUserBinding(ctx context.Context, name string, namespace string, suffixNumber int) (*syngit.RemoteUserBinding, error) {

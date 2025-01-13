@@ -67,6 +67,7 @@ const (
 	ruPermissionsDeniedMessage  = "is not allowed to get the secret"
 	rubPermissionsDeniedMessage = "is not allowed to get the referenced remoteuser"
 	x509ErrorMessage            = "x509: certificate signed by unknown authority"
+	crossRubErrorMessage        = "the RemoteUser is already bound in the RemoteUserBinding"
 )
 
 // CMD & CLIENT
@@ -176,7 +177,8 @@ func setupManager() {
 
 	By("setting up the webhooks dev variables")
 	os.Setenv("DEV_MODE", "true")
-	os.Setenv("DEV_WEBHOOK_HOST", fmt.Sprintf("%s:%d", webhookInstallOptions.LocalServingHost, webhookInstallOptions.LocalServingPort))
+	os.Setenv("DEV_WEBHOOK_HOST", webhookInstallOptions.LocalServingHost)
+	os.Setenv("DEV_WEBHOOK_PORT", fmt.Sprint(webhookInstallOptions.LocalServingPort))
 	os.Setenv("DEV_WEBHOOK_CERT", webhookInstallOptions.LocalServingCertDir+"/tls.crt")
 
 	By("registring webhook server")

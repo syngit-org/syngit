@@ -34,7 +34,7 @@ const (
 // Run e2e tests using the Ginkgo runner.
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
-	fmt.Fprintf(GinkgoWriter, "Starting syngit helm install suite\n")
+	fmt.Fprintf(GinkgoWriter, "Starting syngit helm upgrade suite\n")
 	RunSpecs(t, "e2e suite")
 }
 

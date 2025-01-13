@@ -55,6 +55,7 @@ type RemoteSyncerReconciler struct {
 	devMode            bool
 	devWebhookHost     string
 	devWebhookCert     string
+	devWebhookPort     string
 	Recorder           record.EventRecorder
 }
 
@@ -129,7 +130,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	annotations := make(map[string]string)
 	if r.devMode {
-		url := "https://" + r.devWebhookHost + "/" + webhookPath
+		url := "https://" + r.devWebhookHost + ":" + r.devWebhookPort + webhookPath
 		clientConfig = admissionv1.WebhookClientConfig{
 			URL:      &url,
 			CABundle: caCert,
@@ -304,6 +305,7 @@ func (r *RemoteSyncerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	r.devMode = os.Getenv("DEV_MODE") == "true"
 	r.devWebhookHost = os.Getenv("DEV_WEBHOOK_HOST")
+	r.devWebhookPort = os.Getenv("DEV_WEBHOOK_PORT")
 	r.devWebhookCert = os.Getenv("DEV_WEBHOOK_CERT")
 	r.Namespace = os.Getenv("MANAGER_NAMESPACE")
 	r.dynamicWebhookName = os.Getenv("DYNAMIC_WEBHOOK_NAME")

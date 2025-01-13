@@ -1,16 +1,14 @@
 #!/bin/bash
 
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <INPUT_FILE> <OUTPUT_FILE> <WEBHOOK_HOST>"
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <WEBHOOK_HOST>"
     exit 1
 fi
 
-INPUT_FILE=$1
-OUTPUT_FILE=$2
-WEBHOOK_HOST=$3
+WEBHOOK_HOST=$1
+WEBHOOK_FILE="config/local/run/webhook/webhook.yaml"
 
-awk -v base_url="https://$WEBHOOK_HOST" '
-# When we encounter clientConfig, we start tracking
+awk -v base_url="https://$WEBHOOK_HOST:9443" '
 /clientConfig/ {
     inside_block = 1;
     print "  clientConfig:";
@@ -49,17 +47,15 @@ awk -v base_url="https://$WEBHOOK_HOST" '
 {
     print $0;
 }
-' "$INPUT_FILE" > "$OUTPUT_FILE"
-# echo "Conversion completed. Output written to $OUTPUT_FILE"
+' "$WEBHOOK_FILE" > "$WEBHOOK_FILE.tmp"
 
-CRDS_PATH=config/crd/patches
+mv "$WEBHOOK_FILE.tmp" "$WEBHOOK_FILE"  
+
+CRDS_PATH=config/local/run/crd/patches
 CRD_WEBHOOK_FILES=$(ls $CRDS_PATH | grep webhook)
 for crd_file in $CRD_WEBHOOK_FILES
 do
-cp "$CRDS_PATH/$crd_file" "$CRDS_PATH/$crd_file.bak"
-
-awk -v base_url="https://$WEBHOOK_HOST" '
-# When we encounter clientConfig, we start tracking
+awk -v base_url="https://$WEBHOOK_HOST:9443" '
 /clientConfig/ {
     inside_block = 1;
     print "      clientConfig:";
@@ -84,7 +80,7 @@ awk -v base_url="https://$WEBHOOK_HOST" '
 /path:/ && inside_block {
     split($0, parts, ": ");
     print "        url: " base_url parts[2];
-    inside_block = 0;  # End the block after processing path
+    inside_block = 0;
     next;
 }
 
@@ -96,6 +92,5 @@ awk -v base_url="https://$WEBHOOK_HOST" '
 
 mv "$CRDS_PATH/$crd_file.tmp" "$CRDS_PATH/$crd_file"  
 
-# echo "Conversion completed. Output written to $CRDS_PATH/$crd_file"
 done
 
