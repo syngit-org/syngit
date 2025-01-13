@@ -11,6 +11,8 @@ WEBHOOK_PATH=$2
 
 cp $WEBHOOK_PATH/service.yaml $LOCAL_PATH/service.yaml
 
+cp $LOCAL_PATH/webhook/secret.yaml $LOCAL_PATH/webhook/secret.yaml.bak
+
 server_crt_base64=$(cat ${CERT_DIR}/tls.crt | base64 | tr -d '\n')
 server_key_base64=$(cat ${CERT_DIR}/tls.key | base64 | tr -d '\n')
 
