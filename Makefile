@@ -126,7 +126,7 @@ COVERPKG = $(shell go list ./... | grep -v 'test' | grep -v -E "$(DEPREACTED_API
 
 .PHONY: test-behavior
 test-behavior: cleanup-tests ## Install the test env (gitea). Run the behavior tests against a Kind k8s instance that is spun up. Cleanup when finished.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./test/e2e/syngit -v -ginkgo.v -cover -coverpkg=$(COVERPKG)
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./test/e2e/syngit -v -ginkgo.v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt
 
 .PHONY: fast-behavior
 fast-behavior: ## Install the test env if not already installed. Run the behavior tests against a Kind k8s instance that is spun up. Does not cleanup when finished (meant to be run often).

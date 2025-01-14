@@ -1,12 +1,16 @@
 # Syngit
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/syngit-org/syngit)](https://goreportcard.com/report/github.com/syngit-org/syngit)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9889/badge)](https://www.bestpractices.dev/projects/9889)
+[![codecov](https://codecov.io/gh/syngit-org/syngit/graph/badge.svg?token=XOWZC26N62)](https://codecov.io/gh/syngit-org/syngit)
+
 <img src="./img/wiki/conception/commitonly-proxy.png" width="700">
 
 Syngit is a Kubernetes operator that allows you to push resources on a git repository and manage their lifecycle. It leverage the gitops by unifying the source of truth between your cluster and your git repository. It acts as a proxy between your client tool (`kubectl`, `oc` or any UI) and the cluster.
 
 ## Features
 
-- 🤩 Intercept scoped resources and push them on Git
+- 😍 Intercept scoped resources and push them on Git
 - 🛡️ End-to-end RBAC management and separation of concerns
 - 🌍 Gitlab and Github external providers
 - ✏️ Highly customizable configuration
