@@ -31,29 +31,27 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
-var _ = Describe("03 CommitApply a ConfigMap", func() {
+var _ = Describe("16 Wrong reference or value test", func() {
 	ctx := context.TODO()
 
 	const (
-		remoteSyncerName    = "remotesyncer-test3"
-		remoteUserLuffyName = "remoteuser-luffy"
-		cmName              = "test-cm3"
+		remoteSyncerName           = "remotesyncer-test16"
+		remoteUserLuffyName        = "remoteuser-luffy"
+		remoteUserBindingLuffyName = "remoteuserbinding-luffy"
+		cmName                     = "test-cm16"
 	)
 
-	It("should create the resource on the git repo & cluster and delete the resource", func() {
+	It("should get errored because of wrong resource reference or wrong value", func() {
 		By("adding syngit to scheme")
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		By("creating the RemoteUser & RemoteUserBinding for Luffy")
-		luffySecretName := string(Luffy) + "-creds"
+		By("creating the RemoteUser for Luffy with wrong secret reference")
+		luffySecretName := "fake-secret"
 		remoteUserLuffy := &syngit.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteUserLuffyName,
 				Namespace: namespace,
-				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
-				},
 			},
 			Spec: syngit.RemoteUserSpec{
 				Email:             "sample@email.com",
@@ -65,6 +63,37 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 		}
 		Eventually(func() bool {
 			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffy)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		By("checking that the RemoteUser secret status is not bound")
+		nnRuLuffy := types.NamespacedName{
+			Name:      remoteUserLuffyName,
+			Namespace: namespace,
+		}
+		ruLuffy := &syngit.RemoteUser{}
+		Eventually(func() bool {
+			err = sClient.As(Luffy).Get(nnRuLuffy, ruLuffy)
+			return err == nil && len(ruLuffy.Status.Conditions) > 0 && ruLuffy.Status.Conditions[0].Type == "SecretBound" && ruLuffy.Status.Conditions[0].Status == metav1.ConditionFalse
+		}, timeout, interval).Should(BeTrue())
+
+		By("creating the RemoteUserBinding for Luffy with wrong RemoteUser reference")
+		remoteUserBindingLuffy := &syngit.RemoteUserBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteUserBindingLuffyName,
+				Namespace: namespace,
+			},
+			Spec: syngit.RemoteUserBindingSpec{
+				RemoteRefs: []corev1.ObjectReference{
+					{
+						Name:      "fake-remoteuser",
+						Namespace: namespace,
+					},
+				},
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remoteUserBindingLuffy)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -87,7 +116,6 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
 							admissionv1.Create,
-							admissionv1.Delete,
 						},
 						Rule: admissionv1.Rule{
 							APIGroups:   []string{""},
@@ -119,10 +147,10 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			return err == nil
+			return err != nil && strings.Contains(err.Error(), rubNotFound)
 		}, timeout, interval).Should(BeTrue())
 
-		By("checking if the configmap is present on the repo")
+		By("checking that the configmap is not present on the repo")
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
@@ -130,29 +158,65 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 			Name:  "blue",
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(exists).To(BeTrue())
+		Expect(err).To(HaveOccurred())
+		Expect(exists).To(BeFalse())
 
-		By("checking that the configmap is present on the cluster")
+		By("checking that the configmap is not present on the cluster")
 		nnCm := types.NamespacedName{
 			Name:      cmName,
 			Namespace: namespace,
 		}
 		getCm := &corev1.ConfigMap{}
-
 		Eventually(func() bool {
 			err := sClient.As(Luffy).Get(nnCm, getCm)
+			return err != nil && strings.Contains(err.Error(), "not found")
+		}, timeout, interval).Should(BeTrue())
+
+		By("creating the RemoteSyncer using wrong referenced default user")
+		remotesyncer = &syngit.RemoteSyncer{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteSyncerName,
+				Namespace: namespace,
+			},
+			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
+				DefaultBranch:               "main",
+				DefaultUnauthorizedUserMode: syngit.UseDefaultUser,
+				DefaultRemoteUserRef: &corev1.ObjectReference{
+					Name: "fake-defaultuser",
+				},
+				ExcludedFields:   []string{".metadata.uid"},
+				ProcessMode:      syngit.CommitApply,
+				PushMode:         syngit.SameBranch,
+				RemoteRepository: repoUrl,
+				ScopedResources: syngit.ScopedResources{
+					Rules: []admissionv1.RuleWithOperations{{
+						Operations: []admissionv1.OperationType{
+							admissionv1.Create,
+						},
+						Rule: admissionv1.Rule{
+							APIGroups:   []string{""},
+							APIVersions: []string{"v1"},
+							Resources:   []string{"configmaps"},
+						},
+					},
+					},
+				},
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("deleting the test configmap")
+		By("creating a test configmap")
 		Wait3()
 		Eventually(func() bool {
-			err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Delete(ctx,
-				cmName,
-				metav1.DeleteOptions{},
+			_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+				cm,
+				metav1.CreateOptions{},
 			)
-			return err == nil
+			return err != nil && strings.Contains(err.Error(), defaultUserNotFound)
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that the configmap is not present on the repo")
@@ -162,9 +226,9 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 		Expect(exists).To(BeFalse())
 
 		By("checking that the configmap is not present on the cluster")
-		getCm2 := &corev1.ConfigMap{}
+		getCm = &corev1.ConfigMap{}
 		Eventually(func() bool {
-			err := sClient.As(Luffy).Get(nnCm, getCm2)
+			err := sClient.As(Luffy).Get(nnCm, getCm)
 			return err != nil && strings.Contains(err.Error(), "not found")
 		}, timeout, interval).Should(BeTrue())
 
