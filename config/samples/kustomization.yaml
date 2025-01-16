@@ -1,12 +1,12 @@
 ## Append samples of your project ##
 resources:
-- syngit_v1alpha4_remoteuserbinding.yaml
-- syngit_v1alpha4_remoteuser.yaml
-- syngit_v1alpha4_remotesyncer.yaml
 - syngit_v1beta1_remoteuser.yaml
 - syngit_v1beta1_remoteuserbinding.yaml
 - syngit_v1beta1_remotesyncer.yaml
 - syngit_v1beta2_remotesyncer.yaml
 - syngit_v1beta2_remoteuserbinding.yaml
 - syngit_v1beta2_remoteuser.yaml
+- syngit_v1beta3_remoteuser.yaml
+- syngit_v1beta3_remoteuserbinding.yaml
+- syngit_v1beta3_remotesyncer.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

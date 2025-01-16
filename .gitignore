@@ -36,3 +36,4 @@ config/local/run/webhook/webhook.yaml
 
 # developer's specific tests
 config/samples/test
+test/e2e/syngit/*.ignore

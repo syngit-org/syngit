@@ -10,14 +10,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-syngit-io-v1beta2-remotesyncer
+      path: /validate-syngit-io-v1beta3-remotesyncer
   failurePolicy: Fail
-  name: vremotesyncer-v1beta2.kb.io
+  name: vremotesyncer-v1beta3.kb.io
   rules:
   - apiGroups:
     - syngit.io
     apiVersions:
-    - v1beta2
+    - v1beta3
     operations:
     - CREATE
     - UPDATE
@@ -30,14 +30,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /syngit-v1beta2-remotesyncer-rules-permissions
+      path: /syngit-v1beta3-remotesyncer-rules-permissions
   failurePolicy: Fail
-  name: vremotesyncers-rules-permissions.v1beta2.syngit.io
+  name: vremotesyncers-rules-permissions.v1beta3.syngit.io
   rules:
   - apiGroups:
     - syngit.io
     apiVersions:
-    - v1beta2
+    - v1beta3
     operations:
     - CREATE
     - UPDATE
@@ -51,14 +51,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-syngit-io-v1beta2-remoteuser
+      path: /validate-syngit-io-v1beta3-remoteuser
   failurePolicy: Fail
-  name: vremoteuser-v1beta2.kb.io
+  name: vremoteuser-v1beta3.kb.io
   rules:
   - apiGroups:
     - syngit.io
     apiVersions:
-    - v1beta2
+    - v1beta3
     operations:
     - CREATE
     - UPDATE
@@ -71,14 +71,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /syngit-v1beta2-remoteuserbinding-permissions
+      path: /syngit-v1beta3-remoteuserbinding-permissions
   failurePolicy: Fail
-  name: vremoteuserbindings-permissions.v1beta2.syngit.io
+  name: vremoteuserbindings-permissions.v1beta3.syngit.io
   rules:
   - apiGroups:
     - syngit.io
     apiVersions:
-    - v1beta2
+    - v1beta3
     operations:
     - CREATE
     - UPDATE
@@ -92,14 +92,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /syngit-v1beta2-remoteuser-association
+      path: /syngit-v1beta3-remoteuser-association
   failurePolicy: Fail
-  name: vremoteusers-association.v1beta2.syngit.io
+  name: vremoteusers-association.v1beta3.syngit.io
   rules:
   - apiGroups:
     - syngit.io
     apiVersions:
-    - v1beta2
+    - v1beta3
     operations:
     - CREATE
     - UPDATE
@@ -113,14 +113,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /syngit-v1beta2-remoteuser-permissions
+      path: /syngit-v1beta3-remoteuser-permissions
   failurePolicy: Fail
-  name: vremoteusers-permissions.v1beta2.syngit.io
+  name: vremoteusers-permissions.v1beta3.syngit.io
   rules:
   - apiGroups:
     - syngit.io
     apiVersions:
-    - v1beta2
+    - v1beta3
     operations:
     - CREATE
     - UPDATE

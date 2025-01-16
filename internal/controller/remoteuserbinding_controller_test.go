@@ -29,7 +29,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 )
 
 var _ = Describe("RemoteUserBinding Controller", func() {
@@ -97,7 +97,7 @@ var _ = Describe("RemoteUserBinding Controller", func() {
 						Namespace: userNamespace,
 					},
 					Spec: syngit.RemoteUserBindingSpec{
-						RemoteRefs: []corev1.ObjectReference{{Name: remoteusername}},
+						RemoteUserRefs: []corev1.ObjectReference{{Name: remoteusername}},
 						Subject: rbacv1.Subject{
 							Kind: rbacv1.UserKind,
 							Name: dummyUser,

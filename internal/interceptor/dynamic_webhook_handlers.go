@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/gorilla/mux"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -116,9 +117,10 @@ func (dwc *DynamicWebhookHandler) Handle(w http.ResponseWriter, r *http.Request)
 	}
 
 	wrc := &WebhookRequestChecker{
-		admReview:    admissionReviewReq,
-		remoteSyncer: dwc.remoteSyncer,
-		k8sClient:    dwc.k8sClient,
+		admReview:        admissionReviewReq,
+		remoteSyncer:     dwc.remoteSyncer,
+		k8sClient:        dwc.k8sClient,
+		managerNamespace: os.Getenv("MANAGER_NAMESPACE"),
 	}
 
 	admResponse := wrc.ProcessSteps()

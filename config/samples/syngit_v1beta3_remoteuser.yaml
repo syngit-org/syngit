@@ -1,0 +1,9 @@
+apiVersion: syngit.io/v1beta3
+kind: RemoteUser
+metadata:
+  labels:
+    app.kubernetes.io/name: syngit
+    app.kubernetes.io/managed-by: kustomize
+  name: remoteuser-sample
+spec:
+  # TODO(user): Add fields here

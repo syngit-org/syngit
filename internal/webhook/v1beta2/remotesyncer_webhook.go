@@ -44,8 +44,6 @@ func SetupRemoteSyncerWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/validate-syngit-io-v1beta2-remotesyncer,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remotesyncers,verbs=create;update,versions=v1beta2,name=vremotesyncer-v1beta2.kb.io,admissionReviewVersions=v1
-
 type RemoteSyncerCustomValidator struct {
 	//TODO(user): Add more fields as needed for validation
 }

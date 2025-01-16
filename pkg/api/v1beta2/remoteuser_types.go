@@ -56,7 +56,6 @@ type RemoteUserStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:storageversion
 //+kubebuilder:resource:path=remoteusers,shortName=ru;rus,categories=syngit
 
 // RemoteUser is the Schema for the remoteusers API

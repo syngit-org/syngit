@@ -34,7 +34,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	controllerssyngit "github.com/syngit-org/syngit/internal/controller"
-	webhooksyngitv1beta2 "github.com/syngit-org/syngit/internal/webhook/v1beta2"
+	webhooksyngitv1beta3 "github.com/syngit-org/syngit/internal/webhook/v1beta3"
 	"github.com/syngit-org/syngit/test/utils"
 	. "github.com/syngit-org/syngit/test/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -50,7 +50,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 )
 
 const (
@@ -70,6 +70,7 @@ const (
 	crossRubErrorMessage        = "the RemoteUser is already bound in the RemoteUserBinding"
 	rubNotFound                 = "no RemoteUserBinding found for the user"
 	defaultUserNotFound         = "the default user is not found"
+	notPresentOnCluser          = "not found"
 )
 
 // CMD & CLIENT
@@ -184,25 +185,25 @@ func setupManager() {
 	os.Setenv("DEV_WEBHOOK_CERT", webhookInstallOptions.LocalServingCertDir+"/tls.crt")
 
 	By("registring webhook server")
-	errWebhook := webhooksyngitv1beta2.SetupRemoteUserWebhookWithManager(k8sManager)
+	errWebhook := webhooksyngitv1beta3.SetupRemoteUserWebhookWithManager(k8sManager)
 	Expect(errWebhook).NotTo(HaveOccurred())
-	errWebhook = webhooksyngitv1beta2.SetupRemoteSyncerWebhookWithManager(k8sManager)
+	errWebhook = webhooksyngitv1beta3.SetupRemoteSyncerWebhookWithManager(k8sManager)
 	Expect(errWebhook).NotTo(HaveOccurred())
-	errWebhook = webhooksyngitv1beta2.SetupRemoteUserBindingWebhookWithManager(k8sManager)
+	errWebhook = webhooksyngitv1beta3.SetupRemoteUserBindingWebhookWithManager(k8sManager)
 	Expect(errWebhook).NotTo(HaveOccurred())
-	k8sManager.GetWebhookServer().Register("/syngit-v1beta2-remoteuser-association", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteUserAssociationWebhookHandler{
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remoteuser-association", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserAssociationWebhookHandler{
 		Client:  k8sManager.GetClient(),
 		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
 	}})
-	k8sManager.GetWebhookServer().Register("/syngit-v1beta2-remoteuser-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteUserPermissionsWebhookHandler{
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remoteuser-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserPermissionsWebhookHandler{
 		Client:  k8sManager.GetClient(),
 		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
 	}})
-	k8sManager.GetWebhookServer().Register("/syngit-v1beta2-remoteuserbinding-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteUserBindingPermissionsWebhookHandler{
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remoteuserbinding-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserBindingPermissionsWebhookHandler{
 		Client:  k8sManager.GetClient(),
 		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
 	}})
-	k8sManager.GetWebhookServer().Register("/syngit-v1beta2-remotesyncer-rules-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta2.RemoteSyncerWebhookHandler{
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remotesyncer-rules-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteSyncerWebhookHandler{
 		Client:  k8sManager.GetClient(),
 		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
 	}})

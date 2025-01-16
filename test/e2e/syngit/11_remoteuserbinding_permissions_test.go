@@ -21,7 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	. "github.com/syngit-org/syngit/test/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -68,7 +68,7 @@ var _ = Describe("11 RemoteUserBinding permissions checker", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteUserBindingSpec{
-				RemoteRefs: []corev1.ObjectReference{
+				RemoteUserRefs: []corev1.ObjectReference{
 					{
 						Name:      "not-allowed-remoteuser-name",
 						Namespace: namespace,
@@ -116,7 +116,7 @@ var _ = Describe("11 RemoteUserBinding permissions checker", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteUserBindingSpec{
-				RemoteRefs: []corev1.ObjectReference{
+				RemoteUserRefs: []corev1.ObjectReference{
 					{
 						Name:      remoteUserBrookName,
 						Namespace: namespace,
