@@ -297,6 +297,11 @@ func (in *RemoteSyncerSpec) DeepCopyInto(out *RemoteSyncerSpec) {
 		*out = new(v1.ObjectReference)
 		**out = **in
 	}
+	if in.RemoteUserBindingSelector != nil {
+		in, out := &in.RemoteUserBindingSelector, &out.RemoteUserBindingSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.BypassInterceptionSubjects != nil {
 		in, out := &in.BypassInterceptionSubjects, &out.BypassInterceptionSubjects
 		*out = make([]rbacv1.Subject, len(*in))

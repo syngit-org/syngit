@@ -64,20 +64,23 @@ type RemoteSyncerSpec struct {
 	RootPath string `json:"rootPath,omitempty" protobuf:"bytes,opt,9,name=rootPath"`
 
 	// +kubebuilder:validation:Optional
-	BypassInterceptionSubjects []rbacv1.Subject `json:"bypassInterceptionSubjects,omitempty" protobuf:"bytes,opt,10,name=bypassInterceptionSubjects"`
+	RemoteUserBindingSelector *metav1.LabelSelector `json:"remoteUserBindingSelector" protobuf:"bytes,opt,10,name=remoteUserBindingSelector"`
+
+	// +kubebuilder:validation:Optional
+	BypassInterceptionSubjects []rbacv1.Subject `json:"bypassInterceptionSubjects,omitempty" protobuf:"bytes,opt,11,name=bypassInterceptionSubjects"`
 
 	// +kubebuilder:default:value="Block"
 	// +kubebuilder:validation:Enum=Block;UseDefaultUser
-	DefaultUnauthorizedUserMode DefaultUnauthorizedUserMode `json:"defaultUnauthorizedUserMode" protobuf:"bytes,opt,11,name=defaultUnauthorizedUserMode"`
+	DefaultUnauthorizedUserMode DefaultUnauthorizedUserMode `json:"defaultUnauthorizedUserMode" protobuf:"bytes,opt,12,name=defaultUnauthorizedUserMode"`
 
 	// +kubebuilder:validation:Optional
-	DefaultRemoteUserRef *corev1.ObjectReference `json:"defaultRemoteUserRef,omitempty" protobuf:"bytes,opt,12,name=defaultRemoteUserRef"` // Ref to a RemoteUser object
+	DefaultRemoteUserRef *corev1.ObjectReference `json:"defaultRemoteUserRef,omitempty" protobuf:"bytes,opt,13,name=defaultRemoteUserRef"` // Ref to a RemoteUser object
 
 	// +kubebuilder:validation:Optional
-	InsecureSkipTlsVerify bool `json:"insecureSkipTlsVerify,omitempty" protobuf:"bytes,opt,13,name=insecureSkipTlsVerify"`
+	InsecureSkipTlsVerify bool `json:"insecureSkipTlsVerify,omitempty" protobuf:"bytes,opt,14,name=insecureSkipTlsVerify"`
 
 	// +kubebuilder:validation:Optional
-	CABundleSecretRef corev1.SecretReference `json:"caBundleSecretRef,omitempty" protobuf:"bytes,opt,14,name=caBundleSecretRef"`
+	CABundleSecretRef corev1.SecretReference `json:"caBundleSecretRef,omitempty" protobuf:"bytes,opt,15,name=caBundleSecretRef"`
 }
 
 type RemoteSyncerStatus struct {

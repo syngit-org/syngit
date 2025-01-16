@@ -14,6 +14,7 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -67,6 +68,8 @@ type WebhookRequestChecker struct {
 	remoteSyncer syngit.RemoteSyncer
 	// The kubernetes client to make request to the api
 	k8sClient client.Client
+	// The manager where syngit is installed
+	managerNamespace string
 	// Status and condition mutex
 	sync.RWMutex
 }
@@ -173,7 +176,20 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	}
 
 	var remoteUserBindings = &syngit.RemoteUserBindingList{}
-	err = wrc.k8sClient.List(ctx, remoteUserBindings, client.InNamespace(wrc.remoteSyncer.Namespace))
+	listOps := &client.ListOptions{
+		Namespace: wrc.remoteSyncer.Namespace,
+	}
+	if wrc.remoteSyncer.Spec.RemoteUserBindingSelector != nil {
+		labelSelector, labelErr := v1.LabelSelectorAsSelector(wrc.remoteSyncer.Spec.RemoteUserBindingSelector)
+		if labelErr != nil {
+			errMsg := "error parsing the LabelSelector for the remoteUserBindingSelector: " + labelErr.Error()
+			details.messageAddition = errMsg
+			return false, errors.New(errMsg)
+		}
+		listOps.LabelSelector = labelSelector
+	}
+	err = wrc.k8sClient.List(ctx, remoteUserBindings, listOps)
+
 	if err != nil {
 		errMsg := err.Error()
 		details.messageAddition = errMsg
@@ -353,12 +369,32 @@ func (wrc *WebhookRequestChecker) letPassRequest(details *wrcDetails) admissionv
 	return wrc.responseConstructor(*details)
 }
 
+func getPathsFromConfigMap(ctx context.Context, client client.Client, configMapNN types.NamespacedName) ([]string, error) {
+	excludedFieldsConfig := &corev1.ConfigMap{}
+	err := client.Get(ctx, configMapNN, excludedFieldsConfig)
+	if err != nil {
+		return nil, err
+	}
+	yamlString := excludedFieldsConfig.Data["excludedFields"]
+	var excludedFields []string
+
+	// Unmarshal the YAML string into the Go array
+	err = yaml.Unmarshal([]byte(yamlString), &excludedFields)
+	if err != nil {
+		errMsg := "failed to convert the excludedFields from the ConfigMap (wrong yaml format)"
+		return nil, errors.New(errMsg)
+	}
+
+	return excludedFields, nil
+}
+
 func (wrc *WebhookRequestChecker) convertToYaml(details *wrcDetails) error {
 	// Convert the json string object to a yaml string
 	// We have no other choice than extracting the json into a map
 	//  and then convert the map into a yaml string
 	// Because the 'map' object is, by definition, not ordered
 	//  we cannot reorder fields
+	ctx := context.Background()
 
 	var data map[string]interface{}
 	err := json.Unmarshal(wrc.admReview.Request.Object.Raw, &data)
@@ -368,35 +404,52 @@ func (wrc *WebhookRequestChecker) convertToYaml(details *wrcDetails) error {
 		return errors.New(errMsg)
 	}
 
-	// Paths to remove
-	paths := wrc.remoteSyncer.Spec.ExcludedFields
+	// Excluded fields paths to remove
+	paths := []string{}
+
+	// Search for cluster default excluded fields
+	defaultExcludedFieldsCms := corev1.ConfigMapList{}
+	listOps := &client.ListOptions{
+		Namespace: wrc.managerNamespace,
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			"syngit.io/cluster-default-excluded-fields": "true",
+		}),
+	}
+	err = wrc.k8sClient.List(ctx, &defaultExcludedFieldsCms, listOps)
+	if err != nil {
+		errMsg := err.Error()
+		details.messageAddition = errMsg
+		return errors.New(errMsg)
+	}
+	for _, defaultExcludedFieldsCm := range defaultExcludedFieldsCms.Items {
+		configMapNN := types.NamespacedName{
+			Name:      defaultExcludedFieldsCm.Name,
+			Namespace: wrc.managerNamespace,
+		}
+		excludedFieldsFromCm, exfiErr := getPathsFromConfigMap(ctx, wrc.k8sClient, configMapNN)
+		if exfiErr != nil {
+			details.messageAddition = exfiErr.Error()
+			return exfiErr
+		}
+		paths = append(paths, excludedFieldsFromCm...)
+	}
+
+	// excludedFields hardcoded in RemoteSyncer
+	excludedFieldsFromRsy := wrc.remoteSyncer.Spec.ExcludedFields
+	paths = append(paths, excludedFieldsFromRsy...)
 
 	// Check if the excludedFields ConfigMap exists
 	if wrc.remoteSyncer.Spec.ExcludedFieldsConfigMapRef != nil && wrc.remoteSyncer.Spec.ExcludedFieldsConfigMapRef.Name != "" {
-		ctx := context.Background()
-		secretNamespacedName := &types.NamespacedName{
-			Namespace: wrc.remoteSyncer.Namespace,
+		configMapNN := types.NamespacedName{
 			Name:      wrc.remoteSyncer.Spec.ExcludedFieldsConfigMapRef.Name,
+			Namespace: wrc.remoteSyncer.Namespace,
 		}
-		excludedFieldsConfig := &corev1.ConfigMap{}
-		err := wrc.k8sClient.Get(ctx, *secretNamespacedName, excludedFieldsConfig)
-		if err != nil {
-			errMsg := err.Error()
-			details.messageAddition = errMsg
-			return errors.New(errMsg)
+		excludedFieldsFromCm, exfiErr := getPathsFromConfigMap(ctx, wrc.k8sClient, configMapNN)
+		if exfiErr != nil {
+			details.messageAddition = exfiErr.Error()
+			return exfiErr
 		}
-		yamlString := excludedFieldsConfig.Data["excludedFields"]
-		var excludedFields []string
-
-		// Unmarshal the YAML string into the Go array
-		err = yaml.Unmarshal([]byte(yamlString), &excludedFields)
-		if err != nil {
-			errMsg := "failed to convert the excludedFields from the ConfigMap (wrong yaml format)"
-			details.messageAddition = errMsg
-			return errors.New(errMsg)
-		}
-
-		paths = append(paths, excludedFields...)
+		paths = append(paths, excludedFieldsFromCm...)
 	}
 
 	// Remove unwanted fields

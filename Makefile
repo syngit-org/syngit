@@ -132,6 +132,14 @@ test-behavior: cleanup-tests ## Install the test env (gitea). Run the behavior t
 fast-behavior: ## Install the test env if not already installed. Run the behavior tests against a Kind k8s instance that is spun up. Does not cleanup when finished (meant to be run often).
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./test/e2e/syngit -v -ginkgo.v -cover -coverpkg=$(COVERPKG) -setup fast
 
+.PHONY: test-selected
+test-selected: ## Install the test env if not already installed. Run only one selected test against a Kind k8s instance that is spun up. Does not cleanup when finished (meant to be run often).
+	@bash -c ' \
+		TEST_NUMBER=$(TEST_NUMBER) ./hack/tests/run_one_test.sh $(TEST_NUMBER); \
+		trap "./hack/tests/reset_test.sh" EXIT; \
+		KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./test/e2e/syngit -v -ginkgo.v -cover -coverpkg=$(COVERPKG) -setup fast; \
+	'
+
 .PHONY: cleanup-tests
 cleanup-tests: ## Uninstall all the charts needed for the tests.
 	helm uninstall -n syngit syngit || true
@@ -139,6 +147,7 @@ cleanup-tests: ## Uninstall all the charts needed for the tests.
 	helm uninstall -n saturn gitea || true
 	helm uninstall -n jupyter gitea || true
 	./hack/webhooks/cleanup-injector.sh $(TEMP_CERT_DIR) || true
+	./hack/tests/reset_test.sh
 
 .PHONY: test-chart-install
 test-chart-install: ## Run tests to install the chart.

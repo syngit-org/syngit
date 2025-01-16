@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/gorilla/mux"
@@ -116,9 +117,10 @@ func (dwc *DynamicWebhookHandler) Handle(w http.ResponseWriter, r *http.Request)
 	}
 
 	wrc := &WebhookRequestChecker{
-		admReview:    admissionReviewReq,
-		remoteSyncer: dwc.remoteSyncer,
-		k8sClient:    dwc.k8sClient,
+		admReview:        admissionReviewReq,
+		remoteSyncer:     dwc.remoteSyncer,
+		k8sClient:        dwc.k8sClient,
+		managerNamespace: os.Getenv("MANAGER_NAMESPACE"),
 	}
 
 	admResponse := wrc.ProcessSteps()

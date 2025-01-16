@@ -70,6 +70,7 @@ const (
 	crossRubErrorMessage        = "the RemoteUser is already bound in the RemoteUserBinding"
 	rubNotFound                 = "no RemoteUserBinding found for the user"
 	defaultUserNotFound         = "the default user is not found"
+	notPresentOnCluser          = "not found"
 )
 
 // CMD & CLIENT

@@ -169,7 +169,7 @@ var _ = Describe("16 Wrong reference or value test", func() {
 		getCm := &corev1.ConfigMap{}
 		Eventually(func() bool {
 			err := sClient.As(Luffy).Get(nnCm, getCm)
-			return err != nil && strings.Contains(err.Error(), "not found")
+			return err != nil && strings.Contains(err.Error(), notPresentOnCluser)
 		}, timeout, interval).Should(BeTrue())
 
 		By("creating the RemoteSyncer using wrong referenced default user")
@@ -229,7 +229,7 @@ var _ = Describe("16 Wrong reference or value test", func() {
 		getCm = &corev1.ConfigMap{}
 		Eventually(func() bool {
 			err := sClient.As(Luffy).Get(nnCm, getCm)
-			return err != nil && strings.Contains(err.Error(), "not found")
+			return err != nil && strings.Contains(err.Error(), notPresentOnCluser)
 		}, timeout, interval).Should(BeTrue())
 
 	})
