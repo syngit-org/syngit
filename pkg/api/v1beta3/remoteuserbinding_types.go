@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	RubPrefix     = "associated-rub-"
-	RubAnnotation = "syngit.io/associated-remoteuserbinding"
+	RubPrefix       = "associated-rub-"
+	RubAnnotation   = "syngit.io/associated-remoteuserbinding"
+	RemoteRefsField = "spec.remoteRefs"
 )
 
 type RemoteUserBindingSpec struct {
@@ -107,7 +108,3 @@ type GitUserHost struct {
 	State          GitUserBindingState    `json:"state,omitempty"`
 	LastUsedTime   metav1.Time            `json:"lastUsedTime,omitempty"`
 }
-
-const (
-	RemoteRefsField = "spec.remoteRefs"
-)

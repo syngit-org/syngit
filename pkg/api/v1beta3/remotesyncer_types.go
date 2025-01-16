@@ -223,7 +223,7 @@ type LastObservedObjectState struct {
 	LastObservedObjectTime metav1.Time `json:"lastObservedObjectTime,omitempty"`
 
 	// +optional
-	LastObservedObjectUserInfo authenticationv1.UserInfo `json:"lastObservedObjectUserInfo,omitempty"`
+	LastObservedObjectUsername string `json:"lastObservedObjectUsername,omitempty"`
 
 	// +optional
 	LastObservedObject JsonGVRN `json:"lastObservedObject,omitempty"`

@@ -68,6 +68,7 @@ var _ = Describe("18 Cluster default excluded fields test", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
+		By("creating the default cluster wide excluded fields configmap")
 		const excludedFieldsConfiMapName = "default-cluster-excluded-fields"
 		excludedFieldsConfiMap := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
@@ -180,5 +181,12 @@ var _ = Describe("18 Cluster default excluded fields test", func() {
 		Expect(annotation2).To(BeNil())
 		annotation3 := annotations[annotation3Key]
 		Expect(annotation3).To(Equal("test"))
+
+		By("deleting the default cluster wide excluded fields configmap")
+		err = sClient.KAs(Luffy).CoreV1().ConfigMaps(operatorNamespace).Delete(ctx,
+			excludedFieldsConfiMapName,
+			metav1.DeleteOptions{},
+		)
+		Expect(err).ToNot(HaveOccurred())
 	})
 })

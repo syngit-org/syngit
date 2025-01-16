@@ -844,6 +844,55 @@ spec:
                 example: https://git.example.com/my-repo.git
                 format: uri
                 type: string
+              remoteUserBindingSelector:
+                description: |-
+                  A label selector is a label query over a set of resources. The result of matchLabels and
+                  matchExpressions are ANDed. An empty label selector matches all objects. A null
+                  label selector matches no objects.
+                properties:
+                  matchExpressions:
+                    description: matchExpressions is a list of label selector requirements.
+                      The requirements are ANDed.
+                    items:
+                      description: |-
+                        A label selector requirement is a selector that contains values, a key, and an operator that
+                        relates the key and values.
+                      properties:
+                        key:
+                          description: key is the label key that the selector applies
+                            to.
+                          type: string
+                        operator:
+                          description: |-
+                            operator represents a key's relationship to a set of values.
+                            Valid operators are In, NotIn, Exists and DoesNotExist.
+                          type: string
+                        values:
+                          description: |-
+                            values is an array of string values. If the operator is In or NotIn,
+                            the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                            the values array must be empty. This array is replaced during a strategic
+                            merge patch.
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: atomic
+                      required:
+                      - key
+                      - operator
+                      type: object
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                      map is equivalent to an element of matchExpressions, whose key field is "key", the
+                      operator is "In", and the values array contains only "value". The requirements are ANDed.
+                    type: object
+                type: object
+                x-kubernetes-map-type: atomic
               rootPath:
                 type: string
               scopedResources:
@@ -1130,37 +1179,8 @@ spec:
                   lastObservedObjectTime:
                     format: date-time
                     type: string
-                  lastObservedObjectUserInfo:
-                    description: |-
-                      UserInfo holds the information about the user needed to implement the
-                      user.Info interface.
-                    properties:
-                      extra:
-                        additionalProperties:
-                          description: ExtraValue masks the value so protobuf can
-                            generate
-                          items:
-                            type: string
-                          type: array
-                        description: Any additional information provided by the authenticator.
-                        type: object
-                      groups:
-                        description: The names of groups this user is a part of.
-                        items:
-                          type: string
-                        type: array
-                        x-kubernetes-list-type: atomic
-                      uid:
-                        description: |-
-                          A unique value that identifies this user across time. If this user is
-                          deleted and another user by the same name is added, they will have
-                          different UIDs.
-                        type: string
-                      username:
-                        description: The name that uniquely identifies this user among
-                          all active users.
-                        type: string
-                    type: object
+                  lastObservedObjectUsername:
+                    type: string
                 type: object
               lastPushedObjectState:
                 properties:

@@ -80,7 +80,6 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 				DefaultBlockAppliedMessage:  defaultDeniedMessage,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
-				ExcludedFields:              []string{".metadata.uid"},
 				ProcessMode:                 syngit.CommitOnly,
 				PushMode:                    syngit.SameBranch,
 				RemoteRepository:            repoUrl,

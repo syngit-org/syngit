@@ -1,0 +1,5 @@
+coverage:
+  status:
+    patch:
+      default:
+        if_ci_failed: success

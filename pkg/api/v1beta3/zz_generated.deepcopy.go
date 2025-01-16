@@ -123,7 +123,6 @@ func (in *LastBypassedObjectState) DeepCopy() *LastBypassedObjectState {
 func (in *LastObservedObjectState) DeepCopyInto(out *LastObservedObjectState) {
 	*out = *in
 	in.LastObservedObjectTime.DeepCopyInto(&out.LastObservedObjectTime)
-	in.LastObservedObjectUserInfo.DeepCopyInto(&out.LastObservedObjectUserInfo)
 	out.LastObservedObject = in.LastObservedObject
 }
 

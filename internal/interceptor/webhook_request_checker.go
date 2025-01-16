@@ -584,7 +584,7 @@ func (wrc *WebhookRequestChecker) responseConstructor(details wrcDetails) admiss
 	} else {
 		condition := &v1.Condition{
 			LastTransitionTime: v1.Now(),
-			Type:               "NotSynced",
+			Type:               "Synced",
 			Reason:             "WebhookHandlerError",
 			Status:             "False",
 			Message:            details.messageAddition,
@@ -634,19 +634,7 @@ func (wrc *WebhookRequestChecker) updateConditions(condition v1.Condition) {
 	wrc.Lock()
 	defer wrc.Unlock()
 
-	added := false
-	conditions := make([]v1.Condition, 0)
-	for _, cond := range wrc.remoteSyncer.Status.Conditions {
-		if cond.Type == condition.Type {
-			conditions = append(conditions, condition)
-			added = true
-		} else {
-			conditions = append(conditions, cond)
-		}
-	}
-	if !added {
-		conditions = append(conditions, condition)
-	}
+	conditions := utils.TypeBasedConditionUpdater(wrc.remoteSyncer.Status.DeepCopy().Conditions, condition)
 	wrc.remoteSyncer.Status.Conditions = conditions
 
 	ctx := context.Background()
@@ -699,7 +687,7 @@ func (wrc *WebhookRequestChecker) updateStatusState(kind string, details wrcDeta
 	case "LastObservedObjectState":
 		lastObservedObjectState := &syngit.LastObservedObjectState{
 			LastObservedObjectTime:     v1.Now(),
-			LastObservedObjectUserInfo: wrc.admReview.Request.UserInfo,
+			LastObservedObjectUsername: wrc.admReview.Request.UserInfo.Username,
 			LastObservedObject:         *gvrn,
 		}
 		wrc.remoteSyncer.Status.LastObservedObjectState = *lastObservedObjectState
