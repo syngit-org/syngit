@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 )
 
 // RemoteUserBindingReconciler reconciles a RemoteUserBinding object
@@ -66,7 +66,7 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	var isGloballyBound bool = true
 
 	gitUserHosts := []syngit.GitUserHost{}
-	for _, remoteUserRef := range remoteUserBinding.Spec.RemoteRefs {
+	for _, remoteUserRef := range remoteUserBinding.Spec.RemoteUserRefs {
 
 		// Set already known values about this RemoteUser
 		var gitUserHost syngit.GitUserHost = syngit.GitUserHost{}
@@ -93,11 +93,11 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	remoteUserBinding.Status.GitUserHosts = gitUserHosts
 
 	if !isGloballyBound {
-		remoteUserBinding.Status.GlobalState = syngit.PartiallyBound
+		remoteUserBinding.Status.State = syngit.PartiallyBound
 		const partiallyBoundMessage = "Some of the remote users are not bound"
 		r.Recorder.Event(&remoteUserBinding, "Warning", "PartiallyBound", partiallyBoundMessage)
 	} else {
-		remoteUserBinding.Status.GlobalState = syngit.Bound
+		remoteUserBinding.Status.State = syngit.Bound
 		const boundMessage = "Every remote users are bound"
 		r.Recorder.Event(&remoteUserBinding, "Normal", "Bound", boundMessage)
 	}
@@ -138,10 +138,10 @@ func (r *RemoteUserBindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		remoteUserRefsName := []string{}
 
 		remoteUserBinding := rawObj.(*syngit.RemoteUserBinding)
-		if len(remoteUserBinding.Spec.RemoteRefs) == 0 {
+		if len(remoteUserBinding.Spec.RemoteUserRefs) == 0 {
 			return nil
 		}
-		for _, remoteUserRef := range remoteUserBinding.Spec.RemoteRefs {
+		for _, remoteUserRef := range remoteUserBinding.Spec.RemoteUserRefs {
 			if remoteUserRef.Name == "" {
 				return nil
 			}

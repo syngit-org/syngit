@@ -21,7 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	. "github.com/syngit-org/syngit/test/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -126,7 +126,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Expect(len(getRub.Spec.RemoteRefs)).To(Equal(2))
+		Expect(len(getRub.Spec.RemoteUserRefs)).To(Equal(2))
 
 		By("deleting the saturn RemoteUser")
 		Eventually(func() bool {
@@ -141,7 +141,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Expect(len(getRub.Spec.RemoteRefs)).To(Equal(1))
+		Expect(len(getRub.Spec.RemoteUserRefs)).To(Equal(1))
 
 		By("deleting the jupyter RemoteUser")
 		Eventually(func() bool {

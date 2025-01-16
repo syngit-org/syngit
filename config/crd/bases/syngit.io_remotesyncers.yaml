@@ -19,8 +19,7 @@ spec:
     singular: remotesyncer
   scope: Namespaced
   versions:
-  - deprecated: true
-    name: v1beta1
+  - name: v1beta2
     schema:
       openAPIV3Schema:
         description: RemoteSyncer is the Schema for the remotesyncers API
@@ -76,7 +75,7 @@ spec:
                   type: object
                   x-kubernetes-map-type: atomic
                 type: array
-              caBundle:
+              caBundleSecretRef:
                 description: |-
                   SecretReference represents a Secret Reference. It has enough information to retrieve secret
                   in any namespace
@@ -94,10 +93,9 @@ spec:
               defaultBlockAppliedMessage:
                 type: string
               defaultBranch:
+                example: main
                 type: string
-              defaultUnauthorizedUserMode:
-                type: string
-              defaultUser:
+              defaultRemoteUserRef:
                 description: |-
                   ObjectReference contains enough information to let you inspect or modify the referred object.
                   ---
@@ -158,6 +156,12 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
+              defaultUnauthorizedUserMode:
+                default: Block
+                enum:
+                - Block
+                - UseDefaultUser
+                type: string
               excludedFields:
                 items:
                   type: string
@@ -226,15 +230,26 @@ spec:
               insecureSkipTlsVerify:
                 type: boolean
               processMode:
+                default: CommitApply
+                enum:
+                - CommitOnly
+                - CommitApply
                 type: string
               pushMode:
+                default: SameBranch
+                enum:
+                - SameBranch
+                - MultipleBranch
+                - MergeRequest
                 type: string
               remoteRepository:
+                example: https://git.example.com/my-repo.git
                 format: uri
                 type: string
               rootPath:
                 type: string
               scopedResources:
+                default: {}
                 properties:
                   matchPolicy:
                     description: MatchPolicyType specifies the type of match policy.
@@ -367,6 +382,7 @@ spec:
             - processMode
             - pushMode
             - remoteRepository
+            - scopedResources
             type: object
           status:
             properties:
@@ -586,7 +602,7 @@ spec:
     storage: false
     subresources:
       status: {}
-  - name: v1beta2
+  - name: v1beta3
     schema:
       openAPIV3Schema:
         description: RemoteSyncer is the Schema for the remotesyncers API

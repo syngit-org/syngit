@@ -19,8 +19,7 @@ spec:
     singular: remoteuser
   scope: Namespaced
   versions:
-  - deprecated: true
-    name: v1beta1
+  - name: v1beta2
     schema:
       openAPIV3Schema:
         description: RemoteUser is the Schema for the remoteusers API
@@ -44,8 +43,6 @@ spec:
             type: object
           spec:
             properties:
-              associatedRemoteUserBinding:
-                type: boolean
               email:
                 type: string
               gitBaseDomainFQDN:
@@ -66,7 +63,6 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
             required:
-            - associatedRemoteUserBinding
             - email
             - gitBaseDomainFQDN
             - secretRef
@@ -165,7 +161,7 @@ spec:
     storage: false
     subresources:
       status: {}
-  - name: v1beta2
+  - name: v1beta3
     schema:
       openAPIV3Schema:
         description: RemoteUser is the Schema for the remoteusers API

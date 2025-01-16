@@ -16,3 +16,14 @@ resources:
 - auth_proxy_role.yaml
 - auth_proxy_role_binding.yaml
 - auth_proxy_client_clusterrole.yaml
+# For each CRD, "Editor" and "Viewer" roles are scaffolded by
+# default, aiding admins in cluster management. Those roles are
+# not used by the Project itself. You can comment the following lines
+# if you do not want those helpers be installed with your Project.
+- remotesyncer_editor_role.yaml
+- remotesyncer_viewer_role.yaml
+- remoteuserbinding_editor_role.yaml
+- remoteuserbinding_viewer_role.yaml
+- remoteuser_editor_role.yaml
+- remoteuser_viewer_role.yaml
+

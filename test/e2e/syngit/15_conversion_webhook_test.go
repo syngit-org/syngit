@@ -21,8 +21,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	syngitv1beta1 "github.com/syngit-org/syngit/pkg/api/v1beta1"
 	syngitv1beta2 "github.com/syngit-org/syngit/pkg/api/v1beta2"
+	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	. "github.com/syngit-org/syngit/test/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -41,19 +41,19 @@ var _ = Describe("15 conversion webhook test", func() {
 
 	It("should convert from the previous apiversion to the current one", func() {
 		By("adding syngit to scheme")
-		err := syngitv1beta1.AddToScheme(scheme.Scheme)
+		err := syngitv1beta2.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
-		err = syngitv1beta2.AddToScheme(scheme.Scheme)
+		err = syngitv1beta3.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
 		By("creating the RemoteUser for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
-		remoteUserLuffy := &syngitv1beta1.RemoteUser{
+		remoteUserLuffy := &syngitv1beta2.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 			},
-			Spec: syngitv1beta1.RemoteUserSpec{
+			Spec: syngitv1beta2.RemoteUserSpec{
 				Email:             "sample@email.com",
 				GitBaseDomainFQDN: gitP1Fqdn,
 				SecretRef: corev1.SecretReference{
@@ -71,19 +71,19 @@ var _ = Describe("15 conversion webhook test", func() {
 			Name:      remoteUserLuffyName,
 			Namespace: namespace,
 		}
-		ruLuffy := &syngitv1beta2.RemoteUser{}
+		ruLuffy := &syngitv1beta3.RemoteUser{}
 		Eventually(func() bool {
 			err = sClient.As(Luffy).Get(nnRuLuffy, ruLuffy)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
 		By("creating the RemoteUserBinding for Luffy")
-		remoteUserBindingLuffy := &syngitv1beta1.RemoteUserBinding{
+		remoteUserBindingLuffy := &syngitv1beta2.RemoteUserBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteUserBindingLuffyName,
 				Namespace: namespace,
 			},
-			Spec: syngitv1beta1.RemoteUserBindingSpec{
+			Spec: syngitv1beta2.RemoteUserBindingSpec{
 				RemoteRefs: []corev1.ObjectReference{
 					{
 						Name:      "fake-remoteuser",
@@ -102,28 +102,28 @@ var _ = Describe("15 conversion webhook test", func() {
 			Name:      remoteUserBindingLuffyName,
 			Namespace: namespace,
 		}
-		rubLuffy := &syngitv1beta2.RemoteUserBinding{}
+		rubLuffy := &syngitv1beta3.RemoteUserBinding{}
 		Eventually(func() bool {
 			err = sClient.As(Luffy).Get(nnRubLuffy, rubLuffy)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
 		By("creating the RemoteSyncer")
-		remotesyncer := &syngitv1beta1.RemoteSyncer{
+		remotesyncer := &syngitv1beta2.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName,
 				Namespace: namespace,
 			},
-			Spec: syngitv1beta1.RemoteSyncerSpec{
+			Spec: syngitv1beta2.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
 				DefaultBlockAppliedMessage:  defaultDeniedMessage,
 				DefaultBranch:               "main",
-				DefaultUnauthorizedUserMode: syngitv1beta1.Block,
+				DefaultUnauthorizedUserMode: syngitv1beta2.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngitv1beta1.CommitOnly,
-				PushMode:                    syngitv1beta1.SameBranch,
+				ProcessMode:                 syngitv1beta2.CommitOnly,
+				PushMode:                    syngitv1beta2.SameBranch,
 				RemoteRepository:            "https://fake-repo.com",
-				ScopedResources: syngitv1beta1.ScopedResources{
+				ScopedResources: syngitv1beta2.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
 							admissionv1.Create,
@@ -149,7 +149,7 @@ var _ = Describe("15 conversion webhook test", func() {
 			Name:      remoteSyncerName,
 			Namespace: namespace,
 		}
-		rsyLuffy := &syngitv1beta2.RemoteSyncer{}
+		rsyLuffy := &syngitv1beta3.RemoteSyncer{}
 		Eventually(func() bool {
 			err = sClient.As(Luffy).Get(nnRsyLuffy, rsyLuffy)
 			return err == nil

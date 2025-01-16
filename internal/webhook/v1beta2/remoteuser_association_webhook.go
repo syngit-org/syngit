@@ -30,8 +30,6 @@ const (
 	k8sUserLabelKey     = "syngit.io/k8s-user"
 )
 
-// +kubebuilder:webhook:path=/syngit-v1beta2-remoteuser-association,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remoteusers,verbs=create;update;delete,versions=v1beta2,admissionReviewVersions=v1,name=vremoteusers-association.v1beta2.syngit.io
-
 func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req admission.Request) admission.Response {
 
 	username := req.DeepCopy().UserInfo.Username

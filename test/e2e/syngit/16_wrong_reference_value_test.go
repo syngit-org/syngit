@@ -22,7 +22,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta2"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	. "github.com/syngit-org/syngit/test/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -84,7 +84,7 @@ var _ = Describe("16 Wrong reference or value test", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteUserBindingSpec{
-				RemoteRefs: []corev1.ObjectReference{
+				RemoteUserRefs: []corev1.ObjectReference{
 					{
 						Name:      "fake-remoteuser",
 						Namespace: namespace,
