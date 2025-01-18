@@ -93,13 +93,13 @@ type RemoteSyncerStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 
 	// +optional
-	LastBypassedObjectState LastBypassedObjectState `json:"lastBypassedObjectState,omitempty"`
+	LastBypassedObjectState LastBypassedObjectState `json:"lastBypassedObjectState,omitempty" protobuf:"bytes,2,rep,name=lastBypassedObjectState"`
 
 	// +optional
-	LastObservedObjectState LastObservedObjectState `json:"lastObservedObjectState,omitempty"`
+	LastObservedObjectState LastObservedObjectState `json:"lastObservedObjectState,omitempty" protobuf:"bytes,3,rep,name=lastObservedObjectState"`
 
 	// +optional
-	LastPushedObjectState LastPushedObjectState `json:"lastPushedObjectState,omitempty"`
+	LastPushedObjectState LastPushedObjectState `json:"lastPushedObjectState,omitempty" protobuf:"bytes,4,rep,name=lastPushedObjectState"`
 }
 
 //+kubebuilder:object:root=true

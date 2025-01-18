@@ -239,4 +239,17 @@ resources:
     conversion: true
     validation: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: io
+  group: syngit
+  kind: RemoteTarget
+  path: github.com/syngit-org/syngit/pkg/api/v1beta3
+  version: v1beta3
+  webhooks:
+    conversion: true
+    validation: true
+    webhookVersion: v1
 version: "3"

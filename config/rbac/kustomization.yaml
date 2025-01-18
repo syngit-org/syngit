@@ -20,6 +20,8 @@ resources:
 # default, aiding admins in cluster management. Those roles are
 # not used by the Project itself. You can comment the following lines
 # if you do not want those helpers be installed with your Project.
+- remotetarget_editor_role.yaml
+- remotetarget_viewer_role.yaml
 - remotesyncer_editor_role.yaml
 - remotesyncer_viewer_role.yaml
 - remoteuserbinding_editor_role.yaml

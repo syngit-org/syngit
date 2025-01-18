@@ -178,6 +178,15 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "RemoteSyncer")
 		os.Exit(1)
 	}
+
+	if err = (&controller.RemoteTargetReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "RemoteTarget")
+		os.Exit(1)
+	}
+
 	// nolint:goconst
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
 		if err = webhooksyngitv1beta3.SetupRemoteUserWebhookWithManager(mgr); err != nil {
@@ -190,6 +199,10 @@ func main() {
 		}
 		if err = webhooksyngitv1beta3.SetupRemoteUserBindingWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUserBinding")
+			os.Exit(1)
+		}
+		if err = webhooksyngitv1beta3.SetupRemoteTargetWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteTarget")
 			os.Exit(1)
 		}
 		mgr.GetWebhookServer().Register("/syngit-v1beta3-remoteuser-association", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserAssociationWebhookHandler{

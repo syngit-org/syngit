@@ -1,0 +1,27 @@
+# permissions for end users to edit remotetargets.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: syngit
+    app.kubernetes.io/managed-by: kustomize
+  name: remotetarget-editor-role
+rules:
+- apiGroups:
+  - syngit.io
+  resources:
+  - remotetargets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - syngit.io
+  resources:
+  - remotetargets/status
+  verbs:
+  - get
