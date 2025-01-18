@@ -63,14 +63,14 @@ func validateRemoteSyncerSpec(r *syngitv1beta3.RemoteSyncerSpec) field.ErrorList
 		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultRemoteUserRef"), "must be set when defaultUnauthorizedUserMode is set to \"UseDefaultUser\""))
 	}
 
-	// Validate DefaultBlockAppliedMessage only exists if ProcessMode is set to CommitOnly
-	if r.DefaultBlockAppliedMessage != "" && r.ProcessMode != "CommitOnly" {
-		errors = append(errors, field.Forbidden(field.NewPath("spec").Child("defaultBlockAppliedMessage"), "should not be set if processMode is not set to \"CommitOnly\""))
+	// Validate DefaultBlockAppliedMessage only exists if Strategy is set to CommitOnly
+	if r.DefaultBlockAppliedMessage != "" && r.Strategy != syngitv1beta3.CommitOnly {
+		errors = append(errors, field.Forbidden(field.NewPath("spec").Child("defaultBlockAppliedMessage"), fmt.Sprintf("should not be set if strategy is not set to \"%s\"", syngitv1beta3.CommitOnly)))
 	}
 
-	// Validate that ProcessMode is either CommitApply or CommitOnly
-	if r.ProcessMode != "CommitOnly" && r.ProcessMode != "CommitApply" {
-		errors = append(errors, field.Invalid(field.NewPath("spec").Child("processMode"), r.ProcessMode, "must be set to \"CommitApply\" or \"CommitOnly\""))
+	// Validate that Strategy is either CommitApply or CommitOnly
+	if r.Strategy != syngitv1beta3.CommitOnly && r.Strategy != syngitv1beta3.CommitApply {
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("strategy"), r.Strategy, fmt.Sprintf("must be set to \"%s\" or \"%s\"", syngitv1beta3.CommitApply, syngitv1beta3.CommitOnly)))
 	}
 
 	// Validate Git URI
@@ -86,8 +86,8 @@ func validateRemoteSyncerSpec(r *syngitv1beta3.RemoteSyncerSpec) field.ErrorList
 		}
 	}
 
-	// Validate that DefaultBranch exists if PushMode is set to "SameBranch"
-	if r.PushMode == syngitv1beta3.SameBranch && r.DefaultBranch == "" {
+	// Validate that DefaultBranch exists if TargetStrategy is set to "SameBranch"
+	if r.TargetStrategy == syngitv1beta3.SameBranch && r.DefaultBranch == "" {
 		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultBranch"), "must be set when defaultBranch is set to \"SameBranch\""))
 	}
 

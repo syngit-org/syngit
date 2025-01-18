@@ -16,4 +16,31 @@ limitations under the License.
 
 package v1beta1
 
-func (*RemoteUserBinding) Hub() {}
+import (
+	v1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	"sigs.k8s.io/controller-runtime/pkg/conversion"
+)
+
+func (src *RemoteUserBinding) ConvertTo(dstRaw conversion.Hub) error {
+	dst := dstRaw.(*v1beta3.RemoteUserBinding)
+
+	// Common conversion
+	dst.ObjectMeta = src.ObjectMeta
+
+	dst.Spec.RemoteUserRefs = src.Spec.RemoteRefs
+	dst.Spec.Subject = src.Spec.Subject
+
+	return nil
+}
+
+func (dst *RemoteUserBinding) ConvertFrom(srcRaw conversion.Hub) error {
+	src := srcRaw.(*v1beta3.RemoteUserBinding)
+
+	// Common conversion
+	dst.ObjectMeta = src.ObjectMeta
+
+	dst.Spec.RemoteRefs = src.Spec.RemoteUserRefs
+	dst.Spec.Subject = src.Spec.Subject
+
+	return nil
+}

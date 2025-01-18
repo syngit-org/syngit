@@ -29,7 +29,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() {
@@ -52,10 +51,6 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 	)
 
 	It("should interact with gitea using the user CA bundle", func() {
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
 		caBundleFile, err := os.ReadFile(os.Getenv("GITEA_TEMP_CERT_DIR") + "/ca.crt")
 		By("creating the ca bundle secret in the same namespace")
 		secretCreds := &corev1.Secret{
@@ -114,8 +109,8 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -181,10 +176,6 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 	})
 
 	It("should interact with gitea using the user CA bundle in the same namespace", func() {
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
 		caBundleFile, err := os.ReadFile(os.Getenv("GITEA_TEMP_CERT_DIR") + "/ca.crt")
 		By("creating the ca bundle secret in the same namespace")
 		secretCreds := &corev1.Secret{
@@ -244,8 +235,8 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -311,10 +302,6 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 	})
 
 	It("should interact with gitea using the user CA bundle of the operator namespace", func() {
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
 		caBundleFile, err := os.ReadFile(os.Getenv("GITEA_TEMP_CERT_DIR") + "/ca.crt")
 		By("creating the ca bundle secret in the same namespace using the host as name")
 		caBundleName := strings.Split(gitP1Fqdn, ":")[0] + "-ca-cert"
@@ -371,8 +358,8 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -446,10 +433,6 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 	})
 
 	It("should get a x509 error ", func() {
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -484,8 +467,8 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -518,7 +501,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
-			_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
 				cm,
 				metav1.CreateOptions{},
 			)

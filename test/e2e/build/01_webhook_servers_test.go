@@ -36,7 +36,7 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 		By("creating a RemoteSyncer")
 		Wait20()
 		cmd := exec.Command("kubectl", "apply", "-n", testNamespace, "-f",
-			fmt.Sprintf("%s/syngit_v1beta2_remotesyncer.yaml", samplePath))
+			fmt.Sprintf("%s/syngit_v1beta3_remotesyncer.yaml", samplePath))
 		_, err := utils.Run(cmd)
 		ExpectWithOffset(2, err).NotTo(HaveOccurred())
 
@@ -57,7 +57,7 @@ var _ = AfterEach(func() {
 
 	// Delete RemoteSyncer
 	cmd := exec.Command("kubectl", "delete", "-n", testNamespace, "-f",
-		fmt.Sprintf("%s/syngit_v1beta2_remotesyncer.yaml", samplePath))
+		fmt.Sprintf("%s/syngit_v1beta3_remotesyncer.yaml", samplePath))
 	_, err := utils.Run(cmd)
 	ExpectWithOffset(2, err).NotTo(HaveOccurred())
 

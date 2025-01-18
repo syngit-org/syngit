@@ -28,7 +28,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var _ = Describe("02 CommitOnly a ConfigMap", func() {
@@ -41,10 +40,6 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 	)
 
 	It("should not create the resource on the cluster", func() {
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -80,8 +75,8 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 				DefaultBlockAppliedMessage:  defaultDeniedMessage,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
-				ProcessMode:                 syngit.CommitOnly,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitOnly,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -114,7 +109,7 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
-			_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
 				cm,
 				metav1.CreateOptions{},
 			)

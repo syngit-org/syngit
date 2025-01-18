@@ -28,7 +28,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var _ = Describe("16 Wrong reference or value test", func() {
@@ -42,10 +41,6 @@ var _ = Describe("16 Wrong reference or value test", func() {
 	)
 
 	It("should get errored because of wrong resource reference or wrong value", func() {
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
 		By("creating the RemoteUser for Luffy with wrong secret reference")
 		luffySecretName := "fake-secret"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -73,7 +68,7 @@ var _ = Describe("16 Wrong reference or value test", func() {
 		}
 		ruLuffy := &syngit.RemoteUser{}
 		Eventually(func() bool {
-			err = sClient.As(Luffy).Get(nnRuLuffy, ruLuffy)
+			err := sClient.As(Luffy).Get(nnRuLuffy, ruLuffy)
 			return err == nil && len(ruLuffy.Status.Conditions) > 0 && ruLuffy.Status.Conditions[0].Type == "SecretBound" && ruLuffy.Status.Conditions[0].Status == metav1.ConditionFalse
 		}, timeout, interval).Should(BeTrue())
 
@@ -109,8 +104,8 @@ var _ = Describe("16 Wrong reference or value test", func() {
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -143,7 +138,7 @@ var _ = Describe("16 Wrong reference or value test", func() {
 			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
-			_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
 				cm,
 				metav1.CreateOptions{},
 			)
@@ -186,8 +181,8 @@ var _ = Describe("16 Wrong reference or value test", func() {
 					Name: "fake-defaultuser",
 				},
 				ExcludedFields:   []string{".metadata.uid"},
-				ProcessMode:      syngit.CommitApply,
-				PushMode:         syngit.SameBranch,
+				Strategy:         syngit.CommitApply,
+				TargetStrategy:   syngit.SameBranch,
 				RemoteRepository: repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

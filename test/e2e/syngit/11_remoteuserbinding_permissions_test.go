@@ -25,7 +25,6 @@ import (
 	. "github.com/syngit-org/syngit/test/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var _ = Describe("11 RemoteUserBinding permissions checker", func() {
@@ -36,10 +35,6 @@ var _ = Describe("11 RemoteUserBinding permissions checker", func() {
 	)
 
 	It("should deny the remoteuserbinding creation", func() {
-
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
 
 		By("creating the RemoteUser")
 		brookSecretName := string(Brook) + "-creds"
@@ -84,10 +79,6 @@ var _ = Describe("11 RemoteUserBinding permissions checker", func() {
 	})
 
 	It("should create the remoteuserbinding", func() {
-
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
 
 		By("creating the RemoteUser using an allowed secret name")
 		brookSecretName := string(Brook) + "-creds"

@@ -47,10 +47,6 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 	)
 
 	It("should not work because RemoteUserBinding not targeted", func() {
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -113,8 +109,8 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            repoUrl,
 				RemoteUserBindingSelector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{myLabelKey: "another-value"},
@@ -151,7 +147,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 			Data:       map[string]string{"test": "ouiiii"},
 		}
 		Eventually(func() bool {
-			_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
 				cm,
 				metav1.CreateOptions{},
 			)
@@ -183,10 +179,6 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 	})
 
 	It("should work because RemoteUserBinding is targeted", func() {
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -249,8 +241,8 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            repoUrl,
 				RemoteUserBindingSelector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{myLabelKey: myLabelValue},
@@ -287,7 +279,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
-			_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
 				cm,
 				metav1.CreateOptions{},
 			)
@@ -386,8 +378,8 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

@@ -16,4 +16,53 @@ limitations under the License.
 
 package v1beta1
 
-func (*RemoteSyncer) Hub() {}
+import (
+	v1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	"sigs.k8s.io/controller-runtime/pkg/conversion"
+)
+
+func (src *RemoteSyncer) ConvertTo(dstRaw conversion.Hub) error {
+	dst := dstRaw.(*v1beta3.RemoteSyncer)
+
+	// Common conversion
+	dst.ObjectMeta = src.ObjectMeta
+
+	dst.Spec.DefaultBranch = src.Spec.DefaultBranch
+	dst.Spec.BypassInterceptionSubjects = src.Spec.BypassInterceptionSubjects
+	dst.Spec.DefaultBlockAppliedMessage = src.Spec.DefaultBlockAppliedMessage
+	dst.Spec.DefaultUnauthorizedUserMode = v1beta3.DefaultUnauthorizedUserMode(src.Spec.DefaultUnauthorizedUserMode)
+	dst.Spec.DefaultRemoteUserRef = src.Spec.DefaultRemoteUserRef
+	dst.Spec.ExcludedFields = src.Spec.ExcludedFields
+	dst.Spec.ExcludedFieldsConfigMapRef = src.Spec.ExcludedFieldsConfigMapRef
+	dst.Spec.RemoteRepository = src.Spec.RemoteRepository
+	dst.Spec.RootPath = src.Spec.RootPath
+	dst.Spec.ScopedResources = v1beta3.ScopedResources(src.Spec.ScopedResources)
+	dst.Spec.Strategy = v1beta3.Strategy(src.Spec.ProcessMode)
+	dst.Spec.TargetStrategy = v1beta3.TargetStrategy(src.Spec.PushMode)
+	dst.Spec.CABundleSecretRef = src.Spec.CABundleSecretRef
+
+	return nil
+}
+
+func (dst *RemoteSyncer) ConvertFrom(srcRaw conversion.Hub) error {
+	src := srcRaw.(*v1beta3.RemoteSyncer)
+
+	// Common conversion
+	dst.ObjectMeta = src.ObjectMeta
+
+	dst.Spec.DefaultBranch = src.Spec.DefaultBranch
+	dst.Spec.BypassInterceptionSubjects = src.Spec.BypassInterceptionSubjects
+	dst.Spec.DefaultBlockAppliedMessage = src.Spec.DefaultBlockAppliedMessage
+	dst.Spec.DefaultUnauthorizedUserMode = DefaultUnauthorizedUserMode(src.Spec.DefaultUnauthorizedUserMode)
+	dst.Spec.DefaultRemoteUserRef = src.Spec.DefaultRemoteUserRef
+	dst.Spec.ExcludedFields = src.Spec.ExcludedFields
+	dst.Spec.ExcludedFieldsConfigMapRef = src.Spec.ExcludedFieldsConfigMapRef
+	dst.Spec.RemoteRepository = src.Spec.RemoteRepository
+	dst.Spec.RootPath = src.Spec.RootPath
+	dst.Spec.ScopedResources = ScopedResources(src.Spec.ScopedResources)
+	dst.Spec.ProcessMode = ProcessMode(src.Spec.Strategy)
+	dst.Spec.PushMode = PushMode(src.Spec.TargetStrategy)
+	dst.Spec.CABundleSecretRef = src.Spec.CABundleSecretRef
+
+	return nil
+}

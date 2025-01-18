@@ -44,12 +44,12 @@ type RemoteSyncerSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:default:value="CommitApply"
 	// +kubebuilder:validation:Enum=CommitOnly;CommitApply
-	ProcessMode ProcessMode `json:"processMode" protobuf:"bytes,4,name=processMode"`
+	Strategy Strategy `json:"strategy" protobuf:"bytes,4,name=strategy"`
 
 	// +kubebuilder:validation:Required
 	// +kubebuilder:default:value="SameBranch"
-	// +kubebuilder:validation:Enum=SameBranch;MultipleBranch;MergeRequest
-	PushMode PushMode `json:"pushMode" protobuf:"bytes,5,name=pushMode"`
+	// +kubebuilder:validation:Enum=SameBranch;MultipleBranch;Fork
+	TargetStrategy TargetStrategy `json:"targetStrategy" protobuf:"bytes,5,name=targetStrategy"`
 
 	// +kubebuilder:validation:Optional
 	DefaultBlockAppliedMessage string `json:"defaultBlockAppliedMessage,omitempty" protobuf:"bytes,opt,6,name=defaultBlockAppliedMessage"`
@@ -133,19 +133,19 @@ func init() {
 	SPEC EXTENSION
 */
 
-type PushMode string
+type TargetStrategy string
 
 const (
-	SameBranch     PushMode = "SameBranch"
-	MultipleBranch PushMode = "MultipleBranch"
-	MergeRequest   PushMode = "MergeRequest"
+	SameBranch     TargetStrategy = "SameBranch"
+	MultipleBranch TargetStrategy = "MultipleBranch"
+	Fork           TargetStrategy = "Fork"
 )
 
-type ProcessMode string
+type Strategy string
 
 const (
-	CommitOnly  ProcessMode = "CommitOnly"
-	CommitApply ProcessMode = "CommitApply"
+	CommitOnly  Strategy = "CommitOnly"
+	CommitApply Strategy = "CommitApply"
 )
 
 type DefaultUnauthorizedUserMode string

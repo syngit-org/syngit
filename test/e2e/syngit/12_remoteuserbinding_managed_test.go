@@ -26,7 +26,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var _ = Describe("12 RemoteUserBinding managed by checker", func() {
@@ -36,10 +35,6 @@ var _ = Describe("12 RemoteUserBinding managed by checker", func() {
 	)
 
 	It("should create a remoteuserbinding with a suffix number", func() {
-
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
 
 		By("creating the RemoteUser")
 		luffySecretName := string(Luffy) + "-creds"

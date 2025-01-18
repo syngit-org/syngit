@@ -551,10 +551,10 @@ func (wrc *WebhookRequestChecker) gitPushPostChecker(isPushed bool, err error, d
 
 func (wrc *WebhookRequestChecker) postcheck(details *wrcDetails) bool {
 	// Check the Commit Process mode
-	if wrc.remoteSyncer.Spec.ProcessMode == syngit.CommitOnly {
+	if wrc.remoteSyncer.Spec.Strategy == syngit.CommitOnly {
 		details.webhookPass = false
 	}
-	if wrc.remoteSyncer.Spec.ProcessMode == syngit.CommitApply {
+	if wrc.remoteSyncer.Spec.Strategy == syngit.CommitApply {
 		details.webhookPass = true
 	}
 

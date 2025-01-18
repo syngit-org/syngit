@@ -27,7 +27,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var _ = Describe("06 Test objects lifecycle", func() {
@@ -40,10 +39,6 @@ var _ = Describe("06 Test objects lifecycle", func() {
 	)
 
 	It("should properly manage the RemoteUserBinding associated webhooks", func() {
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
 		luffySecretName := string(Luffy) + "-creds"
 
 		By("creating the RemoteUser & RemoteUserBinding for Luffy (jupyter)")
@@ -150,16 +145,13 @@ var _ = Describe("06 Test objects lifecycle", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that RemoteUserBinding does not exists")
-		err = sClient.As(Luffy).Get(nnRub, getRub)
+		err := sClient.As(Luffy).Get(nnRub, getRub)
 
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("not found"))
 	})
 
 	It("should properly manage the RemoteSyncer associated webhooks", func() {
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
 
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
@@ -196,8 +188,8 @@ var _ = Describe("06 Test objects lifecycle", func() {
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

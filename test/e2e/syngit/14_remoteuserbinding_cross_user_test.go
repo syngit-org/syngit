@@ -25,7 +25,6 @@ import (
 	. "github.com/syngit-org/syngit/test/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var _ = Describe("14 RemoteUser RBAC cross user test", func() {
@@ -36,10 +35,6 @@ var _ = Describe("14 RemoteUser RBAC cross user test", func() {
 	)
 
 	It("should deny update of the RemoteUser", func() {
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
 		By("creating the RemoteUser for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
