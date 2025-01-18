@@ -17,8 +17,6 @@ limitations under the License.
 package e2e_syngit
 
 import (
-	"fmt"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	syngitv1beta2 "github.com/syngit-org/syngit/pkg/api/v1beta2"
@@ -56,7 +54,6 @@ var _ = Describe("15 conversion webhook test", func() {
 		}
 		Eventually(func() bool {
 			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffy)
-			fmt.Println(err)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -80,8 +77,7 @@ var _ = Describe("15 conversion webhook test", func() {
 			Spec: syngitv1beta2.RemoteUserBindingSpec{
 				RemoteRefs: []corev1.ObjectReference{
 					{
-						Name:      "fake-remoteuser",
-						Namespace: namespace,
+						Name: "fake-remoteuser",
 					},
 				},
 			},
@@ -134,7 +130,6 @@ var _ = Describe("15 conversion webhook test", func() {
 		}
 		Eventually(func() bool {
 			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
-			fmt.Println(err)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 

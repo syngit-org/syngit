@@ -39,6 +39,13 @@ func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Status.LastAuthTime = src.Status.LastAuthTime
 	dst.Status.SecretBoundStatus = v1beta3.SecretBoundStatus(src.Status.SecretBoundStatus)
 
+	// Annotation transfer
+	if dst.Annotations == nil {
+		dst.Annotations = map[string]string{}
+	}
+	dst.Annotations[v1beta3.RubAnnotation] = src.Annotations[RubAnnotation]
+	dst.Annotations[RubAnnotation] = ""
+
 	return nil
 }
 
@@ -59,6 +66,13 @@ func (dst *RemoteUser) ConvertFrom(srcRaw conversion.Hub) error {
 	dst.Status.GitUser = src.Status.GitUser
 	dst.Status.LastAuthTime = src.Status.LastAuthTime
 	dst.Status.SecretBoundStatus = SecretBoundStatus(src.Status.SecretBoundStatus)
+
+	// Annotation transfer
+	if dst.Annotations == nil {
+		dst.Annotations = map[string]string{}
+	}
+	dst.Annotations[RubAnnotation] = src.Annotations[v1beta3.RubAnnotation]
+	dst.Annotations[v1beta3.RubAnnotation] = ""
 
 	return nil
 }

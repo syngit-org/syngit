@@ -76,6 +76,32 @@ rules:
 - apiGroups:
   - syngit.io
   resources:
+  - remotetargets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - syngit.io
+  resources:
+  - remotetargets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - syngit.io
+  resources:
+  - remotetargets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - syngit.io
+  resources:
   - remoteuserbindings
   verbs:
   - create

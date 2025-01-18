@@ -64,6 +64,9 @@ var _ = Describe("RemoteSyncer Controller", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      remotesyncername,
 						Namespace: userNamespace,
+						Annotations: map[string]string{
+							syngit.RtAnnotationOneOrManyBranchesKey: "main",
+						},
 					},
 					Spec: syngit.RemoteSyncerSpec{
 						DefaultBlockAppliedMessage:  "test",
@@ -71,7 +74,7 @@ var _ = Describe("RemoteSyncer Controller", func() {
 						DefaultUnauthorizedUserMode: syngit.Block,
 						ExcludedFields:              []string{".metadata.uid"},
 						Strategy:                    syngit.CommitOnly,
-						TargetStrategy:              syngit.SameBranch,
+						TargetStrategy:              syngit.OneTarget,
 						RemoteRepository:            "https://dummy-git-server.com",
 						ScopedResources: syngit.ScopedResources{
 							Rules: []admissionv1.RuleWithOperations{{

@@ -32,7 +32,6 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 
 	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
-
 	// +kubebuilder:scaffold:imports
 	apimachineryruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -122,6 +121,9 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	err = SetupRemoteUserWebhookWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = SetupRemoteTargetWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
 	// +kubebuilder:scaffold:webhook

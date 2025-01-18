@@ -36,8 +36,10 @@ var _ = Describe("16 Wrong reference or value test", func() {
 	const (
 		remoteSyncerName           = "remotesyncer-test16"
 		remoteUserLuffyName        = "remoteuser-luffy"
+		remoteUserChopperName      = "remoteuser-chopper"
 		remoteUserBindingLuffyName = "remoteuserbinding-luffy"
 		cmName                     = "test-cm16"
+		branch                     = "main"
 	)
 
 	It("should get errored because of wrong resource reference or wrong value", func() {
@@ -81,8 +83,12 @@ var _ = Describe("16 Wrong reference or value test", func() {
 			Spec: syngit.RemoteUserBindingSpec{
 				RemoteUserRefs: []corev1.ObjectReference{
 					{
-						Name:      "fake-remoteuser",
-						Namespace: namespace,
+						Name: "fake-remoteuser",
+					},
+				},
+				RemoteTargetRefs: []corev1.ObjectReference{
+					{
+						Name: "fake-remotetarget",
 					},
 				},
 			},
@@ -98,14 +104,17 @@ var _ = Describe("16 Wrong reference or value test", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -172,17 +181,23 @@ var _ = Describe("16 Wrong reference or value test", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.UseDefaultUser,
 				DefaultRemoteUserRef: &corev1.ObjectReference{
 					Name: "fake-defaultuser",
 				},
+				DefaultRemoteTargetRef: &corev1.ObjectReference{
+					Name: "fake-defaulttarget",
+				},
 				ExcludedFields:   []string{".metadata.uid"},
 				Strategy:         syngit.CommitApply,
-				TargetStrategy:   syngit.SameBranch,
+				TargetStrategy:   syngit.OneTarget,
 				RemoteRepository: repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -212,6 +227,92 @@ var _ = Describe("16 Wrong reference or value test", func() {
 				metav1.CreateOptions{},
 			)
 			return err != nil && strings.Contains(err.Error(), defaultUserNotFound)
+		}, timeout, interval).Should(BeTrue())
+
+		By("checking that the configmap is not present on the repo")
+		Wait3()
+		exists, err = IsObjectInRepo(*repo, cm)
+		Expect(err).To(HaveOccurred())
+		Expect(exists).To(BeFalse())
+
+		By("checking that the configmap is not present on the cluster")
+		getCm = &corev1.ConfigMap{}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).Get(nnCm, getCm)
+			return err != nil && strings.Contains(err.Error(), notPresentOnCluser)
+		}, timeout, interval).Should(BeTrue())
+
+		By("only creating the RemoteUser for Chopper")
+		chopperSecretName := string(Chopper) + "-creds"
+		remoteUserChopper := &syngit.RemoteUser{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteUserChopperName,
+				Namespace: namespace,
+			},
+			Spec: syngit.RemoteUserSpec{
+				Email:             "sample@email.com",
+				GitBaseDomainFQDN: gitP1Fqdn,
+				SecretRef: corev1.SecretReference{
+					Name: chopperSecretName,
+				},
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Chopper).CreateOrUpdate(remoteUserChopper)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		By("creating the RemoteSyncer using wrong referenced default target")
+		remotesyncer = &syngit.RemoteSyncer{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteSyncerName,
+				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
+			},
+			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
+				DefaultBranch:               branch,
+				DefaultUnauthorizedUserMode: syngit.UseDefaultUser,
+				DefaultRemoteUserRef: &corev1.ObjectReference{
+					Name: remoteUserChopperName,
+				},
+				DefaultRemoteTargetRef: &corev1.ObjectReference{
+					Name: "fake-defaulttarget",
+				},
+				ExcludedFields:   []string{".metadata.uid"},
+				Strategy:         syngit.CommitApply,
+				TargetStrategy:   syngit.OneTarget,
+				RemoteRepository: repoUrl,
+				ScopedResources: syngit.ScopedResources{
+					Rules: []admissionv1.RuleWithOperations{{
+						Operations: []admissionv1.OperationType{
+							admissionv1.Create,
+						},
+						Rule: admissionv1.Rule{
+							APIGroups:   []string{""},
+							APIVersions: []string{"v1"},
+							Resources:   []string{"configmaps"},
+						},
+					},
+					},
+				},
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		By("creating a test configmap")
+		Wait3()
+		Eventually(func() bool {
+			_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+				cm,
+				metav1.CreateOptions{},
+			)
+			return err != nil && strings.Contains(err.Error(), defaultTargetNotFound)
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that the configmap is not present on the repo")

@@ -34,11 +34,13 @@ var _ = Describe("05 Use a default user", func() {
 	ctx := context.TODO()
 
 	const (
-		cmName                = "test-cm5"
-		remoteUserLuffyName   = "remoteuser-luffy"
-		remoteUserChopperName = "remoteuser-chopper"
-		remoteUserSanjiName   = "remoteuser-sanji"
-		remoteSyncerName      = "remotesyncer-test5"
+		cmName                  = "test-cm5"
+		remoteUserLuffyName     = "remoteuser-luffy"
+		remoteUserChopperName   = "remoteuser-chopper"
+		remoteUserSanjiName     = "remoteuser-sanji"
+		remoteSyncerName        = "remotesyncer-test5"
+		branch                  = "main"
+		defaultRemoteTargetName = "remotesyncer-test5"
 	)
 
 	It("should use the default user to push the resource", func() {
@@ -83,23 +85,46 @@ var _ = Describe("05 Use a default user", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		repoUrl := "https://" + gitP1Fqdn + "/syngituser/green.git"
+		By("creating the default RemoteTarget")
+		remoteTarget := &syngit.RemoteTarget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaultRemoteTargetName,
+				Namespace: namespace,
+			},
+			Spec: syngit.RemoteTargetSpec{
+				UpstreamRepository: repoUrl,
+				TargetRepository:   repoUrl,
+				UpstreamBranch:     branch,
+				TargetBranch:       branch,
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remoteTarget)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.UseDefaultUser,
 				ExcludedFields:              []string{".metadata.uid"},
 				DefaultRemoteUserRef: &corev1.ObjectReference{
-					Name:      remoteUserChopperName,
-					Namespace: namespace,
+					Name: remoteUserChopperName,
+				},
+				DefaultRemoteTargetRef: &corev1.ObjectReference{
+					Name: defaultRemoteTargetName,
 				},
 				Strategy:         syngit.CommitApply,
-				TargetStrategy:   syngit.SameBranch,
+				TargetStrategy:   syngit.OneTarget,
 				RemoteRepository: repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

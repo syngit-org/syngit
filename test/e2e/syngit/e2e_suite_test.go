@@ -70,8 +70,13 @@ const (
 	x509ErrorMessage            = "x509: certificate signed by unknown authority"
 	crossRubErrorMessage        = "the RemoteUser is already bound in the RemoteUserBinding"
 	rubNotFound                 = "no RemoteUserBinding found for the user"
-	defaultUserNotFound         = "the default user is not found"
+	defaultUserNotFound         = "the default RemoteUser is not found"
+	defaultTargetNotFound       = "the default RemoteTarget is not found"
 	notPresentOnCluser          = "not found"
+	sameBranchRepo              = "should not be set when the target repo & target branch are the same as the upstream repo & branch"
+	rtNotFound                  = "no RemoteTarget found"
+	ruNotFound                  = "no RemoteUser found"
+	oneTargetForMultipleMessage = "multiple RemoteTargets found for OneTarget set as the TargetStrategy in the RemoteSyncer"
 )
 
 // CMD & CLIENT
@@ -205,6 +210,8 @@ func setupManager() {
 	Expect(errWebhook).NotTo(HaveOccurred())
 	errWebhook = webhooksyngitv1beta3.SetupRemoteUserBindingWebhookWithManager(k8sManager)
 	Expect(errWebhook).NotTo(HaveOccurred())
+	errWebhook = webhooksyngitv1beta3.SetupRemoteTargetWebhookWithManager(k8sManager)
+	Expect(errWebhook).NotTo(HaveOccurred())
 	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remoteuser-association", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserAssociationWebhookHandler{
 		Client:  k8sManager.GetClient(),
 		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
@@ -221,6 +228,10 @@ func setupManager() {
 		Client:  k8sManager.GetClient(),
 		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
 	}})
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remotesyncer-target-pattern", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteSyncerTargetPatternWebhookHandler{
+		Client:  k8sManager.GetClient(),
+		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
+	}})
 
 	By("setting up the controllers")
 	errController := (&controllerssyngit.RemoteUserReconciler{
@@ -234,6 +245,11 @@ func setupManager() {
 	}).SetupWithManager(k8sManager)
 	Expect(errController).ToNot(HaveOccurred())
 	errController = (&controllerssyngit.RemoteSyncerReconciler{
+		Client: k8sManager.GetClient(),
+		Scheme: k8sManager.GetScheme(),
+	}).SetupWithManager(k8sManager)
+	Expect(errController).ToNot(HaveOccurred())
+	errController = (&controllerssyngit.RemoteTargetReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 	}).SetupWithManager(k8sManager)
@@ -485,10 +501,19 @@ func deleteRbac(ctx context.Context) {
 
 }
 
+func deleteRepos() {
+	By("reseting the gitea repos")
+	cmd := exec.Command("make", "reset-gitea")
+	_, err := Run(cmd)
+	Expect(err).NotTo(HaveOccurred())
+}
+
 var _ = AfterSuite(func() {
 	ctx := context.TODO()
 
 	deleteRbac(ctx)
+
+	deleteRepos()
 
 	By("tearing down the test environment")
 	Eventually(func() bool {
@@ -505,9 +530,28 @@ var _ = AfterSuite(func() {
 var _ = AfterEach(func() {
 	ctx := context.TODO()
 
+	By(fmt.Sprintf("deleting the remotetargets from the %s ns", namespace))
+	remoteTargets := &syngit.RemoteTargetList{}
+	err := sClient.As(Admin).List(namespace, remoteTargets)
+	if err == nil {
+		for _, remotetarget := range remoteTargets.Items {
+			nnRub := types.NamespacedName{
+				Name:      remotetarget.Name,
+				Namespace: remotetarget.Namespace,
+			}
+			rub := &syngit.RemoteTarget{}
+			err = sClient.As(Admin).Get(nnRub, rub)
+			Expect(err).NotTo(HaveOccurred())
+			Eventually(func() bool {
+				err := sClient.As(Admin).Delete(rub)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+		}
+	}
+
 	By(fmt.Sprintf("deleting the remotesyncers from the %s ns", namespace))
 	remoteSyncers := &syngit.RemoteSyncerList{}
-	err := sClient.As(Admin).List(namespace, remoteSyncers)
+	err = sClient.As(Admin).List(namespace, remoteSyncers)
 	if err == nil {
 		for _, remotesyncer := range remoteSyncers.Items {
 			nnRs := types.NamespacedName{
@@ -587,6 +631,8 @@ var _ = AfterEach(func() {
 			}
 		}
 	}
+
+	deleteRepos()
 
 })
 

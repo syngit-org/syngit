@@ -51,6 +51,47 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /syngit-v1beta3-remotesyncer-target-pattern
+  failurePolicy: Fail
+  name: vremotesyncers-target-pattern.v1beta3.syngit.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta3
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - remotesyncers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-syngit-io-v1beta3-remotetarget
+  failurePolicy: Fail
+  name: vremotetarget-v1beta3.kb.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta3
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - remotetargets
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-syngit-io-v1beta3-remoteuser
   failurePolicy: Fail
   name: vremoteuser-v1beta3.kb.io
@@ -64,6 +105,26 @@ webhooks:
     - UPDATE
     resources:
     - remoteusers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-syngit-io-v1beta3-remoteuserbinding
+  failurePolicy: Fail
+  name: vremoteuserbinding-v1beta3.kb.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta3
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - remoteuserbindings
   sideEffects: None
 - admissionReviewVersions:
   - v1

@@ -37,6 +37,7 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 		remoteSyncerName    = "remotesyncer-test3"
 		remoteUserLuffyName = "remoteuser-luffy"
 		cmName              = "test-cm3"
+		branch              = "main"
 	)
 
 	It("should create the resource on the git repo & cluster and delete the resource", func() {
@@ -69,14 +70,17 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

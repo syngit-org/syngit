@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -34,9 +35,10 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 	ctx := context.TODO()
 
 	const (
-		cmName               = "test-cm2"
-		remoteUserLufffyName = "remoteuser-luffy"
-		remoteSyncerName     = "remotesyncer-test2"
+		cmName              = "test-cm2"
+		remoteUserLuffyName = "remoteuser-luffy"
+		remoteSyncerName    = "remotesyncer-test2"
+		branch              = "main"
 	)
 
 	It("should not create the resource on the cluster", func() {
@@ -44,7 +46,7 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteUserLufffyName,
+				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 				Annotations: map[string]string{
 					syngit.RubAnnotation: "true",
@@ -69,14 +71,17 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
 				DefaultBlockAppliedMessage:  defaultDeniedMessage,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				Strategy:                    syngit.CommitOnly,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -113,6 +118,7 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
+			fmt.Println(err)
 			return err != nil && strings.Contains(err.Error(), defaultDeniedMessage)
 		}, timeout, interval).Should(BeTrue())
 

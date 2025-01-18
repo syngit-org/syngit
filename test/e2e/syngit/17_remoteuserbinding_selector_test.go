@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -44,9 +45,12 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 		cmName1                    = "test-cm17.1"
 		cmName2                    = "test-cm17.2"
 		cmName3                    = "test-cm17.3"
+		branch                     = "main"
 	)
 
-	It("should not work because RemoteUserBinding not targeted", func() {
+	remoteTargetName := fmt.Sprintf("%s-syngituser-blue-%s-syngituser-blue-%s", syngit.RtPrefix, branch, branch)
+
+	It("should not push because RemoteUserBinding not targeted", func() {
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -82,8 +86,12 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 			Spec: syngit.RemoteUserBindingSpec{
 				RemoteUserRefs: []corev1.ObjectReference{
 					{
-						Name:      remoteUserLuffyName,
-						Namespace: namespace,
+						Name: remoteUserLuffyName,
+					},
+				},
+				RemoteTargetRefs: []corev1.ObjectReference{
+					{
+						Name: remoteTargetName,
 					},
 				},
 				Subject: rbacv1.Subject{
@@ -103,14 +111,17 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName1,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				RemoteUserBindingSelector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{myLabelKey: "another-value"},
@@ -178,8 +189,8 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 
 	})
 
-	It("should work because RemoteUserBinding is targeted", func() {
-		By("creating the RemoteUser & RemoteUserBinding for Luffy")
+	It("should push because RemoteUserBinding is targeted", func() {
+		By("creating the RemoteUser")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
@@ -214,8 +225,12 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 			Spec: syngit.RemoteUserBindingSpec{
 				RemoteUserRefs: []corev1.ObjectReference{
 					{
-						Name:      remoteUserLuffyName,
-						Namespace: namespace,
+						Name: remoteUserLuffyName,
+					},
+				},
+				RemoteTargetRefs: []corev1.ObjectReference{
+					{
+						Name: remoteTargetName,
 					},
 				},
 				Subject: rbacv1.Subject{
@@ -235,14 +250,17 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName2,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				RemoteUserBindingSelector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{myLabelKey: myLabelValue},
@@ -316,7 +334,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 		err := syngit.AddToScheme(scheme.Scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		By("creating the RemoteUser & RemoteUserBinding for Luffy")
+		By("creating the RemoteUser")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
@@ -351,8 +369,12 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 			Spec: syngit.RemoteUserBindingSpec{
 				RemoteUserRefs: []corev1.ObjectReference{
 					{
-						Name:      remoteUserLuffyName,
-						Namespace: namespace,
+						Name: remoteUserLuffyName,
+					},
+				},
+				RemoteTargetRefs: []corev1.ObjectReference{
+					{
+						Name: remoteTargetName,
 					},
 				},
 				Subject: rbacv1.Subject{
@@ -372,14 +394,17 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName3,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
