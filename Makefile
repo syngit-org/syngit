@@ -240,6 +240,7 @@ deploy-all: kind-create-cluster docker-build kind-load-image cleanup-tests deplo
 
 .PHONY: setup-webhooks-for-run
 setup-webhooks-for-run: manifests kustomize ## Setup webhooks using auto-generated certs & docker bridge host (make run).
+	cleanup-webhooks-for-run || true
 	./hack/webhooks/cert-injector.sh $(WEBHOOK_PATH) $(CRD_PATH) $(DEV_LOCAL_PATH)/run $(TEMP_CERT_DIR) $(LOCALHOST_BRIDGE)
 	./hack/webhooks/run/inject-for-run.sh $(LOCALHOST_BRIDGE)
 	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/run | $(KUBECTL) apply -f -
@@ -257,6 +258,7 @@ setup-webhooks-for-deploy: manifests kustomize ## Setup webhooks using auto-gene
 
 .PHONY: cleanup-webhooks-for-deploy
 cleanup-webhooks-for-deploy: manifests kustomize ## Cleanup webhooks using auto-generated certs (make deploy).
+	cleanup-webhooks-for-deploy || true
 	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/deploy | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 	./hack/webhooks/cleanup-injector.sh $(TEMP_CERT_DIR) || true
 	mv $(DEV_LOCAL_PATH)/deploy/webhook/secret.yaml.bak $(DEV_LOCAL_PATH)/deploy/webhook/secret.yaml || true

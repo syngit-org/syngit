@@ -27,7 +27,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var _ = Describe("08 Webhook rbac checker", func() {
@@ -43,10 +42,6 @@ var _ = Describe("08 Webhook rbac checker", func() {
 	ctx := context.TODO()
 
 	It("should deny the resource because of lack of permissions", func() {
-
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
 
 		By("creating the RemoteUser & RemoteUserBinding for Brook (test the RUB creation without the right permissions)")
 		brookSecretName := string(Brook) + "-creds"
@@ -83,8 +78,8 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -101,7 +96,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				},
 			},
 		}
-		err = sClient.As(Brook).CreateOrUpdate(remotesyncer)
+		err := sClient.As(Brook).CreateOrUpdate(remotesyncer)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(rsPermissionsDeniedMessage))
 
@@ -151,10 +146,6 @@ var _ = Describe("08 Webhook rbac checker", func() {
 
 	It("should create the resource using the minimum permissions", func() {
 
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
 		By("creating the RemoteUser & RemoteUserBinding for Brook (test the RUB creation without the right permissions)")
 		brookSecretName := string(Brook) + "-creds"
 		remoteUserBrook := &syngit.RemoteUser{
@@ -190,8 +181,8 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -209,7 +200,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				},
 			},
 		}
-		err = sClient.As(Brook).CreateOrUpdate(remotesyncer)
+		err := sClient.As(Brook).CreateOrUpdate(remotesyncer)
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring(rsPermissionsDeniedMessage))
 		Expect(err.Error()).To(ContainSubstring("DELETE"))
@@ -225,8 +216,8 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

@@ -50,6 +50,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	syngitv1beta2 "github.com/syngit-org/syngit/pkg/api/v1beta2"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 )
 
@@ -143,15 +144,28 @@ func setupManager() {
 	os.Setenv("DYNAMIC_WEBHOOK_NAME", dynamicWebhookName)
 	os.Setenv("GITEA_TEMP_CERT_DIR", "/tmp/gitea-certs")
 
+	By("adding syngit to scheme")
+	// Add the previous apiVersion for conversion
+	err := syngitv1beta2.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+	// Add the current apiVersion
+	err = syngit.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		WebhookInstallOptions: envtest.WebhookInstallOptions{
-			Paths: []string{filepath.Join(".", "config", "webhook", "manifests.yaml")},
+			IgnoreSchemeConvertible: true,
+			Paths:                   []string{filepath.Join(".", "config", "webhook", "manifests.yaml")},
 		},
 		CRDDirectoryPaths: []string{filepath.Join(".", "config", "crd", "bases")},
 
 		BinaryAssetsDirectory: filepath.Join(".", "bin", "k8s",
 			fmt.Sprintf("1.29.0-%s-%s", runtime.GOOS, runtime.GOARCH)),
+
+		CRDInstallOptions: envtest.CRDInstallOptions{
+			Scheme: scheme.Scheme,
+		},
 
 		ControlPlaneStartTimeout: 5 * 30 * time.Second,
 	}

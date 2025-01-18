@@ -39,10 +39,6 @@ import (
 
 	"github.com/syngit-org/syngit/internal/controller"
 	webhooksyngitv1beta3 "github.com/syngit-org/syngit/internal/webhook/v1beta3"
-	syngitv1alpha1 "github.com/syngit-org/syngit/pkg/api/v1alpha1"
-	syngitv1alpha2 "github.com/syngit-org/syngit/pkg/api/v1alpha2"
-	syngitv1alpha3 "github.com/syngit-org/syngit/pkg/api/v1alpha3"
-	syngitv1alpha4 "github.com/syngit-org/syngit/pkg/api/v1alpha4"
 	syngitv1beta1 "github.com/syngit-org/syngit/pkg/api/v1beta1"
 	syngitv1beta2 "github.com/syngit-org/syngit/pkg/api/v1beta2"
 	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
@@ -57,10 +53,6 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(syngitv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(syngitv1alpha2.AddToScheme(scheme))
-	utilruntime.Must(syngitv1alpha3.AddToScheme(scheme))
-	utilruntime.Must(syngitv1alpha4.AddToScheme(scheme))
 	utilruntime.Must(syngitv1beta1.AddToScheme(scheme))
 	utilruntime.Must(syngitv1beta2.AddToScheme(scheme))
 	utilruntime.Must(syngitv1beta3.AddToScheme(scheme))

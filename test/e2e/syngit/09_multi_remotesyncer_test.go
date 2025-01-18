@@ -28,7 +28,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var _ = Describe("09 Multi RemoteSyncer test", func() {
@@ -43,10 +42,6 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 	ctx := context.TODO()
 
 	It("should push the ConfigMap on 2 different repo", func() {
-
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
 
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
@@ -83,8 +78,8 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            blueUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -101,7 +96,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				},
 			},
 		}
-		err = sClient.As(Luffy).CreateOrUpdate(blueRemotesyncer)
+		err := sClient.As(Luffy).CreateOrUpdate(blueRemotesyncer)
 		Expect(err).ToNot(HaveOccurred())
 
 		greenUrl := "https://" + gitP1Fqdn + "/syngituser/green.git"
@@ -116,8 +111,8 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            greenUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -192,10 +187,6 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 
 	It("should push the resource & deny the request (because of locking resource)", func() {
 
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -231,8 +222,8 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            blueUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -249,7 +240,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				},
 			},
 		}
-		err = sClient.As(Luffy).CreateOrUpdate(blueRemotesyncer)
+		err := sClient.As(Luffy).CreateOrUpdate(blueRemotesyncer)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("creating the RemoteSyncer for the blue repo twice")
@@ -263,8 +254,8 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngit.CommitApply,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            blueUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

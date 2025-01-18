@@ -54,7 +54,16 @@ var _ = BeforeSuite(func() {
 	By("creating test namespace")
 	cmd = exec.Command("kubectl", "create", "ns", testNamespace)
 	_, errNs = utils.Run(cmd)
-	ExpectWithOffset(1, errNs).NotTo(HaveOccurred())
+	if errNs != nil && !strings.Contains(errNs.Error(), "already exists") {
+		ExpectWithOffset(1, errNs).NotTo(HaveOccurred())
+	} else {
+		cmd = exec.Command("kubectl", "delete", "ns", testNamespace)
+		_, errDelNs := utils.Run(cmd)
+		ExpectWithOffset(1, errDelNs).NotTo(HaveOccurred())
+		cmd = exec.Command("kubectl", "create", "ns", testNamespace)
+		_, errNs = utils.Run(cmd)
+		ExpectWithOffset(1, errNs).NotTo(HaveOccurred())
+	}
 
 	var controllerPodName string
 	var err error

@@ -28,7 +28,6 @@ import (
 	v1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var _ = Describe("07 Subject bypasses interception", func() {
@@ -43,10 +42,6 @@ var _ = Describe("07 Subject bypasses interception", func() {
 	It("should apply the resource on the cluster but not push it on the git repository (CommitApply)", func() { //nolint:dupl
 
 		ctx := context.TODO()
-
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
 
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
@@ -88,8 +83,8 @@ var _ = Describe("07 Subject bypasses interception", func() {
 					Name:     string(Luffy),
 				}},
 				ExcludedFields:   []string{".metadata.uid"},
-				ProcessMode:      syngit.CommitApply,
-				PushMode:         syngit.SameBranch,
+				Strategy:         syngit.CommitApply,
+				TargetStrategy:   syngit.SameBranch,
 				RemoteRepository: repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -122,7 +117,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
-			_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
 				cm,
 				metav1.CreateOptions{},
 			)
@@ -157,10 +152,6 @@ var _ = Describe("07 Subject bypasses interception", func() {
 	It("should apply the resource on the cluster but not push it on the git repository (CommitOnly)", func() { //nolint:dupl
 
 		ctx := context.TODO()
-
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
 
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
@@ -202,8 +193,8 @@ var _ = Describe("07 Subject bypasses interception", func() {
 					Name:     string(Luffy),
 				}},
 				ExcludedFields:   []string{".metadata.uid"},
-				ProcessMode:      syngit.CommitOnly,
-				PushMode:         syngit.SameBranch,
+				Strategy:         syngit.CommitOnly,
+				TargetStrategy:   syngit.SameBranch,
 				RemoteRepository: repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -236,7 +227,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
-			_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
 				cm,
 				metav1.CreateOptions{},
 			)

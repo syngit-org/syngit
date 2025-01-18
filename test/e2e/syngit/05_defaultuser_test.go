@@ -28,7 +28,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var _ = Describe("05 Use a default user", func() {
@@ -43,10 +42,6 @@ var _ = Describe("05 Use a default user", func() {
 	)
 
 	It("should use the default user to push the resource", func() {
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
 		By("only creating the RemoteUser for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -103,8 +98,8 @@ var _ = Describe("05 Use a default user", func() {
 					Name:      remoteUserChopperName,
 					Namespace: namespace,
 				},
-				ProcessMode:      syngit.CommitApply,
-				PushMode:         syngit.SameBranch,
+				Strategy:         syngit.CommitApply,
+				TargetStrategy:   syngit.SameBranch,
 				RemoteRepository: repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -137,7 +132,7 @@ var _ = Describe("05 Use a default user", func() {
 			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
-			_, err = sClient.KAs(Sanji).CoreV1().ConfigMaps(namespace).Create(ctx,
+			_, err := sClient.KAs(Sanji).CoreV1().ConfigMaps(namespace).Create(ctx,
 				cm,
 				metav1.CreateOptions{},
 			)
@@ -154,7 +149,7 @@ var _ = Describe("05 Use a default user", func() {
 		By("creating a test configmap that succeed (pushed as Luffy)")
 		Wait3()
 		Eventually(func() bool {
-			_, err = sClient.KAs(Sanji).CoreV1().ConfigMaps(namespace).Create(ctx,
+			_, err := sClient.KAs(Sanji).CoreV1().ConfigMaps(namespace).Create(ctx,
 				cm,
 				metav1.CreateOptions{},
 			)

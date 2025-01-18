@@ -70,8 +70,8 @@ var _ = Describe("RemoteSyncer Controller", func() {
 						DefaultBranch:               "main",
 						DefaultUnauthorizedUserMode: syngit.Block,
 						ExcludedFields:              []string{".metadata.uid"},
-						ProcessMode:                 syngit.CommitOnly,
-						PushMode:                    syngit.SameBranch,
+						Strategy:                    syngit.CommitOnly,
+						TargetStrategy:              syngit.SameBranch,
 						RemoteRepository:            "https://dummy-git-server.com",
 						ScopedResources: syngit.ScopedResources{
 							Rules: []admissionv1.RuleWithOperations{{

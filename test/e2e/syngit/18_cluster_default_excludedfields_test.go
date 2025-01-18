@@ -28,7 +28,6 @@ import (
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var _ = Describe("18 Cluster default excluded fields test", func() {
@@ -41,10 +40,6 @@ var _ = Describe("18 Cluster default excluded fields test", func() {
 	)
 
 	It("should exclude the cluster default fields from the git repo", func() {
-		By("adding syngit to scheme")
-		err := syngit.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -86,7 +81,7 @@ var _ = Describe("18 Cluster default excluded fields test", func() {
 				"excludedFields": "[\"metadata.uid\", \"metadata.managedFields\", \"metadata.annotations[test-annotation1]\", \"metadata.annotations.[test-annotation2]\"]",
 			},
 		}
-		_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(operatorNamespace).Create(ctx,
+		_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(operatorNamespace).Create(ctx,
 			excludedFieldsConfiMap,
 			metav1.CreateOptions{},
 		)
@@ -104,8 +99,8 @@ var _ = Describe("18 Cluster default excluded fields test", func() {
 				DefaultBlockAppliedMessage:  defaultDeniedMessage,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.Block,
-				ProcessMode:                 syngit.CommitOnly,
-				PushMode:                    syngit.SameBranch,
+				Strategy:                    syngit.CommitOnly,
+				TargetStrategy:              syngit.SameBranch,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

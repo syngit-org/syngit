@@ -28,7 +28,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var _ = Describe("15 conversion webhook test", func() {
@@ -40,12 +39,6 @@ var _ = Describe("15 conversion webhook test", func() {
 	)
 
 	It("should convert from the previous apiversion to the current one", func() {
-		By("adding syngit to scheme")
-		err := syngitv1beta2.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-		err = syngitv1beta3.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
 		By("creating the RemoteUser for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngitv1beta2.RemoteUser{
@@ -63,6 +56,7 @@ var _ = Describe("15 conversion webhook test", func() {
 		}
 		Eventually(func() bool {
 			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffy)
+			fmt.Println(err)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -73,7 +67,7 @@ var _ = Describe("15 conversion webhook test", func() {
 		}
 		ruLuffy := &syngitv1beta3.RemoteUser{}
 		Eventually(func() bool {
-			err = sClient.As(Luffy).Get(nnRuLuffy, ruLuffy)
+			err := sClient.As(Luffy).Get(nnRuLuffy, ruLuffy)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -104,7 +98,7 @@ var _ = Describe("15 conversion webhook test", func() {
 		}
 		rubLuffy := &syngitv1beta3.RemoteUserBinding{}
 		Eventually(func() bool {
-			err = sClient.As(Luffy).Get(nnRubLuffy, rubLuffy)
+			err := sClient.As(Luffy).Get(nnRubLuffy, rubLuffy)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -151,7 +145,7 @@ var _ = Describe("15 conversion webhook test", func() {
 		}
 		rsyLuffy := &syngitv1beta3.RemoteSyncer{}
 		Eventually(func() bool {
-			err = sClient.As(Luffy).Get(nnRsyLuffy, rsyLuffy)
+			err := sClient.As(Luffy).Get(nnRsyLuffy, rsyLuffy)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 

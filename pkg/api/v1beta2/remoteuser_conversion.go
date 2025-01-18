@@ -17,14 +17,12 @@ limitations under the License.
 package v1beta2
 
 import (
-	"strconv"
-
-	"github.com/syngit-org/syngit/pkg/api/v1beta1"
+	v1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
 func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*v1beta1.RemoteUser)
+	dst := dstRaw.(*v1beta3.RemoteUser)
 
 	// Common conversion
 	dst.ObjectMeta = src.ObjectMeta
@@ -36,25 +34,16 @@ func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
 
 	dst.Status.Conditions = src.Status.Conditions
 	dst.Status.ConnexionStatus.Details = src.Status.ConnexionStatus.Details
-	dst.Status.ConnexionStatus.Status = v1beta1.RemoteUserConnexionStatusReason(src.Status.ConnexionStatus.Status)
+	dst.Status.ConnexionStatus.Status = v1beta3.RemoteUserConnexionStatusReason(src.Status.ConnexionStatus.Status)
 	dst.Status.GitUser = src.Status.GitUser
 	dst.Status.LastAuthTime = src.Status.LastAuthTime
-	dst.Status.SecretBoundStatus = v1beta1.SecretBoundStatus(src.Status.SecretBoundStatus)
-
-	// Renaming
-
-	associatedRemoteUserBinding, err := strconv.ParseBool(src.Annotations[RubAnnotation])
-	if err != nil {
-		dst.Spec.AssociatedRemoteUserBinding = false
-	} else {
-		dst.Spec.AssociatedRemoteUserBinding = associatedRemoteUserBinding
-	}
+	dst.Status.SecretBoundStatus = v1beta3.SecretBoundStatus(src.Status.SecretBoundStatus)
 
 	return nil
 }
 
 func (dst *RemoteUser) ConvertFrom(srcRaw conversion.Hub) error {
-	src := srcRaw.(*v1beta1.RemoteUser)
+	src := srcRaw.(*v1beta3.RemoteUser)
 
 	// Common conversion
 	dst.ObjectMeta = src.ObjectMeta
@@ -70,11 +59,6 @@ func (dst *RemoteUser) ConvertFrom(srcRaw conversion.Hub) error {
 	dst.Status.GitUser = src.Status.GitUser
 	dst.Status.LastAuthTime = src.Status.LastAuthTime
 	dst.Status.SecretBoundStatus = SecretBoundStatus(src.Status.SecretBoundStatus)
-
-	// Renaming
-
-	associatedRemoteUserBinding := strconv.FormatBool(src.Spec.AssociatedRemoteUserBinding)
-	dst.Annotations[RubAnnotation] = associatedRemoteUserBinding
 
 	return nil
 }

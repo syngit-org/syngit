@@ -812,19 +812,6 @@ spec:
                 x-kubernetes-map-type: atomic
               insecureSkipTlsVerify:
                 type: boolean
-              processMode:
-                default: CommitApply
-                enum:
-                - CommitOnly
-                - CommitApply
-                type: string
-              pushMode:
-                default: SameBranch
-                enum:
-                - SameBranch
-                - MultipleBranch
-                - MergeRequest
-                type: string
               remoteRepository:
                 example: https://git.example.com/my-repo.git
                 format: uri
@@ -1009,12 +996,25 @@ spec:
                       type: object
                     type: array
                 type: object
+              strategy:
+                default: CommitApply
+                enum:
+                - CommitOnly
+                - CommitApply
+                type: string
+              targetStrategy:
+                default: SameBranch
+                enum:
+                - SameBranch
+                - MultipleBranch
+                - Fork
+                type: string
             required:
             - defaultUnauthorizedUserMode
-            - processMode
-            - pushMode
             - remoteRepository
             - scopedResources
+            - strategy
+            - targetStrategy
             type: object
           status:
             properties:
