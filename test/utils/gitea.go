@@ -35,9 +35,10 @@ import (
 )
 
 type Repo struct {
-	Fqdn  string
-	Owner string
-	Name  string
+	Fqdn   string
+	Owner  string
+	Name   string
+	Branch string
 }
 
 type Tree struct {

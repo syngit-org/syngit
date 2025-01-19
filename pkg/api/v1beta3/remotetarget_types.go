@@ -20,6 +20,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	RtAnnotationEnabled          = "syngit.io/remotetarget.managed"
+	RtAnnotationOneUserOneBranch = "syngit.io/remotetarget.pattern.one-user-one-branch"
+	RtAnnotationBranches         = "syngit.io/remotetarget.pattern.one-or-many-branches"
+	RtPrefix                     = "rt-"
+)
+
 // RemoteTargetSpec defines the desired state of RemoteTarget.
 type RemoteTargetSpec struct {
 
@@ -28,9 +35,9 @@ type RemoteTargetSpec struct {
 	// +kubebuilder:validation:Format=uri
 	UpstreamRepository string `json:"upstreamRepository" protobuf:"bytes,1,name=upstreamRepository"`
 
-	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Required
 	// +kubebuilder:example:"main"
-	UpstreamBranch string `jsong:"upstreamBranch" protobuf:"bytes,2,name=upstreamBranch"`
+	UpstreamBranch string `json:"upstreamBranch" protobuf:"bytes,2,name=upstreamBranch"`
 
 	// +kubebuilder:validation:Required
 	// +kubebuilder:example="https://git.example.com/my-target-repo.git"
@@ -39,8 +46,10 @@ type RemoteTargetSpec struct {
 
 	// +kubebuilder:validation:Required
 	// +kubebuilder:example:"main"
-	TargetBranch string `jsong:"targetBranch" protobuf:"bytes,4,name=targetBranch"`
+	TargetBranch string `json:"targetBranch" protobuf:"bytes,4,name=targetBranch"`
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=TryRebaseOrDie;TryRebaseOrOverwrite;Overwrite;""
 	ConsistencyStrategy ConsistencyStrategy `json:"consistencyStrategy" protobuf:"bytes,5,name=consistencyStrategy"`
 }
 

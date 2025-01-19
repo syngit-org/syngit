@@ -119,5 +119,9 @@ func GetLatestCommit(repoUrl string, repoOwner string, repoName string) (*Commit
 }
 
 func GetRepoTree(repo Repo) ([]Tree, error) {
-	return getTree(repo.Fqdn, repo.Owner, repo.Name, "main")
+	branch := "main"
+	if repo.Branch != "" {
+		branch = repo.Branch
+	}
+	return getTree(repo.Fqdn, repo.Owner, repo.Name, branch)
 }

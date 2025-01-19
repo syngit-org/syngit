@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -25,26 +26,31 @@ import (
 	. "github.com/syngit-org/syngit/test/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = Describe("07 Subject bypasses interception", func() {
+var _ = Describe("22 RemoteTarget multiple different branch", func() {
+	ctx := context.TODO()
 
 	const (
 		remoteUserLuffyName = "remoteuser-luffy"
-		remoteSyncer1Name   = "remotesyncer-test7.1"
-		remoteSyncer2Name   = "remotesyncer-test7.2"
-		cmName              = "test-cm7"
-		branch              = "main"
+		remoteSyncerName1   = "remotesyncer-test22.1"
+		remoteSyncerName2   = "remotesyncer-test22.2"
+		cmName1             = "test-cm22.1"
+		cmName2             = "test-cm22.2"
+		upstreamBranch      = "main"
+		branch1             = "different-branch1"
+		branch2             = "different-branch2"
+		branch3             = "different-branch3"
 	)
 
-	It("should apply the resource on the cluster but not push it on the git repository (CommitApply)", func() { //nolint:dupl
+	It("should push the ConfigMap to all the branches and the Luffy's branch", func() {
 
-		ctx := context.TODO()
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		targetBranch := string(Luffy)
 
-		By("creating the RemoteUser & RemoteUserBinding for Luffy")
+		By("creating the RemoteUser for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
@@ -67,29 +73,26 @@ var _ = Describe("07 Subject bypasses interception", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
+		branches := []string{branch1, branch2, branch3}
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteSyncer1Name,
+				Name:      remoteSyncerName1,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled:  "true",
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationEnabled:          "true",
+					syngit.RtAnnotationOneUserOneBranch: "true",
+					syngit.RtAnnotationBranches:         strings.Join(branches, ","),
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               branch,
+				DefaultBlockAppliedMessage:  defaultDeniedMessage,
+				DefaultBranch:               upstreamBranch,
 				DefaultUnauthorizedUserMode: syngit.Block,
-				BypassInterceptionSubjects: []v1.Subject{{
-					APIGroup: "rbac.authorization.k8s.io",
-					Kind:     "User",
-					Name:     string(Luffy),
-				}},
-				ExcludedFields:   []string{".metadata.uid"},
-				Strategy:         syngit.CommitApply,
-				RemoteRepository: repoUrl,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.MultipleTarget,
+				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
@@ -117,7 +120,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 				Kind:       "ConfigMap",
 				APIVersion: "v1",
 			},
-			ObjectMeta: metav1.ObjectMeta{Name: cmName, Namespace: namespace},
+			ObjectMeta: metav1.ObjectMeta{Name: cmName1, Namespace: namespace},
 			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
@@ -128,20 +131,21 @@ var _ = Describe("07 Subject bypasses interception", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("checking that the configmap is not present on the repo")
+		By("checking that the configmap is present on the repo")
 		Wait3()
 		repo := &Repo{
-			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+			Fqdn:   gitP1Fqdn,
+			Owner:  "syngituser",
+			Name:   "blue",
+			Branch: targetBranch,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
-		Expect(err).To(HaveOccurred())
-		Expect(exists).To(BeFalse())
+		Expect(err).ToNot(HaveOccurred())
+		Expect(exists).To(BeTrue())
 
 		By("checking that the configmap is present on the cluster")
 		nnCm := types.NamespacedName{
-			Name:      cmName,
+			Name:      cmName1,
 			Namespace: namespace,
 		}
 		getCm := &corev1.ConfigMap{}
@@ -153,11 +157,12 @@ var _ = Describe("07 Subject bypasses interception", func() {
 
 	})
 
-	It("should apply the resource on the cluster but not push it on the git repository (CommitOnly)", func() { //nolint:dupl
+	It("should deny the request because of the wrong strategy", func() {
 
-		ctx := context.TODO()
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		targetBranch := string(Luffy)
 
-		By("creating the RemoteUser & RemoteUserBinding for Luffy")
+		By("creating the RemoteUser for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
@@ -180,29 +185,26 @@ var _ = Describe("07 Subject bypasses interception", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
 		By("creating the RemoteSyncer")
+		branches := []string{branch1, branch2, branch3}
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteSyncer2Name,
+				Name:      remoteSyncerName2,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled: "true",
+					syngit.RtAnnotationEnabled:          "true",
+					syngit.RtAnnotationOneUserOneBranch: "true",
+					syngit.RtAnnotationBranches:         strings.Join(branches, ","),
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               branch,
+				DefaultBlockAppliedMessage:  defaultDeniedMessage,
+				DefaultBranch:               upstreamBranch,
 				DefaultUnauthorizedUserMode: syngit.Block,
-				BypassInterceptionSubjects: []v1.Subject{{
-					APIGroup: "rbac.authorization.k8s.io",
-					Kind:     "User",
-					Name:     string(Luffy),
-				}},
-				ExcludedFields:   []string{".metadata.uid"},
-				Strategy:         syngit.CommitOnly,
-				TargetStrategy:   syngit.OneTarget,
-				RemoteRepository: repoUrl,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.OneTarget,
+				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
@@ -230,7 +232,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 				Kind:       "ConfigMap",
 				APIVersion: "v1",
 			},
-			ObjectMeta: metav1.ObjectMeta{Name: cmName, Namespace: namespace},
+			ObjectMeta: metav1.ObjectMeta{Name: cmName2, Namespace: namespace},
 			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
@@ -241,20 +243,21 @@ var _ = Describe("07 Subject bypasses interception", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("checking that the configmap is not present on the repo")
+		By("checking that the configmap is present on the repo")
 		Wait3()
 		repo := &Repo{
-			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+			Fqdn:   gitP1Fqdn,
+			Owner:  "syngituser",
+			Name:   "blue",
+			Branch: targetBranch,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
-		Expect(err).To(HaveOccurred())
-		Expect(exists).To(BeFalse())
+		Expect(err).ToNot(HaveOccurred())
+		Expect(exists).To(BeTrue())
 
 		By("checking that the configmap is present on the cluster")
 		nnCm := types.NamespacedName{
-			Name:      cmName,
+			Name:      cmName2,
 			Namespace: namespace,
 		}
 		getCm := &corev1.ConfigMap{}

@@ -38,6 +38,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 		remoteSyncer2Name   = "remotesyncer-test8.2"
 		cmName              = "test-cm8"
 		secretName          = "test-secret8"
+		branch              = "main"
 	)
 	ctx := context.TODO()
 
@@ -72,14 +73,17 @@ var _ = Describe("08 Webhook rbac checker", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer1Name,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationEnabled: "true",
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -175,14 +179,17 @@ var _ = Describe("08 Webhook rbac checker", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer2Name,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationEnabled: "true",
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -210,14 +217,17 @@ var _ = Describe("08 Webhook rbac checker", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer2Name,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationEnabled: "true",
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

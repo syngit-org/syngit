@@ -38,6 +38,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 		remoteSyncer2Name   = "remotesyncer-test9.2"
 		cmName1             = "test-cm9.1"
 		cmName2             = "test-cm9.2"
+		branch              = "main"
 	)
 	ctx := context.TODO()
 
@@ -72,14 +73,17 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer1Name,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationEnabled: "true",
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            blueUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -105,14 +109,17 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer2Name,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationEnabled: "true",
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            greenUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -216,14 +223,17 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer1Name,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationEnabled: "true",
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            blueUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -248,14 +258,17 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer2Name,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationEnabled: "true",
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            blueUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

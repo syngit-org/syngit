@@ -18,7 +18,6 @@ package e2e_syngit
 
 import (
 	"context"
-	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -30,18 +29,21 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = Describe("03 CommitApply a ConfigMap", func() {
+var _ = Describe("24 One RemoteTarget scoped by multiple RemoteSyncers", func() {
 	ctx := context.TODO()
 
 	const (
-		remoteSyncerName    = "remotesyncer-test3"
 		remoteUserLuffyName = "remoteuser-luffy"
-		cmName              = "test-cm3"
+		remoteSyncerName1   = "remotesyncer-test24.1"
+		remoteSyncerName2   = "remotesyncer-test24.2"
+		cmName              = "test-cm24"
 		branch              = "main"
 	)
 
-	It("should create the resource on the git repo & cluster and delete the resource", func() {
-		By("creating the RemoteUser & RemoteUserBinding for Luffy")
+	It("should deny the RemoteTarget creation", func() {
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+
+		By("creating the RemoteUser for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
@@ -64,11 +66,10 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
-		By("creating the RemoteSyncer")
-		remotesyncer := &syngit.RemoteSyncer{
+		By("creating the first RemoteSyncer")
+		remotesyncer1 := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteSyncerName,
+				Name:      remoteSyncerName1,
 				Namespace: namespace,
 				Annotations: map[string]string{
 					syngit.RtAnnotationEnabled: "true",
@@ -76,9 +77,9 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
+				DefaultBlockAppliedMessage:  defaultDeniedMessage,
 				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
-				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
 				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
@@ -86,7 +87,6 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
 							admissionv1.Create,
-							admissionv1.Delete,
 						},
 						Rule: admissionv1.Rule{
 							APIGroups:   []string{""},
@@ -99,7 +99,50 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 			},
 		}
 		Eventually(func() bool {
-			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
+			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer1)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		By("creating the second RemoteSyncer")
+		remotesyncer2 := &syngit.RemoteSyncer{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteSyncerName2,
+				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationEnabled: "true",
+				},
+			},
+			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
+				DefaultBlockAppliedMessage:  defaultDeniedMessage,
+				DefaultBranch:               branch,
+				DefaultUnauthorizedUserMode: syngit.Block,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.OneTarget,
+				RemoteRepository:            repoUrl,
+				ScopedResources: syngit.ScopedResources{
+					Rules: []admissionv1.RuleWithOperations{{
+						Operations: []admissionv1.OperationType{
+							admissionv1.Create,
+						},
+						Rule: admissionv1.Rule{
+							APIGroups:   []string{""},
+							APIVersions: []string{"v1"},
+							Resources:   []string{"configmaps"},
+						},
+					},
+					},
+				},
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer2)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		By("deleting the first RemoteSyncer")
+		Eventually(func() bool {
+			err := sClient.As(Luffy).Delete(remotesyncer1)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -121,12 +164,13 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("checking if the configmap is present on the repo")
+		By("checking that the configmap is present on the repo")
 		Wait3()
 		repo := &Repo{
-			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+			Fqdn:   gitP1Fqdn,
+			Owner:  "syngituser",
+			Name:   "blue",
+			Branch: branch,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).ToNot(HaveOccurred())
@@ -142,29 +186,6 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 		Eventually(func() bool {
 			err := sClient.As(Luffy).Get(nnCm, getCm)
 			return err == nil
-		}, timeout, interval).Should(BeTrue())
-
-		By("deleting the test configmap")
-		Wait3()
-		Eventually(func() bool {
-			err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Delete(ctx,
-				cmName,
-				metav1.DeleteOptions{},
-			)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
-
-		By("checking that the configmap is not present on the repo")
-		Wait3()
-		exists, err = IsObjectInRepo(*repo, cm)
-		Expect(err).To(HaveOccurred())
-		Expect(exists).To(BeFalse())
-
-		By("checking that the configmap is not present on the cluster")
-		getCm2 := &corev1.ConfigMap{}
-		Eventually(func() bool {
-			err := sClient.As(Luffy).Get(nnCm, getCm2)
-			return err != nil && strings.Contains(err.Error(), "not found")
 		}, timeout, interval).Should(BeTrue())
 
 	})

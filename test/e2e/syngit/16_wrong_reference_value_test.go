@@ -38,6 +38,7 @@ var _ = Describe("16 Wrong reference or value test", func() {
 		remoteUserLuffyName        = "remoteuser-luffy"
 		remoteUserBindingLuffyName = "remoteuserbinding-luffy"
 		cmName                     = "test-cm16"
+		branch                     = "main"
 	)
 
 	It("should get errored because of wrong resource reference or wrong value", func() {
@@ -98,14 +99,17 @@ var _ = Describe("16 Wrong reference or value test", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationEnabled: "true",
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -172,17 +176,20 @@ var _ = Describe("16 Wrong reference or value test", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationEnabled: "true",
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.UseDefaultUser,
 				DefaultRemoteUserRef: &corev1.ObjectReference{
 					Name: "fake-defaultuser",
 				},
 				ExcludedFields:   []string{".metadata.uid"},
 				Strategy:         syngit.CommitApply,
-				TargetStrategy:   syngit.SameBranch,
+				TargetStrategy:   syngit.OneTarget,
 				RemoteRepository: repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

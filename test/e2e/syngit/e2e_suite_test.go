@@ -72,6 +72,8 @@ const (
 	rubNotFound                 = "no RemoteUserBinding found for the user"
 	defaultUserNotFound         = "the default user is not found"
 	notPresentOnCluser          = "not found"
+	sameBranchRepo              = "should not be set when the target repo & target branch are the same as the upstream repo & branch"
+	rtNotFound                  = "no RemoteTarget found"
 )
 
 // CMD & CLIENT
@@ -205,6 +207,8 @@ func setupManager() {
 	Expect(errWebhook).NotTo(HaveOccurred())
 	errWebhook = webhooksyngitv1beta3.SetupRemoteUserBindingWebhookWithManager(k8sManager)
 	Expect(errWebhook).NotTo(HaveOccurred())
+	errWebhook = webhooksyngitv1beta3.SetupRemoteTargetWebhookWithManager(k8sManager)
+	Expect(errWebhook).NotTo(HaveOccurred())
 	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remoteuser-association", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserAssociationWebhookHandler{
 		Client:  k8sManager.GetClient(),
 		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
@@ -234,6 +238,11 @@ func setupManager() {
 	}).SetupWithManager(k8sManager)
 	Expect(errController).ToNot(HaveOccurred())
 	errController = (&controllerssyngit.RemoteSyncerReconciler{
+		Client: k8sManager.GetClient(),
+		Scheme: k8sManager.GetScheme(),
+	}).SetupWithManager(k8sManager)
+	Expect(errController).ToNot(HaveOccurred())
+	errController = (&controllerssyngit.RemoteTargetReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 	}).SetupWithManager(k8sManager)
@@ -307,7 +316,7 @@ func rbacSetup(ctx context.Context) {
 			{
 				Verbs:     []string{"create"},
 				APIGroups: []string{"", "syngit.io"},
-				Resources: []string{"secrets", "remoteusers", "remoteuserbindings"},
+				Resources: []string{"secrets", "remoteusers"},
 			},
 			{
 				Verbs:         []string{"get", "list", "watch"},
@@ -505,9 +514,28 @@ var _ = AfterSuite(func() {
 var _ = AfterEach(func() {
 	ctx := context.TODO()
 
+	By(fmt.Sprintf("deleting the remotetargets from the %s ns", namespace))
+	remoteTargets := &syngit.RemoteTargetList{}
+	err := sClient.As(Admin).List(namespace, remoteTargets)
+	if err == nil {
+		for _, remotetarget := range remoteTargets.Items {
+			nnRub := types.NamespacedName{
+				Name:      remotetarget.Name,
+				Namespace: remotetarget.Namespace,
+			}
+			rub := &syngit.RemoteTarget{}
+			err = sClient.As(Admin).Get(nnRub, rub)
+			Expect(err).NotTo(HaveOccurred())
+			Eventually(func() bool {
+				err := sClient.As(Admin).Delete(rub)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+		}
+	}
+
 	By(fmt.Sprintf("deleting the remotesyncers from the %s ns", namespace))
 	remoteSyncers := &syngit.RemoteSyncerList{}
-	err := sClient.As(Admin).List(namespace, remoteSyncers)
+	err = sClient.As(Admin).List(namespace, remoteSyncers)
 	if err == nil {
 		for _, remotesyncer := range remoteSyncers.Items {
 			nnRs := types.NamespacedName{

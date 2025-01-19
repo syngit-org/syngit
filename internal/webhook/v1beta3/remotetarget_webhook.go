@@ -20,7 +20,10 @@ import (
 	"context"
 	"fmt"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -40,23 +43,38 @@ func SetupRemoteTargetWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-// NOTE: The 'path' attribute must follow a specific pattern and should not be modified directly here.
-// Modifying the path for an invalid path can cause API server errors; failing to locate the webhook.
 // +kubebuilder:webhook:path=/validate-syngit-io-v1beta3-remotetarget,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remotetargets,verbs=create;update,versions=v1beta3,name=vremotetarget-v1beta3.kb.io,admissionReviewVersions=v1
 
-// RemoteTargetCustomValidator struct is responsible for validating the RemoteTarget resource
-// when it is created, updated, or deleted.
-//
-// NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
-// as this struct is used only for temporary operations and does not need to be deeply copied.
 type RemoteTargetCustomValidator struct {
 	//TODO(user): Add more fields as needed for validation
 }
 
 var _ webhook.CustomValidator = &RemoteTargetCustomValidator{}
+
+func validateRemoteTargetSpec(r *syngitv1beta3.RemoteTargetSpec) field.ErrorList {
+	var errors field.ErrorList
+
+	// Validate ConsistencyStrategy
+	if r.UpstreamBranch == r.TargetBranch && r.UpstreamRepository == r.TargetRepository && r.ConsistencyStrategy != "" {
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("consistencyStrategy"), r.ConsistencyStrategy, "should not be set when the target repo & target branch are the same as the upstream repo & branch"))
+	}
+
+	return errors
+}
+
+func validateRemoteTarget(remoteTarget *syngitv1beta3.RemoteTarget) error {
+	var allErrs field.ErrorList
+	if err := validateRemoteTargetSpec(&remoteTarget.Spec); err != nil {
+		allErrs = append(allErrs, err...)
+	}
+	if len(allErrs) == 0 {
+		return nil
+	}
+
+	return apierrors.NewInvalid(
+		schema.GroupKind{Group: "syngit.io", Kind: "RemoteTarget"},
+		remoteTarget.Name, allErrs)
+}
 
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type RemoteTarget.
 func (v *RemoteTargetCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
@@ -66,9 +84,7 @@ func (v *RemoteTargetCustomValidator) ValidateCreate(ctx context.Context, obj ru
 	}
 	remotetargetlog.Info("Validation for RemoteTarget upon creation", "name", remotetarget.GetName())
 
-	// TODO(user): fill in your validation logic upon object creation.
-
-	return nil, nil
+	return nil, validateRemoteTarget(remotetarget)
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type RemoteTarget.
@@ -79,9 +95,7 @@ func (v *RemoteTargetCustomValidator) ValidateUpdate(ctx context.Context, oldObj
 	}
 	remotetargetlog.Info("Validation for RemoteTarget upon update", "name", remotetarget.GetName())
 
-	// TODO(user): fill in your validation logic upon object update.
-
-	return nil, nil
+	return nil, validateRemoteTarget(remotetarget)
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type RemoteTarget.
@@ -91,8 +105,6 @@ func (v *RemoteTargetCustomValidator) ValidateDelete(ctx context.Context, obj ru
 		return nil, fmt.Errorf("expected a RemoteTarget object but got %T", obj)
 	}
 	remotetargetlog.Info("Validation for RemoteTarget upon deletion", "name", remotetarget.GetName())
-
-	// TODO(user): fill in your validation logic upon object deletion.
 
 	return nil, nil
 }

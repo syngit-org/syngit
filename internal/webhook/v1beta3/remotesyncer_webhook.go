@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -56,11 +57,19 @@ var _ webhook.CustomValidator = &RemoteSyncerCustomValidator{}
 func validateRemoteSyncerSpec(r *syngitv1beta3.RemoteSyncerSpec) field.ErrorList {
 	var errors field.ErrorList
 
-	// Validate DefaultUserBind based on DefaultUnauthorizedUserMode
+	// Validate DefaultRemoteUserRef based on DefaultUnauthorizedUserMode
 	if r.DefaultUnauthorizedUserMode == syngitv1beta3.Block && r.DefaultRemoteUserRef != nil {
 		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultRemoteUserRef"), r.DefaultRemoteUserRef, "should not be set when defaultUnauthorizedUserMode is set to \"Block\""))
 	} else if r.DefaultUnauthorizedUserMode == syngitv1beta3.UseDefaultUser && r.DefaultRemoteUserRef == nil {
 		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultRemoteUserRef"), "must be set when defaultUnauthorizedUserMode is set to \"UseDefaultUser\""))
+	}
+
+	// Validate DefaultRemoteUserRef and DefaultRemoteTargetRef
+	if r.DefaultRemoteUserRef != nil && r.DefaultRemoteTargetRef == nil {
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultRemoteTargetRef"), r.DefaultRemoteTargetRef, "should be set when defaultRemoteUserRef is set"))
+	}
+	if r.DefaultRemoteUserRef == nil && r.DefaultRemoteTargetRef != nil {
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultRemoteUserRef"), r.DefaultRemoteUserRef, "should be set when defaultRemoteTargetRef is set"))
 	}
 
 	// Validate DefaultBlockAppliedMessage only exists if Strategy is set to CommitOnly
@@ -86,14 +95,17 @@ func validateRemoteSyncerSpec(r *syngitv1beta3.RemoteSyncerSpec) field.ErrorList
 		}
 	}
 
-	// Validate that DefaultBranch exists if TargetStrategy is set to "SameBranch"
-	if r.TargetStrategy == syngitv1beta3.SameBranch && r.DefaultBranch == "" {
-		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultBranch"), "must be set when defaultBranch is set to \"SameBranch\""))
-	}
-
 	// Validate that DefaultBranch exists if DefaultUnauthorizedUser uses a default user
 	if r.DefaultUnauthorizedUserMode != syngitv1beta3.Block && r.DefaultBranch == "" {
 		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultBranch"), "must be set when the defaultUnauthorizedUserMode is set to UseDefaultUser"))
+	}
+
+	// Validate that no namespaces are referenced
+	if r.DefaultRemoteUserRef != nil && r.DefaultRemoteUserRef.Namespace != "" {
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultRemoteUserRef").Child("namespace"), r.DefaultRemoteUserRef.Namespace, "should not be set as it is not supported in this version of syngit"))
+	}
+	if r.DefaultRemoteTargetRef != nil && r.DefaultRemoteTargetRef.Namespace != "" {
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultRemoteTargetRef").Child("namespace"), r.DefaultRemoteTargetRef.Namespace, "should not be set as it is not supported in this version of syngit"))
 	}
 
 	return errors
@@ -111,6 +123,19 @@ func validateRemoteSyncer(remoteSyncer *syngitv1beta3.RemoteSyncer) error {
 	if err := validateRemoteSyncerSpec(&remoteSyncer.Spec); err != nil {
 		allErrs = append(allErrs, err...)
 	}
+
+	// Validate the TargetPatterns
+	rtAnnotationEnabled := remoteSyncer.Annotations[syngitv1beta3.RtAnnotationEnabled]
+	if !slices.Contains([]string{"", "false", "true"}, rtAnnotationEnabled) {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("annotations").Child(syngitv1beta3.RtAnnotationEnabled), rtAnnotationEnabled,
+			fmt.Sprintf("must be either true or false; got %s", rtAnnotationEnabled)))
+	}
+	rtAnnotationOneUserOneBranch := remoteSyncer.Annotations[syngitv1beta3.RtAnnotationOneUserOneBranch]
+	if !slices.Contains([]string{"", "false", "true"}, rtAnnotationOneUserOneBranch) {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("annotations").Child(syngitv1beta3.RtAnnotationOneUserOneBranch), rtAnnotationOneUserOneBranch,
+			fmt.Sprintf("must be either true or false; got %s", rtAnnotationOneUserOneBranch)))
+	}
+
 	if len(allErrs) == 0 {
 		return nil
 	}

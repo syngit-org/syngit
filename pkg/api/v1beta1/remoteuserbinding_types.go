@@ -22,10 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	RubPrefix = "associated-rub-"
-)
-
 type RemoteUserBindingSpec struct {
 	Subject    rbacv1.Subject           `json:"subject"`
 	RemoteRefs []corev1.ObjectReference `json:"remoteRefs"` // Ref to the listed RemoteUser objects

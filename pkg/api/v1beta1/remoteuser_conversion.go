@@ -41,10 +41,12 @@ func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Status.LastAuthTime = src.Status.LastAuthTime
 	dst.Status.SecretBoundStatus = v1beta3.SecretBoundStatus(src.Status.SecretBoundStatus)
 
-	// Renaming
-
+	// Annotation transfer
+	if dst.Annotations == nil {
+		dst.Annotations = map[string]string{}
+	}
 	associatedRemoteUserBinding := strconv.FormatBool(src.Spec.AssociatedRemoteUserBinding)
-	dst.Annotations["syngit.io/associated-remote-userbinding"] = associatedRemoteUserBinding
+	dst.Annotations[v1beta3.RubAnnotation] = associatedRemoteUserBinding
 
 	return nil
 }
@@ -68,8 +70,7 @@ func (dst *RemoteUser) ConvertFrom(srcRaw conversion.Hub) error {
 	dst.Status.SecretBoundStatus = SecretBoundStatus(src.Status.SecretBoundStatus)
 
 	// Renaming
-
-	associatedRemoteUserBinding, err := strconv.ParseBool(src.Annotations["syngit.io/associated-remote-userbinding"])
+	associatedRemoteUserBinding, err := strconv.ParseBool(src.Annotations[v1beta3.RubAnnotation])
 	if err != nil {
 		dst.Spec.AssociatedRemoteUserBinding = false
 	} else {

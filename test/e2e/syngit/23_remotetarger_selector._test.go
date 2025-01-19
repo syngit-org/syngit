@@ -18,7 +18,6 @@ package e2e_syngit
 
 import (
 	"context"
-	"os"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -29,50 +28,27 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
-var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() {
+var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 	ctx := context.TODO()
 
 	const (
-		cmName1             = "test-cm13.1"
-		cmName2             = "test-cm13.2"
-		cmName3             = "test-cm13.3"
-		cmName4             = "test-cm13.4"
-		cmName5             = "test-cm13.5"
+		remoteSyncerName1   = "remotesyncer-test22.1"
+		remoteSyncerName2   = "remotesyncer-test22.2"
+		remoteSyncerName3   = "remotesyncer-test22.3"
+		remoteTargetName1   = "remotetarget-test22.1"
+		remoteTargetName2   = "remotetarget-test22.2"
+		remoteTargetName3   = "remotetarget-test22.3"
 		remoteUserLuffyName = "remoteuser-luffy"
-		remoteSyncerName1   = "remotesyncer-test13.1"
-		remoteSyncerName2   = "remotesyncer-test13.2"
-		remoteSyncerName3   = "remotesyncer-test13.3"
-		remoteSyncerName4   = "remotesyncer-test13.4"
-		remoteSyncerName5   = "remotesyncer-test13.5"
-		secretCa1           = "custom-cabundle1"
-		secretCa2           = "custom-cabundle2"
+		cmName1             = "test-cm22.1"
+		cmName2             = "test-cm22.2"
+		cmName3             = "test-cm22.3"
 		branch              = "main"
 	)
 
-	It("should interact with gitea using the user CA bundle", func() {
-		caBundleFile, err := os.ReadFile(os.Getenv("GITEA_TEMP_CERT_DIR") + "/ca.crt")
-		By("creating the ca bundle secret in the same namespace")
-		secretCreds := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretCa1,
-				Namespace: namespace,
-			},
-			Data: map[string][]byte{
-				"tls.crt": caBundleFile,
-				"tls.key": {},
-			},
-			Type: "kubernetes.io/tls",
-		}
-		Eventually(func() bool {
-			_, err = sClient.KAs(Luffy).CoreV1().Secrets(namespace).Create(ctx,
-				secretCreds,
-				metav1.CreateOptions{},
-			)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
-
+	It("should not work because RemoteTarget not targeted", func() {
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -96,30 +72,53 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/green.git"
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		By("creating a RemoteTarget")
+		const (
+			myLabelKey   = "my-label-key"
+			myLabelValue = "my-label-value"
+		)
+		remoteTarget := &syngit.RemoteTarget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteTargetName1,
+				Namespace: namespace,
+				Labels:    map[string]string{myLabelKey: myLabelValue},
+			},
+			Spec: syngit.RemoteTargetSpec{
+				UpstreamRepository:  repoUrl,
+				TargetRepository:    repoUrl,
+				UpstreamBranch:      branch,
+				TargetBranch:        branch,
+				ConsistencyStrategy: syngit.TryRebaseOrDie,
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remoteTarget)
+			return err != nil && strings.Contains(err.Error(), sameBranchRepo)
+		}, timeout, interval).Should(BeTrue())
+
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteSyncerName2,
+				Name:      remoteSyncerName1,
 				Namespace: namespace,
-				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled: "true",
-				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
-				CABundleSecretRef: corev1.SecretReference{
-					Name: secretCa1,
-				},
+				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
 				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
+				RemoteTargetSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{myLabelKey: "another-value"},
+				},
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
 							admissionv1.Create,
+							admissionv1.Delete,
 						},
 						Rule: admissionv1.Rule{
 							APIGroups:   []string{""},
@@ -132,7 +131,136 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			},
 		}
 		Eventually(func() bool {
-			err := sClient.As(Sanji).CreateOrUpdate(remotesyncer)
+			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		By("creating a test configmap")
+		Wait3()
+		cm := &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "ConfigMap",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{Name: cmName1, Namespace: namespace},
+			Data:       map[string]string{"test": "ouiiii"},
+		}
+		Eventually(func() bool {
+			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+				cm,
+				metav1.CreateOptions{},
+			)
+			return err != nil && strings.Contains(err.Error(), rtNotFound)
+		}, timeout, interval).Should(BeTrue())
+
+		By("checking that the configmap is not present on the repo")
+		Wait3()
+		repo := &Repo{
+			Fqdn:  gitP1Fqdn,
+			Owner: "syngituser",
+			Name:  "blue",
+		}
+		exists, err := IsObjectInRepo(*repo, cm)
+		Expect(err).To(HaveOccurred())
+		Expect(exists).To(BeFalse())
+
+		By("checking that the configmap is not present on the cluster")
+		nnCm := types.NamespacedName{
+			Name:      cmName1,
+			Namespace: namespace,
+		}
+		getCm := &corev1.ConfigMap{}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).Get(nnCm, getCm)
+			return err != nil && strings.Contains(err.Error(), notPresentOnCluser)
+		}, timeout, interval).Should(BeTrue())
+
+	})
+
+	It("should work because RemoteTarget is targeted", func() {
+		By("creating the RemoteUser & RemoteUserBinding for Luffy")
+		luffySecretName := string(Luffy) + "-creds"
+		remoteUserLuffy := &syngit.RemoteUser{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteUserLuffyName,
+				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RubAnnotation: "true",
+				},
+			},
+			Spec: syngit.RemoteUserSpec{
+				Email:             "sample@email.com",
+				GitBaseDomainFQDN: gitP1Fqdn,
+				SecretRef: corev1.SecretReference{
+					Name: luffySecretName,
+				},
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffy)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		By("creating a RemoteTarget")
+		const (
+			myLabelKey   = "my-label-key"
+			myLabelValue = "my-label-value"
+		)
+		remoteTarget := &syngit.RemoteTarget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteTargetName1,
+				Namespace: namespace,
+				Labels:    map[string]string{myLabelKey: myLabelValue},
+			},
+			Spec: syngit.RemoteTargetSpec{
+				UpstreamRepository:  repoUrl,
+				TargetRepository:    repoUrl,
+				UpstreamBranch:      branch,
+				TargetBranch:        branch,
+				ConsistencyStrategy: syngit.TryRebaseOrDie,
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remoteTarget)
+			return err != nil && strings.Contains(err.Error(), sameBranchRepo)
+		}, timeout, interval).Should(BeTrue())
+
+		By("creating the RemoteSyncer")
+		remotesyncer := &syngit.RemoteSyncer{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteSyncerName2,
+				Namespace: namespace,
+			},
+			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
+				DefaultBranch:               branch,
+				DefaultUnauthorizedUserMode: syngit.Block,
+				ExcludedFields:              []string{".metadata.uid"},
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.OneTarget,
+				RemoteRepository:            repoUrl,
+				RemoteTargetSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{myLabelKey: myLabelValue},
+				},
+				ScopedResources: syngit.ScopedResources{
+					Rules: []admissionv1.RuleWithOperations{{
+						Operations: []admissionv1.OperationType{
+							admissionv1.Create,
+							admissionv1.Delete,
+						},
+						Rule: admissionv1.Rule{
+							APIGroups:   []string{""},
+							APIVersions: []string{"v1"},
+							Resources:   []string{"configmaps"},
+						},
+					},
+					},
+				},
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -147,19 +275,19 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
-			_, err = sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
 				cm,
 				metav1.CreateOptions{},
 			)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("checking if the configmap is present on the repo")
+		By("checking that the configmap is present on the repo")
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",
-			Name:  "green",
+			Name:  "blue",
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).ToNot(HaveOccurred())
@@ -179,27 +307,10 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 
 	})
 
-	It("should interact with gitea using the user CA bundle in the same namespace", func() {
-		caBundleFile, err := os.ReadFile(os.Getenv("GITEA_TEMP_CERT_DIR") + "/ca.crt")
-		By("creating the ca bundle secret in the same namespace")
-		secretCreds := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretCa2,
-				Namespace: namespace,
-			},
-			Data: map[string][]byte{
-				"tls.crt": caBundleFile,
-				"tls.key": {},
-			},
-			Type: "kubernetes.io/tls",
-		}
-		Eventually(func() bool {
-			_, err = sClient.KAs(Luffy).CoreV1().Secrets(namespace).Create(ctx,
-				secretCreds,
-				metav1.CreateOptions{},
-			)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
+	It("should work because RemoteTarget selector not specified", func() {
+		By("adding syngit to scheme")
+		err := syngit.AddToScheme(scheme.Scheme)
+		Expect(err).NotTo(HaveOccurred())
 
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
@@ -224,21 +335,39 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/green.git"
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		By("creating a RemoteTarget")
+		const (
+			myLabelKey   = "my-label-key"
+			myLabelValue = "my-label-value"
+		)
+		remoteTarget := &syngit.RemoteTarget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteTargetName1,
+				Namespace: namespace,
+				Labels:    map[string]string{myLabelKey: myLabelValue},
+			},
+			Spec: syngit.RemoteTargetSpec{
+				UpstreamRepository:  repoUrl,
+				TargetRepository:    repoUrl,
+				UpstreamBranch:      branch,
+				TargetBranch:        branch,
+				ConsistencyStrategy: syngit.TryRebaseOrDie,
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remoteTarget)
+			return err != nil && strings.Contains(err.Error(), sameBranchRepo)
+		}, timeout, interval).Should(BeTrue())
+
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName3,
 				Namespace: namespace,
-				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled: "true",
-				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
-				CABundleSecretRef: corev1.SecretReference{
-					Name:      secretCa2,
-					Namespace: namespace,
-				},
+				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
@@ -249,6 +378,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
 							admissionv1.Create,
+							admissionv1.Delete,
 						},
 						Rule: admissionv1.Rule{
 							APIGroups:   []string{""},
@@ -261,7 +391,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			},
 		}
 		Eventually(func() bool {
-			err := sClient.As(Sanji).CreateOrUpdate(remotesyncer)
+			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -288,7 +418,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",
-			Name:  "green",
+			Name:  "blue",
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).ToNot(HaveOccurred())
@@ -308,28 +438,10 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 
 	})
 
-	It("should interact with gitea using the user CA bundle of the operator namespace", func() {
-		caBundleFile, err := os.ReadFile(os.Getenv("GITEA_TEMP_CERT_DIR") + "/ca.crt")
-		By("creating the ca bundle secret in the same namespace using the host as name")
-		caBundleName := strings.Split(gitP1Fqdn, ":")[0] + "-ca-cert"
-		secretCreds := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      caBundleName,
-				Namespace: operatorNamespace,
-			},
-			Data: map[string][]byte{
-				"tls.crt": caBundleFile,
-				"tls.key": {},
-			},
-			Type: "kubernetes.io/tls",
-		}
-		Eventually(func() bool {
-			_, err = sClient.KAs(Luffy).CoreV1().Secrets(operatorNamespace).Create(ctx,
-				secretCreds,
-				metav1.CreateOptions{},
-			)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
+	It("should work with multiple RemoteTarget", func() {
+		By("adding syngit to scheme")
+		err := syngit.AddToScheme(scheme.Scheme)
+		Expect(err).NotTo(HaveOccurred())
 
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
@@ -354,27 +466,75 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/green.git"
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		By("creating the first RemoteTarget")
+		const (
+			myLabelKey   = "my-label-key"
+			myLabelValue = "my-label-value"
+		)
+		remoteTarget1 := &syngit.RemoteTarget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteTargetName1,
+				Namespace: namespace,
+				Labels:    map[string]string{myLabelKey: myLabelValue},
+			},
+			Spec: syngit.RemoteTargetSpec{
+				UpstreamRepository:  repoUrl,
+				TargetRepository:    repoUrl,
+				UpstreamBranch:      branch,
+				TargetBranch:        branch,
+				ConsistencyStrategy: syngit.TryRebaseOrDie,
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remoteTarget1)
+			return err != nil && strings.Contains(err.Error(), sameBranchRepo)
+		}, timeout, interval).Should(BeTrue())
+
+		By("creating the second RemoteTarget")
+		remoteTarget2 := &syngit.RemoteTarget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteTargetName1,
+				Namespace: namespace,
+			},
+			Spec: syngit.RemoteTargetSpec{
+				UpstreamRepository:  repoUrl,
+				TargetRepository:    repoUrl,
+				UpstreamBranch:      branch,
+				TargetBranch:        branch,
+				ConsistencyStrategy: syngit.TryRebaseOrDie,
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remoteTarget2)
+			return err != nil && strings.Contains(err.Error(), sameBranchRepo)
+		}, timeout, interval).Should(BeTrue())
+
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteSyncerName4,
+				Name:      remoteSyncerName3,
 				Namespace: namespace,
 				Annotations: map[string]string{
 					syngit.RtAnnotationEnabled: "true",
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
 				TargetStrategy:              syngit.OneTarget,
-				RemoteRepository:            repoUrl,
+				RemoteTargetSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{myLabelKey: myLabelValue},
+				},
+				RemoteRepository: repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
 							admissionv1.Create,
+							admissionv1.Delete,
 						},
 						Rule: admissionv1.Rule{
 							APIGroups:   []string{""},
@@ -387,7 +547,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			},
 		}
 		Eventually(func() bool {
-			err := sClient.As(Sanji).CreateOrUpdate(remotesyncer)
+			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -398,7 +558,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 				Kind:       "ConfigMap",
 				APIVersion: "v1",
 			},
-			ObjectMeta: metav1.ObjectMeta{Name: cmName4, Namespace: namespace},
+			ObjectMeta: metav1.ObjectMeta{Name: cmName3, Namespace: namespace},
 			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
@@ -414,7 +574,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
 			Owner: "syngituser",
-			Name:  "green",
+			Name:  "blue",
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).ToNot(HaveOccurred())
@@ -422,7 +582,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 
 		By("checking that the configmap is present on the cluster")
 		nnCm := types.NamespacedName{
-			Name:      cmName4,
+			Name:      cmName3,
 			Namespace: namespace,
 		}
 		getCm := &corev1.ConfigMap{}
@@ -430,95 +590,6 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 		Eventually(func() bool {
 			err := sClient.As(Luffy).Get(nnCm, getCm)
 			return err == nil
-		}, timeout, interval).Should(BeTrue())
-
-		By("deleting the ca bundle secret in the same namespace using the host as name")
-		Eventually(func() bool {
-			err = sClient.KAs(Luffy).CoreV1().Secrets(operatorNamespace).Delete(ctx,
-				caBundleName,
-				metav1.DeleteOptions{},
-			)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
-	})
-
-	It("should get a x509 error ", func() {
-		By("creating the RemoteUser & RemoteUserBinding for Luffy")
-		luffySecretName := string(Luffy) + "-creds"
-		remoteUserLuffy := &syngit.RemoteUser{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteUserLuffyName,
-				Namespace: namespace,
-				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
-				},
-			},
-			Spec: syngit.RemoteUserSpec{
-				Email:             "sample@email.com",
-				GitBaseDomainFQDN: gitP1Fqdn,
-				SecretRef: corev1.SecretReference{
-					Name: luffySecretName,
-				},
-			},
-		}
-		Eventually(func() bool {
-			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffy)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
-
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/green.git"
-		By("creating the RemoteSyncer")
-		remotesyncer := &syngit.RemoteSyncer{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteSyncerName5,
-				Namespace: namespace,
-				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled: "true",
-				},
-			},
-			Spec: syngit.RemoteSyncerSpec{
-				DefaultBranch:               branch,
-				DefaultUnauthorizedUserMode: syngit.Block,
-				ExcludedFields:              []string{".metadata.uid"},
-				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.OneTarget,
-				RemoteRepository:            repoUrl,
-				ScopedResources: syngit.ScopedResources{
-					Rules: []admissionv1.RuleWithOperations{{
-						Operations: []admissionv1.OperationType{
-							admissionv1.Create,
-						},
-						Rule: admissionv1.Rule{
-							APIGroups:   []string{""},
-							APIVersions: []string{"v1"},
-							Resources:   []string{"configmaps"},
-						},
-					},
-					},
-				},
-			},
-		}
-		Eventually(func() bool {
-			err := sClient.As(Sanji).CreateOrUpdate(remotesyncer)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
-
-		By("creating a test configmap")
-		Wait3()
-		cm := &corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "ConfigMap",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{Name: cmName5, Namespace: namespace},
-			Data:       map[string]string{"test": "oui"},
-		}
-		Eventually(func() bool {
-			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
-				cm,
-				metav1.CreateOptions{},
-			)
-			return err != nil && strings.Contains(err.Error(), x509ErrorMessage)
 		}, timeout, interval).Should(BeTrue())
 
 	})

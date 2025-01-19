@@ -39,6 +39,7 @@ var _ = Describe("05 Use a default user", func() {
 		remoteUserChopperName = "remoteuser-chopper"
 		remoteUserSanjiName   = "remoteuser-sanji"
 		remoteSyncerName      = "remotesyncer-test5"
+		branch                = "main"
 	)
 
 	It("should use the default user to push the resource", func() {
@@ -88,10 +89,13 @@ var _ = Describe("05 Use a default user", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationEnabled: "true",
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.UseDefaultUser,
 				ExcludedFields:              []string{".metadata.uid"},
 				DefaultRemoteUserRef: &corev1.ObjectReference{
@@ -99,7 +103,7 @@ var _ = Describe("05 Use a default user", func() {
 					Namespace: namespace,
 				},
 				Strategy:         syngit.CommitApply,
-				TargetStrategy:   syngit.SameBranch,
+				TargetStrategy:   syngit.OneTarget,
 				RemoteRepository: repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
