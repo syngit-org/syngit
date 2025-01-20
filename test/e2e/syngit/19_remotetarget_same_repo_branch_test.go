@@ -42,11 +42,11 @@ var _ = Describe("19 RemoteTarget same repo & branch between target and upstream
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteTargetSpec{
-				UpstreamRepository:  repo,
-				TargetRepository:    repo,
-				UpstreamBranch:      branch,
-				TargetBranch:        branch,
-				ConsistencyStrategy: syngit.TryRebaseOrDie,
+				UpstreamRepository: repo,
+				TargetRepository:   repo,
+				UpstreamBranch:     branch,
+				TargetBranch:       branch,
+				MergeStrategy:      syngit.TryMergeCommitOrHardReset,
 			},
 		}
 		Eventually(func() bool {

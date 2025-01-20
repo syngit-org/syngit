@@ -9,14 +9,13 @@ import (
 	"github.com/go-git/go-billy/v5/memfs"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 )
 
 type GitConsistency struct {
-	strategy           syngit.ConsistencyStrategy
+	strategy           syngit.MergeStrategy
 	targetRepository   *git.Repository
 	upstreamRepository *git.Repository
 }
@@ -63,8 +62,8 @@ func GetTargetRepository(gp GitPusher) (*git.Repository, error) {
 
 func (gc GitConsistency) GetWorkTree() (*git.Worktree, error) {
 
-	if gc.strategy == syngit.TryRebaseOrOverwrite {
-		wt, err := gc.upstreamBasedRebase()
+	if gc.strategy == syngit.TryMergeCommitOrHardReset {
+		wt, err := gc.upstreamBasedPull()
 		if err != nil {
 			wt, err = gc.upstreamBasedHardReset()
 			if err != nil {
@@ -75,7 +74,7 @@ func (gc GitConsistency) GetWorkTree() (*git.Worktree, error) {
 		return wt, nil
 	}
 
-	if gc.strategy == syngit.Overwrite {
+	if gc.strategy == syngit.TryHardResetOrDie {
 		wt, err := gc.upstreamBasedHardReset()
 		if err != nil {
 			return nil, err
@@ -83,8 +82,8 @@ func (gc GitConsistency) GetWorkTree() (*git.Worktree, error) {
 		return wt, nil
 	}
 
-	if gc.strategy == syngit.TryRebaseOrDie {
-		wt, err := gc.upstreamBasedRebase()
+	if gc.strategy == syngit.TryMergeCommitOrDie {
+		wt, err := gc.upstreamBasedPull()
 		if err != nil {
 			return nil, err
 		}
@@ -124,64 +123,7 @@ func (gc GitConsistency) upstreamBasedHardReset() (*git.Worktree, error) {
 	return worktree, nil
 }
 
-func (gc GitConsistency) upstreamBasedRebase() (*git.Worktree, error) {
-	// Get the HEAD reference for the upstream repository
-	upstreamRef, err := gc.upstreamRepository.Head()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get upstream HEAD: %w", err)
-	}
+func (gc GitConsistency) upstreamBasedPull() (*git.Worktree, error) {
 
-	// Get the latest upstream commit
-	upstreamCommit, err := gc.upstreamRepository.CommitObject(upstreamRef.Hash())
-	if err != nil {
-		return nil, fmt.Errorf("failed to get upstream commit: %w", err)
-	}
-
-	// Get the worktree for the target repository
-	worktree, err := gc.targetRepository.Worktree()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get worktree: %w", err)
-	}
-
-	// Create an iterator for the upstream commits
-	upstreamIter, err := gc.upstreamRepository.Log(&git.LogOptions{From: upstreamCommit.Hash})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get upstream commit log: %w", err)
-	}
-
-	defer upstreamIter.Close()
-
-	// Cherry-pick each upstream commit onto the target repository
-	err = upstreamIter.ForEach(func(c *object.Commit) error {
-		// Check if the commit is already in the target repository
-		_, err := gc.targetRepository.CommitObject(c.Hash)
-		if err == nil {
-			// Commit already exists, skip
-			return nil
-		}
-
-		// Apply the commit to the target repository
-		err = worktree.Checkout(&git.CheckoutOptions{
-			Hash:  c.Hash,
-			Force: true,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to cherry-pick commit %s: %w", c.Hash, err)
-		}
-
-		// Commit the changes
-		_, err = worktree.Commit(c.Message, &git.CommitOptions{
-			Author: &c.Author,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to commit changes for %s: %w", c.Hash, err)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed during rebase: %w", err)
-	}
-
-	return worktree, nil
+	return nil, nil
 }

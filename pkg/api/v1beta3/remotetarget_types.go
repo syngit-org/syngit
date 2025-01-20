@@ -21,10 +21,17 @@ import (
 )
 
 const (
-	RtAnnotationEnabled          = "syngit.io/remotetarget.managed"
-	RtAnnotationOneUserOneBranch = "syngit.io/remotetarget.pattern.one-user-one-branch"
-	RtAnnotationBranches         = "syngit.io/remotetarget.pattern.one-or-many-branches"
-	RtPrefix                     = "rt-"
+	RtAnnotationEnabled      = "syngit.io/remotetarget.managed"
+	RtAnnotationUserSpecific = "syngit.io/remotetarget.pattern.user-specific"
+	RtAnnotationBranches     = "syngit.io/remotetarget.pattern.one-or-many-branches"
+	RtPrefix                 = "rt"
+)
+
+type RemoteTargetUserSpecificValues string
+
+const (
+	RtAnnotationOneUserOneBranchValue RemoteTargetUserSpecificValues = "one-user-one-branch"
+	RtAnnotationOneUserOneForkValue   RemoteTargetUserSpecificValues = "one-user-one-fork"
 )
 
 // RemoteTargetSpec defines the desired state of RemoteTarget.
@@ -49,8 +56,8 @@ type RemoteTargetSpec struct {
 	TargetBranch string `json:"targetBranch" protobuf:"bytes,4,name=targetBranch"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=TryRebaseOrDie;TryRebaseOrOverwrite;Overwrite;""
-	ConsistencyStrategy ConsistencyStrategy `json:"consistencyStrategy" protobuf:"bytes,5,name=consistencyStrategy"`
+	// +kubebuilder:validation:Enum=TryMergeCommitOrDie;TryMergeCommitOrHardReset;TryHardResetOrDie;""
+	MergeStrategy MergeStrategy `json:"mergeStrategy" protobuf:"bytes,5,name=mergeStrategy"`
 }
 
 // RemoteTargetStatus defines the observed state of RemoteTarget.
@@ -102,10 +109,10 @@ func init() {
 	SPEC EXTENSION
 */
 
-type ConsistencyStrategy string
+type MergeStrategy string
 
 const (
-	TryRebaseOrDie       ConsistencyStrategy = "TryRebaseOrDie"
-	TryRebaseOrOverwrite ConsistencyStrategy = "TryRebaseOrOverwrite"
-	Overwrite            ConsistencyStrategy = "Overwrite"
+	TryMergeCommitOrDie       MergeStrategy = "TryMergeCommitOrDie"
+	TryMergeCommitOrHardReset MergeStrategy = "TryMergeCommitOrHardReset"
+	TryHardResetOrDie         MergeStrategy = "TryHardResetOrDie"
 )

@@ -89,6 +89,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 				}},
 				ExcludedFields:   []string{".metadata.uid"},
 				Strategy:         syngit.CommitApply,
+				TargetStrategy:   syngit.OneTarget,
 				RemoteRepository: repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

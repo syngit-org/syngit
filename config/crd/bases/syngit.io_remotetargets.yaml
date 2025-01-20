@@ -39,11 +39,11 @@ spec:
           spec:
             description: RemoteTargetSpec defines the desired state of RemoteTarget.
             properties:
-              consistencyStrategy:
+              mergeStrategy:
                 enum:
-                - TryRebaseOrDie
-                - TryRebaseOrOverwrite
-                - Overwrite
+                - TryMergeCommitOrDie
+                - TryMergeCommitOrHardReset
+                - TryHardResetOrDie
                 - ""
                 type: string
               targetBranch:

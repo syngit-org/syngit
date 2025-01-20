@@ -70,10 +70,12 @@ const (
 	x509ErrorMessage            = "x509: certificate signed by unknown authority"
 	crossRubErrorMessage        = "the RemoteUser is already bound in the RemoteUserBinding"
 	rubNotFound                 = "no RemoteUserBinding found for the user"
-	defaultUserNotFound         = "the default user is not found"
+	defaultUserNotFound         = "the default RemoteUser is not found"
+	defaultTargetNotFound       = "the default RemoteTarget is not found"
 	notPresentOnCluser          = "not found"
 	sameBranchRepo              = "should not be set when the target repo & target branch are the same as the upstream repo & branch"
 	rtNotFound                  = "no RemoteTarget found"
+	oneTargetForMultipleMessage = "multiple RemoteTargets found for OneTarget set as the TargetStrategy in the RemoteSyncer"
 )
 
 // CMD & CLIENT
@@ -225,6 +227,10 @@ func setupManager() {
 		Client:  k8sManager.GetClient(),
 		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
 	}})
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remotesyncer-target-pattern", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteSyncerTargetPatternWebhookHandler{
+		Client:  k8sManager.GetClient(),
+		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
+	}})
 
 	By("setting up the controllers")
 	errController := (&controllerssyngit.RemoteUserReconciler{
@@ -316,7 +322,7 @@ func rbacSetup(ctx context.Context) {
 			{
 				Verbs:     []string{"create"},
 				APIGroups: []string{"", "syngit.io"},
-				Resources: []string{"secrets", "remoteusers"},
+				Resources: []string{"secrets", "remoteusers", "remoteuserbindings"},
 			},
 			{
 				Verbs:         []string{"get", "list", "watch"},

@@ -45,7 +45,7 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 	var w *git.Worktree
 	var repo *git.Repository
 
-	if gp.remoteTarget.Spec.ConsistencyStrategy == "" {
+	if gp.remoteTarget.Spec.MergeStrategy == "" {
 		// Same repo & branch between target and upstream
 		// PRE-STEP 1 : Get the repo
 		var getRepoErr error
@@ -77,7 +77,7 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 		gc := GitConsistency{
 			upstreamRepository: upstreamRepo,
 			targetRepository:   repo,
-			strategy:           gp.remoteTarget.Spec.ConsistencyStrategy,
+			strategy:           gp.remoteTarget.Spec.MergeStrategy,
 		}
 		var err error
 		w, err = gc.GetWorkTree()

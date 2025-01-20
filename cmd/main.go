@@ -221,6 +221,11 @@ func main() {
 			Client:  mgr.GetClient(),
 			Decoder: admission.NewDecoder(mgr.GetScheme()),
 		}})
+		mgr.GetWebhookServer().Register("/syngit-v1beta3-remotesyncer-target-pattern", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteSyncerTargetPatternWebhookHandler{
+			Client:  mgr.GetClient(),
+			Decoder: admission.NewDecoder(mgr.GetScheme()),
+		}})
+
 	}
 
 	//+kubebuilder:scaffold:builder

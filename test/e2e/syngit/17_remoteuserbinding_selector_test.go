@@ -83,8 +83,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 			Spec: syngit.RemoteUserBindingSpec{
 				RemoteUserRefs: []corev1.ObjectReference{
 					{
-						Name:      remoteUserLuffyName,
-						Namespace: namespace,
+						Name: remoteUserLuffyName,
 					},
 				},
 				Subject: rbacv1.Subject{
@@ -218,8 +217,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 			Spec: syngit.RemoteUserBindingSpec{
 				RemoteUserRefs: []corev1.ObjectReference{
 					{
-						Name:      remoteUserLuffyName,
-						Namespace: namespace,
+						Name: remoteUserLuffyName,
 					},
 				},
 				Subject: rbacv1.Subject{
@@ -358,8 +356,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 			Spec: syngit.RemoteUserBindingSpec{
 				RemoteUserRefs: []corev1.ObjectReference{
 					{
-						Name:      remoteUserLuffyName,
-						Namespace: namespace,
+						Name: remoteUserLuffyName,
 					},
 				},
 				Subject: rbacv1.Subject{

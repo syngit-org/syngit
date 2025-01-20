@@ -130,10 +130,10 @@ func validateRemoteSyncer(remoteSyncer *syngitv1beta3.RemoteSyncer) error {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("annotations").Child(syngitv1beta3.RtAnnotationEnabled), rtAnnotationEnabled,
 			fmt.Sprintf("must be either true or false; got %s", rtAnnotationEnabled)))
 	}
-	rtAnnotationOneUserOneBranch := remoteSyncer.Annotations[syngitv1beta3.RtAnnotationOneUserOneBranch]
-	if !slices.Contains([]string{"", "false", "true"}, rtAnnotationOneUserOneBranch) {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("annotations").Child(syngitv1beta3.RtAnnotationOneUserOneBranch), rtAnnotationOneUserOneBranch,
-			fmt.Sprintf("must be either true or false; got %s", rtAnnotationOneUserOneBranch)))
+	rtAnnotationUserSpecific := remoteSyncer.Annotations[syngitv1beta3.RtAnnotationUserSpecific]
+	if !slices.Contains([]syngitv1beta3.RemoteTargetUserSpecificValues{"", syngitv1beta3.RtAnnotationOneUserOneBranchValue, syngitv1beta3.RtAnnotationOneUserOneBranchValue}, syngitv1beta3.RemoteTargetUserSpecificValues(rtAnnotationUserSpecific)) {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("annotations").Child(syngitv1beta3.RtAnnotationUserSpecific), rtAnnotationUserSpecific,
+			fmt.Sprintf("must be either %s or %s; got %s", string(syngitv1beta3.RtAnnotationOneUserOneBranchValue), string(syngitv1beta3.RtAnnotationOneUserOneBranchValue), rtAnnotationUserSpecific)))
 	}
 
 	if len(allErrs) == 0 {

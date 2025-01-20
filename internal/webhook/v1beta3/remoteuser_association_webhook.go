@@ -24,12 +24,6 @@ type RemoteUserAssociationWebhookHandler struct {
 	Decoder *admission.Decoder
 }
 
-const (
-	managedByLabelKey   = "managed-by"
-	managedByLabelValue = "syngit.io"
-	k8sUserLabelKey     = "syngit.io/k8s-user"
-)
-
 // +kubebuilder:webhook:path=/syngit-v1beta3-remoteuser-association,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remoteusers,verbs=create;update;delete,versions=v1beta3,admissionReviewVersions=v1,name=vremoteusers-association.v1beta3.syngit.io
 
 func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req admission.Request) admission.Response {
@@ -40,8 +34,8 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 	rubs := &syngit.RemoteUserBindingList{}
 	listOps := &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{
-			managedByLabelKey: managedByLabelValue,
-			k8sUserLabelKey:   username,
+			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
+			syngit.K8sUserLabelKey:   username,
 		}),
 		Namespace: req.Namespace,
 	}
@@ -95,8 +89,8 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 
 		// Set the labels
 		rub.Labels = map[string]string{
-			managedByLabelKey: managedByLabelValue,
-			k8sUserLabelKey:   username,
+			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
+			syngit.K8sUserLabelKey:   username,
 		}
 
 		subject := &rbacv1.Subject{

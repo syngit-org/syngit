@@ -85,11 +85,10 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 				Labels:    map[string]string{myLabelKey: myLabelValue},
 			},
 			Spec: syngit.RemoteTargetSpec{
-				UpstreamRepository:  repoUrl,
-				TargetRepository:    repoUrl,
-				UpstreamBranch:      branch,
-				TargetBranch:        branch,
-				ConsistencyStrategy: syngit.TryRebaseOrDie,
+				UpstreamRepository: repoUrl,
+				TargetRepository:   repoUrl,
+				UpstreamBranch:     branch,
+				TargetBranch:       branch,
 			},
 		}
 		Eventually(func() bool {
@@ -214,11 +213,10 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 				Labels:    map[string]string{myLabelKey: myLabelValue},
 			},
 			Spec: syngit.RemoteTargetSpec{
-				UpstreamRepository:  repoUrl,
-				TargetRepository:    repoUrl,
-				UpstreamBranch:      branch,
-				TargetBranch:        branch,
-				ConsistencyStrategy: syngit.TryRebaseOrDie,
+				UpstreamRepository: repoUrl,
+				TargetRepository:   repoUrl,
+				UpstreamBranch:     branch,
+				TargetBranch:       branch,
 			},
 		}
 		Eventually(func() bool {
@@ -348,11 +346,10 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 				Labels:    map[string]string{myLabelKey: myLabelValue},
 			},
 			Spec: syngit.RemoteTargetSpec{
-				UpstreamRepository:  repoUrl,
-				TargetRepository:    repoUrl,
-				UpstreamBranch:      branch,
-				TargetBranch:        branch,
-				ConsistencyStrategy: syngit.TryRebaseOrDie,
+				UpstreamRepository: repoUrl,
+				TargetRepository:   repoUrl,
+				UpstreamBranch:     branch,
+				TargetBranch:       branch,
 			},
 		}
 		Eventually(func() bool {
@@ -479,11 +476,10 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 				Labels:    map[string]string{myLabelKey: myLabelValue},
 			},
 			Spec: syngit.RemoteTargetSpec{
-				UpstreamRepository:  repoUrl,
-				TargetRepository:    repoUrl,
-				UpstreamBranch:      branch,
-				TargetBranch:        branch,
-				ConsistencyStrategy: syngit.TryRebaseOrDie,
+				UpstreamRepository: repoUrl,
+				TargetRepository:   repoUrl,
+				UpstreamBranch:     branch,
+				TargetBranch:       branch,
 			},
 		}
 		Eventually(func() bool {
@@ -498,11 +494,10 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 				Namespace: namespace,
 			},
 			Spec: syngit.RemoteTargetSpec{
-				UpstreamRepository:  repoUrl,
-				TargetRepository:    repoUrl,
-				UpstreamBranch:      branch,
-				TargetBranch:        branch,
-				ConsistencyStrategy: syngit.TryRebaseOrDie,
+				UpstreamRepository: repoUrl,
+				TargetRepository:   repoUrl,
+				UpstreamBranch:     branch,
+				TargetBranch:       branch,
 			},
 		}
 		Eventually(func() bool {
