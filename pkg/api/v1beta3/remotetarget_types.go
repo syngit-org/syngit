@@ -24,6 +24,7 @@ const (
 	RtAnnotationEnabled      = "syngit.io/remotetarget.managed"
 	RtAnnotationUserSpecific = "syngit.io/remotetarget.pattern.user-specific"
 	RtAnnotationBranches     = "syngit.io/remotetarget.pattern.one-or-many-branches"
+	RtAllowInjection         = "syngit.io/remotetarget.allow-injection"
 	RtPrefix                 = "rt"
 )
 
@@ -56,7 +57,7 @@ type RemoteTargetSpec struct {
 	TargetBranch string `json:"targetBranch" protobuf:"bytes,4,name=targetBranch"`
 
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=TryMergeCommitOrDie;TryMergeCommitOrHardReset;TryHardResetOrDie;""
+	// +kubebuilder:validation:Enum=TryPullOrDie;TryPullOrHardReset;TryHardResetOrDie;""
 	MergeStrategy MergeStrategy `json:"mergeStrategy" protobuf:"bytes,5,name=mergeStrategy"`
 }
 
@@ -112,7 +113,7 @@ func init() {
 type MergeStrategy string
 
 const (
-	TryMergeCommitOrDie       MergeStrategy = "TryMergeCommitOrDie"
-	TryMergeCommitOrHardReset MergeStrategy = "TryMergeCommitOrHardReset"
-	TryHardResetOrDie         MergeStrategy = "TryHardResetOrDie"
+	TryPullOrDie       MergeStrategy = "TryPullOrDie"
+	TryPullOrHardReset MergeStrategy = "TryPullOrHardReset"
+	TryHardResetOrDie  MergeStrategy = "TryHardResetOrDie"
 )

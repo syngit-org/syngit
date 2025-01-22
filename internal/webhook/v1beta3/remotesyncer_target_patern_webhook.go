@@ -105,7 +105,7 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) createRemoteTargets(ctx con
 			if nameErr != nil {
 				return nameErr
 			}
-			mergeStrategy := syngit.TryMergeCommitOrHardReset
+			mergeStrategy := syngit.TryPullOrDie
 			if remoteSyncer.Spec.DefaultBranch == branch {
 				mergeStrategy = ""
 			}
@@ -190,6 +190,7 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) isThereDiff(old syngit.Remo
 	return false
 }
 
+// Search for automatically created RemoteTargets that are used by the RemoteSyncer
 func (rsyt *RemoteSyncerTargetPatternWebhookHandler) searchForRemoteTargetsDependencies(ctx context.Context, remoteSyncer syngit.RemoteSyncer) ([]syngit.RemoteTarget, error) {
 	rts := &syngit.RemoteTargetList{}
 	listOps := &client.ListOptions{
@@ -209,17 +210,15 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) searchForRemoteTargetsDepen
 	rsyAnnotations := remoteSyncer.Annotations
 
 	branchesAnnotation := rsyAnnotations[syngit.RtAnnotationBranches]
-	branches := []string{remoteSyncer.Spec.DefaultBranch}
+	branches := []string{rsyBranch}
 	if branchesAnnotation != "" {
 		branches = strings.Split(strings.ReplaceAll(branchesAnnotation, " ", ""), ",")
 	}
 	for _, rt := range rts.Items {
-		if rt.Spec.UpstreamRepository == rsyRepo && rt.Spec.UpstreamBranch == rsyBranch && slices.Contains(branches, rt.Spec.TargetBranch) {
+		if rt.Spec.UpstreamRepository == rsyRepo && rt.Spec.UpstreamBranch == rsyBranch && rt.Spec.TargetRepository == rsyRepo && slices.Contains(branches, rt.Spec.TargetBranch) {
 			referencedRemoteTargets = append(referencedRemoteTargets, rt)
 		}
-	}
 
-	for _, rt := range rts.Items {
 		if rsyAnnotations[syngit.RtAnnotationUserSpecific] == string(syngit.RtAnnotationOneUserOneForkValue) {
 			if rt.Spec.UpstreamRepository == rsyRepo && rt.Spec.UpstreamBranch == rsyBranch {
 				referencedRemoteTargets = append(referencedRemoteTargets, rt)
@@ -250,6 +249,7 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) convertRemoteTargetsToNames
 	return namespacedNames
 }
 
+// Can be referenced by another RemoteSyncer that have the same upstream repo & branch
 func (rsyt *RemoteSyncerTargetPatternWebhookHandler) deleteRemoteTargetsIfNotReferenced(ctx context.Context, oldRemoteSyncer syngit.RemoteSyncer) error {
 	rsys := &syngit.RemoteSyncerList{}
 	listOps := &client.ListOptions{
@@ -260,6 +260,7 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) deleteRemoteTargetsIfNotRef
 		return listErr
 	}
 
+	// List RemoteTargets that scopes the OLD RemoteSyncer's upstream repo & branch
 	referencedRemoteTargets, refErr := rsyt.searchForRemoteTargetsDependencies(ctx, oldRemoteSyncer)
 	if refErr != nil {
 		return refErr
@@ -267,18 +268,28 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) deleteRemoteTargetsIfNotRef
 	referencedRemoteTargetsNN := rsyt.convertRemoteTargetsToNamespacedName(referencedRemoteTargets)
 
 	dontTouchToThese := []types.NamespacedName{}
+	// Loop over each RemoteSyncer of the namespace
 	for _, rsy := range rsys.Items {
-		specificRsyReferences, refErr := rsyt.searchForRemoteTargetsDependencies(ctx, rsy)
-		if refErr != nil {
-			return refErr
-		}
-		specificRsyReferencesNN := rsyt.convertRemoteTargetsToNamespacedName(specificRsyReferences)
 
-		for _, specificRsy := range specificRsyReferencesNN {
-			if slices.Contains(referencedRemoteTargetsNN, specificRsy) {
-				dontTouchToThese = append(dontTouchToThese, specificRsy)
+		if rsy.Name != oldRemoteSyncer.Name && rsy.Namespace != oldRemoteSyncer.Namespace {
+			// List RemoteTargets that scopes the NEW RemoteSyncer's upstream repo & branch
+			specificRsyReferences, refErr := rsyt.searchForRemoteTargetsDependencies(ctx, rsy)
+			if refErr != nil {
+				return refErr
+			}
+			specificRsyReferencesNN := rsyt.convertRemoteTargetsToNamespacedName(specificRsyReferences)
+
+			// If a RemoteTarget that scopes the OLD INCOMING RemoteSyncer's specs is part of
+			// the slice of the CURRENT loop RemoteSyncer, then do not touch to it.
+			// If the RemoteTargets that could be deleted are referenced by the CURRENT loop
+			// RemoteSyncer, then it is a dependency and we must not delete it.
+			for _, specificRsy := range specificRsyReferencesNN {
+				if slices.Contains(referencedRemoteTargetsNN, specificRsy) {
+					dontTouchToThese = append(dontTouchToThese, specificRsy)
+				}
 			}
 		}
+
 	}
 
 	for _, rt := range referencedRemoteTargets {

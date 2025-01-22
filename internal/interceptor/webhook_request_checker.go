@@ -396,7 +396,7 @@ func (wrc *WebhookRequestChecker) buildRemoteTargetIfNotExists(username string) 
 				syngit.K8sUserLabelKey:   username,
 			},
 			Annotations: map[string]string{
-				syngit.RtAnnotationUserSpecific: string(syngit.RtAnnotationOneUserOneBranchValue),
+				syngit.RtAllowInjection: "true",
 			},
 		},
 		Spec: syngit.RemoteTargetSpec{

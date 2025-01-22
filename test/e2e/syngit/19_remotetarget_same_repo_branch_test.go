@@ -46,7 +46,7 @@ var _ = Describe("19 RemoteTarget same repo & branch between target and upstream
 				TargetRepository:   repo,
 				UpstreamBranch:     branch,
 				TargetBranch:       branch,
-				MergeStrategy:      syngit.TryMergeCommitOrHardReset,
+				MergeStrategy:      syngit.TryPullOrHardReset,
 			},
 		}
 		Eventually(func() bool {

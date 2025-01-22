@@ -18,7 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
-	"strings"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -30,25 +30,23 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = Describe("22 RemoteTarget multiple different branch", func() {
+var _ = Describe("25 Test merge strategies", func() {
 	ctx := context.TODO()
 
 	const (
 		remoteUserLuffyName = "remoteuser-luffy"
-		remoteSyncerName1   = "remotesyncer-test22.1"
-		remoteSyncerName2   = "remotesyncer-test22.2"
-		cmName1             = "test-cm22.1"
-		cmName2             = "test-cm22.2"
+		remoteSyncerName1   = "remotesyncer-test25.1"
+		remoteSyncerName2   = "remotesyncer-test25.2"
+		cmName1             = "test-cm25.1"
+		cmName2             = "test-cm25.2"
+		cmName3             = "test-cm25.3"
 		upstreamBranch      = "main"
-		branch1             = "different-branch1"
-		branch2             = "different-branch2"
-		branch3             = "different-branch3"
+		customBranch        = "custom-branch25"
 	)
 
-	It("should push the ConfigMap to all the branches and the Luffy's branch", func() {
+	It("should correctly pull the changes from the upstream", func() {
 
 		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
-		targetBranch := string(Luffy)
 
 		By("creating the RemoteUser for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
@@ -73,127 +71,14 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("creating the RemoteSyncer")
-		branches := []string{branch1, branch2, branch3}
+		By("creating the RemoteSyncer targetting the custom-branch")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName1,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled:      "true",
-					syngit.RtAnnotationUserSpecific: string(syngit.RtAnnotationOneUserOneBranchValue),
-					syngit.RtAnnotationBranches:     strings.Join(branches, ","),
-				},
-			},
-			Spec: syngit.RemoteSyncerSpec{
-				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               upstreamBranch,
-				DefaultUnauthorizedUserMode: syngit.Block,
-				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.MultipleTarget,
-				RemoteRepository:            repoUrl,
-				ScopedResources: syngit.ScopedResources{
-					Rules: []admissionv1.RuleWithOperations{{
-						Operations: []admissionv1.OperationType{
-							admissionv1.Create,
-						},
-						Rule: admissionv1.Rule{
-							APIGroups:   []string{""},
-							APIVersions: []string{"v1"},
-							Resources:   []string{"configmaps"},
-						},
-					},
-					},
-				},
-			},
-		}
-		Eventually(func() bool {
-			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
-
-		By("creating a test configmap")
-		Wait3()
-		cm := &corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "ConfigMap",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{Name: cmName1, Namespace: namespace},
-			Data:       map[string]string{"test": "oui"},
-		}
-		Eventually(func() bool {
-			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
-				cm,
-				metav1.CreateOptions{},
-			)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
-
-		By("checking that the configmap is present on the repo")
-		Wait3()
-		repo := &Repo{
-			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
-			Branch: targetBranch,
-		}
-		exists, err := IsObjectInRepo(*repo, cm)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(exists).To(BeTrue())
-
-		By("checking that the configmap is present on the cluster")
-		nnCm := types.NamespacedName{
-			Name:      cmName1,
-			Namespace: namespace,
-		}
-		getCm := &corev1.ConfigMap{}
-
-		Eventually(func() bool {
-			err := sClient.As(Luffy).Get(nnCm, getCm)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
-
-	})
-
-	It("should deny the request because of the wrong strategy", func() {
-
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
-		targetBranch := string(Luffy)
-
-		By("creating the RemoteUser for Luffy")
-		luffySecretName := string(Luffy) + "-creds"
-		remoteUserLuffy := &syngit.RemoteUser{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteUserLuffyName,
-				Namespace: namespace,
-				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
-				},
-			},
-			Spec: syngit.RemoteUserSpec{
-				Email:             "sample@email.com",
-				GitBaseDomainFQDN: gitP1Fqdn,
-				SecretRef: corev1.SecretReference{
-					Name: luffySecretName,
-				},
-			},
-		}
-		Eventually(func() bool {
-			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffy)
-			return err == nil
-		}, timeout, interval).Should(BeTrue())
-
-		By("creating the RemoteSyncer")
-		branches := []string{branch1, branch2, branch3}
-		remotesyncer := &syngit.RemoteSyncer{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteSyncerName2,
-				Namespace: namespace,
-				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled:      "true",
-					syngit.RtAnnotationUserSpecific: string(syngit.RtAnnotationOneUserOneBranchValue),
-					syngit.RtAnnotationBranches:     strings.Join(branches, ","),
+					syngit.RtAnnotationEnabled:  "true",
+					syngit.RtAnnotationBranches: customBranch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -230,7 +115,7 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 				Kind:       "ConfigMap",
 				APIVersion: "v1",
 			},
-			ObjectMeta: metav1.ObjectMeta{Name: cmName2, Namespace: namespace},
+			ObjectMeta: metav1.ObjectMeta{Name: cmName1, Namespace: namespace},
 			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
@@ -238,30 +123,147 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
+			fmt.Println(err)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that the configmap is present on the repo")
 		Wait3()
-		repo := &Repo{
+		customBranchRepo := &Repo{
 			Fqdn:   gitP1Fqdn,
 			Owner:  "syngituser",
 			Name:   "blue",
-			Branch: targetBranch,
+			Branch: customBranch,
 		}
-		exists, err := IsObjectInRepo(*repo, cm)
+		exists, err := IsObjectInRepo(*customBranchRepo, cm)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(exists).To(BeTrue())
 
 		By("checking that the configmap is present on the cluster")
 		nnCm := types.NamespacedName{
-			Name:      cmName2,
+			Name:      cmName1,
 			Namespace: namespace,
 		}
 		getCm := &corev1.ConfigMap{}
 
 		Eventually(func() bool {
 			err := sClient.As(Luffy).Get(nnCm, getCm)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		By("creating the RemoteSyncer targetting the upstream main branch")
+		remotesyncer2 := &syngit.RemoteSyncer{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteSyncerName2,
+				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationEnabled: "true",
+				},
+			},
+			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
+				DefaultBranch:               upstreamBranch,
+				DefaultUnauthorizedUserMode: syngit.Block,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.MultipleTarget,
+				RemoteRepository:            repoUrl,
+				ScopedResources: syngit.ScopedResources{
+					Rules: []admissionv1.RuleWithOperations{{
+						Operations: []admissionv1.OperationType{
+							admissionv1.Create,
+						},
+						Rule: admissionv1.Rule{
+							APIGroups:   []string{""},
+							APIVersions: []string{"v1"},
+							Resources:   []string{"configmaps"},
+						},
+					},
+					},
+				},
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer2)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		By("creating the same test configmap with some changes")
+		Wait3()
+		cm2 := &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "ConfigMap",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{Name: cmName2, Namespace: namespace},
+			Data:       map[string]string{"test": "non"},
+		}
+		Eventually(func() bool {
+			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+				cm2,
+				metav1.CreateOptions{},
+			)
+			fmt.Println(err)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		By("checking that the configmap is present on the repo")
+		Wait3()
+		upstreamRepo := &Repo{
+			Fqdn:   gitP1Fqdn,
+			Owner:  "syngituser",
+			Name:   "blue",
+			Branch: upstreamBranch,
+		}
+		exists, err = IsObjectInRepo(*upstreamRepo, cm2)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(exists).To(BeTrue())
+
+		By("checking that the configmap is present on the cluster")
+		nnCm2 := types.NamespacedName{
+			Name:      cmName2,
+			Namespace: namespace,
+		}
+		getCm = &corev1.ConfigMap{}
+
+		Eventually(func() bool {
+			err := sClient.As(Luffy).Get(nnCm2, getCm)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		By("creating another test configmap")
+		Wait3()
+		cm3 := &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "ConfigMap",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{Name: cmName3, Namespace: namespace},
+			Data:       map[string]string{"test": "non"},
+		}
+		Eventually(func() bool {
+			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+				cm3,
+				metav1.CreateOptions{},
+			)
+			fmt.Println(err)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		By("checking that the upstream configmap is present in the custom-branch")
+		Wait3()
+		exists, err = IsObjectInRepo(*customBranchRepo, cm3)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(exists).To(BeTrue())
+
+		By("checking that the configmap is present on the cluster")
+		nnCm3 := types.NamespacedName{
+			Name:      cmName3,
+			Namespace: namespace,
+		}
+		getCm = &corev1.ConfigMap{}
+
+		Eventually(func() bool {
+			err := sClient.As(Luffy).Get(nnCm3, getCm)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 

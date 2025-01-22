@@ -11,6 +11,7 @@ import (
 	"time"
 
 	git "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
@@ -80,7 +81,7 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 			strategy:           gp.remoteTarget.Spec.MergeStrategy,
 		}
 		var err error
-		w, err = gc.GetWorkTree()
+		w, err = gc.GetWorkTree(*gp)
 		if err != nil {
 			errMsg := "failed to get worktree: " + err.Error()
 			return *gpResponse, errors.New(errMsg)
@@ -260,14 +261,19 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string) (string, e
 }
 
 func (gp *GitPusher) pushChanges(repo *git.Repository) error {
+	targetBranch := gp.remoteTarget.Spec.TargetBranch
+
 	variables := fmt.Sprintf("\nRepository: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
 		gp.remoteSyncer.Spec.RemoteRepository,
-		plumbing.ReferenceName(gp.remoteSyncer.Spec.DefaultBranch),
+		plumbing.ReferenceName(targetBranch),
 		gp.gitUser,
 		gp.gitEmail,
 	)
 	var verboseOutput bytes.Buffer
 	pushOptions := &git.PushOptions{
+		RefSpecs: []config.RefSpec{
+			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", targetBranch, targetBranch)),
+		},
 		Auth: &http.BasicAuth{
 			Username: gp.gitUser,
 			Password: gp.gitToken,

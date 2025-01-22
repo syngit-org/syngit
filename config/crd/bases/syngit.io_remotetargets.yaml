@@ -41,8 +41,8 @@ spec:
             properties:
               mergeStrategy:
                 enum:
-                - TryMergeCommitOrDie
-                - TryMergeCommitOrHardReset
+                - TryPullOrDie
+                - TryPullOrHardReset
                 - TryHardResetOrDie
                 - ""
                 type: string

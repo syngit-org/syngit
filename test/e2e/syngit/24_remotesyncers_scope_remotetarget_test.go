@@ -77,7 +77,6 @@ var _ = Describe("24 One RemoteTarget scoped by multiple RemoteSyncers", func() 
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBlockAppliedMessage:  defaultDeniedMessage,
 				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				Strategy:                    syngit.CommitApply,
@@ -114,7 +113,6 @@ var _ = Describe("24 One RemoteTarget scoped by multiple RemoteSyncers", func() 
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBlockAppliedMessage:  defaultDeniedMessage,
 				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				Strategy:                    syngit.CommitApply,
