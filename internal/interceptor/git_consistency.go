@@ -153,46 +153,43 @@ func (gc GitConsistency) upstreamBasedHardReset(gp GitPusher) (*git.Worktree, er
 func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) {
 
 	targetBranch := gp.remoteTarget.Spec.TargetBranch
-	targetBranchRef := plumbing.NewBranchReferenceName(targetBranch)
-	upstreamRemoteRef := plumbing.ReferenceName(fmt.Sprintf("refs/remotes/%s/%s", upstreamRemote, gp.remoteSyncer.Spec.DefaultBranch))
-
-	worktree, err := gc.targetRepository.Worktree()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get worktree for target repository: %w", err)
-	}
+	// targetBranchRef := plumbing.NewBranchReferenceName(targetBranch)
+	// upstreamRemoteRef := plumbing.ReferenceName(fmt.Sprintf("refs/remotes/%s/%s", upstreamRemote, gp.remoteSyncer.Spec.DefaultBranch))
+	// upstreamRemoteRef := plumbing.ReferenceName(gp.remoteSyncer.Spec.DefaultBranch)
 
 	remErr := gc.fetchUpstream(gp)
 	if remErr != nil {
 		return nil, remErr
 	}
 
+	iter, err := gc.targetRepository.References()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list references: %w", err)
+	}
+
 	// Checkout the upstream default branch in order to pull the diffs
-	upstreamLastCommitRef, err := gc.targetRepository.Reference(upstreamRemoteRef, true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find remote reference %s: %w", upstreamRemoteRef.String(), err)
-	}
-	err = worktree.Checkout(&git.CheckoutOptions{
-		Hash: upstreamLastCommitRef.Hash(),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to checkout upstream commit: %w", err)
-	}
+	// upstreamLastCommitRef, err := gc.targetRepository.Reference(upstreamRemoteRef, true)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to find remote reference %s: %w", upstreamRemoteRef.String(), err)
+	// }
+	// err = worktree.Checkout(&git.CheckoutOptions{
+	// 	Hash: upstreamLastCommitRef.Hash(),
+	// })
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to checkout upstream commit: %w", err)
+	// }
 
-	err = gc.targetRepository.Storer.SetReference(plumbing.NewHashReference(targetBranchRef, upstreamLastCommitRef.Hash()))
+	mainWorktree, err := gc.targetRepository.Worktree()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create local branch %s: %w", targetBranchRef.String(), err)
-	}
-
-	err = gc.checkoutToBranch(worktree, targetBranch)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get worktree for target repository: %w", err)
 	}
 
 	var verboseOutput bytes.Buffer
 	pullOptions := &git.PullOptions{
 		RemoteName:    upstreamRemote,
-		ReferenceName: targetBranchRef,
-		SingleBranch:  true,
+		ReferenceName: plumbing.NewBranchReferenceName("main"),
+		// ReferenceName: upstreamRemoteRef,
+		SingleBranch: true,
 		Auth: &http.BasicAuth{
 			Username: gp.gitUser,
 			Password: gp.gitToken,
@@ -203,11 +200,11 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 	if gp.caBundle != nil {
 		pullOptions.CABundle = gp.caBundle
 	}
-	err = worktree.Pull(pullOptions)
-	if err != nil {
+	err = mainWorktree.Pull(pullOptions)
+	if err != nil && err != git.NoErrAlreadyUpToDate {
 		variables := fmt.Sprintf("\nRemote: %s\nUpstream ref: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
 			upstreamRemote,
-			upstreamLastCommitRef,
+			plumbing.HEAD,
 			targetBranch,
 			gp.gitUser,
 			gp.gitEmail,
@@ -216,7 +213,133 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 		return nil, errors.New(errMsg)
 	}
 
-	return worktree, nil
+	targetWorktree, err := gc.targetRepository.Worktree()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get worktree for target repository: %w", err)
+	}
+
+	err = gc.checkoutToBranch(targetWorktree, targetBranch)
+	if err != nil {
+		return nil, err
+	}
+
+	pullOptions = &git.PullOptions{
+		RemoteName:    upstreamRemote,
+		ReferenceName: plumbing.NewBranchReferenceName(targetBranch),
+		// ReferenceName: upstreamRemoteRef,
+		SingleBranch: true,
+		Auth: &http.BasicAuth{
+			Username: gp.gitUser,
+			Password: gp.gitToken,
+		},
+		InsecureSkipTLS: gp.remoteSyncer.Spec.InsecureSkipTlsVerify,
+		Progress:        io.MultiWriter(&verboseOutput),
+	}
+	if gp.caBundle != nil {
+		pullOptions.CABundle = gp.caBundle
+	}
+	err = targetWorktree.Pull(pullOptions)
+	if err != nil && err != git.NoErrAlreadyUpToDate {
+		variables := fmt.Sprintf("\nRemote: %s\nUpstream ref: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
+			upstreamRemote,
+			plumbing.HEAD,
+			targetBranch,
+			gp.gitUser,
+			gp.gitEmail,
+		)
+		errMsg := fmt.Sprintf("failed to pull target remote: %s\nVerbose output: %s\nVariables: %s\n", err.Error(), verboseOutput.String(), variables)
+		return nil, errors.New(errMsg)
+	}
+
+	fmt.Println("Available References:")
+	err = iter.ForEach(func(ref *plumbing.Reference) error {
+		fmt.Println(ref.Name())
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error iterating references: %w", err)
+	}
+
+	remotes, err := gc.targetRepository.Remotes()
+	if err != nil {
+		return nil, fmt.Errorf("error iterating references: %w", err)
+	}
+	fmt.Println(remotes)
+
+	targetRef, err := gc.targetRepository.Reference(plumbing.NewBranchReferenceName(targetBranch), true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get target branch reference: %w", err)
+	}
+
+	err = gc.targetRepository.Storer.SetReference(targetRef)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set target branch %s: %w", plumbing.NewBranchReferenceName(targetBranch).String(), err)
+	}
+
+	// Merge the main branch into the target branch
+	mainRef, err := gc.targetRepository.Reference(plumbing.NewBranchReferenceName("main"), true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get main branch reference: %w", err)
+	}
+
+	// ref, _ := gc.targetRepository.Head()
+	// // ... retrieves the commit history
+	// since := time.Date(2025, 1, 23, 0, 0, 0, 0, time.UTC)
+	// until := time.Date(2025, 1, 25, 0, 0, 0, 0, time.UTC)
+	// cIter, _ := gc.targetRepository.Log(&git.LogOptions{From: ref.Hash(), Since: &since, Until: &until})
+	// // ... just iterates over the commits, printing it
+	// _ = cIter.ForEach(func(c *object.Commit) error {
+	// 	fmt.Println(c)
+
+	// 	return nil
+	// })
+
+	// Check if the target branch already contains the commit from the main branch
+	mainCommitHash := mainRef.Hash()
+	contains, err := gc.branchContainsCommit(*targetRef, mainCommitHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if target branch contains commit: %w", err)
+	}
+	if contains {
+		fmt.Println("Target branch already contains the main branch commit. Skipping merge.")
+		return targetWorktree, nil
+	}
+
+	mergeOptions := &git.MergeOptions{
+		Strategy: git.FastForwardMerge,
+	}
+	mergeErr := gc.targetRepository.Merge(*mainRef, *mergeOptions)
+	if mergeErr != nil {
+		return nil, fmt.Errorf("failed to merge the %s reference in the current branch", mainRef.String())
+	}
+
+	// Return the updated worktree
+	updatedWorktree, err := gc.targetRepository.Worktree()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get updated worktree: %w", err)
+	}
+
+	return updatedWorktree, nil
+}
+
+func (gc GitConsistency) branchContainsCommit(branchRef plumbing.Reference, commitHash plumbing.Hash) (bool, error) {
+	branchIter, err := gc.targetRepository.Log(&git.LogOptions{From: branchRef.Hash()})
+	if err != nil {
+		return false, fmt.Errorf("failed to get branch log: %w", err)
+	}
+	defer branchIter.Close()
+
+	for {
+		commit, err := branchIter.Next()
+		if err != nil {
+			break
+		}
+		if commit.Hash == commitHash {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func (gc GitConsistency) checkoutToBranch(worktree *git.Worktree, targetBranch string) error {
@@ -224,15 +347,15 @@ func (gc GitConsistency) checkoutToBranch(worktree *git.Worktree, targetBranch s
 	_, err := gc.targetRepository.Reference(localRef, true)
 	if err == plumbing.ErrReferenceNotFound {
 		// If the branch does not exist locally, create and checkout the branch
-		headRef, err := gc.targetRepository.Head()
-		if err != nil {
-			return fmt.Errorf("failed to get HEAD reference: %w", err)
-		}
+		// headRef, err := gc.targetRepository.Head()
+		// if err != nil {
+		// 	return fmt.Errorf("failed to get HEAD reference: %w", err)
+		// }
 
 		err = worktree.Checkout(&git.CheckoutOptions{
 			Branch: localRef,
 			Create: true,
-			Hash:   headRef.Hash(),
+			// Hash:   headRef.Hash(),
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create and checkout branch %s: %w", targetBranch, err)
@@ -254,7 +377,7 @@ func (gc GitConsistency) checkoutToBranch(worktree *git.Worktree, targetBranch s
 func (gc GitConsistency) fetchUpstream(gp GitPusher) error {
 
 	upstreamURL := gp.remoteSyncer.Spec.RemoteRepository
-	upstreamBranch := gp.remoteSyncer.Spec.DefaultBranch
+	// upstreamBranch := gp.remoteSyncer.Spec.DefaultBranch
 
 	if _, remErr := gc.targetRepository.Remote(upstreamRemote); remErr == git.ErrRemoteNotFound {
 		_, err := gc.targetRepository.CreateRemote(&config.RemoteConfig{
@@ -277,7 +400,8 @@ func (gc GitConsistency) fetchUpstream(gp GitPusher) error {
 			Password: gp.gitToken,
 		},
 		RefSpecs: []config.RefSpec{
-			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/remotes/upstream/%s", upstreamBranch, upstreamBranch)),
+			config.RefSpec("+refs/heads/*:refs/remotes/origin/*"),
+			config.RefSpec("+refs/heads/*:refs/remotes/upstream/*"),
 		},
 		InsecureSkipTLS: gp.remoteSyncer.Spec.InsecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput),

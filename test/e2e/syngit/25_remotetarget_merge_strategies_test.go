@@ -88,6 +88,11 @@ var _ = Describe("25 Test merge strategies", func() {
 				Strategy:                    syngit.CommitApply,
 				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
+				RemoteTargetSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
+					},
+				},
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
