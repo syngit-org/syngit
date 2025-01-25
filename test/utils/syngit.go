@@ -11,6 +11,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+func Merge(repo Repo, sourceBranch string, targetBranch string) error {
+	return merge(repo, sourceBranch, targetBranch)
+}
+
 func GetGiteaURL(namespace string) (string, error) {
 	// Run kubectl to get the NodePort of the gitea service in the given namespace
 	port, err := exec.Command("kubectl", "get", "svc", "gitea-http", "-n", namespace, "-o", "jsonpath={.spec.ports[0].nodePort}").Output()

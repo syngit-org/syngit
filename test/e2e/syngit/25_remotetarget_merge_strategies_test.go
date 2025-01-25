@@ -18,7 +18,6 @@ package e2e_syngit
 
 import (
 	"context"
-	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -130,7 +129,6 @@ var _ = Describe("25 Test merge strategies", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			fmt.Println(err)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -246,6 +244,10 @@ var _ = Describe("25 Test merge strategies", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
+		By("performing a merge from the custom-branch to the main branch")
+		mergeErr := Merge(*customBranchRepo, customBranch, upstreamBranch)
+		Expect(mergeErr).ToNot(HaveOccurred())
+
 		By("deleting the second RemoteSyncer")
 		delErr = sClient.As(Luffy).Delete(remotesyncer2)
 		Expect(delErr).ToNot(HaveOccurred())
@@ -271,7 +273,6 @@ var _ = Describe("25 Test merge strategies", func() {
 				cm3,
 				metav1.CreateOptions{},
 			)
-			fmt.Println(err)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 

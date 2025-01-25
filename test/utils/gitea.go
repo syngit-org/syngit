@@ -24,7 +24,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -75,7 +77,7 @@ func getAdminToken(baseFqdn string) (string, error) {
 	url := fmt.Sprintf("https://%s/api/v1/users/%s/tokens", baseFqdn, username)
 
 	// Prepare the request payload
-	tokenName := "admin-e2e-token"
+	tokenName := "admin-e2e-token" + string(rand.IntN(1000))
 	payload := map[string]interface{}{
 		"name":   tokenName,
 		"scopes": []string{"all"},
@@ -160,9 +162,6 @@ func getTree(repoFqdn string, repoOwner string, repoName string, sha string) ([]
 	}
 	defer resp.Body.Close()
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to get repo tree: %v", err)
-	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
@@ -346,4 +345,98 @@ func getObjectMetadata(obj runtime.Object) (metav1.Object, error) {
 		return nil, fmt.Errorf("failed to access metadata: %w", err)
 	}
 	return metadata, nil
+}
+
+func merge(repo Repo, sourceBranch string, targetBranch string) error {
+	prUrl := fmt.Sprintf("https://%s/api/v1/repos/%s/%s/pulls", repo.Fqdn, repo.Owner, repo.Name)
+
+	// CREATE PULL REQUEST
+	data := map[string]interface{}{
+		"head":  sourceBranch,
+		"base":  targetBranch,
+		"title": fmt.Sprintf("Merge %s into %s", sourceBranch, targetBranch),
+		"body":  "This pull request was created programmatically.",
+	}
+
+	body, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", prUrl, bytes.NewBuffer(body))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	apiToken, err := getAdminToken(repo.Fqdn)
+	if err != nil {
+		return fmt.Errorf("failed to get the apiToken")
+	}
+	req.Header.Set("Authorization", "token "+apiToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Skip Tls verify
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true, // Skip TLS verification
+		},
+	}
+
+	// Send the request
+	client := &http.Client{Transport: tr}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to create pull request: %s", string(bodyBytes))
+	}
+
+	var response map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	pullUrl := strings.Split(string(response["html_url"].(string)), "/")
+	pullID, _ := strconv.Atoi(pullUrl[len(pullUrl)-1])
+
+	// MERGE PULL REQUEST
+	mergeUrl := fmt.Sprintf("https://%s/api/v1/repos/%s/%s/pulls/%d/merge", repo.Fqdn, repo.Owner, repo.Name, pullID)
+
+	data = map[string]interface{}{
+		"do":            "merge",
+		"merge_title":   "Merging branches programmatically",
+		"merge_message": "Merge completed using Gitea API",
+	}
+
+	body, err = json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	req, err = http.NewRequest("POST", mergeUrl, bytes.NewBuffer(body))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "token "+apiToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Send the request
+	client = &http.Client{Transport: tr}
+	resp, err = client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to merge pull request: %s", string(bodyBytes))
+	}
+
+	return nil
 }

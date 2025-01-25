@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
 
 	"github.com/go-git/go-billy/v5/memfs"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
@@ -157,50 +155,20 @@ func (gc GitConsistency) upstreamBasedHardReset(gp GitPusher) (*git.Worktree, er
 func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) {
 
 	targetBranch := gp.remoteTarget.Spec.TargetBranch
-	// targetBranchRef := plumbing.NewBranchReferenceName(targetBranch)
-	// upstreamRemoteRef := plumbing.ReferenceName(fmt.Sprintf("refs/remotes/%s/%s", upstreamRemote, gp.remoteSyncer.Spec.DefaultBranch))
-	// upstreamRemoteRef := plumbing.ReferenceName(gp.remoteSyncer.Spec.DefaultBranch)
 
 	remErr := gc.fetchUpstream(gp)
 	if remErr != nil {
 		return nil, remErr
 	}
 
-	iter, err := gc.targetRepository.References()
-	if err != nil {
-		return nil, fmt.Errorf("failed to list references: %w", err)
-	}
-
-	fmt.Println("Available References:")
-	err = iter.ForEach(func(ref *plumbing.Reference) error {
-		fmt.Println(ref.Name())
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error iterating references: %w", err)
-	}
-
-	remotes, err := gc.targetRepository.Remotes()
-	if err != nil {
-		return nil, fmt.Errorf("error iterating references: %w", err)
-	}
-	fmt.Println(remotes)
-
-	// Checkout the upstream default branch in order to pull the diffs
-	// upstreamLastCommitRef, err := gc.targetRepository.Reference(upstreamRemoteRef, true)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to find remote reference %s: %w", upstreamRemoteRef.String(), err)
-	// }
-	// err = worktree.Checkout(&git.CheckoutOptions{
-	// 	Hash: upstreamLastCommitRef.Hash(),
-	// })
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to checkout upstream commit: %w", err)
-	// }
-
-	mainWorktree, err := gc.targetRepository.Worktree()
+	targetWorktree, err := gc.targetRepository.Worktree()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get worktree for target repository: %w", err)
+	}
+
+	err = gc.checkoutToBranch(targetWorktree, targetBranch)
+	if err != nil {
+		return nil, err
 	}
 
 	var verboseOutput bytes.Buffer
@@ -219,7 +187,7 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 	if gp.caBundle != nil {
 		pullOptions.CABundle = gp.caBundle
 	}
-	err = mainWorktree.Pull(pullOptions)
+	err = targetWorktree.Pull(pullOptions)
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		variables := fmt.Sprintf("\nRemote: %s\nUpstream ref: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
 			upstreamRemote,
@@ -230,28 +198,6 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 		)
 		errMsg := fmt.Sprintf("failed to pull remote: %s\nVerbose output: %s\nVariables: %s\n", err.Error(), verboseOutput.String(), variables)
 		return nil, errors.New(errMsg)
-	}
-
-	ref, _ := gc.targetRepository.Head()
-	// ... retrieves the commit history
-	since := time.Date(2025, 1, 23, 0, 0, 0, 0, time.UTC)
-	until := time.Date(2025, 1, 29, 0, 0, 0, 0, time.UTC)
-	cIter, _ := gc.targetRepository.Log(&git.LogOptions{From: ref.Hash(), Since: &since, Until: &until})
-	// ... just iterates over the commits, printing it
-	_ = cIter.ForEach(func(c *object.Commit) error {
-		fmt.Println(c)
-
-		return nil
-	})
-
-	targetWorktree, err := gc.targetRepository.Worktree()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get worktree for target repository: %w", err)
-	}
-
-	err = gc.checkoutToBranch(targetWorktree, targetBranch)
-	if err != nil {
-		return nil, err
 	}
 
 	pullOptions = &git.PullOptions{
@@ -305,7 +251,7 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 		return nil, fmt.Errorf("failed to check if target branch contains commit: %w", err)
 	}
 	if contains {
-		fmt.Println("Target branch already contains the main branch commit. Skipping merge.")
+		// Target branch already contains the main branch commit. Skipping merge.
 		return targetWorktree, nil
 	}
 
@@ -350,16 +296,10 @@ func (gc GitConsistency) checkoutToBranch(worktree *git.Worktree, targetBranch s
 	localRef := plumbing.NewBranchReferenceName(targetBranch)
 	_, err := gc.targetRepository.Reference(localRef, true)
 	if err == plumbing.ErrReferenceNotFound {
-		// If the branch does not exist locally, create and checkout the branch
-		// headRef, err := gc.targetRepository.Head()
-		// if err != nil {
-		// 	return fmt.Errorf("failed to get HEAD reference: %w", err)
-		// }
 
 		err = worktree.Checkout(&git.CheckoutOptions{
 			Branch: localRef,
 			Create: true,
-			// Hash:   headRef.Hash(),
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create and checkout branch %s: %w", targetBranch, err)
@@ -381,7 +321,6 @@ func (gc GitConsistency) checkoutToBranch(worktree *git.Worktree, targetBranch s
 func (gc GitConsistency) fetchUpstream(gp GitPusher) error {
 
 	upstreamURL := gp.remoteSyncer.Spec.RemoteRepository
-	// upstreamBranch := gp.remoteSyncer.Spec.DefaultBranch
 
 	if _, remErr := gc.targetRepository.Remote(upstreamRemote); remErr == git.ErrRemoteNotFound {
 		_, err := gc.targetRepository.CreateRemote(&config.RemoteConfig{
