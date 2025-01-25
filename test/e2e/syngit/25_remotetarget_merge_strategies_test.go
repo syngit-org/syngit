@@ -91,6 +91,7 @@ var _ = Describe("25 Test merge strategies", func() {
 				RemoteTargetSelector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
+						syngit.RtLabelBranchKey:  customBranch,
 					},
 				},
 				ScopedResources: syngit.ScopedResources{
@@ -108,12 +109,13 @@ var _ = Describe("25 Test merge strategies", func() {
 				},
 			},
 		}
+		remotesyncerDeepCopied := remotesyncer.DeepCopy()
 		Eventually(func() bool {
 			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("creating a test configmap")
+		By("creating a test configmap on the custom-branch")
 		Wait3()
 		cm := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
@@ -156,6 +158,10 @@ var _ = Describe("25 Test merge strategies", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
+		By("deleting the first RemoteSyncer")
+		delErr := sClient.As(Luffy).Delete(remotesyncer)
+		Expect(delErr).ToNot(HaveOccurred())
+
 		By("creating the RemoteSyncer targetting the upstream main branch")
 		remotesyncer2 := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -170,8 +176,14 @@ var _ = Describe("25 Test merge strategies", func() {
 				DefaultBranch:               upstreamBranch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.MultipleTarget,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
+				RemoteTargetSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
+						syngit.RtLabelBranchKey:  upstreamBranch,
+					},
+				},
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
@@ -192,7 +204,7 @@ var _ = Describe("25 Test merge strategies", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("creating the same test configmap with some changes")
+		By("creating another test configmap on the main branch")
 		Wait3()
 		cm2 := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
@@ -207,7 +219,6 @@ var _ = Describe("25 Test merge strategies", func() {
 				cm2,
 				metav1.CreateOptions{},
 			)
-			fmt.Println(err)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -235,7 +246,17 @@ var _ = Describe("25 Test merge strategies", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("creating another test configmap")
+		By("deleting the second RemoteSyncer")
+		delErr = sClient.As(Luffy).Delete(remotesyncer2)
+		Expect(delErr).ToNot(HaveOccurred())
+
+		By("re-creating the first RemoteSyncer")
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remotesyncerDeepCopied)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		By("creating another test configmap on the custom-branch")
 		Wait3()
 		cm3 := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
@@ -254,7 +275,13 @@ var _ = Describe("25 Test merge strategies", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("checking that the upstream configmap is present in the custom-branch")
+		By("checking that the previous upstream configmap is present in the custom-branch")
+		Wait3()
+		exists, err = IsObjectInRepo(*customBranchRepo, cm2)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(exists).To(BeTrue())
+
+		By("checking that the new configmap is present in the custom-branch")
 		Wait3()
 		exists, err = IsObjectInRepo(*customBranchRepo, cm3)
 		Expect(err).ToNot(HaveOccurred())

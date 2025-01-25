@@ -500,10 +500,19 @@ func deleteRbac(ctx context.Context) {
 
 }
 
+func deleteRepos() {
+	By("reseting the gitea repos")
+	cmd := exec.Command("make", "reset-gitea")
+	_, err := Run(cmd)
+	Expect(err).NotTo(HaveOccurred())
+}
+
 var _ = AfterSuite(func() {
 	ctx := context.TODO()
 
 	deleteRbac(ctx)
+
+	deleteRepos()
 
 	By("tearing down the test environment")
 	Eventually(func() bool {
@@ -621,6 +630,8 @@ var _ = AfterEach(func() {
 			}
 		}
 	}
+
+	deleteRepos()
 
 })
 

@@ -26,6 +26,7 @@ const (
 	RtAnnotationBranches     = "syngit.io/remotetarget.pattern.one-or-many-branches"
 	RtAllowInjection         = "syngit.io/remotetarget.allow-injection"
 	RtPrefix                 = "rt"
+	RtLabelBranchKey         = "syngit.io/remotetarget.branch"
 )
 
 type RemoteTargetUserSpecificValues string

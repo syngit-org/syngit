@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
+	"time"
 
 	"github.com/go-git/go-billy/v5/memfs"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
@@ -22,6 +25,7 @@ type GitConsistency struct {
 }
 
 const (
+	originRemote   = "origin"
 	upstreamRemote = "upstream"
 )
 
@@ -167,6 +171,21 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 		return nil, fmt.Errorf("failed to list references: %w", err)
 	}
 
+	fmt.Println("Available References:")
+	err = iter.ForEach(func(ref *plumbing.Reference) error {
+		fmt.Println(ref.Name())
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error iterating references: %w", err)
+	}
+
+	remotes, err := gc.targetRepository.Remotes()
+	if err != nil {
+		return nil, fmt.Errorf("error iterating references: %w", err)
+	}
+	fmt.Println(remotes)
+
 	// Checkout the upstream default branch in order to pull the diffs
 	// upstreamLastCommitRef, err := gc.targetRepository.Reference(upstreamRemoteRef, true)
 	// if err != nil {
@@ -213,6 +232,18 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 		return nil, errors.New(errMsg)
 	}
 
+	ref, _ := gc.targetRepository.Head()
+	// ... retrieves the commit history
+	since := time.Date(2025, 1, 23, 0, 0, 0, 0, time.UTC)
+	until := time.Date(2025, 1, 29, 0, 0, 0, 0, time.UTC)
+	cIter, _ := gc.targetRepository.Log(&git.LogOptions{From: ref.Hash(), Since: &since, Until: &until})
+	// ... just iterates over the commits, printing it
+	_ = cIter.ForEach(func(c *object.Commit) error {
+		fmt.Println(c)
+
+		return nil
+	})
+
 	targetWorktree, err := gc.targetRepository.Worktree()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get worktree for target repository: %w", err)
@@ -224,7 +255,7 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 	}
 
 	pullOptions = &git.PullOptions{
-		RemoteName:    upstreamRemote,
+		RemoteName:    originRemote,
 		ReferenceName: plumbing.NewBranchReferenceName(targetBranch),
 		// ReferenceName: upstreamRemoteRef,
 		SingleBranch: true,
@@ -239,7 +270,7 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 		pullOptions.CABundle = gp.caBundle
 	}
 	err = targetWorktree.Pull(pullOptions)
-	if err != nil && err != git.NoErrAlreadyUpToDate {
+	if err != nil && err != git.NoErrAlreadyUpToDate && !strings.Contains(err.Error(), "reference not found") {
 		variables := fmt.Sprintf("\nRemote: %s\nUpstream ref: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
 			upstreamRemote,
 			plumbing.HEAD,
@@ -250,21 +281,6 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 		errMsg := fmt.Sprintf("failed to pull target remote: %s\nVerbose output: %s\nVariables: %s\n", err.Error(), verboseOutput.String(), variables)
 		return nil, errors.New(errMsg)
 	}
-
-	fmt.Println("Available References:")
-	err = iter.ForEach(func(ref *plumbing.Reference) error {
-		fmt.Println(ref.Name())
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error iterating references: %w", err)
-	}
-
-	remotes, err := gc.targetRepository.Remotes()
-	if err != nil {
-		return nil, fmt.Errorf("error iterating references: %w", err)
-	}
-	fmt.Println(remotes)
 
 	targetRef, err := gc.targetRepository.Reference(plumbing.NewBranchReferenceName(targetBranch), true)
 	if err != nil {
@@ -281,18 +297,6 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get main branch reference: %w", err)
 	}
-
-	// ref, _ := gc.targetRepository.Head()
-	// // ... retrieves the commit history
-	// since := time.Date(2025, 1, 23, 0, 0, 0, 0, time.UTC)
-	// until := time.Date(2025, 1, 25, 0, 0, 0, 0, time.UTC)
-	// cIter, _ := gc.targetRepository.Log(&git.LogOptions{From: ref.Hash(), Since: &since, Until: &until})
-	// // ... just iterates over the commits, printing it
-	// _ = cIter.ForEach(func(c *object.Commit) error {
-	// 	fmt.Println(c)
-
-	// 	return nil
-	// })
 
 	// Check if the target branch already contains the commit from the main branch
 	mainCommitHash := mainRef.Hash()

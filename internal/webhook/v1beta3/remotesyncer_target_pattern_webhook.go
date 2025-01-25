@@ -82,6 +82,7 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) createRemoteTargets(ctx con
 				Namespace: remoteSyncer.Namespace,
 				Labels: map[string]string{
 					syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
+					syngit.RtLabelBranchKey:  branch,
 				},
 			},
 			Spec: syngit.RemoteTargetSpec{
@@ -115,6 +116,7 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) createRemoteTargets(ctx con
 					Namespace: remoteSyncer.Namespace,
 					Labels: map[string]string{
 						syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
+						syngit.RtLabelBranchKey:  branch,
 					},
 				},
 				Spec: syngit.RemoteTargetSpec{

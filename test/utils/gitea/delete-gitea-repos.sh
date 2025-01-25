@@ -33,56 +33,35 @@ fi
 GIT_TOKEN=$(echo "$TOKEN_RESPONSE" | sed -E 's/.*Access token was successfully created: ([a-f0-9]{40}).*/\1/')
 
 #
-# Create the blue repo
+# Delete the blue repo
 #
-CREATE_REPO_ENDPOINT="$GITEA_URL/api/v1/user/repos"
-
-JSON_PAYLOAD=$(cat <<EOF
-{
-  "name": "blue",
-  "private": false,
-  "auto_init": true,
-  "description": "A new sample repository"
-}
-EOF
-)
+DELETE_REPO_ENDPOINT="$GITEA_URL/api/v1/repos/$ADMIN_USERNAME/blue"
 
 # Make the API call to create the repository
-response=$(curl -s -o /dev/null -w "%{http_code}" -X POST -k \
+response=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE -k \
   -H "Content-Type: application/json" \
-  -d "$JSON_PAYLOAD" \
-  "$CREATE_REPO_ENDPOINT?access_token=$GIT_TOKEN")
+  "$DELETE_REPO_ENDPOINT?access_token=$GIT_TOKEN")
 
 # Check the response code
-if [ "$response" != 201 ]; then
-  echo "Failed to create repository. HTTP status code: $response"
+if [ "$response" != 204 ]; then
+  echo "Failed to DELETE repository. HTTP status code: $response"
   exit 1
 fi
 
-
 #
-# Create the green repo
+# Delete the green repo
 #
-CREATE_REPO_ENDPOINT="$GITEA_URL/api/v1/user/repos"
-
-JSON_PAYLOAD=$(cat <<EOF
-{
-  "name": "green",
-  "private": false,
-  "auto_init": true,
-  "description": "A new sample repository"
-}
-EOF
-)
+DELETE_REPO_ENDPOINT="$GITEA_URL/api/v1/repos/$ADMIN_USERNAME/green"
 
 # Make the API call to create the repository
-response=$(curl -s -o /dev/null -w "%{http_code}" -X POST -k \
+response=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE -k \
   -H "Content-Type: application/json" \
-  -d "$JSON_PAYLOAD" \
-  "$CREATE_REPO_ENDPOINT?access_token=$GIT_TOKEN")
+  "$DELETE_REPO_ENDPOINT?access_token=$GIT_TOKEN")
 
 # Check the response code
-if [ "$response" != 201 ]; then
-  echo "Failed to create repository. HTTP status code: $response"
+if [ "$response" != 204 ]; then
+  echo "Failed to DELETE repository. HTTP status code: $response"
   exit 1
 fi
+
+kubectl exec -i $POD_NAME -n $NAMESPACE -- rm -rf /data/git/gitea-repositories

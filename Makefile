@@ -323,6 +323,10 @@ kind-load-image: ## Load the image in KinD.
 setup-gitea: ## Setup the 2 gitea platforms in the cluster
 	./test/utils/gitea/launch-gitea-setup.sh
 
+.PHONY: reset-gitea
+reset-gitea: ## Setup the 2 gitea platforms in the cluster
+	./test/utils/gitea/reset-gitea-repos.sh
+
 .PHONY: cleanup-gitea
 cleanup-gitea: ## Cleanup the 2 gitea platforms from the cluster.
 	rm -rf /tmp/gitea-certs
