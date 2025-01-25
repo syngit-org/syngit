@@ -72,7 +72,7 @@ var _ = Describe("24 One RemoteTarget scoped by multiple RemoteSyncers", func() 
 				Name:      remoteSyncerName1,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled: "true",
+					syngit.RtAnnotationBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -108,7 +108,7 @@ var _ = Describe("24 One RemoteTarget scoped by multiple RemoteSyncers", func() 
 				Name:      remoteSyncerName2,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled: "true",
+					syngit.RtAnnotationBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

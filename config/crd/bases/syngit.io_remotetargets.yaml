@@ -41,8 +41,8 @@ spec:
             properties:
               mergeStrategy:
                 enum:
-                - TryPullOrDie
-                - TryPullOrHardReset
+                - TryFastForwardOrDie
+                - TryFastForwardOrHardReset
                 - TryHardResetOrDie
                 - ""
                 type: string

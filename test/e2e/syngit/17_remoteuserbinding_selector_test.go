@@ -104,7 +104,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 				Name:      remoteSyncerName1,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled: "true",
+					syngit.RtAnnotationBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -238,7 +238,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 				Name:      remoteSyncerName2,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled: "true",
+					syngit.RtAnnotationBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -377,7 +377,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 				Name:      remoteSyncerName3,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled: "true",
+					syngit.RtAnnotationBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

@@ -109,7 +109,7 @@ var _ = Describe("05 Use a default user", func() {
 				Name:      remoteSyncerName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled: "true",
+					syngit.RtAnnotationBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

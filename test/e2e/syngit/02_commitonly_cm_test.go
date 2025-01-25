@@ -71,7 +71,7 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 				Name:      remoteSyncerName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled: "true",
+					syngit.RtAnnotationBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

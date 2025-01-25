@@ -69,7 +69,7 @@ func GetTargetRepository(gp GitPusher) (*git.Repository, error) {
 
 func (gc GitConsistency) GetWorkTree(gp GitPusher) (*git.Worktree, error) {
 
-	if gc.strategy == syngit.TryPullOrHardReset {
+	if gc.strategy == syngit.TryFastForwardOrHardReset {
 		wt, err := gc.upstreamBasedPull(gp)
 		if err != nil {
 			wt, err = gc.upstreamBasedHardReset(gp)
@@ -89,7 +89,7 @@ func (gc GitConsistency) GetWorkTree(gp GitPusher) (*git.Worktree, error) {
 		return wt, nil
 	}
 
-	if gc.strategy == syngit.TryPullOrDie {
+	if gc.strategy == syngit.TryFastForwardOrDie {
 		wt, err := gc.upstreamBasedPull(gp)
 		if err != nil {
 			return nil, err
@@ -110,11 +110,6 @@ func (gc GitConsistency) upstreamBasedHardReset(gp GitPusher) (*git.Worktree, er
 	if remErr != nil {
 		return nil, remErr
 	}
-
-	// upstreamRef, err := gc.upstreamRepository.Head()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to get upstream HEAD: %w", err)
-	// }
 
 	worktree, err := gc.targetRepository.Worktree()
 	if err != nil {

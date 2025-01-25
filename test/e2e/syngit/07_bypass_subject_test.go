@@ -74,7 +74,6 @@ var _ = Describe("07 Subject bypasses interception", func() {
 				Name:      remoteSyncer1Name,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled:  "true",
 					syngit.RtAnnotationBranches: branch,
 				},
 			},
@@ -188,7 +187,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 				Name:      remoteSyncer2Name,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled: "true",
+					syngit.RtAnnotationBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

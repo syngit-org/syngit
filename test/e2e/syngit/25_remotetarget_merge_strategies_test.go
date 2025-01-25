@@ -76,7 +76,6 @@ var _ = Describe("25 Test merge strategies", func() {
 				Name:      remoteSyncerName1,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled:  "true",
 					syngit.RtAnnotationBranches: customBranch,
 				},
 			},
@@ -166,7 +165,7 @@ var _ = Describe("25 Test merge strategies", func() {
 				Name:      remoteSyncerName2,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled: "true",
+					syngit.RtAnnotationBranches: upstreamBranch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

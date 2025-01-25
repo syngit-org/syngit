@@ -44,10 +44,9 @@ func (src *RemoteSyncer) ConvertTo(dstRaw conversion.Hub) error {
 	if dst.Annotations == nil {
 		dst.Annotations = map[string]string{}
 	}
-	dst.Annotations[v1beta3.RtAnnotationEnabled] = "true"
 	if string(src.Spec.PushMode) == string(SameBranch) {
 		dst.Spec.TargetStrategy = v1beta3.OneTarget
-		dst.Annotations[v1beta3.RtAnnotationEnabled] = "true"
+		dst.Annotations[v1beta3.RtAnnotationBranches] = src.Spec.DefaultBranch
 	} else {
 		dst.Spec.TargetStrategy = v1beta3.MultipleTarget
 	}

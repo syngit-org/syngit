@@ -54,7 +54,7 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) Handle(ctx context.Context,
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
-		if remoteSyncer.Annotations[syngit.RtAnnotationEnabled] == "true" {
+		if remoteSyncer.Annotations[syngit.RtAnnotationBranches] != "" {
 			err = rsyt.createRemoteTargets(ctx, *remoteSyncer)
 			if err != nil {
 				return admission.Errored(http.StatusBadRequest, err)
@@ -69,12 +69,16 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) Handle(ctx context.Context,
 func (rsyt *RemoteSyncerTargetPatternWebhookHandler) createRemoteTargets(ctx context.Context, remoteSyncer syngit.RemoteSyncer) error {
 	rsyAnnotations := remoteSyncer.Annotations
 
-	if rsyAnnotations[syngit.RtAnnotationBranches] == "" {
-		// We take the RemoteSyncer's default branch by default
-		branch := remoteSyncer.Spec.DefaultBranch
+	branches := strings.Split(strings.ReplaceAll(rsyAnnotations[syngit.RtAnnotationBranches], " ", ""), ",")
+
+	for _, branch := range branches {
 		name, nameErr := utils.RemoteTargetNameConstructor(remoteSyncer, branch)
 		if nameErr != nil {
 			return nameErr
+		}
+		mergeStrategy := syngit.TryFastForwardOrHardReset
+		if remoteSyncer.Spec.DefaultBranch == branch {
+			mergeStrategy = ""
 		}
 		rt := &syngit.RemoteTarget{
 			ObjectMeta: metav1.ObjectMeta{
@@ -90,47 +94,12 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) createRemoteTargets(ctx con
 				UpstreamBranch:     remoteSyncer.Spec.DefaultBranch,
 				TargetRepository:   remoteSyncer.Spec.RemoteRepository,
 				TargetBranch:       branch,
+				MergeStrategy:      mergeStrategy,
 			},
 		}
 		createOrUpdateErr := rsyt.createOrUpdateRemoteTarget(ctx, rt)
 		if createOrUpdateErr != nil {
 			return createOrUpdateErr
-		}
-
-	} else {
-
-		branches := strings.Split(strings.ReplaceAll(rsyAnnotations[syngit.RtAnnotationBranches], " ", ""), ",")
-
-		for _, branch := range branches {
-			name, nameErr := utils.RemoteTargetNameConstructor(remoteSyncer, branch)
-			if nameErr != nil {
-				return nameErr
-			}
-			mergeStrategy := syngit.TryPullOrDie
-			if remoteSyncer.Spec.DefaultBranch == branch {
-				mergeStrategy = ""
-			}
-			rt := &syngit.RemoteTarget{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: remoteSyncer.Namespace,
-					Labels: map[string]string{
-						syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-						syngit.RtLabelBranchKey:  branch,
-					},
-				},
-				Spec: syngit.RemoteTargetSpec{
-					UpstreamRepository: remoteSyncer.Spec.RemoteRepository,
-					UpstreamBranch:     remoteSyncer.Spec.DefaultBranch,
-					TargetRepository:   remoteSyncer.Spec.RemoteRepository,
-					TargetBranch:       branch,
-					MergeStrategy:      mergeStrategy,
-				},
-			}
-			createOrUpdateErr := rsyt.createOrUpdateRemoteTarget(ctx, rt)
-			if createOrUpdateErr != nil {
-				return createOrUpdateErr
-			}
 		}
 	}
 
@@ -176,9 +145,6 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) isThereDiff(old syngit.Remo
 	newBranch := new.Spec.DefaultBranch
 	newAnnotations := new.Annotations
 
-	if oldAnnotations[syngit.RtAnnotationEnabled] != newAnnotations[syngit.RtAnnotationEnabled] {
-		return true
-	}
 	if oldAnnotations[syngit.RtAnnotationBranches] != newAnnotations[syngit.RtAnnotationBranches] {
 		return true
 	}

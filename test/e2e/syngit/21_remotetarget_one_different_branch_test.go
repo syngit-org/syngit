@@ -43,115 +43,114 @@ var _ = Describe("21 RemoteTarget one different branch", func() {
 		customBranch        = "custom-branch21"
 	)
 
-	// It("should push the ConfigMap to the Luffy branch (using one strategy)", func() {
+	It("should push the ConfigMap to the Luffy branch (using one strategy)", func() {
 
-	// 	repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
-	// 	targetBranch := string(Luffy)
+		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		targetBranch := string(Luffy)
 
-	// 	By("creating the RemoteUser & RemoteUserBinding for Luffy")
-	// 	luffySecretName := string(Luffy) + "-creds"
-	// 	remoteUserLuffy := &syngit.RemoteUser{
-	// 		ObjectMeta: metav1.ObjectMeta{
-	// 			Name:      remoteUserLuffyName,
-	// 			Namespace: namespace,
-	// 			Annotations: map[string]string{
-	// 				syngit.RubAnnotation: "true",
-	// 			},
-	// 		},
-	// 		Spec: syngit.RemoteUserSpec{
-	// 			Email:             "sample@email.com",
-	// 			GitBaseDomainFQDN: gitP1Fqdn,
-	// 			SecretRef: corev1.SecretReference{
-	// 				Name: luffySecretName,
-	// 			},
-	// 		},
-	// 	}
-	// 	Eventually(func() bool {
-	// 		err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffy)
-	// 		return err == nil
-	// 	}, timeout, interval).Should(BeTrue())
+		By("creating the RemoteUser & RemoteUserBinding for Luffy")
+		luffySecretName := string(Luffy) + "-creds"
+		remoteUserLuffy := &syngit.RemoteUser{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteUserLuffyName,
+				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RubAnnotation: "true",
+				},
+			},
+			Spec: syngit.RemoteUserSpec{
+				Email:             "sample@email.com",
+				GitBaseDomainFQDN: gitP1Fqdn,
+				SecretRef: corev1.SecretReference{
+					Name: luffySecretName,
+				},
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffy)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
 
-	// 	By("creating the RemoteSyncer")
-	// 	remotesyncer := &syngit.RemoteSyncer{
-	// 		ObjectMeta: metav1.ObjectMeta{
-	// 			Name:      remoteSyncerName1,
-	// 			Namespace: namespace,
-	// 			Annotations: map[string]string{
-	// 				syngit.RtAnnotationEnabled:      "true",
-	// 				syngit.RtAnnotationUserSpecific: string(syngit.RtAnnotationOneUserOneBranchValue),
-	// 			},
-	// 		},
-	// 		Spec: syngit.RemoteSyncerSpec{
-	// 			InsecureSkipTlsVerify:       true,
-	// 			DefaultBranch:               upstreamBranch,
-	// 			DefaultUnauthorizedUserMode: syngit.Block,
-	// 			Strategy:                    syngit.CommitApply,
-	// 			TargetStrategy:              syngit.OneTarget,
-	// 			RemoteRepository:            repoUrl,
-	// 			ScopedResources: syngit.ScopedResources{
-	// 				Rules: []admissionv1.RuleWithOperations{{
-	// 					Operations: []admissionv1.OperationType{
-	// 						admissionv1.Create,
-	// 					},
-	// 					Rule: admissionv1.Rule{
-	// 						APIGroups:   []string{""},
-	// 						APIVersions: []string{"v1"},
-	// 						Resources:   []string{"configmaps"},
-	// 					},
-	// 				},
-	// 				},
-	// 			},
-	// 		},
-	// 	}
-	// 	Eventually(func() bool {
-	// 		err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
-	// 		return err == nil
-	// 	}, timeout, interval).Should(BeTrue())
+		By("creating the RemoteSyncer")
+		remotesyncer := &syngit.RemoteSyncer{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteSyncerName1,
+				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationUserSpecific: string(syngit.RtAnnotationOneUserOneBranchValue),
+				},
+			},
+			Spec: syngit.RemoteSyncerSpec{
+				InsecureSkipTlsVerify:       true,
+				DefaultBranch:               upstreamBranch,
+				DefaultUnauthorizedUserMode: syngit.Block,
+				Strategy:                    syngit.CommitApply,
+				TargetStrategy:              syngit.OneTarget,
+				RemoteRepository:            repoUrl,
+				ScopedResources: syngit.ScopedResources{
+					Rules: []admissionv1.RuleWithOperations{{
+						Operations: []admissionv1.OperationType{
+							admissionv1.Create,
+						},
+						Rule: admissionv1.Rule{
+							APIGroups:   []string{""},
+							APIVersions: []string{"v1"},
+							Resources:   []string{"configmaps"},
+						},
+					},
+					},
+				},
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
 
-	// 	By("creating a test configmap")
-	// 	Wait3()
-	// 	cm := &corev1.ConfigMap{
-	// 		TypeMeta: metav1.TypeMeta{
-	// 			Kind:       "ConfigMap",
-	// 			APIVersion: "v1",
-	// 		},
-	// 		ObjectMeta: metav1.ObjectMeta{Name: cmName1, Namespace: namespace},
-	// 		Data:       map[string]string{"test": "oui"},
-	// 	}
-	// 	Eventually(func() bool {
-	// 		_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
-	// 			cm,
-	// 			metav1.CreateOptions{},
-	// 		)
-	// 		fmt.Println(err)
-	// 		return err == nil
-	// 	}, timeout, interval).Should(BeTrue())
+		By("creating a test configmap")
+		Wait3()
+		cm := &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "ConfigMap",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{Name: cmName1, Namespace: namespace},
+			Data:       map[string]string{"test": "oui"},
+		}
+		Eventually(func() bool {
+			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
+				cm,
+				metav1.CreateOptions{},
+			)
+			fmt.Println(err)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
 
-	// 	By("checking that the configmap is present on the repo")
-	// 	Wait3()
-	// 	repo := &Repo{
-	// 		Fqdn:   gitP1Fqdn,
-	// 		Owner:  "syngituser",
-	// 		Name:   "blue",
-	// 		Branch: targetBranch,
-	// 	}
-	// 	exists, err := IsObjectInRepo(*repo, cm)
-	// 	Expect(err).ToNot(HaveOccurred())
-	// 	Expect(exists).To(BeTrue())
+		By("checking that the configmap is present on the repo")
+		Wait3()
+		repo := &Repo{
+			Fqdn:   gitP1Fqdn,
+			Owner:  "syngituser",
+			Name:   "blue",
+			Branch: targetBranch,
+		}
+		exists, err := IsObjectInRepo(*repo, cm)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(exists).To(BeTrue())
 
-	// 	By("checking that the configmap is present on the cluster")
-	// 	nnCm := types.NamespacedName{
-	// 		Name:      cmName1,
-	// 		Namespace: namespace,
-	// 	}
-	// 	getCm := &corev1.ConfigMap{}
+		By("checking that the configmap is present on the cluster")
+		nnCm := types.NamespacedName{
+			Name:      cmName1,
+			Namespace: namespace,
+		}
+		getCm := &corev1.ConfigMap{}
 
-	// 	Eventually(func() bool {
-	// 		err := sClient.As(Luffy).Get(nnCm, getCm)
-	// 		return err == nil
-	// 	}, timeout, interval).Should(BeTrue())
+		Eventually(func() bool {
+			err := sClient.As(Luffy).Get(nnCm, getCm)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
 
-	// })
+	})
 
 	It("should push the ConfigMap to the second-branch branch (using multiple strategy)", func() {
 
@@ -186,7 +185,6 @@ var _ = Describe("21 RemoteTarget one different branch", func() {
 				Name:      remoteSyncerName2,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationEnabled:  "true",
 					syngit.RtAnnotationBranches: customBranch,
 				},
 			},

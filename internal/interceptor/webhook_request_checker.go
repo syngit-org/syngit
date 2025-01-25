@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	"github.com/syngit-org/syngit/pkg/utils"
@@ -231,10 +232,10 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	if userCountLoop == 1 {
 
 		// Check for annotation
-		if wrc.remoteSyncer.Annotations[syngit.RtAnnotationEnabled] == "true" && wrc.remoteSyncer.Annotations[syngit.RtAnnotationUserSpecific] != "" {
+		if wrc.remoteSyncer.Annotations[syngit.RtAnnotationUserSpecific] != "" {
 			// Create the user specific remote target -> will create with the one-user-one-branch pattern by default.
 			// The external providers need to overwrite the target-repo & target-branch if the pattern is set to one-user-one-fork.
-			_, createErr := wrc.buildRemoteTargetIfNotExists(incomingUser.Username)
+			_, createErr := wrc.buildRemoteTargetIfNotExists(incomingUser.Username, &rub)
 			if createErr != nil {
 				details.messageAddition = createErr.Error()
 				return false, createErr
@@ -348,7 +349,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	return true, nil
 }
 
-func (wrc *WebhookRequestChecker) buildRemoteTargetIfNotExists(username string) (syngit.RemoteTarget, error) {
+func (wrc *WebhookRequestChecker) buildRemoteTargetIfNotExists(username string, remoteUserBinding *syngit.RemoteUserBinding) (syngit.RemoteTarget, error) {
 	ctx := context.Background()
 	var remoteTargets = &syngit.RemoteTargetList{}
 	listOps := &client.ListOptions{
@@ -404,6 +405,7 @@ func (wrc *WebhookRequestChecker) buildRemoteTargetIfNotExists(username string) 
 			UpstreamBranch:     wrc.remoteSyncer.Spec.DefaultBranch,
 			TargetRepository:   wrc.remoteSyncer.Spec.RemoteRepository,
 			TargetBranch:       username,
+			MergeStrategy:      syngit.TryFastForwardOrHardReset,
 		},
 	}
 	createErr := wrc.k8sClient.Create(ctx, remoteTarget)
@@ -411,7 +413,32 @@ func (wrc *WebhookRequestChecker) buildRemoteTargetIfNotExists(username string) 
 		return syngit.RemoteTarget{}, createErr
 	}
 
+	remoteUserBinding.Spec.RemoteTargetRefs = append(remoteUserBinding.Spec.RemoteTargetRefs, corev1.ObjectReference{
+		Name: remoteTarget.Name,
+	})
+	updateErr := wrc.updateRemoteUserBinding(ctx, *remoteUserBinding, 2)
+	if updateErr != nil {
+		return syngit.RemoteTarget{}, updateErr
+	}
+
 	return *remoteTarget, nil
+}
+
+func (wrc *WebhookRequestChecker) updateRemoteUserBinding(ctx context.Context, remoteUserBinding syngit.RemoteUserBinding, retryNumber int) error {
+	var rub syngit.RemoteUserBinding
+	if err := wrc.k8sClient.Get(ctx, types.NamespacedName{Name: remoteUserBinding.Name, Namespace: remoteUserBinding.Namespace}, &rub); err != nil {
+		return err
+	}
+
+	rub.Spec.RemoteTargetRefs = remoteUserBinding.Spec.RemoteTargetRefs
+	if err := wrc.k8sClient.Update(ctx, &rub); err != nil {
+		if retryNumber > 0 {
+			time.Sleep(2 * time.Second)
+			return wrc.updateRemoteUserBinding(ctx, remoteUserBinding, retryNumber-1)
+		}
+		return err
+	}
+	return nil
 }
 
 func (wrc *WebhookRequestChecker) searchForGitToken(remoteUser syngit.RemoteUser) (*gitUser, error) {
