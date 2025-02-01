@@ -253,7 +253,7 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string) (string, e
 		},
 	})
 	if err != nil {
-		errMsg := "failed to commit changes: " + err.Error()
+		errMsg := fmt.Sprintf("failed to commit changes (%s - %s): %s", gp.remoteTarget.Spec.TargetRepository, gp.remoteTarget.Spec.TargetBranch, err.Error())
 		return "", errors.New(errMsg)
 	}
 

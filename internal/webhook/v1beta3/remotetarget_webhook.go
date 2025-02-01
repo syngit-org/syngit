@@ -59,6 +59,10 @@ func validateRemoteTargetSpec(r *syngitv1beta3.RemoteTargetSpec) field.ErrorList
 		errors = append(errors, field.Invalid(field.NewPath("spec").Child("mergeStrategy"), r.MergeStrategy, "should not be set when the target repo & target branch are the same as the upstream repo & branch"))
 	}
 
+	if (r.UpstreamBranch != r.TargetBranch || r.UpstreamRepository != r.TargetRepository) && r.MergeStrategy == "" {
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("mergeStrategy"), r.MergeStrategy, "should be set when the target repo & target branch are different from the upstream repo & branch"))
+	}
+
 	return errors
 }
 

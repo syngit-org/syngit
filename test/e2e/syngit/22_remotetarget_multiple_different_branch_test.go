@@ -129,7 +129,7 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("checking that the configmap is present on the repo")
+		By("checking that the configmap is present in all the branches")
 		Wait3()
 		repo := &Repo{
 			Fqdn:   gitP1Fqdn,
@@ -140,6 +140,17 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(exists).To(BeTrue())
+		for _, branch := range branches {
+			repo := &Repo{
+				Fqdn:   gitP1Fqdn,
+				Owner:  "syngituser",
+				Name:   "blue",
+				Branch: branch,
+			}
+			exists, err := IsObjectInRepo(*repo, cm)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(exists).To(BeTrue())
+		}
 
 		By("checking that the configmap is present on the cluster")
 		nnCm := types.NamespacedName{
@@ -236,10 +247,10 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			return err == nil
+			return err != nil && strings.Contains(err.Error(), oneTargetForMultipleMessage)
 		}, timeout, interval).Should(BeTrue())
 
-		By("checking that the configmap is present on the repo")
+		By("checking that the configmap is not present on the branches")
 		Wait3()
 		repo := &Repo{
 			Fqdn:   gitP1Fqdn,
@@ -248,19 +259,29 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 			Branch: targetBranch,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(exists).To(BeTrue())
+		Expect(err).To(HaveOccurred())
+		Expect(exists).To(BeFalse())
+		for _, branch := range branches {
+			repo := &Repo{
+				Fqdn:   gitP1Fqdn,
+				Owner:  "syngituser",
+				Name:   "blue",
+				Branch: branch,
+			}
+			exists, err := IsObjectInRepo(*repo, cm)
+			Expect(err).To(HaveOccurred())
+			Expect(exists).To(BeFalse())
+		}
 
-		By("checking that the configmap is present on the cluster")
+		By("checking that the configmap is not present on the cluster")
 		nnCm := types.NamespacedName{
-			Name:      cmName2,
+			Name:      cmName1,
 			Namespace: namespace,
 		}
 		getCm := &corev1.ConfigMap{}
-
 		Eventually(func() bool {
 			err := sClient.As(Luffy).Get(nnCm, getCm)
-			return err == nil
+			return err != nil && strings.Contains(err.Error(), notPresentOnCluser)
 		}, timeout, interval).Should(BeTrue())
 
 	})

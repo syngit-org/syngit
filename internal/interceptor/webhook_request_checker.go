@@ -280,6 +280,12 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 			details.messageAddition = errMsg
 			return false, errors.New(errMsg)
 		}
+
+		if len(wrc.remoteTargets) == 0 {
+			errMsg := "no RemoteTarget found"
+			details.messageAddition = errMsg
+			return false, errors.New(errMsg)
+		}
 	}
 
 	if userCountLoop == 0 {
