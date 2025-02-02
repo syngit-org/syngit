@@ -40,6 +40,8 @@ type GitPushResponse struct {
 	url        string // The url of the repository
 }
 
+var forcePush bool
+
 func (gp *GitPusher) Push() (GitPushResponse, error) {
 	gpResponse := &GitPushResponse{path: "", commitHash: "", url: gp.remoteTarget.Spec.TargetRepository}
 
@@ -62,6 +64,8 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 			return *gpResponse, errors.New(errMsg)
 		}
 
+		forcePush = false
+
 	} else {
 		// Different target and upstream
 		// PRE-STEP 1 : Get the repos
@@ -81,7 +85,7 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 			strategy:           gp.remoteTarget.Spec.MergeStrategy,
 		}
 		var err error
-		w, err = gc.GetWorkTree(*gp)
+		w, forcePush, err = gc.GetWorkTree(*gp)
 		if err != nil {
 			errMsg := "failed to get worktree: " + err.Error()
 			return *gpResponse, errors.New(errMsg)
@@ -280,6 +284,7 @@ func (gp *GitPusher) pushChanges(repo *git.Repository) error {
 		},
 		InsecureSkipTLS: gp.remoteSyncer.Spec.InsecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput), // Capture verbose output
+		Force:           forcePush,
 	}
 	if gp.caBundle != nil {
 		pushOptions.CABundle = gp.caBundle

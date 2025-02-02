@@ -67,37 +67,37 @@ func GetTargetRepository(gp GitPusher) (*git.Repository, error) {
 	return getRepository(gp, gp.remoteTarget.Spec.TargetRepository, gp.remoteTarget.Spec.UpstreamBranch)
 }
 
-func (gc GitConsistency) GetWorkTree(gp GitPusher) (*git.Worktree, error) {
+func (gc GitConsistency) GetWorkTree(gp GitPusher) (*git.Worktree, bool, error) {
 
 	if gc.strategy == syngit.TryFastForwardOrHardReset {
 		wt, err := gc.upstreamBasedPull(gp)
 		if err != nil {
 			wt, err = gc.upstreamBasedHardReset(gp)
 			if err != nil {
-				return nil, err
+				return nil, false, err
 			}
-			return wt, nil
+			return wt, true, nil
 		}
-		return wt, nil
+		return wt, false, nil
 	}
 
 	if gc.strategy == syngit.TryHardResetOrDie {
 		wt, err := gc.upstreamBasedHardReset(gp)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		return wt, nil
+		return wt, true, nil
 	}
 
 	if gc.strategy == syngit.TryFastForwardOrDie {
 		wt, err := gc.upstreamBasedPull(gp)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		return wt, nil
+		return wt, false, nil
 	}
 
-	return nil, fmt.Errorf("wrong target strategy; got %s", gc.strategy)
+	return nil, false, fmt.Errorf("wrong target strategy; got %s", gc.strategy)
 }
 
 func (gc GitConsistency) upstreamBasedHardReset(gp GitPusher) (*git.Worktree, error) {

@@ -77,7 +77,7 @@ func getAdminToken(baseFqdn string) (string, error) {
 	url := fmt.Sprintf("https://%s/api/v1/users/%s/tokens", baseFqdn, username)
 
 	// Prepare the request payload
-	tokenName := "admin-e2e-token" + string(rand.IntN(1000))
+	tokenName := fmt.Sprintf("%s%c", "admin-e2e-token", rand.IntN(1000))
 	payload := map[string]interface{}{
 		"name":   tokenName,
 		"scopes": []string{"all"},

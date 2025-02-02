@@ -25,37 +25,38 @@ import (
 	. "github.com/syngit-org/syngit/test/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-var _ = Describe("25 Test merge strategies", func() {
+var _ = Describe("27 Test fast-forward or hard-reset merge", func() {
 	ctx := context.TODO()
 
 	const (
-		remoteUserLuffyName = "remoteuser-luffy"
-		remoteSyncerName1   = "remotesyncer-test25.1"
-		remoteSyncerName2   = "remotesyncer-test25.2"
-		cmName1             = "test-cm25.1"
-		cmName2             = "test-cm25.2"
-		cmName3             = "test-cm25.3"
-		upstreamBranch      = "main"
-		customBranch        = "custom-branch25"
+		remoteUserLuffyName            = "remoteuser-luffy"
+		remoteSyncerName1              = "remotesyncer-test27.1"
+		remoteSyncerName2              = "remotesyncer-test27.2"
+		remoteTargetNameCustomBranch   = "remotetarget-test27.1"
+		remoteTargetNameUpstreamBranch = "remotetarget-test27.2"
+		remoteUserBindingLuffyName     = "remoteuserbinding-luffy"
+		cmName1                        = "test-cm27.1"
+		cmName2                        = "test-cm27.2"
+		cmName3                        = "test-cm27.3"
+		upstreamBranch                 = "main"
+		customBranch                   = "custom-branch27"
 	)
 
-	It("should correctly pull the changes from the upstream", func() {
+	It("should try fast-forward and use hard-reset", func() {
 
 		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
 
-		By("creating the RemoteUser for Luffy")
+		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteUserLuffyName,
 				Namespace: namespace,
-				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
-				},
 			},
 			Spec: syngit.RemoteUserSpec{
 				Email:             "sample@email.com",
@@ -70,14 +71,62 @@ var _ = Describe("25 Test merge strategies", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
+		By("creating a RemoteTarget targetting the custom branch")
+		remoteTargetCustomBranch := &syngit.RemoteTarget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteTargetNameCustomBranch,
+				Namespace: namespace,
+				Labels: map[string]string{
+					syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
+					syngit.RtLabelBranchKey:  customBranch,
+				},
+			},
+			Spec: syngit.RemoteTargetSpec{
+				UpstreamRepository: repoUrl,
+				TargetRepository:   repoUrl,
+				UpstreamBranch:     upstreamBranch,
+				TargetBranch:       customBranch,
+				MergeStrategy:      syngit.TryFastForwardOrHardReset,
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remoteTargetCustomBranch)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		By("creating the RemoteUserBinding with the RemoteUser & RemoteTarget targetting the custom branch")
+		remoteUserBindingLuffy := &syngit.RemoteUserBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteUserBindingLuffyName,
+				Namespace: namespace,
+			},
+			Spec: syngit.RemoteUserBindingSpec{
+				RemoteUserRefs: []corev1.ObjectReference{
+					{
+						Name: remoteUserLuffyName,
+					},
+				},
+				RemoteTargetRefs: []corev1.ObjectReference{
+					{
+						Name: remoteTargetNameCustomBranch,
+					},
+				},
+				Subject: v1.Subject{
+					Kind: "User",
+					Name: string(Luffy),
+				},
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remoteUserBindingLuffy)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
 		By("creating the RemoteSyncer targetting the custom-branch")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName1,
 				Namespace: namespace,
-				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: customBranch,
-				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
@@ -115,7 +164,7 @@ var _ = Describe("25 Test merge strategies", func() {
 
 		By("creating a test configmap on the custom-branch")
 		Wait3()
-		cm := &corev1.ConfigMap{
+		cm1 := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "ConfigMap",
 				APIVersion: "v1",
@@ -125,7 +174,7 @@ var _ = Describe("25 Test merge strategies", func() {
 		}
 		Eventually(func() bool {
 			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
-				cm,
+				cm1,
 				metav1.CreateOptions{},
 			)
 			return err == nil
@@ -139,7 +188,7 @@ var _ = Describe("25 Test merge strategies", func() {
 			Name:   "blue",
 			Branch: customBranch,
 		}
-		exists, err := IsObjectInRepo(*customBranchRepo, cm)
+		exists, err := IsObjectInRepo(*customBranchRepo, cm1)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(exists).To(BeTrue())
 
@@ -159,14 +208,64 @@ var _ = Describe("25 Test merge strategies", func() {
 		delErr := sClient.As(Luffy).Delete(remotesyncer)
 		Expect(delErr).ToNot(HaveOccurred())
 
+		By("creating a RemoteTarget targetting the upstream branch")
+		remoteTargetUpstreamBranch := &syngit.RemoteTarget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteTargetNameUpstreamBranch,
+				Namespace: namespace,
+				Labels: map[string]string{
+					syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
+					syngit.RtLabelBranchKey:  upstreamBranch,
+				},
+			},
+			Spec: syngit.RemoteTargetSpec{
+				UpstreamRepository: repoUrl,
+				TargetRepository:   repoUrl,
+				UpstreamBranch:     upstreamBranch,
+				TargetBranch:       upstreamBranch,
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remoteTargetUpstreamBranch)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
+		By("updating the RemoteUserBinding with the RemoteUser & RemoteTarget targetting the upstream branch")
+		remoteUserBindingLuffy = &syngit.RemoteUserBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteUserBindingLuffyName,
+				Namespace: namespace,
+			},
+			Spec: syngit.RemoteUserBindingSpec{
+				RemoteUserRefs: []corev1.ObjectReference{
+					{
+						Name: remoteUserLuffyName,
+					},
+				},
+				RemoteTargetRefs: []corev1.ObjectReference{
+					{
+						Name: remoteTargetNameUpstreamBranch,
+					},
+					{
+						Name: remoteTargetNameCustomBranch,
+					},
+				},
+				Subject: v1.Subject{
+					Kind: "User",
+					Name: string(Luffy),
+				},
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remoteUserBindingLuffy)
+			return err == nil
+		}, timeout, interval).Should(BeTrue())
+
 		By("creating the RemoteSyncer targetting the upstream main branch")
 		remotesyncer2 := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteSyncerName2,
+				Name:      remoteSyncerName1,
 				Namespace: namespace,
-				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: upstreamBranch,
-				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
@@ -243,10 +342,6 @@ var _ = Describe("25 Test merge strategies", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("performing a merge from the custom-branch to the main branch")
-		mergeErr := Merge(*customBranchRepo, customBranch, upstreamBranch)
-		Expect(mergeErr).ToNot(HaveOccurred())
-
 		By("deleting the second RemoteSyncer")
 		delErr = sClient.As(Luffy).Delete(remotesyncer2)
 		Expect(delErr).ToNot(HaveOccurred())
@@ -274,6 +369,12 @@ var _ = Describe("25 Test merge strategies", func() {
 			)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
+
+		By("checking that the first upstream configmap is not present in the custom-branch")
+		Wait3()
+		exists, err = IsObjectInRepo(*customBranchRepo, cm1)
+		Expect(err).To(HaveOccurred())
+		Expect(exists).To(BeFalse())
 
 		By("checking that the previous upstream configmap is present in the custom-branch")
 		Wait3()
