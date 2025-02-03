@@ -389,7 +389,7 @@ func (wrc *WebhookRequestChecker) buildRemoteTargetIfNotExists(username string, 
 		}
 	}
 
-	rtName, nameErr := utils.RemoteTargetNameConstructor(wrc.remoteSyncer, username)
+	rtName, nameErr := utils.RemoteTargetNameConstructor(wrc.remoteSyncer.Spec.RemoteRepository, wrc.remoteSyncer.Spec.DefaultBranch, username)
 	if nameErr != nil {
 		return syngit.RemoteTarget{}, nameErr
 	}

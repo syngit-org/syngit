@@ -18,7 +18,6 @@ package e2e_syngit
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -338,7 +337,6 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			fmt.Println(err)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -681,7 +679,6 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			fmt.Println(err)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 

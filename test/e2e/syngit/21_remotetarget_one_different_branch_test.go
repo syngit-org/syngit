@@ -18,7 +18,6 @@ package e2e_syngit
 
 import (
 	"context"
-	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -122,7 +121,6 @@ var _ = Describe("21 RemoteTarget one different branch", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			fmt.Println(err)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -230,7 +228,6 @@ var _ = Describe("21 RemoteTarget one different branch", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			fmt.Println(err)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
