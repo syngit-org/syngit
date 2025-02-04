@@ -184,7 +184,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 				Name:      remoteSyncerName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

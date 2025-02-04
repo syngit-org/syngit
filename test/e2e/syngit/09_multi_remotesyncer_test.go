@@ -74,7 +74,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				Name:      remoteSyncer1Name,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -110,7 +110,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				Name:      remoteSyncer2Name,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -224,7 +224,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				Name:      remoteSyncer1Name,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -259,7 +259,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				Name:      remoteSyncer2Name,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

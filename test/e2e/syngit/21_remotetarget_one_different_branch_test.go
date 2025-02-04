@@ -76,7 +76,7 @@ var _ = Describe("21 RemoteTarget one different branch", func() {
 				Name:      remoteSyncerName1,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationUserSpecific: string(syngit.RtAnnotationOneUserOneBranchValue),
+					syngit.RtAnnotationUserSpecificKey: string(syngit.RtAnnotationOneUserOneBranchValue),
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -183,7 +183,7 @@ var _ = Describe("21 RemoteTarget one different branch", func() {
 				Name:      remoteSyncerName2,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: customBranch,
+					syngit.RtAnnotationOneOrManyBranchesKey: customBranch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

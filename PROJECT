@@ -227,6 +227,7 @@ resources:
   webhooks:
     conversion: true
     validation: true
+    mutation: true
     webhookVersion: v1
 - api:
     crdVersion: v1

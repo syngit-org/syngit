@@ -95,7 +95,7 @@ var _ = Describe("18 Cluster default excluded fields test", func() {
 				Name:      remoteSyncerName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

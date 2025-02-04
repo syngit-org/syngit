@@ -10,12 +10,12 @@ import (
 type PatternSpecification struct {
 	Client         client.Client
 	NamespacedName types.NamespacedName
-	Username       string
 }
 
 type Pattern interface {
-	Trigger(ctx context.Context) *errorPattern
-	RemoveExistingOnes(ctx context.Context) error
+	Setup(ctx context.Context) *errorPattern
+	Diff(ctx context.Context) *errorPattern
+	Remove(ctx context.Context) *errorPattern
 }
 
 type reason string
@@ -32,4 +32,22 @@ type errorPattern struct {
 
 func (e *errorPattern) Error() string {
 	return e.Message
+}
+
+func Trigger(p Pattern, ctx context.Context) *errorPattern {
+
+	diffErr := p.Diff(ctx)
+	if diffErr != nil {
+		return diffErr
+	}
+	removeErr := p.Remove(ctx)
+	if removeErr != nil {
+		return removeErr
+	}
+	setupErr := p.Setup(ctx)
+	if setupErr != nil {
+		return setupErr
+	}
+
+	return nil
 }

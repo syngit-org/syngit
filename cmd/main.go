@@ -225,7 +225,6 @@ func main() {
 			Client:  mgr.GetClient(),
 			Decoder: admission.NewDecoder(mgr.GetScheme()),
 		}})
-
 	}
 
 	//+kubebuilder:scaffold:builder

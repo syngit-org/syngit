@@ -21,11 +21,13 @@ import (
 )
 
 const (
-	RtAnnotationUserSpecific = "syngit.io/remotetarget.pattern.user-specific"
-	RtAnnotationBranches     = "syngit.io/remotetarget.pattern.one-or-many-branches"
-	RtAllowInjection         = "syngit.io/remotetarget.allow-injection"
-	RtPrefix                 = "rt"
-	RtLabelBranchKey         = "syngit.io/remotetarget.branch"
+	RtAnnotationUserSpecificKey      = "syngit.io/remotetarget.pattern.user-specific"
+	RtAnnotationOneOrManyBranchesKey = "syngit.io/remotetarget.pattern.one-or-many-branches"
+	RtAllowInjection                 = "syngit.io/remotetarget.allow-injection"
+	RtPrefix                         = "rt"
+	RtLabelBranchKey                 = "syngit.io/remotetarget.branch"
+	RtLabelPatternKey                = "syngit.io/remotetarget.pattern"
+	RtLabelOneOrManyBranchesValue    = "one-or-many-branches"
 )
 
 type RemoteTargetUserSpecificValues string

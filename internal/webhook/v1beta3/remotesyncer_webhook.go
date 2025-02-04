@@ -125,9 +125,9 @@ func validateRemoteSyncer(remoteSyncer *syngitv1beta3.RemoteSyncer) error {
 	}
 
 	// Validate the TargetPatterns
-	rtAnnotationUserSpecific := remoteSyncer.Annotations[syngitv1beta3.RtAnnotationUserSpecific]
+	rtAnnotationUserSpecific := remoteSyncer.Annotations[syngitv1beta3.RtAnnotationUserSpecificKey]
 	if !slices.Contains([]syngitv1beta3.RemoteTargetUserSpecificValues{"", syngitv1beta3.RtAnnotationOneUserOneBranchValue, syngitv1beta3.RtAnnotationOneUserOneBranchValue}, syngitv1beta3.RemoteTargetUserSpecificValues(rtAnnotationUserSpecific)) {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("annotations").Child(syngitv1beta3.RtAnnotationUserSpecific), rtAnnotationUserSpecific,
+		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("annotations").Child(syngitv1beta3.RtAnnotationUserSpecificKey), rtAnnotationUserSpecific,
 			fmt.Sprintf("must be either %s or %s; got %s", string(syngitv1beta3.RtAnnotationOneUserOneBranchValue), string(syngitv1beta3.RtAnnotationOneUserOneBranchValue), rtAnnotationUserSpecific)))
 	}
 

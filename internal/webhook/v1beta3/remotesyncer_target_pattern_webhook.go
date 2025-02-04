@@ -31,7 +31,7 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) Handle(ctx context.Context,
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
-		oldBranches = utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationBranches])
+		oldBranches = utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationOneOrManyBranchesKey])
 	}
 
 	if string(req.Operation) != "DELETE" { //nolint:goconst
@@ -41,26 +41,22 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) Handle(ctx context.Context,
 			return admission.Errored(http.StatusBadRequest, err)
 		}
 
-		newBranches = utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationBranches])
+		newBranches = utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationOneOrManyBranchesKey])
 	}
 
-	var pattern patterns.Pattern
-
-	username := req.DeepCopy().UserInfo.Username
-	pattern = &patterns.RemoteSyncerOneOrManyBranchPattern{
+	pattern := &patterns.RemoteSyncerOneOrManyBranchPattern{
 		PatternSpecification: patterns.PatternSpecification{
 			Client:         rsyt.Client,
-			Username:       username,
 			NamespacedName: types.NamespacedName{Name: req.Name, Namespace: req.Namespace},
 		},
-		UpstreamRepo:          remoteSyncer.Spec.RemoteRepository,
-		UpstreamBranch:        remoteSyncer.Spec.DefaultBranch,
-		TargetRepository:      remoteSyncer.Spec.RemoteRepository,
-		TargetBranches:        newBranches,
-		GarbageTargetBranches: oldBranches,
+		UpstreamRepo:      remoteSyncer.Spec.RemoteRepository,
+		UpstreamBranch:    remoteSyncer.Spec.DefaultBranch,
+		TargetRepository:  remoteSyncer.Spec.RemoteRepository,
+		NewTargetBranches: newBranches,
+		OldTargetBranches: oldBranches,
 	}
 
-	err := pattern.Trigger(ctx)
+	err := patterns.Trigger(pattern, ctx)
 	if err != nil {
 		if err.Reason == patterns.Denied {
 			return admission.Denied(err.Message)

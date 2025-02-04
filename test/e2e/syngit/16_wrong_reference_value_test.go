@@ -105,7 +105,7 @@ var _ = Describe("16 Wrong reference or value test", func() {
 				Name:      remoteSyncerName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -182,7 +182,7 @@ var _ = Describe("16 Wrong reference or value test", func() {
 				Name:      remoteSyncerName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -268,7 +268,7 @@ var _ = Describe("16 Wrong reference or value test", func() {
 				Name:      remoteSyncerName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -71,7 +72,7 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 				Name:      remoteSyncerName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -117,6 +118,7 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
+			fmt.Println(err)
 			return err != nil && strings.Contains(err.Error(), defaultDeniedMessage)
 		}, timeout, interval).Should(BeTrue())
 

@@ -72,7 +72,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 				Name:      remoteSyncerName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -216,7 +216,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 				Name:      remoteSyncerName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

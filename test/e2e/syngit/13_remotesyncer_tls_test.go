@@ -103,7 +103,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 				Name:      remoteSyncerName2,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -231,7 +231,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 				Name:      remoteSyncerName3,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -361,7 +361,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 				Name:      remoteSyncerName4,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -473,7 +473,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 				Name:      remoteSyncerName5,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

@@ -46,7 +46,7 @@ func (src *RemoteSyncer) ConvertTo(dstRaw conversion.Hub) error {
 	}
 	if string(src.Spec.PushMode) == string(SameBranch) {
 		dst.Spec.TargetStrategy = v1beta3.OneTarget
-		dst.Annotations[v1beta3.RtAnnotationBranches] = src.Spec.DefaultBranch
+		dst.Annotations[v1beta3.RtAnnotationOneOrManyBranchesKey] = src.Spec.DefaultBranch
 	} else {
 		dst.Spec.TargetStrategy = v1beta3.MultipleTarget
 	}

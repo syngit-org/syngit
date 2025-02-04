@@ -629,7 +629,7 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 				Name:      remoteSyncerName4,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationBranches: branch,
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

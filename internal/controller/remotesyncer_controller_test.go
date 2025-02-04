@@ -65,7 +65,7 @@ var _ = Describe("RemoteSyncer Controller", func() {
 						Name:      remotesyncername,
 						Namespace: userNamespace,
 						Annotations: map[string]string{
-							syngit.RtAnnotationBranches: "main",
+							syngit.RtAnnotationOneOrManyBranchesKey: "main",
 						},
 					},
 					Spec: syngit.RemoteSyncerSpec{

@@ -3,36 +3,68 @@ package v1beta3
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type RemoteUserAssociationPattern struct {
 	PatternSpecification
-	RemoteUser            syngit.RemoteUser
-	IsEnabled             bool
-	remoteUserBindingList *syngit.RemoteUserBindingList
+	RemoteUser                  syngit.RemoteUser
+	IsEnabled                   bool
+	Username                    string
+	associatedRemoteUserBinding *syngit.RemoteUserBinding
+	hasToBeRemoved              bool
+	hasToBeSetup                bool
 }
 
-func (ruap *RemoteUserAssociationPattern) RemoveExistingOnes(ctx context.Context) error {
-	if len(ruap.remoteUserBindingList.Items) == 1 {
+func (ruap *RemoteUserAssociationPattern) Remove(ctx context.Context) *errorPattern {
+	if ruap.hasToBeRemoved {
 		// Select the first one because there must not be more than one
-		rub := ruap.remoteUserBindingList.Items[0]
+		rub := ruap.associatedRemoteUserBinding
 		// Remove the RemoteUser from the associated RemoteUserBinding
-		return ruap.removeRuFromRub(ctx, &rub)
+		return &errorPattern{Message: ruap.removeRuFromRub(ctx, rub).Error(), Reason: Errored}
 	}
 	return nil
 }
 
-func (ruap *RemoteUserAssociationPattern) Trigger(ctx context.Context) *errorPattern {
+func (ruap *RemoteUserAssociationPattern) Setup(ctx context.Context) *errorPattern {
+	if ruap.hasToBeSetup {
+		updateErr := updateOrDeleteRemoteUserBinding(ctx, ruap.Client, ruap.associatedRemoteUserBinding.Spec, *ruap.associatedRemoteUserBinding, 2)
+		if updateErr != nil {
+			if !strings.Contains(updateErr.Error(), "not found") {
+				return &errorPattern{Message: updateErr.Error(), Reason: Errored}
+			}
+			createErr := ruap.Client.Create(ctx, ruap.associatedRemoteUserBinding)
+			if createErr != nil {
+				return &errorPattern{Message: createErr.Error(), Reason: Errored}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *errorPattern {
+
+	ruap.hasToBeRemoved = false
+	ruap.hasToBeSetup = false
+
+	// Check if the association is already done
+	isAlreadyDefined, existingRemoteUserBindingName, diffErr := ruap.isAlreadyReferenced(ctx, ruap.RemoteUser.Name, ruap.NamespacedName.Namespace)
+	if diffErr != nil {
+		return &errorPattern{Message: diffErr.Error(), Reason: Errored}
+	}
 
 	name := syngit.RubPrefix + ruap.Username
 
-	ruap.remoteUserBindingList = &syngit.RemoteUserBindingList{}
+	// List all the RemoteUserBindings that are associated to this user and managed by Syngit.
+	remoteUserBindingList := &syngit.RemoteUserBindingList{}
 	listOps := &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
@@ -40,30 +72,29 @@ func (ruap *RemoteUserAssociationPattern) Trigger(ctx context.Context) *errorPat
 		}),
 		Namespace: ruap.NamespacedName.Namespace,
 	}
-	rubErr := ruap.Client.List(ctx, ruap.remoteUserBindingList, listOps)
+	rubErr := ruap.Client.List(ctx, remoteUserBindingList, listOps)
 	if rubErr != nil {
 		return &errorPattern{Message: rubErr.Error(), Reason: Errored}
 	}
 
-	if len(ruap.remoteUserBindingList.Items) > 1 {
+	if len(remoteUserBindingList.Items) > 1 {
 		return &errorPattern{Message: fmt.Sprintf("only one RemoteUserBinding for the user %s should be managed by Syngit", ruap.Username), Reason: Denied}
 	}
 
 	objRef := corev1.ObjectReference{Name: ruap.RemoteUser.Name}
 
-	// Check if the association already exists before deleting it
-	isAlreadyDefined, rubFoundName, definedErr := ruap.isAlreadyReferenced(ctx, ruap.RemoteUser.Name, ruap.RemoteUser.Namespace)
-	if definedErr != nil {
-		return &errorPattern{Message: definedErr.Error(), Reason: Errored}
-	}
-
-	if len(ruap.remoteUserBindingList.Items) <= 0 {
-		// CREATE
+	if len(remoteUserBindingList.Items) <= 0 {
 
 		if !ruap.IsEnabled {
 			// The pattern is not enabled and no RemoteUserBinding is associated
 			return nil
 		}
+
+		if isAlreadyDefined && name != existingRemoteUserBindingName {
+			return &errorPattern{Message: fmt.Sprintf("the RemoteUser is already bound in the RemoteUserBinding %s", existingRemoteUserBindingName), Reason: Denied}
+		}
+
+		// CREATE the RemoteUserBinding
 
 		rub := &syngit.RemoteUserBinding{}
 		rub.SetName(name)
@@ -73,9 +104,6 @@ func (ruap *RemoteUserAssociationPattern) Trigger(ctx context.Context) *errorPat
 		rubName, generateErr := generateName(ctx, ruap.Client, rub, 0)
 		if generateErr != nil {
 			return &errorPattern{Message: generateErr.Error(), Reason: Errored}
-		}
-		if isAlreadyDefined && name != rubFoundName {
-			return &errorPattern{Message: fmt.Sprintf("the RemoteUser is already bound in the RemoteUserBinding %s", rubFoundName), Reason: Denied}
 		}
 		rub.SetName(rubName)
 
@@ -95,68 +123,63 @@ func (ruap *RemoteUserAssociationPattern) Trigger(ctx context.Context) *errorPat
 		remoteRefs = append(remoteRefs, objRef)
 		rub.Spec.RemoteUserRefs = remoteRefs
 
-		// In any case, remove the association to add it after
-		removeErr := ruap.RemoveExistingOnes(ctx)
-		if removeErr != nil {
-			return &errorPattern{Message: removeErr.Error(), Reason: Errored}
-		}
-
-		createErr := ruap.Client.Create(ctx, rub)
-		if createErr != nil {
-			return &errorPattern{Message: createErr.Error(), Reason: Errored}
+		ruap.associatedRemoteUserBinding = rub
+		if ruap.IsEnabled {
+			ruap.hasToBeSetup = true
 		}
 
 	} else {
 		// UPDATE or DELETE
 		// The RemoteUserBinding already exists
 
-		rub := ruap.remoteUserBindingList.Items[0]
+		rub := remoteUserBindingList.Items[0]
 		name = rub.Name
 
-		if isAlreadyDefined && name != rubFoundName {
-			return &errorPattern{Message: fmt.Sprintf("the RemoteUser is already bound in the RemoteUserBinding %s", rubFoundName), Reason: Denied}
+		if isAlreadyDefined && name != existingRemoteUserBindingName {
+			return &errorPattern{Message: fmt.Sprintf("the RemoteUser is already bound in the RemoteUserBinding %s", existingRemoteUserBindingName), Reason: Denied}
+		}
+
+		remoteUserBinding := &syngit.RemoteUserBinding{}
+
+		if getErr := ruap.Client.Get(ctx, types.NamespacedName{Name: rub.Name, Namespace: rub.Namespace}, remoteUserBinding); getErr != nil {
+			return &errorPattern{Message: getErr.Error(), Reason: Errored}
 		}
 
 		if !ruap.IsEnabled {
 			// The pattern is not enabled and a RemoteUserBinding is associated
 			// So it is a delete operation
-			removeErr := ruap.RemoveExistingOnes(ctx)
-			if removeErr != nil {
-				return &errorPattern{Message: removeErr.Error(), Reason: Errored}
+			ruap.hasToBeRemoved = true
+		}
+
+		// Is the current RemoteUser already associated?
+		for _, remoteUserRef := range remoteUserBinding.Spec.RemoteUserRefs {
+			if remoteUserRef.Name == ruap.RemoteUser.Name {
+				return nil
 			}
 		}
 
-		dontAppend := false
 		remoteRefs := rub.DeepCopy().Spec.RemoteUserRefs
-		for _, ruRef := range remoteRefs {
-			if ruRef.Name == ruap.RemoteUser.Name {
-				dontAppend = true
-			}
-		}
-		if !dontAppend {
-			remoteRefs = append(remoteRefs, objRef)
-		}
+		remoteRefs = append(remoteRefs, objRef)
 		rub.Spec.RemoteUserRefs = remoteRefs
 
-		// In any case, remove the association to update it after
-		removeErr := ruap.RemoveExistingOnes(ctx)
-		if removeErr != nil {
-			return &errorPattern{Message: removeErr.Error(), Reason: Errored}
+		if ruap.IsEnabled {
+			ruap.hasToBeSetup = true
 		}
-
-		updateErr := ruap.Client.Update(ctx, &rub)
-		if updateErr != nil {
-			return &errorPattern{Message: updateErr.Error(), Reason: Errored}
-		}
+		ruap.associatedRemoteUserBinding = remoteUserBinding
 
 	}
 
 	return nil
 }
 
+// Search for a RemoteUserBinding that reference this k8s user.
+// It can already be referenced by ANOTHER user.
 func (ruap *RemoteUserAssociationPattern) isAlreadyReferenced(ctx context.Context, ruName string, ruNamespace string) (bool, string, error) {
 	rubs := &syngit.RemoteUserBindingList{}
 	listOps := &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(labels.Set{
+			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
+		}),
 		Namespace: ruNamespace,
 	}
 	rubErr := ruap.Client.List(ctx, rubs, listOps)
@@ -186,21 +209,7 @@ func (ruap *RemoteUserAssociationPattern) removeRuFromRub(ctx context.Context, r
 		}
 	}
 
-	if len(newRemoteRefs) != 0 {
-
-		rub.Spec.RemoteUserRefs = newRemoteRefs
-		deleteErr := ruap.Client.Update(ctx, rub)
-		if deleteErr != nil {
-			return &errorPattern{Message: deleteErr.Error(), Reason: Errored}
-		}
-
-	} else {
-
-		deleteErr := ruap.Client.Delete(ctx, rub)
-		if deleteErr != nil {
-			return &errorPattern{Message: deleteErr.Error(), Reason: Errored}
-		}
-	}
+	updateOrDeleteRemoteUserBinding(ctx, ruap.Client, rub.Spec, *rub, 0)
 
 	return nil
 }

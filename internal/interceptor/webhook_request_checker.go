@@ -232,7 +232,7 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	if userCountLoop == 1 {
 
 		// Check for annotation
-		if wrc.remoteSyncer.Annotations[syngit.RtAnnotationUserSpecific] != "" {
+		if wrc.remoteSyncer.Annotations[syngit.RtAnnotationUserSpecificKey] != "" {
 			// Create the user specific remote target -> will create with the one-user-one-branch pattern by default.
 			// The external providers need to overwrite the target-repo & target-branch if the pattern is set to one-user-one-fork.
 			_, createErr := wrc.buildRemoteTargetIfNotExists(incomingUser.Username, &rub)
@@ -371,7 +371,7 @@ func (wrc *WebhookRequestChecker) buildRemoteTargetIfNotExists(username string, 
 	}
 
 	for _, rt := range remoteTargets.Items {
-		if wrc.remoteSyncer.Annotations[syngit.RtAnnotationUserSpecific] == string(syngit.RtAnnotationOneUserOneBranchValue) {
+		if wrc.remoteSyncer.Annotations[syngit.RtAnnotationUserSpecificKey] == string(syngit.RtAnnotationOneUserOneBranchValue) {
 			// If the upstream repo & branch are the same, the target repo is the same as the upstream and the branch is the username.
 			// An user specific target could be different branch on the same repo (target-branch != upstream-branch)
 			if rt.Spec.UpstreamRepository == wrc.remoteSyncer.Spec.RemoteRepository && rt.Spec.UpstreamBranch == wrc.remoteSyncer.Spec.DefaultBranch && rt.Spec.TargetRepository == wrc.remoteSyncer.Spec.RemoteRepository && rt.Spec.TargetBranch == username {
@@ -379,7 +379,7 @@ func (wrc *WebhookRequestChecker) buildRemoteTargetIfNotExists(username string, 
 			}
 		}
 
-		if wrc.remoteSyncer.Annotations[syngit.RtAnnotationUserSpecific] == string(syngit.RtAnnotationOneUserOneForkValue) {
+		if wrc.remoteSyncer.Annotations[syngit.RtAnnotationUserSpecificKey] == string(syngit.RtAnnotationOneUserOneForkValue) {
 			// If the upstream repo & branch are the same, then it is considered as found.
 			// To allow permissive extension for external providers, we consider that the scope is the most open as possible.
 			// An user specific target could be a fork (target-repo != upstream-repo)
