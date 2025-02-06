@@ -28,7 +28,9 @@ func (ruap *RemoteUserAssociationPattern) Remove(ctx context.Context) *errorPatt
 		// Select the first one because there must not be more than one
 		rub := ruap.associatedRemoteUserBinding
 		// Remove the RemoteUser from the associated RemoteUserBinding
-		return &errorPattern{Message: ruap.removeRuFromRub(ctx, rub).Error(), Reason: Errored}
+		if err := ruap.removeRuFromRub(ctx, rub); err != nil {
+			return &errorPattern{Message: err.Error(), Reason: Errored}
+		}
 	}
 	return nil
 }
@@ -101,7 +103,7 @@ func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *errorPatter
 		rub.SetNamespace(ruap.RemoteUser.Namespace)
 
 		// Geneate the RUB object with the right name
-		rubName, generateErr := generateName(ctx, ruap.Client, rub, 0)
+		rubName, generateErr := generateName(ctx, ruap.Client, rub.DeepCopy(), 0)
 		if generateErr != nil {
 			return &errorPattern{Message: generateErr.Error(), Reason: Errored}
 		}
@@ -145,6 +147,8 @@ func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *errorPatter
 			return &errorPattern{Message: getErr.Error(), Reason: Errored}
 		}
 
+		ruap.associatedRemoteUserBinding = remoteUserBinding
+
 		if !ruap.IsEnabled {
 			// The pattern is not enabled and a RemoteUserBinding is associated
 			// So it is a delete operation
@@ -158,9 +162,7 @@ func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *errorPatter
 			}
 		}
 
-		remoteRefs := rub.DeepCopy().Spec.RemoteUserRefs
-		remoteRefs = append(remoteRefs, objRef)
-		rub.Spec.RemoteUserRefs = remoteRefs
+		remoteUserBinding.Spec.RemoteUserRefs = append(remoteUserBinding.Spec.RemoteUserRefs, objRef)
 
 		if ruap.IsEnabled {
 			ruap.hasToBeSetup = true

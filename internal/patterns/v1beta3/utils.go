@@ -13,6 +13,7 @@ import (
 )
 
 func generateName(ctx context.Context, client client.Client, object client.Object, suffixNumber int) (string, error) {
+	oldName := object.GetName()
 	newName := object.GetName()
 	if suffixNumber > 0 {
 		newName = fmt.Sprintf("%s-%d", object.GetName(), suffixNumber)
@@ -23,6 +24,7 @@ func generateName(ctx context.Context, client client.Client, object client.Objec
 	}
 	getErr := client.Get(ctx, *webhookNamespacedName, object)
 	if getErr == nil {
+		object.SetName(oldName)
 		return generateName(ctx, client, object, suffixNumber+1)
 	} else {
 		if strings.Contains(getErr.Error(), "not found") {

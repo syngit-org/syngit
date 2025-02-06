@@ -32,8 +32,8 @@ import (
 var _ = Describe("06 Test objects lifecycle", func() {
 
 	const (
-		remoteUserLuffyName        = "remoteuser-luffy"
-		remoteUserLuffyJupyterName = "remoteuser-luffy"
+		remoteUserLuffyName        = "remoteuser-luffy-jupyter"
+		remoteUserLuffyJupyterName = "remoteuser-luffy-jupyter"
 		remoteUserLuffySaturnName  = "remoteuser-luffy-saturn"
 		remoteSyncerName           = "remotesyncer-test6"
 		branch                     = "main"

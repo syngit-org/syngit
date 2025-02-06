@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -47,7 +48,9 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 		branch                     = "main"
 	)
 
-	It("should not work because RemoteUserBinding not targeted", func() {
+	remoteTargetName := fmt.Sprintf("%s-syngituser-blue-%s-syngituser-blue-%s", syngit.RtPrefix, branch, branch)
+
+	It("should not push because RemoteUserBinding not targeted", func() {
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -84,6 +87,11 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 				RemoteUserRefs: []corev1.ObjectReference{
 					{
 						Name: remoteUserLuffyName,
+					},
+				},
+				RemoteTargetRefs: []corev1.ObjectReference{
+					{
+						Name: remoteTargetName,
 					},
 				},
 				Subject: rbacv1.Subject{
@@ -181,7 +189,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 
 	})
 
-	It("should work because RemoteUserBinding is targeted", func() {
+	It("should push because RemoteUserBinding is targeted", func() {
 		By("creating the RemoteUser")
 		luffySecretName := string(Luffy) + "-creds"
 		remoteUserLuffy := &syngit.RemoteUser{
@@ -218,6 +226,11 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 				RemoteUserRefs: []corev1.ObjectReference{
 					{
 						Name: remoteUserLuffyName,
+					},
+				},
+				RemoteTargetRefs: []corev1.ObjectReference{
+					{
+						Name: remoteTargetName,
 					},
 				},
 				Subject: rbacv1.Subject{
@@ -357,6 +370,11 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 				RemoteUserRefs: []corev1.ObjectReference{
 					{
 						Name: remoteUserLuffyName,
+					},
+				},
+				RemoteTargetRefs: []corev1.ObjectReference{
+					{
+						Name: remoteTargetName,
 					},
 				},
 				Subject: rbacv1.Subject{
