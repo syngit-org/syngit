@@ -42,10 +42,15 @@ func updateOrDeleteRemoteUserBinding(ctx context.Context, client client.Client, 
 		return err
 	}
 
-	if len(spec.RemoteTargetRefs) == 0 && len(spec.RemoteUserRefs) == 0 {
-		delErr := client.Delete(ctx, &rub)
-		if delErr != nil {
-			return delErr
+	if len(spec.RemoteUserRefs) == 0 {
+		remoteUserBinding.Labels[syngit.ManagedByLabelKey] = ""
+		remoteUserBinding.Spec.RemoteTargetRefs = []v1.ObjectReference{}
+
+		if len(spec.RemoteTargetRefs) == 0 {
+			delErr := client.Delete(ctx, &rub)
+			if delErr != nil {
+				return delErr
+			}
 		}
 	}
 

@@ -46,7 +46,16 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 	}
 
 	username := req.DeepCopy().UserInfo.Username
-	pattern := &patterns.RemoteUserAssociationPattern{
+	associationPattern := &patterns.RemoteUserAssociationPattern{
+		PatternSpecification: patterns.PatternSpecification{
+			Client:         ruwh.Client,
+			NamespacedName: types.NamespacedName{Name: req.Name, Namespace: req.Namespace},
+		},
+		Username:   username,
+		RemoteUser: *remoteUser,
+		IsEnabled:  isEnabled,
+	}
+	remoteTargetPattern := &patterns.RemoteUserOneOrManyBranchPattern{
 		PatternSpecification: patterns.PatternSpecification{
 			Client:         ruwh.Client,
 			NamespacedName: types.NamespacedName{Name: req.Name, Namespace: req.Namespace},
@@ -56,7 +65,17 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 		IsEnabled:  isEnabled,
 	}
 
-	err := patterns.Trigger(pattern, ctx)
+	err := patterns.Trigger(associationPattern, ctx)
+	if err != nil {
+		if err.Reason == patterns.Denied {
+			return admission.Denied(err.Message)
+		}
+		if err.Reason == patterns.Errored {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+	}
+
+	err = patterns.Trigger(remoteTargetPattern, ctx)
 	if err != nil {
 		if err.Reason == patterns.Denied {
 			return admission.Denied(err.Message)

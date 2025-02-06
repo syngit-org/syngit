@@ -208,6 +208,7 @@ func (ruap *RemoteUserAssociationPattern) removeRuFromRub(ctx context.Context, r
 			newRemoteRefs = append(newRemoteRefs, rm)
 		}
 	}
+	rub.Spec.RemoteUserRefs = newRemoteRefs
 
 	updateOrDeleteRemoteUserBinding(ctx, ruap.Client, rub.Spec, *rub, 0)
 
