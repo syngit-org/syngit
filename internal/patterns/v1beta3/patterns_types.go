@@ -13,9 +13,9 @@ type PatternSpecification struct {
 }
 
 type Pattern interface {
-	Setup(ctx context.Context) *errorPattern
-	Diff(ctx context.Context) *errorPattern
-	Remove(ctx context.Context) *errorPattern
+	Setup(ctx context.Context) *ErrorPattern
+	Diff(ctx context.Context) *ErrorPattern
+	Remove(ctx context.Context) *ErrorPattern
 }
 
 type reason string
@@ -25,16 +25,16 @@ const (
 	Denied  reason = "Denied"
 )
 
-type errorPattern struct {
+type ErrorPattern struct {
 	Message string
 	Reason  reason
 }
 
-func (e *errorPattern) Error() string {
+func (e *ErrorPattern) Error() string {
 	return e.Message
 }
 
-func Trigger(p Pattern, ctx context.Context) *errorPattern {
+func Trigger(p Pattern, ctx context.Context) *ErrorPattern {
 
 	diffErr := p.Diff(ctx)
 	if diffErr != nil {

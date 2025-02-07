@@ -25,19 +25,19 @@ type RemoteSyncerOneOrManyBranchPattern struct {
 	remoteUserBindings       *syngit.RemoteUserBindingList
 }
 
-func (rsomp *RemoteSyncerOneOrManyBranchPattern) Setup(ctx context.Context) *errorPattern {
+func (rsomp *RemoteSyncerOneOrManyBranchPattern) Setup(ctx context.Context) *ErrorPattern {
 	for _, remoteTarget := range rsomp.remoteTargetsToBeSetup {
 		// Create the RemoteTargets
 		createOrUpdateErr := createOrUpdateRemoteTarget(ctx, rsomp.Client, remoteTarget)
 		if createOrUpdateErr != nil {
-			return &errorPattern{Message: createOrUpdateErr.Error(), Reason: Errored}
+			return &ErrorPattern{Message: createOrUpdateErr.Error(), Reason: Errored}
 		}
 	}
 
 	// Associate to all the RemoteUserBindings
 	associationErr := rsomp.addRemoteUserBindingAssociation(ctx, rsomp.remoteTargetsToBeSetup, *rsomp.remoteUserBindings)
 	if associationErr != nil {
-		return &errorPattern{Message: associationErr.Error(), Reason: Errored}
+		return &ErrorPattern{Message: associationErr.Error(), Reason: Errored}
 	}
 
 	return nil
@@ -60,20 +60,20 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) addRemoteUserBindingAssociation
 	return nil
 }
 
-func (rsomp *RemoteSyncerOneOrManyBranchPattern) Remove(ctx context.Context) *errorPattern {
+func (rsomp *RemoteSyncerOneOrManyBranchPattern) Remove(ctx context.Context) *ErrorPattern {
 
 	for _, rt := range rsomp.remoteTargetsToBeRemoved {
 		// Delete RemoteTarget
 		delErr := rsomp.Client.Delete(ctx, &rt)
 		if delErr != nil {
-			return &errorPattern{Message: delErr.Error(), Reason: Errored}
+			return &ErrorPattern{Message: delErr.Error(), Reason: Errored}
 		}
 	}
 
 	// Remove association from RemoteUserBindings
 	associationErr := rsomp.removeRemoteUserBindingAssociation(ctx, rsomp.remoteTargetsToBeRemoved, *rsomp.remoteUserBindings)
 	if associationErr != nil {
-		return &errorPattern{Message: associationErr.Error(), Reason: Errored}
+		return &ErrorPattern{Message: associationErr.Error(), Reason: Errored}
 	}
 
 	return nil
@@ -101,7 +101,7 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) removeRemoteUserBindingAssociat
 	return nil
 }
 
-func (rsomp *RemoteSyncerOneOrManyBranchPattern) Diff(ctx context.Context) *errorPattern {
+func (rsomp *RemoteSyncerOneOrManyBranchPattern) Diff(ctx context.Context) *ErrorPattern {
 	listOps := &client.ListOptions{
 		Namespace: rsomp.NamespacedName.Namespace,
 		LabelSelector: labels.SelectorFromSet(labels.Set{
@@ -113,14 +113,14 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) Diff(ctx context.Context) *erro
 	rsomp.remoteUserBindings = &syngit.RemoteUserBindingList{}
 	listErr := rsomp.Client.List(ctx, rsomp.remoteUserBindings, listOps)
 	if listErr != nil {
-		return &errorPattern{Message: listErr.Error(), Reason: Errored}
+		return &ErrorPattern{Message: listErr.Error(), Reason: Errored}
 	}
 
 	// Get all RemoteTargets of the namespace
 	allRemoteTargets := &syngit.RemoteTargetList{}
 	listErr = rsomp.Client.List(ctx, allRemoteTargets, listOps)
 	if listErr != nil {
-		return &errorPattern{Message: listErr.Error(), Reason: Errored}
+		return &ErrorPattern{Message: listErr.Error(), Reason: Errored}
 	}
 	// Get only the RemoteTargets that target the same:
 	// - upstream repo
@@ -133,12 +133,12 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) Diff(ctx context.Context) *erro
 	var filterErr error
 	rsomp.remoteTargetsToBeRemoved, filterErr = rsomp.getRemoteTargetsToBeRemoved(ctx, *allRemoteTargets)
 	if filterErr != nil {
-		return &errorPattern{Message: filterErr.Error(), Reason: Errored}
+		return &ErrorPattern{Message: filterErr.Error(), Reason: Errored}
 	}
 
 	rsomp.remoteTargetsToBeSetup, filterErr = rsomp.getRemoteTargetsToBeSetup(*allRemoteTargets)
 	if filterErr != nil {
-		return &errorPattern{Message: filterErr.Error(), Reason: Errored}
+		return &ErrorPattern{Message: filterErr.Error(), Reason: Errored}
 	}
 
 	return nil
@@ -166,7 +166,7 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) getRemoteTargetsToBeSetup(in sy
 
 	out := []*syngit.RemoteTarget{}
 	for _, branch := range branches {
-		name, nameErr := utils.RemoteTargetNameConstructor(rsomp.UpstreamRepo, rsomp.UpstreamBranch, branch)
+		name, nameErr := utils.RemoteTargetNameConstructor(rsomp.UpstreamRepo, rsomp.UpstreamBranch, rsomp.UpstreamRepo, branch)
 		if nameErr != nil {
 			return nil, nameErr
 		}
@@ -236,7 +236,7 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) getBranchesToBeRemoved(ctx cont
 	selector.Add(*requirement)
 	listOps := &client.ListOptions{
 		Namespace:     rsomp.NamespacedName.Namespace,
-		LabelSelector: labels.NewSelector(),
+		LabelSelector: selector,
 	}
 	listErr := rsomp.Client.List(ctx, remoteSyncers, listOps)
 	if listErr != nil {

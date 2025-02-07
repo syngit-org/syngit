@@ -28,6 +28,7 @@ const (
 	RtLabelBranchKey                 = "syngit.io/remotetarget.branch"
 	RtLabelPatternKey                = "syngit.io/remotetarget.pattern"
 	RtLabelOneOrManyBranchesValue    = "one-or-many-branches"
+	RtDefaultForkName                = "fork"
 )
 
 type RemoteTargetUserSpecificValues string

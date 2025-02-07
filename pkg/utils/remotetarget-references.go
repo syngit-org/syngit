@@ -8,15 +8,24 @@ import (
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 )
 
-func RemoteTargetNameConstructor(upstreamRepo string, upstreamBranch string, branch string) (string, error) {
+func RemoteTargetNameConstructor(upstreamRepo string, upstreamBranch string, targetRepo string, targetBranch string) (string, error) {
 
-	u, err := url.Parse(upstreamRepo)
+	upstreamU, err := url.Parse(upstreamRepo)
 	if err != nil {
 		return "", err
 	}
 
-	repoName := strings.ReplaceAll(strings.ReplaceAll(u.Path, "/", "-"), ".git", "")
-	name := fmt.Sprintf("%s%s-%s%s-%s", syngit.RtPrefix, repoName, upstreamBranch, repoName, branch)
+	targetRepoName := syngit.RtDefaultForkName
+	if targetRepo != "" {
+		targetU, err := url.Parse(targetRepo)
+		if err != nil {
+			return "", err
+		}
+		targetRepoName = strings.ReplaceAll(strings.ReplaceAll(targetU.Path, "/", "-"), ".git", "")
+	}
+
+	upstreamRepoName := strings.ReplaceAll(strings.ReplaceAll(upstreamU.Path, "/", "-"), ".git", "")
+	name := fmt.Sprintf("%s%s-%s%s-%s", syngit.RtPrefix, upstreamRepoName, upstreamBranch, targetRepoName, targetBranch)
 
 	return name, nil
 }

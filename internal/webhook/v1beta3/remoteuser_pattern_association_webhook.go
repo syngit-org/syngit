@@ -6,6 +6,8 @@ import (
 
 	patterns "github.com/syngit-org/syngit/internal/patterns/v1beta3"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -55,7 +57,7 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 		RemoteUser: *remoteUser,
 		IsEnabled:  isEnabled,
 	}
-	remoteTargetPattern := &patterns.RemoteUserOneOrManyBranchPattern{
+	remoteTargetPattern := &patterns.RemoteUserSearchRemoteTargetPattern{
 		PatternSpecification: patterns.PatternSpecification{
 			Client:         ruwh.Client,
 			NamespacedName: types.NamespacedName{Name: req.Name, Namespace: req.Namespace},
@@ -85,5 +87,57 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 		}
 	}
 
+	userSpecificError := ruwh.triggerUserSpecificPatterns(ctx, req, username)
+	if userSpecificError != nil {
+		if userSpecificError.Reason == patterns.Denied {
+			return admission.Denied(userSpecificError.Message)
+		}
+		if userSpecificError.Reason == patterns.Errored {
+			return admission.Errored(http.StatusInternalServerError, userSpecificError)
+		}
+	}
+
 	return admission.Allowed("This object is associated to the " + req.Name + " RemoteUserBinding")
+}
+
+func (ruwh *RemoteUserAssociationWebhookHandler) triggerUserSpecificPatterns(ctx context.Context, req admission.Request, username string) *patterns.ErrorPattern {
+	// Get all RemoteSyncer of the namespace that implement the user specific pattern
+	remoteSyncerList := &syngit.RemoteSyncerList{}
+	selector := labels.NewSelector()
+	userSpecificKey, reqErr := labels.NewRequirement(syngit.RtAnnotationUserSpecificKey, selection.Exists, nil)
+	if reqErr != nil {
+		return &patterns.ErrorPattern{Message: reqErr.Error(), Reason: patterns.Errored}
+	}
+	managedBy, reqErr := labels.NewRequirement(syngit.RtAnnotationUserSpecificKey, selection.Equals, []string{syngit.ManagedByLabelValue})
+	if reqErr != nil {
+		return &patterns.ErrorPattern{Message: reqErr.Error(), Reason: patterns.Errored}
+	}
+	selector.Add(*userSpecificKey)
+	selector.Add(*managedBy)
+	listOps := &client.ListOptions{
+		LabelSelector: selector,
+		Namespace:     req.Namespace,
+	}
+	listErr := ruwh.Client.List(ctx, remoteSyncerList, listOps)
+	if listErr != nil {
+		return &patterns.ErrorPattern{Message: listErr.Error(), Reason: patterns.Errored}
+	}
+
+	for _, rsy := range remoteSyncerList.Items {
+		userSpecificPattern := &patterns.UserSpecificPattern{
+			PatternSpecification: patterns.PatternSpecification{
+				Client:         ruwh.Client,
+				NamespacedName: types.NamespacedName{Name: req.Name, Namespace: req.Namespace},
+			},
+			Username:     username,
+			RemoteSyncer: rsy,
+		}
+
+		err := patterns.Trigger(userSpecificPattern, ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

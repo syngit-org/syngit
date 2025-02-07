@@ -54,6 +54,7 @@ var _ = Describe("28 RemoteUser created after RemoteSyncer & RemoteTargets", fun
 				Namespace: namespace,
 				Annotations: map[string]string{
 					syngit.RtAnnotationOneOrManyBranchesKey: branches,
+					syngit.RtAnnotationUserSpecificKey:      string(syngit.RtAnnotationOneUserOneBranchValue),
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -141,6 +142,16 @@ var _ = Describe("28 RemoteUser created after RemoteSyncer & RemoteTargets", fun
 			Owner:  "syngituser",
 			Name:   "blue",
 			Branch: branch2,
+		}
+		exists, err = IsObjectInRepo(*repo, cm)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(exists).To(BeTrue())
+		Wait3()
+		repo = &Repo{
+			Fqdn:   gitP1Fqdn,
+			Owner:  "syngituser",
+			Name:   "blue",
+			Branch: string(Luffy),
 		}
 		exists, err = IsObjectInRepo(*repo, cm)
 		Expect(err).ToNot(HaveOccurred())

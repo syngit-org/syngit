@@ -23,28 +23,28 @@ type RemoteUserAssociationPattern struct {
 	hasToBeSetup                bool
 }
 
-func (ruap *RemoteUserAssociationPattern) Remove(ctx context.Context) *errorPattern {
+func (ruap *RemoteUserAssociationPattern) Remove(ctx context.Context) *ErrorPattern {
 	if ruap.hasToBeRemoved {
 		// Select the first one because there must not be more than one
 		rub := ruap.associatedRemoteUserBinding
 		// Remove the RemoteUser from the associated RemoteUserBinding
 		if err := ruap.removeRuFromRub(ctx, rub); err != nil {
-			return &errorPattern{Message: err.Error(), Reason: Errored}
+			return &ErrorPattern{Message: err.Error(), Reason: Errored}
 		}
 	}
 	return nil
 }
 
-func (ruap *RemoteUserAssociationPattern) Setup(ctx context.Context) *errorPattern {
+func (ruap *RemoteUserAssociationPattern) Setup(ctx context.Context) *ErrorPattern {
 	if ruap.hasToBeSetup {
 		updateErr := updateOrDeleteRemoteUserBinding(ctx, ruap.Client, ruap.associatedRemoteUserBinding.Spec, *ruap.associatedRemoteUserBinding, 2)
 		if updateErr != nil {
 			if !strings.Contains(updateErr.Error(), "not found") {
-				return &errorPattern{Message: updateErr.Error(), Reason: Errored}
+				return &ErrorPattern{Message: updateErr.Error(), Reason: Errored}
 			}
 			createErr := ruap.Client.Create(ctx, ruap.associatedRemoteUserBinding)
 			if createErr != nil {
-				return &errorPattern{Message: createErr.Error(), Reason: Errored}
+				return &ErrorPattern{Message: createErr.Error(), Reason: Errored}
 			}
 		}
 	}
@@ -52,7 +52,7 @@ func (ruap *RemoteUserAssociationPattern) Setup(ctx context.Context) *errorPatte
 	return nil
 }
 
-func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *errorPattern {
+func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *ErrorPattern {
 
 	ruap.hasToBeRemoved = false
 	ruap.hasToBeSetup = false
@@ -60,7 +60,7 @@ func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *errorPatter
 	// Check if the association is already done
 	isAlreadyDefined, existingRemoteUserBindingName, diffErr := ruap.isAlreadyReferenced(ctx, ruap.RemoteUser.Name, ruap.NamespacedName.Namespace)
 	if diffErr != nil {
-		return &errorPattern{Message: diffErr.Error(), Reason: Errored}
+		return &ErrorPattern{Message: diffErr.Error(), Reason: Errored}
 	}
 
 	name := syngit.RubPrefix + ruap.Username
@@ -76,11 +76,11 @@ func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *errorPatter
 	}
 	rubErr := ruap.Client.List(ctx, remoteUserBindingList, listOps)
 	if rubErr != nil {
-		return &errorPattern{Message: rubErr.Error(), Reason: Errored}
+		return &ErrorPattern{Message: rubErr.Error(), Reason: Errored}
 	}
 
 	if len(remoteUserBindingList.Items) > 1 {
-		return &errorPattern{Message: fmt.Sprintf("only one RemoteUserBinding for the user %s should be managed by Syngit", ruap.Username), Reason: Denied}
+		return &ErrorPattern{Message: fmt.Sprintf("only one RemoteUserBinding for the user %s should be managed by Syngit", ruap.Username), Reason: Denied}
 	}
 
 	objRef := corev1.ObjectReference{Name: ruap.RemoteUser.Name}
@@ -93,7 +93,7 @@ func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *errorPatter
 		}
 
 		if isAlreadyDefined && name != existingRemoteUserBindingName {
-			return &errorPattern{Message: fmt.Sprintf("the RemoteUser is already bound in the RemoteUserBinding %s", existingRemoteUserBindingName), Reason: Denied}
+			return &ErrorPattern{Message: fmt.Sprintf("the RemoteUser is already bound in the RemoteUserBinding %s", existingRemoteUserBindingName), Reason: Denied}
 		}
 
 		// CREATE the RemoteUserBinding
@@ -105,7 +105,7 @@ func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *errorPatter
 		// Geneate the RUB object with the right name
 		rubName, generateErr := generateName(ctx, ruap.Client, rub.DeepCopy(), 0)
 		if generateErr != nil {
-			return &errorPattern{Message: generateErr.Error(), Reason: Errored}
+			return &ErrorPattern{Message: generateErr.Error(), Reason: Errored}
 		}
 		rub.SetName(rubName)
 
@@ -138,13 +138,13 @@ func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *errorPatter
 		name = rub.Name
 
 		if isAlreadyDefined && name != existingRemoteUserBindingName {
-			return &errorPattern{Message: fmt.Sprintf("the RemoteUser is already bound in the RemoteUserBinding %s", existingRemoteUserBindingName), Reason: Denied}
+			return &ErrorPattern{Message: fmt.Sprintf("the RemoteUser is already bound in the RemoteUserBinding %s", existingRemoteUserBindingName), Reason: Denied}
 		}
 
 		remoteUserBinding := &syngit.RemoteUserBinding{}
 
 		if getErr := ruap.Client.Get(ctx, types.NamespacedName{Name: rub.Name, Namespace: rub.Namespace}, remoteUserBinding); getErr != nil {
-			return &errorPattern{Message: getErr.Error(), Reason: Errored}
+			return &ErrorPattern{Message: getErr.Error(), Reason: Errored}
 		}
 
 		ruap.associatedRemoteUserBinding = remoteUserBinding
