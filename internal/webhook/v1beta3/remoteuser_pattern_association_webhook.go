@@ -3,6 +3,7 @@ package v1beta3
 import (
 	"context"
 	"net/http"
+	"time"
 
 	patterns "github.com/syngit-org/syngit/internal/patterns/v1beta3"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
@@ -76,6 +77,11 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 	}
+
+	// TODO: temporary workaround
+	// We need to wait until the associated RemoteUserBinding
+	// is fully created to allow the association with the managed RemoteTargets
+	time.Sleep(500 * time.Millisecond)
 
 	err = patterns.Trigger(remoteTargetPattern, ctx)
 	if err != nil {

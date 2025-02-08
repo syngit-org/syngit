@@ -6,7 +6,7 @@ spec:
   remoteRepository: "https://git-fake-server.com/fake-repo.git"
   defaultBranch: main
   strategy: CommitOnly
-  targetStrategy: SameBranch
+  targetStrategy: OneTarget
   defaultUnauthorizedUserMode: Block
   scopedResources:
     rules:
