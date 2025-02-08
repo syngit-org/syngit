@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
 	patterns "github.com/syngit-org/syngit/internal/patterns/v1beta3"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
@@ -392,23 +391,6 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 	details.gitUser = *gitUser
 
 	return true, nil
-}
-
-func (wrc *WebhookRequestChecker) updateRemoteUserBinding(ctx context.Context, remoteUserBinding syngit.RemoteUserBinding, retryNumber int) error {
-	var rub syngit.RemoteUserBinding
-	if err := wrc.k8sClient.Get(ctx, types.NamespacedName{Name: remoteUserBinding.Name, Namespace: remoteUserBinding.Namespace}, &rub); err != nil {
-		return err
-	}
-
-	rub.Spec.RemoteTargetRefs = remoteUserBinding.Spec.RemoteTargetRefs
-	if err := wrc.k8sClient.Update(ctx, &rub); err != nil {
-		if retryNumber > 0 {
-			time.Sleep(2 * time.Second)
-			return wrc.updateRemoteUserBinding(ctx, remoteUserBinding, retryNumber-1)
-		}
-		return err
-	}
-	return nil
 }
 
 func (wrc *WebhookRequestChecker) searchForGitToken(remoteUser syngit.RemoteUser) (*gitUser, error) {

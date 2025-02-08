@@ -78,7 +78,7 @@ var _ = Describe("26 Test hard-reset merge", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("creating a RemoteTarget targetting the custom branch")
+		By("creating a RemoteTarget targeting the custom branch")
 		remoteTargetCustomBranch := &syngit.RemoteTarget{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteTargetNameCustomBranch1,
@@ -101,7 +101,7 @@ var _ = Describe("26 Test hard-reset merge", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("creating the RemoteUserBinding with the RemoteUser & RemoteTarget targetting the custom branch")
+		By("creating the RemoteUserBinding with the RemoteUser & RemoteTarget targeting the custom branch")
 		remoteUserBindingLuffy := &syngit.RemoteUserBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteUserBindingLuffyName,
@@ -129,7 +129,7 @@ var _ = Describe("26 Test hard-reset merge", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("creating the RemoteSyncer targetting the custom-branch")
+		By("creating the RemoteSyncer targeting the custom-branch")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName1,
@@ -215,7 +215,7 @@ var _ = Describe("26 Test hard-reset merge", func() {
 		delErr := sClient.As(Luffy).Delete(remotesyncer)
 		Expect(delErr).ToNot(HaveOccurred())
 
-		By("creating a RemoteTarget targetting the upstream branch")
+		By("creating a RemoteTarget targeting the upstream branch")
 		remoteTargetUpstreamBranch := &syngit.RemoteTarget{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteTargetNameUpstreamBranch1,
@@ -237,7 +237,7 @@ var _ = Describe("26 Test hard-reset merge", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("updating the RemoteUserBinding with the RemoteUser & RemoteTarget targetting the upstream branch")
+		By("updating the RemoteUserBinding with the RemoteUser & RemoteTarget targeting the upstream branch")
 		remoteUserBindingLuffy = &syngit.RemoteUserBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteUserBindingLuffyName,
@@ -268,7 +268,7 @@ var _ = Describe("26 Test hard-reset merge", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("creating the RemoteSyncer targetting the upstream main branch")
+		By("creating the RemoteSyncer targeting the upstream main branch")
 		remotesyncer2 := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName2,
@@ -407,7 +407,7 @@ var _ = Describe("26 Test hard-reset merge", func() {
 
 	})
 
-	It("should overwrite the custom branch's commit by the upstream's branch one", func() {
+	It("should overwrite the custom branch's commit by the upstream's branch one", func() { //nolint:dupl
 
 		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
 
@@ -431,7 +431,7 @@ var _ = Describe("26 Test hard-reset merge", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("creating a RemoteTarget targetting the custom branch")
+		By("creating a RemoteTarget targeting the custom branch")
 		remoteTargetCustomBranch := &syngit.RemoteTarget{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteTargetNameCustomBranch2,
@@ -454,7 +454,7 @@ var _ = Describe("26 Test hard-reset merge", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("creating the RemoteUserBinding with the RemoteUser & RemoteTarget targetting the custom branch")
+		By("creating the RemoteUserBinding with the RemoteUser & RemoteTarget targeting the custom branch")
 		remoteUserBindingLuffy := &syngit.RemoteUserBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteUserBindingLuffyName,
@@ -482,7 +482,7 @@ var _ = Describe("26 Test hard-reset merge", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("creating the RemoteSyncer targetting the custom-branch")
+		By("creating the RemoteSyncer targeting the custom-branch")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName3,
@@ -568,7 +568,7 @@ var _ = Describe("26 Test hard-reset merge", func() {
 		delErr := sClient.As(Luffy).Delete(remotesyncer)
 		Expect(delErr).ToNot(HaveOccurred())
 
-		By("creating a RemoteTarget targetting the upstream branch")
+		By("creating a RemoteTarget targeting the upstream branch")
 		remoteTargetUpstreamBranch := &syngit.RemoteTarget{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteTargetNameUpstreamBranch2,
@@ -590,7 +590,7 @@ var _ = Describe("26 Test hard-reset merge", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("updating the RemoteUserBinding with the RemoteUser & RemoteTarget targetting the upstream branch")
+		By("updating the RemoteUserBinding with the RemoteUser & RemoteTarget targeting the upstream branch")
 		remoteUserBindingLuffy = &syngit.RemoteUserBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteUserBindingLuffyName,
@@ -621,7 +621,7 @@ var _ = Describe("26 Test hard-reset merge", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("creating the RemoteSyncer targetting the upstream main branch")
+		By("creating the RemoteSyncer targeting the upstream main branch")
 		remotesyncer2 := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName4,

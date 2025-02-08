@@ -400,7 +400,7 @@ func merge(repo Repo, sourceBranch string, targetBranch string) error {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	pullUrl := strings.Split(string(response["html_url"].(string)), "/")
+	pullUrl := strings.Split(response["html_url"].(string), "/")
 	pullID, _ := strconv.Atoi(pullUrl[len(pullUrl)-1])
 
 	// MERGE PULL REQUEST
