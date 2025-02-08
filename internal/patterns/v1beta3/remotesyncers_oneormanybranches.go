@@ -102,6 +102,7 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) removeRemoteUserBindingAssociat
 }
 
 func (rsomp *RemoteSyncerOneOrManyBranchPattern) Diff(ctx context.Context) *ErrorPattern {
+
 	listOps := &client.ListOptions{
 		Namespace: rsomp.NamespacedName.Namespace,
 		LabelSelector: labels.SelectorFromSet(labels.Set{
@@ -203,9 +204,15 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) getRemoteTargetsToBeRemoved(ctx
 
 	// Only filter for the branches that are actually not used anymore by the current RemoteTarget
 	diff := slicesDifference(rsomp.OldTargetBranches, rsomp.NewTargetBranches)
+	oldBranches := []string{}
+	for _, branch := range diff {
+		if !slices.Contains(rsomp.NewTargetBranches, branch) {
+			oldBranches = append(oldBranches, branch)
+		}
+	}
 
 	// Search for non-dependent branches
-	deletable, depErr := rsomp.getBranchesToBeRemoved(ctx, diff)
+	deletable, depErr := rsomp.getBranchesToBeRemoved(ctx, oldBranches)
 	if depErr != nil {
 		return nil, depErr
 	}
@@ -225,7 +232,10 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) getRemoteTargetsToBeRemoved(ctx
 
 // Search for automatically created RemoteTargets that are NOT used by any other RemoteSyncer
 func (rsomp *RemoteSyncerOneOrManyBranchPattern) getBranchesToBeRemoved(ctx context.Context, branches []string) ([]string, error) {
-	out := []string{}
+	out := map[string]bool{}
+	for _, branch := range branches {
+		out[branch] = true
+	}
 
 	remoteSyncers := &syngit.RemoteSyncerList{}
 	selector := labels.NewSelector()
@@ -244,13 +254,22 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) getBranchesToBeRemoved(ctx cont
 	}
 
 	for _, remoteSyncer := range remoteSyncers.Items {
-		remoteSyncerBranches := utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationOneOrManyBranchesKey])
-		for _, branch := range branches {
-			if !slices.Contains(remoteSyncerBranches, branch) {
-				out = append(out, branch)
+		if remoteSyncer.Name != rsomp.NamespacedName.Name || remoteSyncer.Namespace != rsomp.NamespacedName.Namespace {
+			remoteSyncerBranches := utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationOneOrManyBranchesKey])
+			for _, branch := range branches {
+				if slices.Contains(remoteSyncerBranches, branch) {
+					out[branch] = false
+				}
 			}
 		}
 	}
 
-	return out, nil
+	branchesToBeRemoved := []string{}
+	for branch, toBeRemoved := range out {
+		if toBeRemoved {
+			branchesToBeRemoved = append(branchesToBeRemoved, branch)
+		}
+	}
+
+	return branchesToBeRemoved, nil
 }

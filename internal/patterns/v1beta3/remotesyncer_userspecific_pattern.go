@@ -127,8 +127,10 @@ func (usp *UserSpecificPattern) Diff(ctx context.Context) *ErrorPattern {
 
 	// If some are bound and there is no user specific annotation anymore
 	userSpecificAnnotation := usp.RemoteSyncer.Annotations[syngit.RtAnnotationUserSpecificKey]
-	if userSpecificAnnotation == "" && len(boundRemoteTargets) > 0 {
-		usp.remoteTargetsToBeRemoved = boundRemoteTargets
+	if userSpecificAnnotation == "" {
+		if len(boundRemoteTargets) > 0 {
+			usp.remoteTargetsToBeRemoved = boundRemoteTargets
+		}
 		return nil
 	}
 

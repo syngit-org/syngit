@@ -81,7 +81,7 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 	// TODO: temporary workaround
 	// We need to wait until the associated RemoteUserBinding
 	// is fully created to allow the association with the managed RemoteTargets
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
 
 	err = patterns.Trigger(remoteTargetPattern, ctx)
 	if err != nil {

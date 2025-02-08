@@ -75,6 +75,7 @@ const (
 	notPresentOnCluser          = "not found"
 	sameBranchRepo              = "should not be set when the target repo & target branch are the same as the upstream repo & branch"
 	rtNotFound                  = "no RemoteTarget found"
+	ruNotFound                  = "no RemoteUser found"
 	oneTargetForMultipleMessage = "multiple RemoteTargets found for OneTarget set as the TargetStrategy in the RemoteSyncer"
 )
 

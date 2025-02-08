@@ -260,23 +260,23 @@ func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error)
 
 	if remoteUserBinding != nil {
 
-		// Check for annotation
+		// Trigger user specific pattern
+		// If annotation is set:
+		// Create the user specific remote target -> will create with the one-user-one-branch pattern by default.
+		// The external providers need to overwrite the target-repo & target-branch if the pattern is set to one-user-one-fork.
+		remoteTargetPattern := &patterns.UserSpecificPattern{
+			PatternSpecification: patterns.PatternSpecification{
+				Client:         wrc.k8sClient,
+				NamespacedName: types.NamespacedName{Name: wrc.remoteSyncer.Name, Namespace: wrc.remoteSyncer.Namespace},
+			},
+			Username:     incomingUser.Username,
+			RemoteSyncer: wrc.remoteSyncer,
+		}
+		err := patterns.Trigger(remoteTargetPattern, ctx)
+		if err != nil {
+			return false, err
+		}
 		if wrc.remoteSyncer.Annotations[syngit.RtAnnotationUserSpecificKey] != "" {
-			// Create the user specific remote target -> will create with the one-user-one-branch pattern by default.
-			// The external providers need to overwrite the target-repo & target-branch if the pattern is set to one-user-one-fork.
-			remoteTargetPattern := &patterns.UserSpecificPattern{
-				PatternSpecification: patterns.PatternSpecification{
-					Client:         wrc.k8sClient,
-					NamespacedName: types.NamespacedName{Name: wrc.remoteSyncer.Name, Namespace: wrc.remoteSyncer.Namespace},
-				},
-				Username:     incomingUser.Username,
-				RemoteSyncer: wrc.remoteSyncer,
-			}
-			err := patterns.Trigger(remoteTargetPattern, ctx)
-			if err != nil {
-				return false, err
-			}
-
 			// The user specific pattern add a new association to the RemoteUserBinding.
 			// Therefore, we must either get again the new RemoteUserBinding OR
 			// add the user specific RemoteTarget to the current object.
