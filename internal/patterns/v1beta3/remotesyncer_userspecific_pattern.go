@@ -20,7 +20,7 @@ type UserSpecificPattern struct {
 	associatedRemoteTarget   syngit.RemoteTarget
 	remoteTargetToBeSetuped  *syngit.RemoteTarget
 	remoteTargetsToBeRemoved []syngit.RemoteTarget
-	remoteUserBinding        *syngit.RemoteUserBinding
+	RemoteUserBinding        *syngit.RemoteUserBinding
 }
 
 func (usp *UserSpecificPattern) GetRemoteTarget() syngit.RemoteTarget {
@@ -34,11 +34,11 @@ func (usp *UserSpecificPattern) Setup(ctx context.Context) *ErrorPattern {
 			return &ErrorPattern{Message: createErr.Error(), Reason: Errored}
 		}
 
-		spec := usp.remoteUserBinding.Spec.DeepCopy()
+		spec := usp.RemoteUserBinding.Spec.DeepCopy()
 		spec.RemoteTargetRefs = append(spec.RemoteTargetRefs, corev1.ObjectReference{
 			Name: usp.remoteTargetToBeSetuped.Name,
 		})
-		updateErr := updateOrDeleteRemoteUserBinding(ctx, usp.Client, *spec, *usp.remoteUserBinding, 2)
+		updateErr := updateOrDeleteRemoteUserBinding(ctx, usp.Client, *spec, *usp.RemoteUserBinding, 2)
 		if updateErr != nil {
 			return &ErrorPattern{Message: updateErr.Error(), Reason: Errored}
 		}
@@ -65,10 +65,10 @@ func (usp *UserSpecificPattern) Remove(ctx context.Context) *ErrorPattern {
 			}
 
 			// Unreference it from the associated RemoteUserBinding
-			if usp.remoteUserBinding == nil {
+			if usp.RemoteUserBinding == nil {
 				return &ErrorPattern{Message: "Server error: no associated RemoteUserBinding found", Reason: Errored}
 			}
-			for _, remoteTargetRef := range usp.remoteUserBinding.Spec.RemoteTargetRefs {
+			for _, remoteTargetRef := range usp.RemoteUserBinding.Spec.RemoteTargetRefs {
 				if remoteTargetRef.Name != rt.Name {
 					remoteTargetsRef = append(remoteTargetsRef, remoteTargetRef)
 				}
@@ -76,9 +76,9 @@ func (usp *UserSpecificPattern) Remove(ctx context.Context) *ErrorPattern {
 		}
 
 		// Apply the unreferencement
-		spec := usp.remoteUserBinding.Spec.DeepCopy()
+		spec := usp.RemoteUserBinding.Spec.DeepCopy()
 		spec.RemoteTargetRefs = remoteTargetsRef
-		updateErr := updateOrDeleteRemoteUserBinding(ctx, usp.Client, *spec, *usp.remoteUserBinding, 2)
+		updateErr := updateOrDeleteRemoteUserBinding(ctx, usp.Client, *spec, *usp.RemoteUserBinding, 2)
 		if updateErr != nil {
 			return &ErrorPattern{Message: updateErr.Error(), Reason: Errored}
 		}
@@ -110,13 +110,15 @@ func (usp *UserSpecificPattern) Diff(ctx context.Context) *ErrorPattern {
 		return nil
 	}
 
-	remoteUserBinding := &syngit.RemoteUserBinding{}
-	namespacedName := types.NamespacedName{Name: remoteUserBindingList.Items[0].Name, Namespace: remoteUserBindingList.Items[0].Namespace}
-	getErr := usp.Client.Get(ctx, namespacedName, remoteUserBinding)
-	if getErr != nil {
-		return &ErrorPattern{Message: getErr.Error(), Reason: Errored}
+	if usp.RemoteUserBinding == nil {
+		remoteUserBinding := &syngit.RemoteUserBinding{}
+		namespacedName := types.NamespacedName{Name: remoteUserBindingList.Items[0].Name, Namespace: remoteUserBindingList.Items[0].Namespace}
+		getErr := usp.Client.Get(ctx, namespacedName, remoteUserBinding)
+		if getErr != nil {
+			return &ErrorPattern{Message: getErr.Error(), Reason: Errored}
+		}
+		usp.RemoteUserBinding = remoteUserBinding
 	}
-	usp.remoteUserBinding = remoteUserBinding
 
 	// Get RemoteTargets that are already bound to this user
 	// Scope only the RemoteTargets with the same upstream repo & branch as the RemoteSyncer

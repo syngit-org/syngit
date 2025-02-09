@@ -3,7 +3,6 @@ package v1beta3
 import (
 	"context"
 	"net/http"
-	"time"
 
 	patterns "github.com/syngit-org/syngit/internal/patterns/v1beta3"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
@@ -78,11 +77,6 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 		}
 	}
 
-	// TODO: temporary workaround
-	// We need to wait until the associated RemoteUserBinding
-	// is fully created to allow the association with the managed RemoteTargets
-	time.Sleep(1000 * time.Millisecond)
-
 	err = patterns.Trigger(remoteTargetPattern, ctx)
 	if err != nil {
 		if err.Reason == patterns.Denied {
@@ -93,7 +87,7 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 		}
 	}
 
-	userSpecificError := ruwh.triggerUserSpecificPatterns(ctx, req, username)
+	userSpecificError := ruwh.triggerUserSpecificPatterns(ctx, req, username, remoteTargetPattern)
 	if userSpecificError != nil {
 		if userSpecificError.Reason == patterns.Denied {
 			return admission.Denied(userSpecificError.Message)
@@ -106,7 +100,7 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 	return admission.Allowed("This object is associated to the " + req.Name + " RemoteUserBinding")
 }
 
-func (ruwh *RemoteUserAssociationWebhookHandler) triggerUserSpecificPatterns(ctx context.Context, req admission.Request, username string) *patterns.ErrorPattern {
+func (ruwh *RemoteUserAssociationWebhookHandler) triggerUserSpecificPatterns(ctx context.Context, req admission.Request, username string, pattern *patterns.RemoteUserSearchRemoteTargetPattern) *patterns.ErrorPattern {
 	// Get all RemoteSyncer of the namespace that implement the user specific pattern
 	remoteSyncerList := &syngit.RemoteSyncerList{}
 	selector := labels.NewSelector()
@@ -135,8 +129,9 @@ func (ruwh *RemoteUserAssociationWebhookHandler) triggerUserSpecificPatterns(ctx
 				Client:         ruwh.Client,
 				NamespacedName: types.NamespacedName{Name: req.Name, Namespace: req.Namespace},
 			},
-			Username:     username,
-			RemoteSyncer: rsy,
+			Username:          username,
+			RemoteSyncer:      rsy,
+			RemoteUserBinding: pattern.RemoteUserBinding,
 		}
 
 		err := patterns.Trigger(userSpecificPattern, ctx)

@@ -15,14 +15,14 @@ type RemoteUserSearchRemoteTargetPattern struct {
 	RemoteUser             syngit.RemoteUser
 	Username               string
 	IsEnabled              bool
-	remoteUserBinding      *syngit.RemoteUserBinding
+	RemoteUserBinding      *syngit.RemoteUserBinding
 	remoteTargetsToBeAdded []v1.ObjectReference
 }
 
 func (rusp *RemoteUserSearchRemoteTargetPattern) Setup(ctx context.Context) *ErrorPattern {
 	if len(rusp.remoteTargetsToBeAdded) > 0 {
-		rusp.remoteUserBinding.Spec.RemoteTargetRefs = append(rusp.remoteUserBinding.Spec.RemoteTargetRefs, rusp.remoteTargetsToBeAdded...)
-		updateErr := updateOrDeleteRemoteUserBinding(ctx, rusp.Client, rusp.remoteUserBinding.Spec, *rusp.remoteUserBinding, 2)
+		rusp.RemoteUserBinding.Spec.RemoteTargetRefs = append(rusp.RemoteUserBinding.Spec.RemoteTargetRefs, rusp.remoteTargetsToBeAdded...)
+		updateErr := updateOrDeleteRemoteUserBinding(ctx, rusp.Client, rusp.RemoteUserBinding.Spec, *rusp.RemoteUserBinding, 2)
 		if updateErr != nil {
 			return &ErrorPattern{Message: updateErr.Error(), Reason: Errored}
 		}
@@ -62,7 +62,7 @@ func (rusp *RemoteUserSearchRemoteTargetPattern) Diff(ctx context.Context) *Erro
 	if len(remoteUserBindingList.Items) == 0 {
 		return &ErrorPattern{Message: fmt.Sprintf("webhook server error: no RemoteUserBinding found for %s", rusp.Username), Reason: Errored}
 	}
-	rusp.remoteUserBinding = &remoteUserBindingList.Items[0]
+	rusp.RemoteUserBinding = &remoteUserBindingList.Items[0]
 
 	existingRemoteTargets, getErr := rusp.getRemoteTargetsThatShouldBeAssociated(ctx)
 	if getErr != nil {
@@ -70,7 +70,7 @@ func (rusp *RemoteUserSearchRemoteTargetPattern) Diff(ctx context.Context) *Erro
 	}
 
 	// Get all the RemoteTargets of bound to the current RemoteUserBinding
-	alreadyBoundRemoteTargetsRef := rusp.remoteUserBinding.Spec.RemoteTargetRefs
+	alreadyBoundRemoteTargetsRef := rusp.RemoteUserBinding.Spec.RemoteTargetRefs
 
 	// Fill the slice by the remotetargets that are not yet referenced
 	for _, rt := range existingRemoteTargets {

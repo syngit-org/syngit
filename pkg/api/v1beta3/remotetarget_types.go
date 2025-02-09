@@ -86,6 +86,7 @@ type RemoteTargetStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+//+kubebuilder:resource:path=remotetargets,shortName=rt;rts,categories=syngit
 
 // RemoteTarget is the Schema for the remotetargets API.
 type RemoteTarget struct {
