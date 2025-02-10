@@ -16,41 +16,39 @@ import (
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 )
 
-type GitConsistency struct {
-	strategy           syngit.MergeStrategy
-	targetRepository   *git.Repository
-	upstreamRepository *git.Repository
-}
-
 const (
 	originRemote   = "origin"
 	upstreamRemote = "upstream"
 )
 
-func getRepository(gp GitPusher, repo string, branch string) (*git.Repository, error) {
+type RepoRetriever struct {
+	gitPusher *GitPusher
+}
+
+func (rp RepoRetriever) getRepository(repo string, branch string) (*git.Repository, error) {
 	// Clone the repository into memory
 	var verboseOutput bytes.Buffer
 	cloneOptions := &git.CloneOptions{
 		URL:           repo,
 		ReferenceName: plumbing.ReferenceName(branch),
 		Auth: &http.BasicAuth{
-			Username: gp.gitUser,
-			Password: gp.gitToken,
+			Username: rp.gitPusher.gitUser,
+			Password: rp.gitPusher.gitToken,
 		},
 		SingleBranch:    true,
-		InsecureSkipTLS: gp.remoteSyncer.Spec.InsecureSkipTlsVerify,
+		InsecureSkipTLS: rp.gitPusher.remoteSyncer.Spec.InsecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput),
 	}
-	if gp.caBundle != nil {
-		cloneOptions.CABundle = gp.caBundle
+	if rp.gitPusher.caBundle != nil {
+		cloneOptions.CABundle = rp.gitPusher.caBundle
 	}
 	repository, err := git.Clone(memory.NewStorage(), memfs.New(), cloneOptions)
 	if err != nil {
 		variables := fmt.Sprintf("\nRepository: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
 			repo,
 			plumbing.ReferenceName(branch),
-			gp.gitUser,
-			gp.gitEmail,
+			rp.gitPusher.gitUser,
+			rp.gitPusher.gitEmail,
 		)
 		errMsg := fmt.Sprintf("failed to clone repository: %s\nVerbose output: %s\nVariables: %s\n", err.Error(), verboseOutput.String(), variables)
 		return nil, errors.New(errMsg)
@@ -59,20 +57,36 @@ func getRepository(gp GitPusher, repo string, branch string) (*git.Repository, e
 	return repository, nil
 }
 
-func GetUpstreamRepository(gp GitPusher) (*git.Repository, error) {
-	return getRepository(gp, gp.remoteTarget.Spec.UpstreamRepository, gp.remoteTarget.Spec.UpstreamBranch)
+func (rp RepoRetriever) GetUpstreamRepository() (*git.Repository, error) {
+	return rp.getRepository(rp.gitPusher.remoteTarget.Spec.UpstreamRepository, rp.gitPusher.remoteTarget.Spec.UpstreamBranch)
 }
 
-func GetTargetRepository(gp GitPusher) (*git.Repository, error) {
-	return getRepository(gp, gp.remoteTarget.Spec.TargetRepository, gp.remoteTarget.Spec.UpstreamBranch)
+func (rp RepoRetriever) GetTargetRepository() (*git.Repository, error) {
+	return rp.getRepository(rp.gitPusher.remoteTarget.Spec.TargetRepository, rp.gitPusher.remoteTarget.Spec.UpstreamBranch)
 }
 
-func (gc GitConsistency) GetWorkTree(gp GitPusher) (*git.Worktree, bool, error) {
+type WorktreeRetriever struct {
+	strategy           syngit.MergeStrategy
+	targetRepository   *git.Repository
+	upstreamRepository *git.Repository
+}
 
-	if gc.strategy == syngit.TryFastForwardOrHardReset {
-		wt, err := gc.upstreamBasedPull(gp)
+func (wr WorktreeRetriever) GetWorkTree(gp GitPusher) (*git.Worktree, bool, error) {
+
+	// Same repo & branch between target and upstream
+	if wr.targetRepository == wr.upstreamRepository && wr.strategy == "" {
+		var err error
+		wt, err := wr.targetRepository.Worktree()
 		if err != nil {
-			wt, err = gc.upstreamBasedHardReset(gp)
+			return wt, false, err
+		}
+		return wt, false, nil
+	}
+
+	if wr.strategy == syngit.TryFastForwardOrHardReset {
+		wt, err := wr.upstreamBasedPullFastForward(gp)
+		if err != nil {
+			wt, err = wr.upstreamBasedHardReset(gp)
 			if err != nil {
 				return nil, false, err
 			}
@@ -81,42 +95,43 @@ func (gc GitConsistency) GetWorkTree(gp GitPusher) (*git.Worktree, bool, error) 
 		return wt, false, nil
 	}
 
-	if gc.strategy == syngit.TryHardResetOrDie {
-		wt, err := gc.upstreamBasedHardReset(gp)
+	// Different target and upstream
+	if wr.strategy == syngit.TryHardResetOrDie {
+		wt, err := wr.upstreamBasedHardReset(gp)
 		if err != nil {
 			return nil, false, err
 		}
 		return wt, true, nil
 	}
 
-	if gc.strategy == syngit.TryFastForwardOrDie {
-		wt, err := gc.upstreamBasedPull(gp)
+	if wr.strategy == syngit.TryFastForwardOrDie {
+		wt, err := wr.upstreamBasedPullFastForward(gp)
 		if err != nil {
 			return nil, false, err
 		}
 		return wt, false, nil
 	}
 
-	return nil, false, fmt.Errorf("wrong target strategy; got %s", gc.strategy)
+	return nil, false, fmt.Errorf("wrong target strategy; got %s", wr.strategy)
 }
 
-func (gc GitConsistency) upstreamBasedHardReset(gp GitPusher) (*git.Worktree, error) {
+func (wr WorktreeRetriever) upstreamBasedHardReset(gp GitPusher) (*git.Worktree, error) {
 
 	targetBranch := gp.remoteTarget.Spec.TargetBranch
 	targetBranchRef := plumbing.NewBranchReferenceName(targetBranch)
 	upstreamRemoteRef := plumbing.ReferenceName(fmt.Sprintf("refs/remotes/%s/%s", upstreamRemote, gp.remoteSyncer.Spec.DefaultBranch))
 
-	remErr := gc.fetchUpstream(gp)
+	remErr := wr.fetchUpstream(gp)
 	if remErr != nil {
 		return nil, remErr
 	}
 
-	worktree, err := gc.targetRepository.Worktree()
+	worktree, err := wr.targetRepository.Worktree()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get worktree: %w", err)
 	}
 
-	upstreamLastCommitRef, err := gc.targetRepository.Reference(upstreamRemoteRef, true)
+	upstreamLastCommitRef, err := wr.targetRepository.Reference(upstreamRemoteRef, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find remote reference %s: %w", upstreamRemoteRef.String(), err)
 	}
@@ -127,12 +142,12 @@ func (gc GitConsistency) upstreamBasedHardReset(gp GitPusher) (*git.Worktree, er
 		return nil, fmt.Errorf("failed to checkout upstream commit: %w", err)
 	}
 
-	err = gc.targetRepository.Storer.SetReference(plumbing.NewHashReference(targetBranchRef, upstreamLastCommitRef.Hash()))
+	err = wr.targetRepository.Storer.SetReference(plumbing.NewHashReference(targetBranchRef, upstreamLastCommitRef.Hash()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create local branch %s: %w", targetBranchRef.String(), err)
 	}
 
-	err = gc.checkoutToBranch(worktree, targetBranch)
+	err = wr.checkoutToBranch(worktree, targetBranch)
 	if err != nil {
 		return nil, err
 	}
@@ -147,31 +162,32 @@ func (gc GitConsistency) upstreamBasedHardReset(gp GitPusher) (*git.Worktree, er
 	return worktree, nil
 }
 
-func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) {
+func (wr WorktreeRetriever) upstreamBasedPullFastForward(gp GitPusher) (*git.Worktree, error) {
 
+	upstreamBranch := gp.remoteTarget.Spec.UpstreamBranch
 	targetBranch := gp.remoteTarget.Spec.TargetBranch
 
-	remErr := gc.fetchUpstream(gp)
+	remErr := wr.fetchUpstream(gp)
 	if remErr != nil {
 		return nil, remErr
 	}
 
-	targetWorktree, err := gc.targetRepository.Worktree()
+	targetWorktree, err := wr.targetRepository.Worktree()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get worktree for target repository: %w", err)
 	}
 
-	err = gc.checkoutToBranch(targetWorktree, targetBranch)
+	err = wr.checkoutToBranch(targetWorktree, targetBranch)
 	if err != nil {
 		return nil, err
 	}
 
+	// STEP 1 : Pull the upstream's commits
 	var verboseOutput bytes.Buffer
-	pullOptions := &git.PullOptions{
+	upstreamBasedPullOptions := &git.PullOptions{
 		RemoteName:    upstreamRemote,
-		ReferenceName: plumbing.NewBranchReferenceName("main"),
-		// ReferenceName: upstreamRemoteRef,
-		SingleBranch: true,
+		ReferenceName: plumbing.NewBranchReferenceName(upstreamBranch),
+		SingleBranch:  true,
 		Auth: &http.BasicAuth{
 			Username: gp.gitUser,
 			Password: gp.gitToken,
@@ -180,9 +196,9 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 		Progress:        io.MultiWriter(&verboseOutput),
 	}
 	if gp.caBundle != nil {
-		pullOptions.CABundle = gp.caBundle
+		upstreamBasedPullOptions.CABundle = gp.caBundle
 	}
-	err = targetWorktree.Pull(pullOptions)
+	err = targetWorktree.Pull(upstreamBasedPullOptions)
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		variables := fmt.Sprintf("\nRemote: %s\nUpstream ref: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
 			upstreamRemote,
@@ -195,11 +211,11 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 		return nil, errors.New(errMsg)
 	}
 
-	pullOptions = &git.PullOptions{
+	// STEP 2 : Pull the origin's commits
+	originBasedPullOptions := &git.PullOptions{
 		RemoteName:    originRemote,
 		ReferenceName: plumbing.NewBranchReferenceName(targetBranch),
-		// ReferenceName: upstreamRemoteRef,
-		SingleBranch: true,
+		SingleBranch:  true,
 		Auth: &http.BasicAuth{
 			Username: gp.gitUser,
 			Password: gp.gitToken,
@@ -208,9 +224,9 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 		Progress:        io.MultiWriter(&verboseOutput),
 	}
 	if gp.caBundle != nil {
-		pullOptions.CABundle = gp.caBundle
+		originBasedPullOptions.CABundle = gp.caBundle
 	}
-	err = targetWorktree.Pull(pullOptions)
+	err = targetWorktree.Pull(originBasedPullOptions)
 	if err != nil && err != git.NoErrAlreadyUpToDate && !strings.Contains(err.Error(), "reference not found") {
 		variables := fmt.Sprintf("\nRemote: %s\nUpstream ref: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
 			upstreamRemote,
@@ -223,43 +239,45 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 		return nil, errors.New(errMsg)
 	}
 
-	targetRef, err := gc.targetRepository.Reference(plumbing.NewBranchReferenceName(targetBranch), true)
+	// STEP 3 : Get the reference of the target branch
+	targetRef, err := wr.targetRepository.Reference(plumbing.NewBranchReferenceName(targetBranch), true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get target branch reference: %w", err)
 	}
 
-	err = gc.targetRepository.Storer.SetReference(targetRef)
+	err = wr.targetRepository.Storer.SetReference(targetRef)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set target branch %s: %w", plumbing.NewBranchReferenceName(targetBranch).String(), err)
 	}
 
-	// Merge the main branch into the target branch
-	mainRef, err := gc.targetRepository.Reference(plumbing.NewBranchReferenceName("main"), true)
+	// STEP 4 : Get the reference of the upstream branch
+	upstreamRef, err := wr.targetRepository.Reference(plumbing.NewBranchReferenceName(upstreamBranch), true)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get main branch reference: %w", err)
+		return nil, fmt.Errorf("failed to get upstream branch reference: %w", err)
 	}
 
-	// Check if the target branch already contains the commit from the main branch
-	mainCommitHash := mainRef.Hash()
-	contains, err := gc.branchContainsCommit(*targetRef, mainCommitHash)
+	// STEP 5 : Check if the target branch already contains the commit from the upstream branch
+	upstreamCommitHash := upstreamRef.Hash()
+	contains, err := wr.branchContainsCommit(*targetRef, upstreamCommitHash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check if target branch contains commit: %w", err)
 	}
 	if contains {
-		// Target branch already contains the main branch commit. Skipping merge.
+		// Target branch already contains the upstream branch commit. Skipping merge.
 		return targetWorktree, nil
 	}
 
+	// STEP 6 : Try merge (fast-forward) the upstream branch into the target branch
 	mergeOptions := &git.MergeOptions{
 		Strategy: git.FastForwardMerge,
 	}
-	mergeErr := gc.targetRepository.Merge(*mainRef, *mergeOptions)
+	mergeErr := wr.targetRepository.Merge(*upstreamRef, *mergeOptions)
 	if mergeErr != nil {
-		return nil, fmt.Errorf("failed to merge the %s reference in the current branch", mainRef.String())
+		return nil, fmt.Errorf("failed to merge the %s reference in the current branch", upstreamRef.String())
 	}
 
 	// Return the updated worktree
-	updatedWorktree, err := gc.targetRepository.Worktree()
+	updatedWorktree, err := wr.targetRepository.Worktree()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get updated worktree: %w", err)
 	}
@@ -267,8 +285,8 @@ func (gc GitConsistency) upstreamBasedPull(gp GitPusher) (*git.Worktree, error) 
 	return updatedWorktree, nil
 }
 
-func (gc GitConsistency) branchContainsCommit(branchRef plumbing.Reference, commitHash plumbing.Hash) (bool, error) {
-	branchIter, err := gc.targetRepository.Log(&git.LogOptions{From: branchRef.Hash()})
+func (wr WorktreeRetriever) branchContainsCommit(branchRef plumbing.Reference, commitHash plumbing.Hash) (bool, error) {
+	branchIter, err := wr.targetRepository.Log(&git.LogOptions{From: branchRef.Hash()})
 	if err != nil {
 		return false, fmt.Errorf("failed to get branch log: %w", err)
 	}
@@ -287,9 +305,9 @@ func (gc GitConsistency) branchContainsCommit(branchRef plumbing.Reference, comm
 	return false, nil
 }
 
-func (gc GitConsistency) checkoutToBranch(worktree *git.Worktree, targetBranch string) error {
+func (wr WorktreeRetriever) checkoutToBranch(worktree *git.Worktree, targetBranch string) error {
 	localRef := plumbing.NewBranchReferenceName(targetBranch)
-	_, err := gc.targetRepository.Reference(localRef, true)
+	_, err := wr.targetRepository.Reference(localRef, true)
 	if err == plumbing.ErrReferenceNotFound {
 
 		err = worktree.Checkout(&git.CheckoutOptions{
@@ -313,12 +331,12 @@ func (gc GitConsistency) checkoutToBranch(worktree *git.Worktree, targetBranch s
 	return nil
 }
 
-func (gc GitConsistency) fetchUpstream(gp GitPusher) error {
+func (wr WorktreeRetriever) fetchUpstream(gp GitPusher) error {
 
 	upstreamURL := gp.remoteSyncer.Spec.RemoteRepository
 
-	if _, remErr := gc.targetRepository.Remote(upstreamRemote); remErr == git.ErrRemoteNotFound {
-		_, err := gc.targetRepository.CreateRemote(&config.RemoteConfig{
+	if _, remErr := wr.targetRepository.Remote(upstreamRemote); remErr == git.ErrRemoteNotFound {
+		_, err := wr.targetRepository.CreateRemote(&config.RemoteConfig{
 			Name: upstreamRemote,
 			URLs: []string{upstreamURL},
 		})
@@ -348,7 +366,7 @@ func (gc GitConsistency) fetchUpstream(gp GitPusher) error {
 		fetchOptions.CABundle = gp.caBundle
 	}
 
-	err := gc.targetRepository.Fetch(fetchOptions)
+	err := wr.targetRepository.Fetch(fetchOptions)
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		variables := fmt.Sprintf("\nRepository: %s\nUsername: %s\nEmail: %s\n",
 			upstreamURL,

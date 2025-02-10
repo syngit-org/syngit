@@ -84,8 +84,6 @@ type WebhookRequestChecker struct {
 
 func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
 
-	wrc.remoteTargets = []syngit.RemoteTarget{}
-
 	// STEP 1 : Get the request details
 	rDetails, err := wrc.retrieveRequestDetails()
 	if err != nil {
@@ -103,8 +101,8 @@ func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
 		return wrc.letPassRequest(&rDetails)
 	}
 
-	// STEP 3 : Check the user's rights
-	processAllowed, err := wrc.userAllowed(&rDetails)
+	// STEP 3 : Set the targets using the user credentials
+	processAllowed, err := wrc.setUserTarget(&rDetails)
 	rDetails.processPass = processAllowed
 	if err != nil {
 		rDetails.errorDuringProcess = true
@@ -238,7 +236,11 @@ func (wrc *WebhookRequestChecker) getRemoteUserBinding(username string, fqdn str
 	return remoteUserBinding, gitUser, nil
 }
 
-func (wrc *WebhookRequestChecker) userAllowed(details *wrcDetails) (bool, error) {
+func (wrc *WebhookRequestChecker) setUserTarget(details *wrcDetails) (bool, error) {
+
+	// Set empty list of RemoteTargets
+	wrc.remoteTargets = []syngit.RemoteTarget{}
+
 	// Check if the user can push (and so, create the resource)
 	incomingUser := wrc.admReview.Request.UserInfo
 	u, err := url.Parse(wrc.remoteSyncer.Spec.RemoteRepository)
