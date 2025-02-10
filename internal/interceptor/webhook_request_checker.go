@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/url"
 	"slices"
 	"strings"
@@ -149,9 +148,9 @@ func (wrc *WebhookRequestChecker) retrieveRequestDetails() (wrcDetails, error) {
 	}
 
 	if wrc.admReview.Request == nil {
-		const errMsg = "the request is empty and it should not be"
-		details.messageAddition = errMsg
-		return *details, errors.New(errMsg)
+		emtpyErr := utils.EmptyRequestError{}
+		details.messageAddition = emtpyErr.Error()
+		return *details, emtpyErr
 	}
 
 	interceptedGVR := (*schema.GroupVersionResource)(wrc.admReview.Request.RequestResource.DeepCopy())
@@ -181,18 +180,17 @@ func (wrc *WebhookRequestChecker) getRemoteUserBinding(username string, fqdn str
 	if wrc.remoteSyncer.Spec.RemoteUserBindingSelector != nil {
 		labelSelector, labelErr := v1.LabelSelectorAsSelector(wrc.remoteSyncer.Spec.RemoteUserBindingSelector)
 		if labelErr != nil {
-			errMsg := "error parsing the LabelSelector for the remoteUserBindingSelector: " + labelErr.Error()
-			details.messageAddition = errMsg
-			return nil, nil, errors.New(errMsg)
+			parseLabelError := utils.LabelSeletorParsingError{Kind: utils.RemoteUserBindingSelectorError, LabelError: labelErr}
+			details.messageAddition = parseLabelError.Error()
+			return nil, nil, parseLabelError
 		}
 		listOps.LabelSelector = labelSelector
 	}
 	err := wrc.k8sClient.List(ctx, remoteUserBindings, listOps)
 
 	if err != nil {
-		errMsg := err.Error()
-		details.messageAddition = errMsg
-		return nil, nil, errors.New(errMsg)
+		details.messageAddition = err.Error()
+		return nil, nil, err
 	}
 
 	var rub = syngit.RemoteUserBinding{}
@@ -217,9 +215,9 @@ func (wrc *WebhookRequestChecker) getRemoteUserBinding(username string, fqdn str
 	}
 
 	if userCountLoop > 1 {
-		const errMsg = "multiple RemoteUserBinding found OR the name of the user is not unique; this version of the operator work with the name as unique identifier for users"
-		details.messageAddition = errMsg
-		return nil, nil, errors.New(errMsg)
+		multipleRubError := utils.MultipleRemoteUserBindingError{RemoteUserBindingsCount: userCountLoop}
+		details.messageAddition = multipleRubError.Error()
+		return nil, nil, multipleRubError
 	}
 
 	if userCountLoop == 0 {
@@ -245,9 +243,9 @@ func (wrc *WebhookRequestChecker) setUserTarget(details *wrcDetails) (bool, erro
 	incomingUser := wrc.admReview.Request.UserInfo
 	u, err := url.Parse(wrc.remoteSyncer.Spec.RemoteRepository)
 	if err != nil {
-		errMsg := "error parsing git repository URL: " + err.Error()
-		details.messageAddition = errMsg
-		return false, errors.New(errMsg)
+		parseError := utils.GitUrlParseError{ParseError: err}
+		details.messageAddition = parseError.Error()
+		return false, parseError
 	}
 
 	fqdn := u.Host
@@ -301,9 +299,9 @@ func (wrc *WebhookRequestChecker) setUserTarget(details *wrcDetails) (bool, erro
 		if wrc.remoteSyncer.Spec.RemoteTargetSelector != nil {
 			labelSelector, labelErr := v1.LabelSelectorAsSelector(wrc.remoteSyncer.Spec.RemoteTargetSelector)
 			if labelErr != nil {
-				errMsg := "error parsing the LabelSelector for the remoteTargetSelector: " + labelErr.Error()
-				details.messageAddition = errMsg
-				return false, errors.New(errMsg)
+				parseLabelErr := utils.LabelSeletorParsingError{Kind: utils.RemoteTargetSelectorError, LabelError: labelErr}
+				details.messageAddition = parseLabelErr.Error()
+				return false, parseLabelErr
 			}
 			listOps.LabelSelector = labelSelector
 		}
@@ -322,15 +320,15 @@ func (wrc *WebhookRequestChecker) setUserTarget(details *wrcDetails) (bool, erro
 		}
 
 		if wrc.remoteSyncer.Spec.TargetStrategy == syngit.OneTarget && len(wrc.remoteTargets) > 1 {
-			errMsg := "multiple RemoteTargets found for OneTarget set as the TargetStrategy in the RemoteSyncer"
-			details.messageAddition = errMsg
-			return false, errors.New(errMsg)
+			multipleTargetError := utils.MultipleTargetError{RemoteTargetsCount: len(wrc.remoteTargets)}
+			details.messageAddition = multipleTargetError.Error()
+			return false, multipleTargetError
 		}
 
 		if len(wrc.remoteTargets) == 0 {
-			errMsg := "no RemoteTarget found"
-			details.messageAddition = errMsg
-			return false, errors.New(errMsg)
+			notFoundError := utils.RemoteTargetNotFoundError{}
+			details.messageAddition = notFoundError.Error()
+			return false, notFoundError
 		}
 	}
 
@@ -338,9 +336,9 @@ func (wrc *WebhookRequestChecker) setUserTarget(details *wrcDetails) (bool, erro
 
 		// Check if there is a default user that we can use
 		if wrc.remoteSyncer.Spec.DefaultUnauthorizedUserMode != syngit.UseDefaultUser || wrc.remoteSyncer.Spec.DefaultRemoteUserRef == nil || wrc.remoteSyncer.Spec.DefaultRemoteUserRef.Name == "" {
-			errMsg := "no RemoteUserBinding found for the user " + incomingUser.Username
-			details.messageAddition = errMsg
-			return false, errors.New(errMsg)
+			notFoundError := utils.RemoteUserBindingNotFoundError{Username: incomingUser.Username}
+			details.messageAddition = notFoundError.Error()
+			return false, notFoundError
 		}
 
 		// Search for the default RemoteUser object
@@ -351,15 +349,15 @@ func (wrc *WebhookRequestChecker) setUserTarget(details *wrcDetails) (bool, erro
 		remoteUser := &syngit.RemoteUser{}
 		err := wrc.k8sClient.Get(ctx, *userNamespacedName, remoteUser)
 		if err != nil {
-			errMsg := "the default RemoteUser is not found : " + wrc.remoteSyncer.Spec.DefaultRemoteUserRef.Name
-			details.messageAddition = errMsg
-			return false, err
+			notFoundError := utils.DefaultRemoteUserNotFoundError{DefaultUserName: wrc.remoteSyncer.Spec.DefaultRemoteUserRef.Name}
+			details.messageAddition = notFoundError.Error()
+			return false, notFoundError
 		}
 
 		if remoteUser.Spec.GitBaseDomainFQDN != fqdn {
-			errMsg := "the fqdn of the default RemoteUser does not match the associated RemoteSyncer (" + wrc.remoteSyncer.Name + ") fqdn (" + remoteUser.Spec.GitBaseDomainFQDN + ")"
-			details.messageAddition = errMsg
-			return false, err
+			mismatchErr := utils.DefaultRemoteTargetMismatchError{RemoteSyncer: wrc.remoteSyncer, RemoteUser: *remoteUser}
+			details.messageAddition = mismatchErr.Error()
+			return false, mismatchErr
 		}
 		gitUser, err = wrc.searchForGitToken(*remoteUser)
 		if err != nil {
@@ -376,15 +374,20 @@ func (wrc *WebhookRequestChecker) setUserTarget(details *wrcDetails) (bool, erro
 		remoteTarget := &syngit.RemoteTarget{}
 		err = wrc.k8sClient.Get(ctx, *targetNamespacedName, remoteTarget)
 		if err != nil {
-			errMsg := "the default RemoteTarget is not found : " + wrc.remoteSyncer.Spec.DefaultRemoteTargetRef.Name
-			details.messageAddition = errMsg
-			return false, err
+			notFoundError := utils.DefaultRemoteTargetNotFoundError{DefaultTargetName: wrc.remoteSyncer.Spec.DefaultRemoteTargetRef.Name}
+			details.messageAddition = notFoundError.Error()
+			return false, notFoundError
 		}
 
 		if remoteTarget.Spec.UpstreamRepository != wrc.remoteSyncer.Spec.RemoteRepository || remoteTarget.Spec.UpstreamBranch != wrc.remoteSyncer.Spec.DefaultBranch {
-			errMsg := fmt.Sprintf("the RemoteSyncer's repository or branch does not match the upstream repository or branch of the default RemoteTarget. RemoteSyncer repo: %s; RemoteSyncer branch: %s; RemoteTarget upstream repo: %s; RemoteTarget upstream branch: %s", wrc.remoteSyncer.Spec.RemoteRepository, wrc.remoteSyncer.Spec.DefaultBranch, remoteTarget.Spec.UpstreamRepository, remoteTarget.Spec.UpstreamBranch)
-			details.messageAddition = errMsg
-			return false, err
+			remoteTargetSearchError := utils.RemoteTargetSearchError{
+				UpstreamRepository: wrc.remoteSyncer.Spec.RemoteRepository,
+				UpstreamBranch:     wrc.remoteSyncer.Spec.DefaultBranch,
+				TargetRepository:   remoteTarget.Spec.UpstreamRepository,
+				TargetBranch:       remoteTarget.Spec.UpstreamBranch,
+			}
+			details.messageAddition = remoteTargetSearchError.Error()
+			return false, remoteTargetSearchError
 		}
 
 		wrc.remoteTargets = []syngit.RemoteTarget{*remoteTarget}
@@ -425,10 +428,16 @@ func (wrc *WebhookRequestChecker) searchForGitToken(remoteUser syngit.RemoteUser
 	}
 
 	if secretCount == 0 {
-		return gitUser, errors.New("no Secret found for the current user to log on the git repository with the RemoteUser : " + remoteUser.Name)
+		searchError := utils.CrendentialSearchError{Reason: utils.SecretNotFound, RemoteUser: remoteUser}
+		return gitUser, searchError
+	}
+	if secretCount > 1 {
+		searchError := utils.CrendentialSearchError{Reason: utils.MoreThanOneSecretFound, RemoteUser: remoteUser}
+		return gitUser, searchError
 	}
 	if userGitToken == "" {
-		return gitUser, errors.New("no token found in the secret; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth")
+		searchError := utils.CrendentialSearchError{Reason: utils.TokenNotFound, RemoteUser: remoteUser}
+		return gitUser, searchError
 	}
 
 	return gitUser, nil
@@ -462,13 +471,12 @@ func (wrc *WebhookRequestChecker) searchForGitTokenFromRemoteUserBinding(rub syn
 	}
 
 	if remoteUserCount == 0 {
-		return gitUser, errors.New("no RemoteUser found for the current user with this fqdn : " + fqdn)
+		remoteUserSearchError := utils.RemoteUserSearchError{Reason: utils.RemoteUserNotFound, Fqdn: fqdn}
+		return gitUser, remoteUserSearchError
 	}
 	if remoteUserCount > 1 {
-		return gitUser, errors.New("more than one RemoteUser found for the current user with this fqdn : " + fqdn)
-	}
-	if remoteUserCount > 1 {
-		return gitUser, errors.New("more than one Secret found for the current user to log on the git repository with this fqdn : " + fqdn)
+		remoteUserSearchError := utils.RemoteUserSearchError{Reason: utils.MoreThanOneRemoteUserFound, Fqdn: fqdn}
+		return gitUser, remoteUserSearchError
 	}
 
 	return gitUser, nil
@@ -490,9 +498,9 @@ func (wrc *WebhookRequestChecker) isBypassSubject(details *wrcDetails) (bool, er
 	}
 
 	if userCountLoop > 1 {
-		const errMsg = "the name of the user is not unique; this version of the operator work with the name as unique identifier for users"
-		details.messageAddition = errMsg
-		return isBypassSubject, errors.New(errMsg)
+		nonUniqueUserError := utils.NonUniqueUserError{UserCount: userCountLoop}
+		details.messageAddition = nonUniqueUserError.Error()
+		return isBypassSubject, nonUniqueUserError
 	}
 
 	return isBypassSubject, nil
@@ -518,8 +526,8 @@ func getPathsFromConfigMap(ctx context.Context, client client.Client, configMapN
 	// Unmarshal the YAML string into the Go array
 	err = yaml.Unmarshal([]byte(yamlString), &excludedFields)
 	if err != nil {
-		errMsg := "failed to convert the excludedFields from the ConfigMap (wrong yaml format)"
-		return nil, errors.New(errMsg)
+		yamlErr := utils.WrongYamlFormatError{Yaml: yamlString}
+		return nil, yamlErr
 	}
 
 	return excludedFields, nil

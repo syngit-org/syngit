@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -45,7 +46,7 @@ var _ = Describe("28 RemoteUser created after RemoteSyncer & RemoteTargets", fun
 
 	It("should associate the managed RemoteTargets to the new RemoteUser", func() {
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		branches := strings.Join([]string{branch1, branch2}, ", ")
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
@@ -129,8 +130,8 @@ var _ = Describe("28 RemoteUser created after RemoteSyncer & RemoteTargets", fun
 		Wait3()
 		repo := &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: branch1,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
@@ -139,8 +140,8 @@ var _ = Describe("28 RemoteUser created after RemoteSyncer & RemoteTargets", fun
 		Wait3()
 		repo = &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: branch2,
 		}
 		exists, err = IsObjectInRepo(*repo, cm)
@@ -149,8 +150,8 @@ var _ = Describe("28 RemoteUser created after RemoteSyncer & RemoteTargets", fun
 		Wait3()
 		repo = &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: string(Luffy),
 		}
 		exists, err = IsObjectInRepo(*repo, cm)

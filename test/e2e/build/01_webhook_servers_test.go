@@ -22,6 +22,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	syngitUtils "github.com/syngit-org/syngit/pkg/utils"
 	"github.com/syngit-org/syngit/test/utils"
 )
 
@@ -46,7 +47,7 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 			fmt.Sprintf("%s/sample_configmap.yaml", samplePath))
 		_, err = utils.Run(cmd)
 		ExpectWithOffset(2, err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("no RemoteUserBinding found for the user"))
+		Expect(syngitUtils.ErrorTypeChecker(&syngitUtils.RemoteUserBindingNotFoundError{}, err.Error())).To(BeTrue())
 
 	})
 

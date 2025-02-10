@@ -33,13 +33,13 @@ fi
 GIT_TOKEN=$(echo "$TOKEN_RESPONSE" | sed -E 's/.*Access token was successfully created: ([a-f0-9]{40}).*/\1/')
 
 #
-# Create the blue repo
+# Create the repo1
 #
 CREATE_REPO_ENDPOINT="$GITEA_URL/api/v1/user/repos"
 
 JSON_PAYLOAD=$(cat <<EOF
 {
-  "name": "blue",
+  "name": "$REPO1",
   "private": false,
   "auto_init": true,
   "description": "A new sample repository"
@@ -61,13 +61,13 @@ fi
 
 
 #
-# Create the green repo
+# Create the repo2
 #
 CREATE_REPO_ENDPOINT="$GITEA_URL/api/v1/user/repos"
 
 JSON_PAYLOAD=$(cat <<EOF
 {
-  "name": "green",
+  "name": "$REPO2",
   "private": false,
   "auto_init": true,
   "description": "A new sample repository"

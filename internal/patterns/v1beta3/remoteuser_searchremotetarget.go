@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	"github.com/syngit-org/syngit/pkg/utils"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -60,7 +61,8 @@ func (rusp *RemoteUserSearchRemoteTargetPattern) Diff(ctx context.Context) *Erro
 		return &ErrorPattern{Message: fmt.Sprintf("only one RemoteUserBinding for the user %s should be managed by Syngit", rusp.Username), Reason: Denied}
 	}
 	if len(remoteUserBindingList.Items) == 0 {
-		return &ErrorPattern{Message: fmt.Sprintf("webhook server error: no RemoteUserBinding found for %s", rusp.Username), Reason: Errored}
+		notFoundError := utils.RemoteUserBindingNotFoundError{Username: rusp.Username}
+		return &ErrorPattern{Message: notFoundError.Error(), Reason: Errored}
 	}
 	rusp.RemoteUserBinding = &remoteUserBindingList.Items[0]
 

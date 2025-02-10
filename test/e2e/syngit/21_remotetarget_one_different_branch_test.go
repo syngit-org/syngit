@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -44,7 +45,7 @@ var _ = Describe("21 RemoteTarget one different branch", func() {
 
 	It("should push the ConfigMap to the Luffy branch (using one strategy)", func() {
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		targetBranch := string(Luffy)
 
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
@@ -128,8 +129,8 @@ var _ = Describe("21 RemoteTarget one different branch", func() {
 		Wait3()
 		repo := &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: targetBranch,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
@@ -152,7 +153,7 @@ var _ = Describe("21 RemoteTarget one different branch", func() {
 
 	It("should push the ConfigMap to the second-branch branch (using multiple strategy)", func() {
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 
 		By("creating the RemoteUser for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
@@ -235,8 +236,8 @@ var _ = Describe("21 RemoteTarget one different branch", func() {
 		Wait3()
 		repo := &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: customBranch,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)

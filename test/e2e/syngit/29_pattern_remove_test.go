@@ -18,11 +18,13 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	"github.com/syngit-org/syngit/pkg/utils"
 	. "github.com/syngit-org/syngit/test/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -71,7 +73,7 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		branches := strings.Join([]string{branch1, branch2}, ", ")
 		By("creating the RemoteSyncer that target everybranches")
 		remotesyncer := &syngit.RemoteSyncer{
@@ -132,8 +134,8 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 		Wait3()
 		repo := &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: branch1,
 		}
 		exists, err := IsObjectInRepo(*repo, cm1)
@@ -142,8 +144,8 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 		Wait3()
 		repo = &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: branch2,
 		}
 		exists, err = IsObjectInRepo(*repo, cm1)
@@ -152,8 +154,8 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 		Wait3()
 		repo = &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: string(Luffy),
 		}
 		exists, err = IsObjectInRepo(*repo, cm1)
@@ -189,8 +191,8 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 		Wait3()
 		repo = &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: branch1,
 		}
 		exists, err = IsObjectInRepo(*repo, cm2)
@@ -199,8 +201,8 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 		Wait3()
 		repo = &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: branch2,
 		}
 		exists, err = IsObjectInRepo(*repo, cm2)
@@ -209,8 +211,8 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 		Wait3()
 		repo = &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: string(Luffy),
 		}
 		exists, err = IsObjectInRepo(*repo, cm2)
@@ -239,15 +241,15 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 				cm3,
 				metav1.CreateOptions{},
 			)
-			return err != nil && strings.Contains(err.Error(), rtNotFound)
+			return err != nil && utils.ErrorTypeChecker(&utils.RemoteTargetNotFoundError{}, err.Error())
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that the configmap is not present on any branch")
 		Wait3()
 		repo = &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: branch1,
 		}
 		exists, err = IsObjectInRepo(*repo, cm3)
@@ -256,8 +258,8 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 		Wait3()
 		repo = &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: branch2,
 		}
 		exists, err = IsObjectInRepo(*repo, cm3)
@@ -266,8 +268,8 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 		Wait3()
 		repo = &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: string(Luffy),
 		}
 		exists, err = IsObjectInRepo(*repo, cm3)
@@ -301,7 +303,7 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		By("creating the RemoteSyncer that target everybranches")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -360,8 +362,8 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 		Wait3()
 		repo := &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: string(Luffy),
 		}
 		exists, err := IsObjectInRepo(*repo, cm1)
@@ -390,15 +392,15 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 				cm2,
 				metav1.CreateOptions{},
 			)
-			return err != nil && strings.Contains(err.Error(), ruNotFound)
+			return err != nil && utils.ErrorTypeChecker(&utils.RemoteUserSearchError{}, err.Error())
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that the configmap is not present on the user specific branch")
 		Wait3()
 		repo = &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: string(Luffy),
 		}
 		exists, err = IsObjectInRepo(*repo, cm2)

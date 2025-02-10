@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -49,7 +50,7 @@ var _ = Describe("27 Test fast-forward or hard-reset merge", func() {
 
 	It("should try fast-forward and use hard-reset", func() { //nolint:dupl
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
@@ -184,8 +185,8 @@ var _ = Describe("27 Test fast-forward or hard-reset merge", func() {
 		Wait3()
 		customBranchRepo := &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: customBranch,
 		}
 		exists, err := IsObjectInRepo(*customBranchRepo, cm1)
@@ -322,8 +323,8 @@ var _ = Describe("27 Test fast-forward or hard-reset merge", func() {
 		Wait3()
 		upstreamRepo := &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: upstreamBranch,
 		}
 		exists, err = IsObjectInRepo(*upstreamRepo, cm2)

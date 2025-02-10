@@ -20,8 +20,7 @@ var (
 	Brook   TestUser
 )
 
-var FullPermissionsUsers []TestUser
-var Users []TestUser
+var Users map[string]TestUser
 
 type SyngitTestUsersClientset struct {
 	admin  *Clientset
@@ -60,14 +59,23 @@ func (tu *SyngitTestUsersClientset) As(username TestUser) CustomClient {
 }
 
 func (tu *SyngitTestUsersClientset) Initialize(cfg *rest.Config) error {
+	// Platform engineer : admin in the whole cluster
 	Admin = TestUser(os.Getenv("ADMIN_USERNAME"))
-	Sanji = TestUser(os.Getenv("SANJI_USERNAME"))
-	Chopper = TestUser(os.Getenv("CHOPPER_USERNAME"))
+	// DevOps: admin in the test namespace
 	Luffy = TestUser(os.Getenv("LUFFY_USERNAME"))
+	// DevOps: admin in the test namespace
+	Chopper = TestUser(os.Getenv("CHOPPER_USERNAME"))
+	// DevOps : admin in the test namespace
+	Sanji = TestUser(os.Getenv("SANJI_USERNAME"))
+	// Limited DevOps : CRUD only on syngit objects that belongs to him
+	//   Can get secrets (to authenticate with the RemoteUser)
 	Brook = TestUser(os.Getenv("BROOK_USERNAME"))
 
-	FullPermissionsUsers = []TestUser{Sanji, Chopper, Luffy}
-	Users = append(FullPermissionsUsers, Brook)
+	Users = map[string]TestUser{}
+	Users[os.Getenv("LUFFY_USERNAME")] = Luffy
+	Users[os.Getenv("CHOPPER_USERNAME")] = Chopper
+	Users[os.Getenv("SANJI_USERNAME")] = Sanji
+	Users[os.Getenv("BROOK_USERNAME")] = Brook
 
 	tu.config = cfg
 

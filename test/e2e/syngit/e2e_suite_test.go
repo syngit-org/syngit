@@ -61,37 +61,37 @@ const (
 )
 
 const (
-	operatorNamespace           = "syngit"
-	namespace                   = "test"
-	defaultDeniedMessage        = "DENIED ON PURPOSE"
-	rsPermissionsDeniedMessage  = "is not allowed to scope"
-	ruPermissionsDeniedMessage  = "is not allowed to get the secret"
-	rubPermissionsDeniedMessage = "is not allowed to get the referenced remoteuser"
-	x509ErrorMessage            = "x509: certificate signed by unknown authority"
-	crossRubErrorMessage        = "the RemoteUser is already bound in the RemoteUserBinding"
-	rubNotFound                 = "no RemoteUserBinding found for the user"
-	defaultUserNotFound         = "the default RemoteUser is not found"
-	defaultTargetNotFound       = "the default RemoteTarget is not found"
-	notPresentOnCluser          = "not found"
-	sameBranchRepo              = "should not be set when the target repo & target branch are the same as the upstream repo & branch"
-	rtNotFound                  = "no RemoteTarget found"
-	ruNotFound                  = "no RemoteUser found"
-	oneTargetForMultipleMessage = "multiple RemoteTargets found for OneTarget set as the TargetStrategy in the RemoteSyncer"
+	operatorNamespace    = "syngit"
+	namespace            = "test"
+	defaultDeniedMessage = "DENIED ON PURPOSE"
+	x509ErrorMessage     = "x509: certificate signed by unknown authority"
+	notPresentOnCluser   = "not found"
 )
 
 // CMD & CLIENT
 var cmd *exec.Cmd
 var sClient *SyngitTestUsersClientset
 
-// PLATFORMS FQDN
+// GITEA
 var gitP1Fqdn string
 var gitP2Fqdn string
+
+const (
+	repo1       = "merry"
+	repo2       = "sunny"
+	giteaBaseNs = "syngituser"
+)
 
 // KIND CLUSTER
 var clusterAlreadyExistsBefore = false
 
 // RBAC
-const reducedPermissionsCRName = "secret-rs-ru-cluster-role"
+const (
+	platformEngineerRoleBindingName = "platform-engineer-role-binding"
+	devopsRoleBindingName           = "devops-role-binding"
+	limitedDevopsRoleName           = "limited-devops-role"
+	limitedDevopsRoleBindingName    = "limited-devops-role-binding"
+)
 
 // Dynamic webhook name
 const dynamicWebhookName = "syngit-dynamic-remotesyncer-webhook"
@@ -277,47 +277,81 @@ func setupManager() {
 
 // rbacSetup creates the RBAC permissions of the k8s users (listed in the mock-users.go Users array).
 func rbacSetup(ctx context.Context) {
-	By("setting the default client successfully")
-	sClient = &SyngitTestUsersClientset{}
-	err := sClient.Initialize(cfg)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-	By("creating users with RBAC cluster-admin for global users")
-	for _, username := range append(FullPermissionsUsers, Admin) {
-		By(fmt.Sprintf("creating ClusterRoleBinding for the user %s", username))
-		_, err = sClient.KAs(Admin).RbacV1().ClusterRoleBindings().Create(ctx, &rbacv1.ClusterRoleBinding{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("%s-cluster-role-binding", username),
-			},
-			Subjects: []rbacv1.Subject{
-				{
-					Kind:     "User", // Represents a real user
-					Name:     string(username),
-					APIGroup: "rbac.authorization.k8s.io",
-				},
-			},
-			RoleRef: rbacv1.RoleRef{
-				Kind:     "ClusterRole",
-				Name:     "cluster-admin",
+	By("creating users with RBAC cluster admin for Platform Engineer")
+	_, err := sClient.KAs(Admin).RbacV1().ClusterRoleBindings().Create(ctx, &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: platformEngineerRoleBindingName,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:     "User", // Represents a real user
+				Name:     string(Admin),
 				APIGroup: "rbac.authorization.k8s.io",
 			},
-		}, metav1.CreateOptions{})
-		Expect(err).NotTo(HaveOccurred())
-
-		By(fmt.Sprintf("validating RBAC creation for the user %s", username))
-		crbName := fmt.Sprintf("%s-cluster-role-binding", username)
-		crb, err := sClient.KAs(Admin).RbacV1().ClusterRoleBindings().Get(ctx, crbName, metav1.GetOptions{})
-		Expect(err).NotTo(HaveOccurred())
-		Expect(crb.Subjects).To(ContainElement(rbacv1.Subject{
-			Kind:     "User",
-			Name:     string(username),
+		},
+		RoleRef: rbacv1.RoleRef{
+			Kind:     "ClusterRole",
+			Name:     "cluster-admin",
 			APIGroup: "rbac.authorization.k8s.io",
-		}))
-	}
-	By("creating users with reduced RBAC for Brook")
-	_, err = sClient.KAs(Admin).RbacV1().ClusterRoles().Create(ctx, &rbacv1.ClusterRole{
+		},
+	}, metav1.CreateOptions{})
+	Expect(err).NotTo(HaveOccurred())
+
+	By("creating admin RoleBinding for DevOps users")
+	_, err = sClient.KAs(Admin).RbacV1().RoleBindings(namespace).Create(ctx, &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: reducedPermissionsCRName,
+			Name: devopsRoleBindingName,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:     "User", // Represents a real user
+				Name:     string(Luffy),
+				APIGroup: "rbac.authorization.k8s.io",
+			},
+			{
+				Kind:     "User", // Represents a real user
+				Name:     string(Chopper),
+				APIGroup: "rbac.authorization.k8s.io",
+			},
+			{
+				Kind:     "User", // Represents a real user
+				Name:     string(Sanji),
+				APIGroup: "rbac.authorization.k8s.io",
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			Kind:     "ClusterRole",
+			Name:     "cluster-admin",
+			APIGroup: "rbac.authorization.k8s.io",
+		},
+	}, metav1.CreateOptions{})
+	Expect(err).NotTo(HaveOccurred())
+
+	By("validating RBAC creation for DevOps")
+	devopsRB, err := sClient.KAs(Admin).RbacV1().RoleBindings(namespace).
+		Get(ctx, devopsRoleBindingName, metav1.GetOptions{})
+	Expect(err).NotTo(HaveOccurred())
+	Expect(devopsRB.Subjects).To(ContainElement(rbacv1.Subject{
+		Kind:     "User",
+		Name:     string(Luffy),
+		APIGroup: "rbac.authorization.k8s.io",
+	}))
+	Expect(devopsRB.Subjects).To(ContainElement(rbacv1.Subject{
+		Kind:     "User",
+		Name:     string(Chopper),
+		APIGroup: "rbac.authorization.k8s.io",
+	}))
+	Expect(devopsRB.Subjects).To(ContainElement(rbacv1.Subject{
+		Kind:     "User",
+		Name:     string(Sanji),
+		APIGroup: "rbac.authorization.k8s.io",
+	}))
+
+	By("creating limited Role for limited DevOps")
+	_, err = sClient.KAs(Admin).RbacV1().Roles(namespace).Create(ctx, &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: limitedDevopsRoleName,
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -330,11 +364,6 @@ func rbacSetup(ctx context.Context) {
 				APIGroups:     []string{""},
 				Resources:     []string{"secrets"},
 				ResourceNames: []string{string(Brook) + "-creds"},
-			},
-			{
-				Verbs:     []string{"create", "get", "list", "watch"},
-				APIGroups: []string{""},
-				Resources: []string{"namespaces"},
 			},
 			{
 				Verbs:     []string{"create", "get", "list", "watch", "update", "delete"},
@@ -357,10 +386,10 @@ func rbacSetup(ctx context.Context) {
 	}, metav1.CreateOptions{})
 	Expect(err).NotTo(HaveOccurred())
 
-	By("creating ClusterRoleBinding for the user Brook")
-	_, err = sClient.KAs(Admin).RbacV1().ClusterRoleBindings().Create(ctx, &rbacv1.ClusterRoleBinding{
+	By("creating ClusterRoleBinding for limited DevOps")
+	_, err = sClient.KAs(Admin).RbacV1().RoleBindings(namespace).Create(ctx, &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-cluster-role-binding", string(Brook)),
+			Name: limitedDevopsRoleBindingName,
 		},
 		Subjects: []rbacv1.Subject{
 			{
@@ -370,18 +399,18 @@ func rbacSetup(ctx context.Context) {
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
-			Kind:     "ClusterRole",
-			Name:     reducedPermissionsCRName,
+			Kind:     "Role",
+			Name:     limitedDevopsRoleName,
 			APIGroup: "rbac.authorization.k8s.io",
 		},
 	}, metav1.CreateOptions{})
 	Expect(err).NotTo(HaveOccurred())
 
-	By("validating RBAC creation for the user Brook")
-	crbName := fmt.Sprintf("%s-cluster-role-binding", string(Brook))
-	crb, err := sClient.KAs(Admin).RbacV1().ClusterRoleBindings().Get(ctx, crbName, metav1.GetOptions{})
+	By("validating RBAC creation for the limited DevOps")
+	limitedDevopsRB, err := sClient.KAs(Admin).RbacV1().RoleBindings(namespace).
+		Get(ctx, limitedDevopsRoleBindingName, metav1.GetOptions{})
 	Expect(err).NotTo(HaveOccurred())
-	Expect(crb.Subjects).To(ContainElement(rbacv1.Subject{
+	Expect(limitedDevopsRB.Subjects).To(ContainElement(rbacv1.Subject{
 		Kind:     "User",
 		Name:     string(Brook),
 		APIGroup: "rbac.authorization.k8s.io",
@@ -390,9 +419,13 @@ func rbacSetup(ctx context.Context) {
 
 // namespaceSetup creates the test namespace and the secrets for the users to connect to the gitea platforms.
 func namespaceSetup(ctx context.Context) {
+	By("setting the default client successfully")
+	sClient = &SyngitTestUsersClientset{}
+	err := sClient.Initialize(cfg)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	By("creating the syngit namespace")
-	_, err := sClient.KAs(Admin).CoreV1().Namespaces().Create(ctx,
+	_, err = sClient.KAs(Admin).CoreV1().Namespaces().Create(ctx,
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: operatorNamespace}},
 		metav1.CreateOptions{},
 	)
@@ -404,13 +437,10 @@ func namespaceSetup(ctx context.Context) {
 		metav1.CreateOptions{},
 	)
 	Expect(err).NotTo(HaveOccurred())
+}
 
+func createCredentials(ctx context.Context) {
 	for _, username := range Users {
-		By(fmt.Sprintf("testing the impersonation for the user %s", username))
-		namespaces, err := sClient.KAs(username).CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
-		Expect(err).NotTo(HaveOccurred())
-		Expect(namespaces.Items).NotTo(BeEmpty(), "User should be able to list namespaces")
-
 		By(fmt.Sprintf("creating the Secret creds (to connect to jupyter & saturn) for %s", username))
 		secretName := string(username) + "-creds"
 		secretCreds := &corev1.Secret{
@@ -424,7 +454,7 @@ func namespaceSetup(ctx context.Context) {
 			},
 			Type: "kubernetes.io/basic-auth",
 		}
-		_, err = sClient.KAs(username).CoreV1().Secrets(namespace).Create(ctx,
+		_, err := sClient.KAs(username).CoreV1().Secrets(namespace).Create(ctx,
 			secretCreds,
 			metav1.CreateOptions{},
 		)
@@ -458,8 +488,9 @@ var _ = BeforeSuite(func() {
 	}
 
 	setupManager()
-	rbacSetup(ctx)
 	namespaceSetup(ctx)
+	rbacSetup(ctx)
+	createCredentials(ctx)
 
 	By("retrieving the gitea urls")
 	var err error
@@ -490,14 +521,13 @@ func uninstallSetup() {
 // deleteRbac deletes the RBAC permissions of the k8s users.
 func deleteRbac(ctx context.Context) {
 
-	By("deleting the global user's RBAC")
-	err := sClient.KAs(Admin).RbacV1().ClusterRoles().Delete(ctx, reducedPermissionsCRName, metav1.DeleteOptions{})
+	By("deleting the RBACs")
+	err := sClient.KAs(Admin).RbacV1().Roles(namespace).Delete(ctx, limitedDevopsRoleName, metav1.DeleteOptions{})
 	Expect(err).NotTo(HaveOccurred())
-	for _, username := range append(Users, Admin) {
-		By(fmt.Sprintf("deleting RBAC for the user %s", username))
-		err = sClient.KAs(Admin).RbacV1().ClusterRoleBindings().Delete(ctx, fmt.Sprintf("%s-cluster-role-binding", username), metav1.DeleteOptions{})
-		Expect(err).NotTo(HaveOccurred())
-	}
+	err = sClient.KAs(Admin).RbacV1().RoleBindings(namespace).Delete(ctx, devopsRoleBindingName, metav1.DeleteOptions{})
+	Expect(err).NotTo(HaveOccurred())
+	err = sClient.KAs(Admin).RbacV1().RoleBindings(namespace).Delete(ctx, limitedDevopsRoleBindingName, metav1.DeleteOptions{})
+	Expect(err).NotTo(HaveOccurred())
 
 }
 

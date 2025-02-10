@@ -17,11 +17,10 @@ limitations under the License.
 package e2e_syngit
 
 import (
-	"strings"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	"github.com/syngit-org/syngit/pkg/utils"
 	. "github.com/syngit-org/syngit/test/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -31,7 +30,9 @@ var _ = Describe("19 RemoteTarget same repo & branch between target and upstream
 	const (
 		remoteTargetName = "remotetarget-test19"
 		repo             = "https://my-server.com/my-upstream-repo.git"
+		differentRepo    = "https://my-server.com/my-different-repo.git"
 		branch           = "main"
+		differentBranch  = "different"
 	)
 
 	It("should deny the RemoteTarget creation", func() {
@@ -51,7 +52,29 @@ var _ = Describe("19 RemoteTarget same repo & branch between target and upstream
 		}
 		Eventually(func() bool {
 			err := sClient.As(Luffy).CreateOrUpdate(remoteTarget)
-			return err != nil && strings.Contains(err.Error(), sameBranchRepo)
+			return err != nil && utils.ErrorTypeChecker(&utils.SameUpstreamDifferentMergeStrategyError{}, err.Error())
+		}, timeout, interval).Should(BeTrue())
+
+	})
+
+	It("should deny the RemoteTarget creation", func() {
+		By("creating a RemoteTarget with different repo & branch for the target & upstream and empty strategy")
+		remoteTarget := &syngit.RemoteTarget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      remoteTargetName,
+				Namespace: namespace,
+			},
+			Spec: syngit.RemoteTargetSpec{
+				UpstreamRepository: repo,
+				TargetRepository:   differentRepo,
+				UpstreamBranch:     branch,
+				TargetBranch:       differentBranch,
+				MergeStrategy:      "",
+			},
+		}
+		Eventually(func() bool {
+			err := sClient.As(Luffy).CreateOrUpdate(remoteTarget)
+			return err != nil && utils.ErrorTypeChecker(&utils.DifferentUpstreamEmptyMergeStrategyError{}, err.Error())
 		}, timeout, interval).Should(BeTrue())
 
 	})

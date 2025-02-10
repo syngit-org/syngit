@@ -24,9 +24,9 @@ ADMIN_TOKEN=$(echo "$TOKEN_RESPONSE" | sed -E 's/.*Access token was successfully
 #
 ## CHOPPER
 #
-ADDED=$(add-collaborator $GITEA_URL $ADMIN_TOKEN "blue" $CHOPPER_USERNAME)
+ADDED=$(add-collaborator $GITEA_URL $ADMIN_TOKEN "$REPO1" $CHOPPER_USERNAME)
 if [ "$ADDED" = "1" ]; then
-  echo "User '$CHOPPER_USERNAME' failed to be added to repository 'blue' with 'write' access on $PLATFORM1."
+  echo "User '$CHOPPER_USERNAME' failed to be added to repository '$REPO1' with 'write' access on $PLATFORM1."
   exit 1
 fi
 
@@ -35,15 +35,15 @@ fi
 #
 ## LUFFY
 #
-ADDED=$(add-collaborator $GITEA_URL $ADMIN_TOKEN "blue" $LUFFY_USERNAME)
+ADDED=$(add-collaborator $GITEA_URL $ADMIN_TOKEN "$REPO1" $LUFFY_USERNAME)
 if [ "$ADDED" = "1" ]; then
-  echo "User '$LUFFY_USERNAME' failed to be added to repository 'blue' with 'write' access on $PLATFORM1."
+  echo "User '$LUFFY_USERNAME' failed to be added to repository '$REPO1' with 'write' access on $PLATFORM1."
   exit 1
 fi
 
-ADDED=$(add-collaborator $GITEA_URL $ADMIN_TOKEN "green" $LUFFY_USERNAME)
+ADDED=$(add-collaborator $GITEA_URL $ADMIN_TOKEN "$REPO2" $LUFFY_USERNAME)
 if [ "$ADDED" = "1" ]; then
-  echo "User '$LUFFY_USERNAME' failed to be added to repository 'green' with 'write' access on $PLATFORM1."
+  echo "User '$LUFFY_USERNAME' failed to be added to repository '$REPO2' with 'write' access on $PLATFORM1."
   exit 1
 fi
 
@@ -52,14 +52,14 @@ fi
 #
 ## BROOK
 #
-ADDED=$(add-collaborator $GITEA_URL $ADMIN_TOKEN "blue" $BROOK_USERNAME)
+ADDED=$(add-collaborator $GITEA_URL $ADMIN_TOKEN "$REPO1" $BROOK_USERNAME)
 if [ "$ADDED" = "1" ]; then
-  echo "User '$BROOK_USERNAME' failed to be added to repository 'blue' with 'write' access on $PLATFORM1."
+  echo "User '$BROOK_USERNAME' failed to be added to repository '$REPO1' with 'write' access on $PLATFORM1."
   exit 1
 fi
 
-ADDED=$(add-collaborator $GITEA_URL $ADMIN_TOKEN "green" $BROOK_USERNAME)
+ADDED=$(add-collaborator $GITEA_URL $ADMIN_TOKEN "$REPO2" $BROOK_USERNAME)
 if [ "$ADDED" = "1" ]; then
-  echo "User '$BROOK_USERNAME' failed to be added to repository 'green' with 'write' access on $PLATFORM1."
+  echo "User '$BROOK_USERNAME' failed to be added to repository '$REPO2' with 'write' access on $PLATFORM1."
   exit 1
 fi

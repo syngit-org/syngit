@@ -58,7 +58,8 @@ func (ruwh *RemoteUserPermissionsWebhookHandler) Handle(ctx context.Context, req
 	}
 
 	if !sar.Status.Allowed {
-		return admission.Denied(fmt.Sprintf("The user %s is not allowed to get the secret: %s", user, ru.Spec.SecretRef.Name))
+		denied := utils.DenyGetSecretError{User: user, SecretRef: ru.Spec.SecretRef}
+		return admission.Denied(denied.Error())
 	}
 
 	return admission.Allowed(fmt.Sprintf("The user %s is allowed to get the secret: %s", user, ru.Spec.SecretRef.Name))

@@ -177,7 +177,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -215,7 +215,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("checking that the ValidationWebhhok scopes sts")
+		By("checking that the ValidationWebhook scopes sts")
 		Wait3()
 		nnValidation := types.NamespacedName{
 			Name: dynamicWebhookName,
@@ -223,7 +223,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 		getValidation := &admissionv1.ValidatingWebhookConfiguration{}
 
 		Eventually(func() bool {
-			err := sClient.As(Luffy).Get(nnValidation, getValidation)
+			err := sClient.As(Admin).Get(nnValidation, getValidation)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 

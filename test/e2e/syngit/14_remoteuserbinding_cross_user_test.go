@@ -17,11 +17,10 @@ limitations under the License.
 package e2e_syngit
 
 import (
-	"strings"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	"github.com/syngit-org/syngit/pkg/utils"
 	. "github.com/syngit-org/syngit/test/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -89,7 +88,7 @@ var _ = Describe("14 RemoteUser RBAC cross user test", func() {
 		}
 		Eventually(func() bool {
 			err := sClient.As(Luffy).CreateOrUpdate(remoteUserChopperWithNoAssociatedRub)
-			return err != nil && strings.Contains(err.Error(), crossRubErrorMessage)
+			return err != nil && utils.ErrorTypeChecker(&utils.RemoteUserAlreadyBoundError{}, err.Error())
 		}, timeout, interval).Should(BeTrue())
 
 		By("modifying removing Chopper rub annotation using Chopper")

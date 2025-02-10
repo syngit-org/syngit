@@ -33,9 +33,9 @@ fi
 GIT_TOKEN=$(echo "$TOKEN_RESPONSE" | sed -E 's/.*Access token was successfully created: ([a-f0-9]{40}).*/\1/')
 
 #
-# Delete the blue repo
+# Delete the repo1
 #
-DELETE_REPO_ENDPOINT="$GITEA_URL/api/v1/repos/$ADMIN_USERNAME/blue"
+DELETE_REPO_ENDPOINT="$GITEA_URL/api/v1/repos/$ADMIN_USERNAME/$REPO1"
 
 # Make the API call to create the repository
 response=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE -k \
@@ -49,9 +49,9 @@ if [ "$response" != 204 ]; then
 fi
 
 #
-# Delete the green repo
+# Delete the repo2
 #
-DELETE_REPO_ENDPOINT="$GITEA_URL/api/v1/repos/$ADMIN_USERNAME/green"
+DELETE_REPO_ENDPOINT="$GITEA_URL/api/v1/repos/$ADMIN_USERNAME/$REPO2"
 
 # Make the API call to create the repository
 response=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE -k \

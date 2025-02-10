@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 
@@ -96,7 +97,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/green.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo2)
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -158,8 +159,8 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "green",
+			Owner: giteaBaseNs,
+			Name:  repo2,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).ToNot(HaveOccurred())
@@ -224,7 +225,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/green.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo2)
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -287,8 +288,8 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "green",
+			Owner: giteaBaseNs,
+			Name:  repo2,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).ToNot(HaveOccurred())
@@ -324,7 +325,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			Type: "kubernetes.io/tls",
 		}
 		Eventually(func() bool {
-			_, err = sClient.KAs(Luffy).CoreV1().Secrets(operatorNamespace).Create(ctx,
+			_, err = sClient.KAs(Admin).CoreV1().Secrets(operatorNamespace).Create(ctx,
 				secretCreds,
 				metav1.CreateOptions{},
 			)
@@ -354,7 +355,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/green.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo2)
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -413,8 +414,8 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "green",
+			Owner: giteaBaseNs,
+			Name:  repo2,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).ToNot(HaveOccurred())
@@ -434,7 +435,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 
 		By("deleting the ca bundle secret in the same namespace using the host as name")
 		Eventually(func() bool {
-			err = sClient.KAs(Luffy).CoreV1().Secrets(operatorNamespace).Delete(ctx,
+			err = sClient.KAs(Admin).CoreV1().Secrets(operatorNamespace).Delete(ctx,
 				caBundleName,
 				metav1.DeleteOptions{},
 			)
@@ -466,7 +467,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/green.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo2)
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{

@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -41,7 +42,7 @@ var _ = Describe("24 One RemoteTarget scoped by multiple RemoteSyncers", func() 
 	)
 
 	It("should deny the RemoteTarget creation", func() {
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 
 		By("creating the RemoteUser for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
@@ -166,8 +167,8 @@ var _ = Describe("24 One RemoteTarget scoped by multiple RemoteSyncers", func() 
 		Wait3()
 		repo := &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: branch,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)

@@ -29,7 +29,7 @@ kubectl exec -i $POD_NAME -n $NS_SATURN -- gitea admin user change-password \
 
 
 # chopper-jb
-# Have access only to the blue repo on the jupyter gitea
+# Have access only to the repo1 on the jupyter gitea
 CHOPPER_PWD="chopper-jb-pwd"
 
 POD_NAME=$(kubectl get pods -n $NS_JUPYTER -l app.kubernetes.io/name=gitea -o jsonpath="{.items[0].metadata.name}")
@@ -44,8 +44,8 @@ kubectl exec -i $POD_NAME -n $NS_JUPYTER -- gitea admin user change-password \
 
 
 # luffy-jbg-sb
-# Have access to the blue and green repo on the jupyter gitea
-# Have access to the blue repo on the saturn gitea
+# Have access to the repo1 and repo2 on the jupyter gitea
+# Have access to the repo1 on the saturn gitea
 LUFFY_PWD="luffy-jbg-sb-pwd"
 
 POD_NAME=$(kubectl get pods -n $NS_JUPYTER -l app.kubernetes.io/name=gitea -o jsonpath="{.items[0].metadata.name}")
@@ -72,8 +72,8 @@ kubectl exec -i $POD_NAME -n $NS_SATURN -- gitea admin user change-password \
 
 
 # brook-jbg-sb
-# Have access to the blue and green repo on the jupyter gitea
-# Have access to the blue repo on the saturn gitea
+# Have access to the repo1 and repo2 on the jupyter gitea
+# Have access to the repo1 on the saturn gitea
 BROOK_PWD="brook-jbg-sb-pwd"
 
 POD_NAME=$(kubectl get pods -n $NS_JUPYTER -l app.kubernetes.io/name=gitea -o jsonpath="{.items[0].metadata.name}")
