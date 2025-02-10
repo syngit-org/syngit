@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 )
 
 // RemoteTargetReconciler reconciles a RemoteTarget object
@@ -42,7 +42,18 @@ type RemoteTargetReconciler struct {
 func (r *RemoteTargetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	// Get the RemoteTarget Object
+	var remoteTarget syngit.RemoteTarget
+	if err := r.Get(ctx, req.NamespacedName, &remoteTarget); err != nil {
+		// does not exists -> deleted
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	log.Log.Info("Reconcile request",
+		"resource", "remotetarget",
+		"namespace", remoteTarget.Namespace,
+		"name", remoteTarget.Name,
+	)
 
 	return ctrl.Result{}, nil
 }
@@ -50,7 +61,7 @@ func (r *RemoteTargetReconciler) Reconcile(ctx context.Context, req ctrl.Request
 // SetupWithManager sets up the controller with the Manager.
 func (r *RemoteTargetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&syngitv1beta3.RemoteTarget{}).
+		For(&syngit.RemoteTarget{}).
 		Named("remotetarget").
 		Complete(r)
 }

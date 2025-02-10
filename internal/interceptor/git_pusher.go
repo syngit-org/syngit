@@ -46,50 +46,38 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 	gpResponse := &GitPushResponse{path: "", commitHash: "", url: gp.remoteTarget.Spec.TargetRepository}
 
 	var w *git.Worktree
-	var repo *git.Repository
 
-	if gp.remoteTarget.Spec.MergeStrategy == "" {
-		// Same repo & branch between target and upstream
-		// PRE-STEP 1 : Get the repo
-		var getRepoErr error
-		repo, getRepoErr = GetTargetRepository(*gp)
-		if getRepoErr != nil {
-			return *gpResponse, getRepoErr
-		}
-		// PRE-STEP 2 : Get the worktree
-		var err error
-		w, err = repo.Worktree()
-		if err != nil {
-			errMsg := "failed to get worktree: " + err.Error()
-			return *gpResponse, errors.New(errMsg)
-		}
+	repoRetriever := RepoRetriever{gitPusher: gp}
 
-		forcePush = false
+	// PRE-STEP 1 : Get the repos
+	targetRepo, getRepoErr := repoRetriever.GetTargetRepository()
+	if getRepoErr != nil {
+		return *gpResponse, getRepoErr
+	}
+	// Set the upstream repo the same as the target one by default
+	// Considering the target branch to be the same as the uypstream one
+	upstreamRepo := targetRepo
 
-	} else {
+	// If a merge strategy is set, then the target & upstream are different
+	if gp.remoteTarget.Spec.MergeStrategy != "" {
 		// Different target and upstream
-		// PRE-STEP 1 : Get the repos
-		upstreamRepo, getRepoErr := GetUpstreamRepository(*gp)
+		upstreamRepo, getRepoErr = repoRetriever.GetUpstreamRepository()
 		if getRepoErr != nil {
 			return *gpResponse, getRepoErr
 		}
-		repo, getRepoErr = GetTargetRepository(*gp)
-		if getRepoErr != nil {
-			return *gpResponse, getRepoErr
-		}
+	}
 
-		// PRE-STEP 2 : Get the worktree
-		gc := GitConsistency{
-			upstreamRepository: upstreamRepo,
-			targetRepository:   repo,
-			strategy:           gp.remoteTarget.Spec.MergeStrategy,
-		}
-		var err error
-		w, forcePush, err = gc.GetWorkTree(*gp)
-		if err != nil {
-			errMsg := "failed to get worktree: " + err.Error()
-			return *gpResponse, errors.New(errMsg)
-		}
+	// PRE-STEP 2 : Get the worktree
+	wr := WorktreeRetriever{
+		upstreamRepository: upstreamRepo,
+		targetRepository:   targetRepo,
+		strategy:           gp.remoteTarget.Spec.MergeStrategy,
+	}
+	var err error
+	w, forcePush, err = wr.GetWorkTree(*gp)
+	if err != nil {
+		errMsg := "failed to get worktree: " + err.Error()
+		return *gpResponse, errors.New(errMsg)
 	}
 
 	// STEP 1 : Set the path
@@ -113,7 +101,7 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 	}
 
 	// STEP 4 : Push the changes
-	err = gp.pushChanges(repo)
+	err = gp.pushChanges(targetRepo)
 	if err != nil {
 		return *gpResponse, err
 	}
