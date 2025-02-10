@@ -38,6 +38,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 		cmName2             = "test-cm4.2"
 		remoteUserLuffyName = "remoteuser-luffy"
 		remoteSyncerName    = "remotesyncer-test4"
+		branch              = "main"
 	)
 
 	It("should exclude the selected fields from the git repo", func() {
@@ -70,11 +71,14 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
 				DefaultBlockAppliedMessage:  defaultDeniedMessage,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields: []string{
 					".metadata.uid",
@@ -83,7 +87,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 					"metadata.annotations.[test-annotation2]",
 				},
 				Strategy:         syngit.CommitOnly,
-				TargetStrategy:   syngit.SameBranch,
+				TargetStrategy:   syngit.OneTarget,
 				RemoteRepository: repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -211,18 +215,21 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
 				DefaultBlockAppliedMessage:  defaultDeniedMessage,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFieldsConfigMapRef: &corev1.ObjectReference{
 					Name:      excludedFieldsConfiMapName,
 					Namespace: namespace,
 				},
 				Strategy:         syngit.CommitOnly,
-				TargetStrategy:   syngit.SameBranch,
+				TargetStrategy:   syngit.OneTarget,
 				RemoteRepository: repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

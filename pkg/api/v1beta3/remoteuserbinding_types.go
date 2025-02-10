@@ -24,7 +24,7 @@ import (
 
 const (
 	RubPrefix       = "associated-rub-"
-	RubAnnotation   = "syngit.io/associated-remoteuserbinding"
+	RubAnnotation   = "syngit.io/remoteuserbinding.managed"
 	RemoteRefsField = "spec.remoteRefs"
 )
 
@@ -48,16 +48,16 @@ type RemoteUserBindingStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 
 	// +optional
-	State GitUserBindingState `json:"state,omitempty"`
+	State GitUserBindingState `json:"state,omitempty" protobuf:"bytes,2,rep,name=state"`
 
 	// +optional
-	GitUserHosts []GitUserHost `json:"gitUserHosts"`
+	GitUserHosts []GitUserHost `json:"gitUserHosts" protobuf:"bytes,3,rep,name=gitUserHosts"`
 
 	// +optional
-	UserKubernetesID string `json:"userKubernetesID,omitempty"`
+	UserKubernetesID string `json:"userKubernetesID,omitempty" protobuf:"bytes,4,rep,name=userKubernetesID"`
 
 	// +optional
-	LastUsedTime metav1.Time `json:"lastUsedTime,omitempty"`
+	LastUsedTime metav1.Time `json:"lastUsedTime,omitempty" protobuf:"bytes,5,rep,name=lastUsedTime"`
 }
 
 //+kubebuilder:object:root=true

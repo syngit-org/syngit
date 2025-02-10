@@ -37,6 +37,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 		remoteSyncer1Name   = "remotesyncer-test7.1"
 		remoteSyncer2Name   = "remotesyncer-test7.2"
 		cmName              = "test-cm7"
+		branch              = "main"
 	)
 
 	It("should apply the resource on the cluster but not push it on the git repository (CommitApply)", func() { //nolint:dupl
@@ -72,10 +73,13 @@ var _ = Describe("07 Subject bypasses interception", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer1Name,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				BypassInterceptionSubjects: []v1.Subject{{
 					APIGroup: "rbac.authorization.k8s.io",
@@ -84,7 +88,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 				}},
 				ExcludedFields:   []string{".metadata.uid"},
 				Strategy:         syngit.CommitApply,
-				TargetStrategy:   syngit.SameBranch,
+				TargetStrategy:   syngit.OneTarget,
 				RemoteRepository: repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -182,10 +186,13 @@ var _ = Describe("07 Subject bypasses interception", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer2Name,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				BypassInterceptionSubjects: []v1.Subject{{
 					APIGroup: "rbac.authorization.k8s.io",
@@ -194,7 +201,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 				}},
 				ExcludedFields:   []string{".metadata.uid"},
 				Strategy:         syngit.CommitOnly,
-				TargetStrategy:   syngit.SameBranch,
+				TargetStrategy:   syngit.OneTarget,
 				RemoteRepository: repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

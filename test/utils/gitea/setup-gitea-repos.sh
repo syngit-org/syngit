@@ -23,7 +23,7 @@ kubectl exec -i $POD_NAME -n $NAMESPACE -- gitea admin user change-password \
 TOKEN_RESPONSE=$(kubectl exec -i $POD_NAME -n $NAMESPACE -- gitea admin user generate-access-token \
   --username $ADMIN_USERNAME \
   --scopes "all" \
-  --token-name mytoken 2>/dev/null)
+  --token-name mytoken-$RANDOM 2>/dev/null)
 
 if [ "$TOKEN_RESPONSE" == "null" ]; then
   echo "Failed to generate token for syngituser user."

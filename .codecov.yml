@@ -2,5 +2,3 @@ coverage:
   status:
     project: false
     patch: false
-comment:
-  layout: false

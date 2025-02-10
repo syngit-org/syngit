@@ -34,8 +34,9 @@ type RemoteSyncerSpec struct {
 	RemoteRepository string `json:"remoteRepository" protobuf:"bytes,1,name=remoteRepository"`
 
 	// +kubebuilder:example="main"
-	// +kubebuilder:validation:Optional
-	DefaultBranch string `json:"defaultBranch,omitempty" protobuf:"bytes,opt,2,name=defaultBranch"`
+	// +kubebuilder:default:value="main"
+	// +kubebuilder:validation:Required
+	DefaultBranch string `json:"defaultBranch" protobuf:"bytes,opt,2,name=defaultBranch"`
 
 	// +kubebuilder:default:value={}
 	// +kubebuilder:validation:Required
@@ -47,40 +48,46 @@ type RemoteSyncerSpec struct {
 	Strategy Strategy `json:"strategy" protobuf:"bytes,4,name=strategy"`
 
 	// +kubebuilder:validation:Required
-	// +kubebuilder:default:value="SameBranch"
-	// +kubebuilder:validation:Enum=SameBranch;MultipleBranch;Fork
+	// +kubebuilder:default:value="OneTarget"
+	// +kubebuilder:validation:Enum=OneTarget;MultipleTarget
 	TargetStrategy TargetStrategy `json:"targetStrategy" protobuf:"bytes,5,name=targetStrategy"`
 
 	// +kubebuilder:validation:Optional
-	DefaultBlockAppliedMessage string `json:"defaultBlockAppliedMessage,omitempty" protobuf:"bytes,opt,6,name=defaultBlockAppliedMessage"`
+	RemoteTargetSelector *metav1.LabelSelector `json:"remoteTargetSelector" protobuf:"bytes,opt,6,name=remoteTargetSelector"`
 
 	// +kubebuilder:validation:Optional
-	ExcludedFields []string `json:"excludedFields,omitempty" protobuf:"bytes,opt,7,name=excludedFields"`
+	DefaultBlockAppliedMessage string `json:"defaultBlockAppliedMessage,omitempty" protobuf:"bytes,opt,7,name=defaultBlockAppliedMessage"`
 
 	// +kubebuilder:validation:Optional
-	ExcludedFieldsConfigMapRef *corev1.ObjectReference `json:"excludedFieldsConfig,omitempty" protobuf:"bytes,opt,8,name=excludedFieldsConfig"` // Ref to a ConfigMap
+	ExcludedFields []string `json:"excludedFields,omitempty" protobuf:"bytes,opt,8,name=excludedFields"`
 
 	// +kubebuilder:validation:Optional
-	RootPath string `json:"rootPath,omitempty" protobuf:"bytes,opt,9,name=rootPath"`
+	ExcludedFieldsConfigMapRef *corev1.ObjectReference `json:"excludedFieldsConfig,omitempty" protobuf:"bytes,opt,9,name=excludedFieldsConfig"` // Ref to a ConfigMap
 
 	// +kubebuilder:validation:Optional
-	RemoteUserBindingSelector *metav1.LabelSelector `json:"remoteUserBindingSelector" protobuf:"bytes,opt,10,name=remoteUserBindingSelector"`
+	RootPath string `json:"rootPath,omitempty" protobuf:"bytes,opt,10,name=rootPath"`
 
 	// +kubebuilder:validation:Optional
-	BypassInterceptionSubjects []rbacv1.Subject `json:"bypassInterceptionSubjects,omitempty" protobuf:"bytes,opt,11,name=bypassInterceptionSubjects"`
+	RemoteUserBindingSelector *metav1.LabelSelector `json:"remoteUserBindingSelector" protobuf:"bytes,opt,11,name=remoteUserBindingSelector"`
+
+	// +kubebuilder:validation:Optional
+	BypassInterceptionSubjects []rbacv1.Subject `json:"bypassInterceptionSubjects,omitempty" protobuf:"bytes,opt,12,name=bypassInterceptionSubjects"`
 
 	// +kubebuilder:default:value="Block"
 	// +kubebuilder:validation:Enum=Block;UseDefaultUser
-	DefaultUnauthorizedUserMode DefaultUnauthorizedUserMode `json:"defaultUnauthorizedUserMode" protobuf:"bytes,opt,12,name=defaultUnauthorizedUserMode"`
+	DefaultUnauthorizedUserMode DefaultUnauthorizedUserMode `json:"defaultUnauthorizedUserMode" protobuf:"bytes,opt,13,name=defaultUnauthorizedUserMode"`
 
 	// +kubebuilder:validation:Optional
-	DefaultRemoteUserRef *corev1.ObjectReference `json:"defaultRemoteUserRef,omitempty" protobuf:"bytes,opt,13,name=defaultRemoteUserRef"` // Ref to a RemoteUser object
+	DefaultRemoteUserRef *corev1.ObjectReference `json:"defaultRemoteUserRef,omitempty" protobuf:"bytes,opt,14,name=defaultRemoteUserRef"` // Ref to a RemoteUser object
 
 	// +kubebuilder:validation:Optional
-	InsecureSkipTlsVerify bool `json:"insecureSkipTlsVerify,omitempty" protobuf:"bytes,opt,14,name=insecureSkipTlsVerify"`
+	DefaultRemoteTargetRef *corev1.ObjectReference `json:"defaultRemoteTargetRef,omitempty" protobuf:"bytes,opt,15,name=defaultRemoteTargetRef"` // Ref to a RemoteUser object
 
 	// +kubebuilder:validation:Optional
-	CABundleSecretRef corev1.SecretReference `json:"caBundleSecretRef,omitempty" protobuf:"bytes,opt,15,name=caBundleSecretRef"`
+	InsecureSkipTlsVerify bool `json:"insecureSkipTlsVerify,omitempty" protobuf:"bytes,opt,16,name=insecureSkipTlsVerify"`
+
+	// +kubebuilder:validation:Optional
+	CABundleSecretRef corev1.SecretReference `json:"caBundleSecretRef,omitempty" protobuf:"bytes,opt,17,name=caBundleSecretRef"`
 }
 
 type RemoteSyncerStatus struct {
@@ -93,13 +100,13 @@ type RemoteSyncerStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 
 	// +optional
-	LastBypassedObjectState LastBypassedObjectState `json:"lastBypassedObjectState,omitempty"`
+	LastBypassedObjectState LastBypassedObjectState `json:"lastBypassedObjectState,omitempty" protobuf:"bytes,2,rep,name=lastBypassedObjectState"`
 
 	// +optional
-	LastObservedObjectState LastObservedObjectState `json:"lastObservedObjectState,omitempty"`
+	LastObservedObjectState LastObservedObjectState `json:"lastObservedObjectState,omitempty" protobuf:"bytes,3,rep,name=lastObservedObjectState"`
 
 	// +optional
-	LastPushedObjectState LastPushedObjectState `json:"lastPushedObjectState,omitempty"`
+	LastPushedObjectState LastPushedObjectState `json:"lastPushedObjectState,omitempty" protobuf:"bytes,4,rep,name=lastPushedObjectState"`
 }
 
 //+kubebuilder:object:root=true
@@ -136,9 +143,15 @@ func init() {
 type TargetStrategy string
 
 const (
-	SameBranch     TargetStrategy = "SameBranch"
-	MultipleBranch TargetStrategy = "MultipleBranch"
-	Fork           TargetStrategy = "Fork"
+	OneTarget      TargetStrategy = "OneTarget"
+	MultipleTarget TargetStrategy = "MultipleTarget"
+)
+
+type TargetPattern string
+
+const (
+	OneUserOneBranch      TargetPattern = "OneUserOneBranch"
+	OneOrMultipleBranches TargetPattern = "OneOrMultipleBranches"
 )
 
 type Strategy string
@@ -237,13 +250,13 @@ type LastPushedObjectState struct {
 	LastPushedGitUser string `json:"lastPushedGitUser,omitempty"`
 
 	// +optional
-	LastPushedObjectGitRepo string `json:"lastPushedObjectGitRepo,omitempty"`
+	LastPushedObjectGitRepos []string `json:"lastPushedObjectGitRepo,omitempty"`
 
 	// +optional
 	LastPushedObjectGitPath string `json:"lastPushedObjectGitPath,omitempty"`
 
 	// +optional
-	LastPushedObjectGitCommitHash string `json:"lastPushedObjectCommitHash,omitempty"`
+	LastPushedObjectGitCommitHashes []string `json:"lastPushedObjectCommitHash,omitempty"`
 
 	// +optional
 	LastPushedObject JsonGVRN `json:"lastPushedObject,omitempty"`

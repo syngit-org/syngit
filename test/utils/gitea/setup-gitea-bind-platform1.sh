@@ -10,7 +10,7 @@ POD_NAME=$(kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=gitea -o jso
 TOKEN_RESPONSE=$(kubectl exec -i $POD_NAME -n $NAMESPACE -- gitea admin user generate-access-token \
   --username $ADMIN_USERNAME \
   --scopes "all" \
-  --token-name bindtoken 2>/dev/null)
+  --token-name bindtoken-$RANDOM 2>/dev/null)
 
 if [ "$TOKEN_RESPONSE" == "null" ]; then
   echo "Failed to generate token for $ADMIN_USERNAME user."

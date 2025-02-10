@@ -66,8 +66,7 @@ var _ = Describe("12 RemoteUserBinding managed by checker", func() {
 			Spec: syngit.RemoteUserBindingSpec{
 				RemoteUserRefs: []corev1.ObjectReference{
 					{
-						Name:      remoteUserLuffyName,
-						Namespace: namespace,
+						Name: remoteUserLuffyName,
 					},
 				},
 			},
@@ -87,8 +86,7 @@ var _ = Describe("12 RemoteUserBinding managed by checker", func() {
 			Spec: syngit.RemoteUserBindingSpec{
 				RemoteUserRefs: []corev1.ObjectReference{
 					{
-						Name:      remoteUserLuffyName,
-						Namespace: namespace,
+						Name: remoteUserLuffyName,
 					},
 				},
 			},

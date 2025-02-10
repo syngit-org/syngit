@@ -10,12 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-git/go-billy/v5/memfs"
 	git "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	"github.com/go-git/go-git/v5/storage/memory"
 	admissionv1 "k8s.io/api/admission/v1"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
@@ -23,61 +22,74 @@ import (
 )
 
 type GitPusher struct {
-	remoteSyncer          syngit.RemoteSyncer
-	interceptedYAML       string
-	interceptedGVR        schema.GroupVersionResource
-	interceptedName       string
-	branch                string
-	gitUser               string
-	gitEmail              string
-	gitToken              string
-	operation             admissionv1.Operation
-	insecureSkipTlsVerify bool
-	caBundle              []byte
+	remoteSyncer    syngit.RemoteSyncer
+	remoteTarget    syngit.RemoteTarget
+	interceptedYAML string
+	interceptedGVR  schema.GroupVersionResource
+	interceptedName string
+	gitUser         string
+	gitEmail        string
+	gitToken        string
+	operation       admissionv1.Operation
+	caBundle        []byte
 }
 
 type GitPushResponse struct {
 	path       string // The git path were the resource has been pushed
 	commitHash string // The commit hash of the commit
+	url        string // The url of the repository
 }
 
+var forcePush bool
+
 func (gp *GitPusher) Push() (GitPushResponse, error) {
-	gpResponse := &GitPushResponse{path: "", commitHash: ""}
-	gp.branch = gp.remoteSyncer.Spec.DefaultBranch
+	gpResponse := &GitPushResponse{path: "", commitHash: "", url: gp.remoteTarget.Spec.TargetRepository}
 
-	// Clone the repository into memory
-	var verboseOutput bytes.Buffer
-	cloneOption := &git.CloneOptions{
-		URL:           gp.remoteSyncer.Spec.RemoteRepository,
-		ReferenceName: plumbing.ReferenceName(gp.branch),
-		Auth: &http.BasicAuth{
-			Username: gp.gitUser,
-			Password: gp.gitToken,
-		},
-		SingleBranch:    true,
-		InsecureSkipTLS: gp.insecureSkipTlsVerify,
-		Progress:        io.MultiWriter(&verboseOutput),
-	}
-	if gp.caBundle != nil {
-		cloneOption.CABundle = gp.caBundle
-	}
-	repo, err := git.Clone(memory.NewStorage(), memfs.New(), cloneOption)
-	if err != nil {
-		variables := fmt.Sprintf("\nRepository: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
-			gp.remoteSyncer.Spec.RemoteRepository,
-			plumbing.ReferenceName(gp.branch),
-			gp.gitUser,
-			gp.gitEmail,
-		)
-		errMsg := fmt.Sprintf("failed to clone repository: %s\nVerbose output: %s\nVariables: %s\n", err.Error(), verboseOutput.String(), variables)
-		return *gpResponse, errors.New(errMsg)
-	}
+	var w *git.Worktree
+	var repo *git.Repository
 
-	// Get the working directory for the repository
-	w, err := repo.Worktree()
-	if err != nil {
-		errMsg := "failed to get worktree: " + err.Error()
-		return *gpResponse, errors.New(errMsg)
+	if gp.remoteTarget.Spec.MergeStrategy == "" {
+		// Same repo & branch between target and upstream
+		// PRE-STEP 1 : Get the repo
+		var getRepoErr error
+		repo, getRepoErr = GetTargetRepository(*gp)
+		if getRepoErr != nil {
+			return *gpResponse, getRepoErr
+		}
+		// PRE-STEP 2 : Get the worktree
+		var err error
+		w, err = repo.Worktree()
+		if err != nil {
+			errMsg := "failed to get worktree: " + err.Error()
+			return *gpResponse, errors.New(errMsg)
+		}
+
+		forcePush = false
+
+	} else {
+		// Different target and upstream
+		// PRE-STEP 1 : Get the repos
+		upstreamRepo, getRepoErr := GetUpstreamRepository(*gp)
+		if getRepoErr != nil {
+			return *gpResponse, getRepoErr
+		}
+		repo, getRepoErr = GetTargetRepository(*gp)
+		if getRepoErr != nil {
+			return *gpResponse, getRepoErr
+		}
+
+		// PRE-STEP 2 : Get the worktree
+		gc := GitConsistency{
+			upstreamRepository: upstreamRepo,
+			targetRepository:   repo,
+			strategy:           gp.remoteTarget.Spec.MergeStrategy,
+		}
+		var err error
+		w, forcePush, err = gc.GetWorkTree(*gp)
+		if err != nil {
+			errMsg := "failed to get worktree: " + err.Error()
+			return *gpResponse, errors.New(errMsg)
+		}
 	}
 
 	// STEP 1 : Set the path
@@ -245,7 +257,7 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string) (string, e
 		},
 	})
 	if err != nil {
-		errMsg := "failed to commit changes: " + err.Error()
+		errMsg := fmt.Sprintf("failed to commit changes (%s - %s): %s", gp.remoteTarget.Spec.TargetRepository, gp.remoteTarget.Spec.TargetBranch, err.Error())
 		return "", errors.New(errMsg)
 	}
 
@@ -253,20 +265,26 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string) (string, e
 }
 
 func (gp *GitPusher) pushChanges(repo *git.Repository) error {
+	targetBranch := gp.remoteTarget.Spec.TargetBranch
+
 	variables := fmt.Sprintf("\nRepository: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
 		gp.remoteSyncer.Spec.RemoteRepository,
-		plumbing.ReferenceName(gp.branch),
+		plumbing.ReferenceName(targetBranch),
 		gp.gitUser,
 		gp.gitEmail,
 	)
 	var verboseOutput bytes.Buffer
 	pushOptions := &git.PushOptions{
+		RefSpecs: []config.RefSpec{
+			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", targetBranch, targetBranch)),
+		},
 		Auth: &http.BasicAuth{
 			Username: gp.gitUser,
 			Password: gp.gitToken,
 		},
-		InsecureSkipTLS: gp.insecureSkipTlsVerify,
+		InsecureSkipTLS: gp.remoteSyncer.Spec.InsecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput), // Capture verbose output
+		Force:           forcePush,
 	}
 	if gp.caBundle != nil {
 		pushOptions.CABundle = gp.caBundle

@@ -32,10 +32,11 @@ import (
 var _ = Describe("06 Test objects lifecycle", func() {
 
 	const (
-		remoteUserLuffyName        = "remoteuser-luffy"
-		remoteUserLuffyJupyterName = "remoteuser-luffy"
+		remoteUserLuffyName        = "remoteuser-luffy-jupyter"
+		remoteUserLuffyJupyterName = "remoteuser-luffy-jupyter"
 		remoteUserLuffySaturnName  = "remoteuser-luffy-saturn"
 		remoteSyncerName           = "remotesyncer-test6"
+		branch                     = "main"
 	)
 
 	It("should properly manage the RemoteUserBinding associated webhooks", func() {
@@ -182,14 +183,17 @@ var _ = Describe("06 Test objects lifecycle", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

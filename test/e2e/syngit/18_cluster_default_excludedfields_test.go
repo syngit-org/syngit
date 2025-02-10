@@ -37,6 +37,7 @@ var _ = Describe("18 Cluster default excluded fields test", func() {
 		cmName1             = "test-cm18"
 		remoteUserLuffyName = "remoteuser-luffy"
 		remoteSyncerName    = "remotesyncer-test18"
+		branch              = "main"
 	)
 
 	It("should exclude the cluster default fields from the git repo", func() {
@@ -93,14 +94,17 @@ var _ = Describe("18 Cluster default excluded fields test", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
 				DefaultBlockAppliedMessage:  defaultDeniedMessage,
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				Strategy:                    syngit.CommitOnly,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

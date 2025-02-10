@@ -38,8 +38,18 @@ func (src *RemoteSyncer) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Spec.RootPath = src.Spec.RootPath
 	dst.Spec.ScopedResources = v1beta3.ScopedResources(src.Spec.ScopedResources)
 	dst.Spec.Strategy = v1beta3.Strategy(src.Spec.ProcessMode)
-	dst.Spec.TargetStrategy = v1beta3.TargetStrategy(src.Spec.PushMode)
 	dst.Spec.CABundleSecretRef = src.Spec.CABundleSecretRef
+
+	// Target transfer
+	if dst.Annotations == nil {
+		dst.Annotations = map[string]string{}
+	}
+	if string(src.Spec.PushMode) == string(SameBranch) {
+		dst.Spec.TargetStrategy = v1beta3.OneTarget
+		dst.Annotations[v1beta3.RtAnnotationOneOrManyBranchesKey] = src.Spec.DefaultBranch
+	} else {
+		dst.Spec.TargetStrategy = v1beta3.MultipleTarget
+	}
 
 	return nil
 }
@@ -61,8 +71,14 @@ func (dst *RemoteSyncer) ConvertFrom(srcRaw conversion.Hub) error {
 	dst.Spec.RootPath = src.Spec.RootPath
 	dst.Spec.ScopedResources = ScopedResources(src.Spec.ScopedResources)
 	dst.Spec.ProcessMode = ProcessMode(src.Spec.Strategy)
-	dst.Spec.PushMode = PushMode(src.Spec.TargetStrategy)
 	dst.Spec.CABundleSecretRef = src.Spec.CABundleSecretRef
+
+	// Target transfer
+	if src.Spec.TargetStrategy == v1beta3.OneTarget {
+		dst.Spec.PushMode = SameBranch
+	} else {
+		dst.Spec.PushMode = MultipleBranch
+	}
 
 	return nil
 }

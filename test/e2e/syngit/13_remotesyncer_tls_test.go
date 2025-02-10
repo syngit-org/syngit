@@ -48,6 +48,7 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 		remoteSyncerName5   = "remotesyncer-test13.5"
 		secretCa1           = "custom-cabundle1"
 		secretCa2           = "custom-cabundle2"
+		branch              = "main"
 	)
 
 	It("should interact with gitea using the user CA bundle", func() {
@@ -101,16 +102,19 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName2,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				CABundleSecretRef: corev1.SecretReference{
 					Name: secretCa1,
 				},
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -226,17 +230,20 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName3,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				CABundleSecretRef: corev1.SecretReference{
 					Name:      secretCa2,
 					Namespace: namespace,
 				},
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -353,13 +360,16 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName4,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
@@ -462,13 +472,16 @@ var _ = Describe("13 RemoteSyncer TLS insecure & custom CA bundle test", func() 
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName5,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
-				DefaultBranch:               "main",
+				DefaultBranch:               branch,
 				DefaultUnauthorizedUserMode: syngit.Block,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
-				TargetStrategy:              syngit.SameBranch,
+				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            repoUrl,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

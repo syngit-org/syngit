@@ -42,16 +42,16 @@ type RemoteUserStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 
 	// +optional
-	ConnexionStatus RemoteUserConnexionStatus `json:"connexionStatus,omitempty"`
+	ConnexionStatus RemoteUserConnexionStatus `json:"connexionStatus,omitempty" protobuf:"bytes,2,rep,name=connexionStatus"`
 
 	// +optional
-	GitUser string `json:"gitUser,omitempty"`
+	GitUser string `json:"gitUser,omitempty" protobuf:"bytes,3,rep,name=gitUser"`
 
 	// +optional
-	LastAuthTime metav1.Time `json:"lastAuthTime,omitempty"`
+	LastAuthTime metav1.Time `json:"lastAuthTime,omitempty" protobuf:"bytes,4,rep,name=lastAuthTime"`
 
 	// +optional
-	SecretBoundStatus SecretBoundStatus `json:"secretBoundStatus,omitempty"`
+	SecretBoundStatus SecretBoundStatus `json:"secretBoundStatus,omitempty" protobuf:"bytes,5,rep,name=secretBoundStatus"`
 }
 
 //+kubebuilder:object:root=true

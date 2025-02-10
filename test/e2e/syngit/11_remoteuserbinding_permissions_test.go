@@ -65,8 +65,7 @@ var _ = Describe("11 RemoteUserBinding permissions checker", func() {
 			Spec: syngit.RemoteUserBindingSpec{
 				RemoteUserRefs: []corev1.ObjectReference{
 					{
-						Name:      "not-allowed-remoteuser-name",
-						Namespace: namespace,
+						Name: "not-allowed-remoteuser-name",
 					},
 				},
 			},
@@ -109,8 +108,7 @@ var _ = Describe("11 RemoteUserBinding permissions checker", func() {
 			Spec: syngit.RemoteUserBindingSpec{
 				RemoteUserRefs: []corev1.ObjectReference{
 					{
-						Name:      remoteUserBrookName,
-						Namespace: namespace,
+						Name: remoteUserBrookName,
 					},
 				},
 			},

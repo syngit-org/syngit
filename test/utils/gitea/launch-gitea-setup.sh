@@ -20,18 +20,13 @@ $PREFIXED_PATH/gitea-gen-cert.sh $NODE_IP
 export NAMESPACE="$PLATFORM1"
 export VALUES_FILE="$PREFIXED_PATH/helm-values-$PLATFORM1.yaml"
 $PREFIXED_PATH/setup-gitea-install.sh
-$PREFIXED_PATH/setup-gitea-repos.sh
 
 export NAMESPACE="$PLATFORM2"
 export VALUES_FILE="$PREFIXED_PATH/helm-values-$PLATFORM2.yaml"
 $PREFIXED_PATH/setup-gitea-install.sh
-$PREFIXED_PATH/setup-gitea-repos.sh
 
 # Setup users
 $PREFIXED_PATH/setup-gitea-users.sh
 
-# Bind gitea user
-export NAMESPACE="$PLATFORM1"
-$PREFIXED_PATH/setup-gitea-bind-platform1.sh
-export NAMESPACE="$PLATFORM2"
-$PREFIXED_PATH/setup-gitea-bind-platform2.sh
+# Setup repos & repos bindings
+$PREFIXED_PATH/reset-gitea-repos.sh

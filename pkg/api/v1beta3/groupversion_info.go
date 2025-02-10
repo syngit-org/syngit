@@ -34,3 +34,9 @@ var (
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
 )
+
+const (
+	ManagedByLabelKey   = "managed-by"
+	ManagedByLabelValue = "syngit.io"
+	K8sUserLabelKey     = "syngit.io/k8s-user"
+)
