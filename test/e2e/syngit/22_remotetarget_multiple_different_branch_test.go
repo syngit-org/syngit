@@ -18,11 +18,13 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	"github.com/syngit-org/syngit/pkg/utils"
 	. "github.com/syngit-org/syngit/test/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -47,7 +49,7 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 
 	It("should push the ConfigMap to all the branches and the Luffy's branch", func() {
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		targetBranch := string(Luffy)
 
 		By("creating the RemoteUser for Luffy")
@@ -133,8 +135,8 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 		Wait3()
 		repo := &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: targetBranch,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
@@ -143,8 +145,8 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 		for _, branch := range branches {
 			repo := &Repo{
 				Fqdn:   gitP1Fqdn,
-				Owner:  "syngituser",
-				Name:   "blue",
+				Owner:  giteaBaseNs,
+				Name:   repo1,
 				Branch: branch,
 			}
 			exists, err := IsObjectInRepo(*repo, cm)
@@ -168,7 +170,7 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 
 	It("should deny the request because of the wrong strategy", func() {
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		targetBranch := string(Luffy)
 
 		By("creating the RemoteUser for Luffy")
@@ -247,15 +249,15 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			return err != nil && strings.Contains(err.Error(), oneTargetForMultipleMessage)
+			return err != nil && utils.ErrorTypeChecker(&utils.MultipleTargetError{}, err.Error())
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that the configmap is not present on the branches")
 		Wait3()
 		repo := &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: targetBranch,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
@@ -264,8 +266,8 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 		for _, branch := range branches {
 			repo := &Repo{
 				Fqdn:   gitP1Fqdn,
-				Owner:  "syngituser",
-				Name:   "blue",
+				Owner:  giteaBaseNs,
+				Name:   repo1,
 				Branch: branch,
 			}
 			exists, err := IsObjectInRepo(*repo, cm)

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	"github.com/syngit-org/syngit/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -93,7 +94,8 @@ func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *ErrorPatter
 		}
 
 		if isAlreadyDefined && name != existingRemoteUserBindingName {
-			return &ErrorPattern{Message: fmt.Sprintf("the RemoteUser is already bound in the RemoteUserBinding %s", existingRemoteUserBindingName), Reason: Denied}
+			denied := utils.RemoteUserAlreadyBoundError{ExistingRemoteUserBindingName: existingRemoteUserBindingName}
+			return &ErrorPattern{Message: denied.Error(), Reason: Denied}
 		}
 
 		// CREATE the RemoteUserBinding
@@ -138,7 +140,8 @@ func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *ErrorPatter
 		name = rub.Name
 
 		if isAlreadyDefined && name != existingRemoteUserBindingName {
-			return &ErrorPattern{Message: fmt.Sprintf("the RemoteUser is already bound in the RemoteUserBinding %s", existingRemoteUserBindingName), Reason: Denied}
+			denied := utils.RemoteUserAlreadyBoundError{ExistingRemoteUserBindingName: existingRemoteUserBindingName}
+			return &ErrorPattern{Message: denied.Error(), Reason: Denied}
 		}
 
 		remoteUserBinding := &syngit.RemoteUserBinding{}

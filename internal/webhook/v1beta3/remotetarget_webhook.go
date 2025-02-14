@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	utils "github.com/syngit-org/syngit/pkg/utils"
 )
 
 // nolint:unused
@@ -56,11 +57,25 @@ func validateRemoteTargetSpec(r *syngitv1beta3.RemoteTargetSpec) field.ErrorList
 
 	// Validate MergeStrategy
 	if r.UpstreamBranch == r.TargetBranch && r.UpstreamRepository == r.TargetRepository && r.MergeStrategy != "" {
-		errors = append(errors, field.Invalid(field.NewPath("spec").Child("mergeStrategy"), r.MergeStrategy, "should not be set when the target repo & target branch are the same as the upstream repo & branch"))
+		denied := utils.SameUpstreamDifferentMergeStrategyError{
+			UpstreamRepository: r.UpstreamRepository,
+			UpstreamBranch:     r.UpstreamBranch,
+			TargetRepository:   r.TargetRepository,
+			TargetBranch:       r.TargetBranch,
+			MergeStrategy:      string(r.MergeStrategy),
+		}
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("mergeStrategy"), r.MergeStrategy, denied.Error()))
 	}
 
 	if (r.UpstreamBranch != r.TargetBranch || r.UpstreamRepository != r.TargetRepository) && r.MergeStrategy == "" {
-		errors = append(errors, field.Invalid(field.NewPath("spec").Child("mergeStrategy"), r.MergeStrategy, "should be set when the target repo & target branch are different from the upstream repo & branch"))
+		denied := utils.DifferentUpstreamEmptyMergeStrategyError{
+			UpstreamRepository: r.UpstreamRepository,
+			UpstreamBranch:     r.UpstreamBranch,
+			TargetRepository:   r.TargetRepository,
+			TargetBranch:       r.TargetBranch,
+			MergeStrategy:      string(r.MergeStrategy),
+		}
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("mergeStrategy"), r.MergeStrategy, denied.Error()))
 	}
 
 	return errors

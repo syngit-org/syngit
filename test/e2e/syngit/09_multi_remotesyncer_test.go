@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -67,9 +68,9 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		blueUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
-		By("creating the RemoteSyncer for the blue repo")
-		blueRemotesyncer := &syngit.RemoteSyncer{
+		repo1Url := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
+		By("creating the RemoteSyncer for the repo1")
+		repo1Remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer1Name,
 				Namespace: namespace,
@@ -84,7 +85,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
 				TargetStrategy:              syngit.OneTarget,
-				RemoteRepository:            blueUrl,
+				RemoteRepository:            repo1Url,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
@@ -100,12 +101,12 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				},
 			},
 		}
-		err := sClient.As(Luffy).CreateOrUpdate(blueRemotesyncer)
+		err := sClient.As(Luffy).CreateOrUpdate(repo1Remotesyncer)
 		Expect(err).ToNot(HaveOccurred())
 
-		greenUrl := "https://" + gitP1Fqdn + "/syngituser/green.git"
-		By("creating the RemoteSyncer for the green repo")
-		greenRemotesyncer := &syngit.RemoteSyncer{
+		repo2Url := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo2)
+		By("creating the RemoteSyncer for the repo2")
+		repo2Remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer2Name,
 				Namespace: namespace,
@@ -120,7 +121,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
 				TargetStrategy:              syngit.OneTarget,
-				RemoteRepository:            greenUrl,
+				RemoteRepository:            repo2Url,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
@@ -136,7 +137,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				},
 			},
 		}
-		err = sClient.As(Luffy).CreateOrUpdate(greenRemotesyncer)
+		err = sClient.As(Luffy).CreateOrUpdate(repo2Remotesyncer)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("creating a test configmap")
@@ -157,24 +158,24 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("checking that the configmap is present in the blue repo")
+		By("checking that the configmap is present in the repo1")
 		Wait3()
-		blueRepo := &Repo{
+		repo1Repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+			Owner: giteaBaseNs,
+			Name:  repo1,
 		}
-		exists, err := IsObjectInRepo(*blueRepo, cm)
+		exists, err := IsObjectInRepo(*repo1Repo, cm)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(exists).To(BeTrue())
 
-		By("checking that the configmap is present in the green repo")
-		greenRepo := &Repo{
+		By("checking that the configmap is present in the repo2")
+		repo2Repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "green",
+			Owner: giteaBaseNs,
+			Name:  repo2,
 		}
-		exists, err = IsObjectInRepo(*greenRepo, cm)
+		exists, err = IsObjectInRepo(*repo2Repo, cm)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(exists).To(BeTrue())
 
@@ -217,9 +218,9 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		blueUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
-		By("creating the RemoteSyncer for the blue repo")
-		blueRemotesyncer := &syngit.RemoteSyncer{
+		repo1Url := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
+		By("creating the RemoteSyncer for the repo1")
+		repo1Remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer1Name,
 				Namespace: namespace,
@@ -234,7 +235,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
 				TargetStrategy:              syngit.OneTarget,
-				RemoteRepository:            blueUrl,
+				RemoteRepository:            repo1Url,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
@@ -250,11 +251,11 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				},
 			},
 		}
-		err := sClient.As(Luffy).CreateOrUpdate(blueRemotesyncer)
+		err := sClient.As(Luffy).CreateOrUpdate(repo1Remotesyncer)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("creating the RemoteSyncer for the blue repo twice")
-		blueRemotesyncer2 := &syngit.RemoteSyncer{
+		By("creating the RemoteSyncer for the repo1 twice")
+		repo1Remotesyncer2 := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncer2Name,
 				Namespace: namespace,
@@ -269,7 +270,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
 				TargetStrategy:              syngit.OneTarget,
-				RemoteRepository:            blueUrl,
+				RemoteRepository:            repo1Url,
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
@@ -285,7 +286,7 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				},
 			},
 		}
-		err = sClient.As(Luffy).CreateOrUpdate(blueRemotesyncer2)
+		err = sClient.As(Luffy).CreateOrUpdate(repo1Remotesyncer2)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("creating a test configmap")
@@ -306,14 +307,14 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 			return err != nil && strings.Contains(err.Error(), "cannot lock ref")
 		}, timeout, interval).Should(BeTrue())
 
-		By("checking that the configmap is not present in the blue repo")
+		By("checking that the configmap is not present in the repo1")
 		Wait3()
-		blueRepo := &Repo{
+		repo1Repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+			Owner: giteaBaseNs,
+			Name:  repo1,
 		}
-		exists, err := IsObjectInRepo(*blueRepo, cm)
+		exists, err := IsObjectInRepo(*repo1Repo, cm)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(exists).To(BeTrue())
 

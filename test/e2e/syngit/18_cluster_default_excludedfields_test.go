@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -82,13 +83,13 @@ var _ = Describe("18 Cluster default excluded fields test", func() {
 				"excludedFields": "[\"metadata.uid\", \"metadata.managedFields\", \"metadata.annotations[test-annotation1]\", \"metadata.annotations.[test-annotation2]\"]",
 			},
 		}
-		_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(operatorNamespace).Create(ctx,
+		_, err := sClient.KAs(Admin).CoreV1().ConfigMaps(operatorNamespace).Create(ctx,
 			excludedFieldsConfiMap,
 			metav1.CreateOptions{},
 		)
 		Expect(err).ToNot(HaveOccurred())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -155,8 +156,8 @@ var _ = Describe("18 Cluster default excluded fields test", func() {
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+			Owner: giteaBaseNs,
+			Name:  repo1,
 		}
 		uidExists, err := IsFieldDefined(*repo, cm, "metadata.uid")
 		Expect(err).ToNot(HaveOccurred())
@@ -182,7 +183,7 @@ var _ = Describe("18 Cluster default excluded fields test", func() {
 		Expect(annotation3).To(Equal("test"))
 
 		By("deleting the default cluster wide excluded fields configmap")
-		err = sClient.KAs(Luffy).CoreV1().ConfigMaps(operatorNamespace).Delete(ctx,
+		err = sClient.KAs(Admin).CoreV1().ConfigMaps(operatorNamespace).Delete(ctx,
 			excludedFieldsConfiMapName,
 			metav1.DeleteOptions{},
 		)

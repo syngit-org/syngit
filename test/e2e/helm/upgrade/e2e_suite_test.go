@@ -25,6 +25,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/syngit-org/syngit/test/utils"
+
+	syngitutils "github.com/syngit-org/syngit/pkg/utils"
 )
 
 const (
@@ -88,7 +90,7 @@ var _ = BeforeSuite(func() {
 		fmt.Sprintf("%s/sample_configmap.yaml", samplePath))
 	_, err = utils.Run(cmd)
 	ExpectWithOffset(2, err).To(HaveOccurred())
-	Expect(err.Error()).To(ContainSubstring("no RemoteUserBinding found for the user"))
+	Expect(syngitutils.ErrorTypeChecker(&syngitutils.RemoteUserBindingNotFoundError{}, err.Error())).To(BeTrue())
 
 	By("deleting the RemoteSyncer")
 	Wait60()

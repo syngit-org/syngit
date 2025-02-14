@@ -92,11 +92,6 @@ func GetLatestCommit(repoUrl string, repoOwner string, repoName string) (*Commit
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if err != nil {
 		return nil, fmt.Errorf("failed to get latest commit: %v", err)
 	}
 	defer resp.Body.Close()

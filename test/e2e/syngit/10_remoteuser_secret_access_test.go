@@ -17,11 +17,10 @@ limitations under the License.
 package e2e_syngit
 
 import (
-	"strings"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	"github.com/syngit-org/syngit/pkg/utils"
 	. "github.com/syngit-org/syngit/test/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,7 +51,7 @@ var _ = Describe("10 RemoteUser secret permissions checker", func() {
 		}
 		Eventually(func() bool {
 			err := sClient.As(Brook).CreateOrUpdate(remoteUserBrook)
-			return err != nil && strings.Contains(err.Error(), ruPermissionsDeniedMessage)
+			return err != nil && utils.ErrorTypeChecker(&utils.DenyGetSecretError{}, err.Error())
 		}, timeout, interval).Should(BeTrue())
 
 	})

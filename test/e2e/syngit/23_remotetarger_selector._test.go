@@ -18,11 +18,13 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	"github.com/syngit-org/syngit/pkg/utils"
 	. "github.com/syngit-org/syngit/test/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -78,7 +80,7 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		By("creating a RemoteTarget")
 		const (
 			myLabelKey   = "my-label-key"
@@ -183,15 +185,15 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			return err != nil && strings.Contains(err.Error(), rtNotFound)
+			return err != nil && utils.ErrorTypeChecker(&utils.RemoteTargetNotFoundError{}, err.Error())
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that the configmap is not present on the repo")
 		Wait3()
 		repo := &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: branch,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
@@ -232,7 +234,7 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		By("creating a RemoteTarget")
 		const (
 			myLabelKey   = "my-label-key"
@@ -344,8 +346,8 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+			Owner: giteaBaseNs,
+			Name:  repo1,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).ToNot(HaveOccurred())
@@ -390,7 +392,7 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		By("creating a RemoteTarget")
 		const (
 			myLabelKey   = "my-label-key"
@@ -499,8 +501,8 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+			Owner: giteaBaseNs,
+			Name:  repo1,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).ToNot(HaveOccurred())
@@ -545,7 +547,7 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		By("creating the first RemoteTarget")
 		const (
 			myLabelKey   = "my-label-key"
@@ -686,8 +688,8 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 		Wait3()
 		repo := &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: branch1,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
@@ -695,8 +697,8 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 		Expect(exists).To(BeTrue())
 		repo = &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: branch2,
 		}
 		exists, err = IsObjectInRepo(*repo, cm)
@@ -741,7 +743,7 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		By("creating a RemoteTarget")
 		const (
 			myLabelKey   = "my-label-key"
@@ -818,15 +820,15 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			return err != nil && strings.Contains(err.Error(), rtNotFound)
+			return err != nil && utils.ErrorTypeChecker(&utils.RemoteTargetNotFoundError{}, err.Error())
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that the configmap is not present on the repo")
 		Wait3()
 		repo := &Repo{
 			Fqdn:   gitP1Fqdn,
-			Owner:  "syngituser",
-			Name:   "blue",
+			Owner:  giteaBaseNs,
+			Name:   repo1,
 			Branch: branch,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)

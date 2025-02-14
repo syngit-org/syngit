@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	"github.com/syngit-org/syngit/pkg/utils"
 	. "github.com/syngit-org/syngit/test/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -68,7 +69,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		By("creating the RemoteSyncer for ConfigMaps")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -103,7 +104,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 		}
 		err := sClient.As(Brook).CreateOrUpdate(remotesyncer)
 		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring(rsPermissionsDeniedMessage))
+		Expect(utils.ErrorTypeChecker(&utils.ResourceScopeForbiddenError{}, err.Error())).To(BeTrue())
 
 		By("creating a test configmap")
 		Wait3()
@@ -127,8 +128,8 @@ var _ = Describe("08 Webhook rbac checker", func() {
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+			Owner: giteaBaseNs,
+			Name:  repo1,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).To(HaveOccurred())
@@ -174,7 +175,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		By("creating a wrong RemoteSyncer for Secrets")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -210,7 +211,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 		}
 		err := sClient.As(Brook).CreateOrUpdate(remotesyncer)
 		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring(rsPermissionsDeniedMessage))
+		Expect(utils.ErrorTypeChecker(&utils.ResourceScopeForbiddenError{}, err.Error())).To(BeTrue())
 		Expect(err.Error()).To(ContainSubstring("DELETE"))
 
 		By("creating a good RemoteSyncer for Secrets")
@@ -265,7 +266,6 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				secret,
 				metav1.CreateOptions{},
 			)
-			fmt.Println(err)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
@@ -273,8 +273,8 @@ var _ = Describe("08 Webhook rbac checker", func() {
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+			Owner: giteaBaseNs,
+			Name:  repo1,
 		}
 		exists, err := IsObjectInRepo(*repo, secret)
 		Expect(err).ToNot(HaveOccurred())

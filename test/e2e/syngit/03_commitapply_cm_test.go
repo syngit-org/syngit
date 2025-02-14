@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -64,7 +65,7 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -125,8 +126,8 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+			Owner: giteaBaseNs,
+			Name:  repo1,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).ToNot(HaveOccurred())

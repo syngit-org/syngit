@@ -59,7 +59,8 @@ func (rubwh *RemoteUserBindingPermissionsWebhookHandler) Handle(ctx context.Cont
 		}
 
 		if !sar.Status.Allowed {
-			return admission.Denied(fmt.Sprintf("The user %s is not allowed to get the referenced remoteuser: %s", user, ru.Name))
+			denied := utils.DenyGetRemoteUserError{User: user, RemoteUserRef: ru}
+			return admission.Denied(denied.Error())
 		}
 
 	}

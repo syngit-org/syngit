@@ -37,7 +37,8 @@ func (rswh *RemoteSyncerWebhookHandler) Handle(ctx context.Context, req admissio
 		if authorized {
 			return admission.Allowed(fmt.Sprintf("The user %s is allowed to scope all of the listed resources", user))
 		} else {
-			return admission.Denied(fmt.Sprintf("The user %s is not allowed to scope: \n- %s", user, strings.Join(forbiddenResources, "\n- ")))
+			denied := utils.ResourceScopeForbiddenError{User: user, ForbiddenResources: forbiddenResources}
+			return admission.Denied(denied.Error())
 		}
 	}
 }

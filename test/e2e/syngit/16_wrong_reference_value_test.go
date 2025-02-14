@@ -18,11 +18,13 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	"github.com/syngit-org/syngit/pkg/utils"
 	. "github.com/syngit-org/syngit/test/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -98,7 +100,7 @@ var _ = Describe("16 Wrong reference or value test", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -151,15 +153,15 @@ var _ = Describe("16 Wrong reference or value test", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			return err != nil && strings.Contains(err.Error(), rubNotFound)
+			return err != nil && utils.ErrorTypeChecker(&utils.RemoteUserBindingNotFoundError{}, err.Error())
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that the configmap is not present on the repo")
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+			Owner: giteaBaseNs,
+			Name:  repo1,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).To(HaveOccurred())
@@ -226,7 +228,7 @@ var _ = Describe("16 Wrong reference or value test", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			return err != nil && strings.Contains(err.Error(), defaultUserNotFound)
+			return err != nil && utils.ErrorTypeChecker(&utils.DefaultRemoteUserNotFoundError{}, err.Error())
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that the configmap is not present on the repo")
@@ -312,7 +314,7 @@ var _ = Describe("16 Wrong reference or value test", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			return err != nil && strings.Contains(err.Error(), defaultTargetNotFound)
+			return err != nil && utils.ErrorTypeChecker(&utils.DefaultRemoteTargetNotFoundError{}, err.Error())
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that the configmap is not present on the repo")

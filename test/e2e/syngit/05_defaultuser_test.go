@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -84,7 +85,7 @@ var _ = Describe("05 Use a default user", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/green.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo2)
 		By("creating the default RemoteTarget")
 		remoteTarget := &syngit.RemoteTarget{
 			ObjectMeta: metav1.ObjectMeta{
@@ -146,7 +147,7 @@ var _ = Describe("05 Use a default user", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("creating a test configmap that fails (Chopper does not have access to green)")
+		By("creating a test configmap that fails (Chopper does not have access to repo2)")
 		Wait3()
 		cm := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
@@ -185,8 +186,8 @@ var _ = Describe("05 Use a default user", func() {
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "green",
+			Owner: giteaBaseNs,
+			Name:  repo2,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).ToNot(HaveOccurred())

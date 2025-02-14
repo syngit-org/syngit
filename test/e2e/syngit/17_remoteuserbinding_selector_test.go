@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	"github.com/syngit-org/syngit/pkg/utils"
 	. "github.com/syngit-org/syngit/test/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -48,7 +49,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 		branch                     = "main"
 	)
 
-	remoteTargetName := fmt.Sprintf("%s-syngituser-blue-%s-syngituser-blue-%s", syngit.RtPrefix, branch, branch)
+	remoteTargetName := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s", syngit.RtPrefix, giteaBaseNs, repo1, branch, giteaBaseNs, repo1, branch)
 
 	It("should not push because RemoteUserBinding not targeted", func() {
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
@@ -105,7 +106,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -162,15 +163,15 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			return err != nil && strings.Contains(err.Error(), rubNotFound)
+			return err != nil && utils.ErrorTypeChecker(&utils.RemoteUserBindingNotFoundError{}, err.Error())
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that the configmap is not present on the repo")
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+			Owner: giteaBaseNs,
+			Name:  repo1,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).To(HaveOccurred())
@@ -244,7 +245,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -308,8 +309,8 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+			Owner: giteaBaseNs,
+			Name:  repo1,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).ToNot(HaveOccurred())
@@ -388,7 +389,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		repoUrl := "https://" + gitP1Fqdn + "/syngituser/blue.git"
+		repoUrl := fmt.Sprintf("https://%s/%s/%s.git", gitP1Fqdn, giteaBaseNs, repo1)
 		By("creating the RemoteSyncer")
 		remotesyncer := &syngit.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
@@ -449,8 +450,8 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 		Wait3()
 		repo := &Repo{
 			Fqdn:  gitP1Fqdn,
-			Owner: "syngituser",
-			Name:  "blue",
+			Owner: giteaBaseNs,
+			Name:  repo1,
 		}
 		exists, err := IsObjectInRepo(*repo, cm)
 		Expect(err).ToNot(HaveOccurred())
