@@ -46,7 +46,7 @@ func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Annotations = map[string]string{}
 	}
 	associatedRemoteUserBinding := strconv.FormatBool(src.Spec.AssociatedRemoteUserBinding)
-	dst.Annotations[v1beta3.RubAnnotation] = associatedRemoteUserBinding
+	dst.Annotations[v1beta3.RubAnnotationKeyManaged] = associatedRemoteUserBinding
 
 	return nil
 }
@@ -70,7 +70,7 @@ func (dst *RemoteUser) ConvertFrom(srcRaw conversion.Hub) error {
 	dst.Status.SecretBoundStatus = SecretBoundStatus(src.Status.SecretBoundStatus)
 
 	// Renaming
-	associatedRemoteUserBinding, err := strconv.ParseBool(src.Annotations[v1beta3.RubAnnotation])
+	associatedRemoteUserBinding, err := strconv.ParseBool(src.Annotations[v1beta3.RubAnnotationKeyManaged])
 	if err != nil {
 		dst.Spec.AssociatedRemoteUserBinding = false
 	} else {

@@ -128,7 +128,7 @@ func (usp *UserSpecificPattern) Diff(ctx context.Context) *ErrorPattern {
 	}
 
 	// If some are bound and there is no user specific annotation anymore
-	userSpecificAnnotation := usp.RemoteSyncer.Annotations[syngit.RtAnnotationUserSpecificKey]
+	userSpecificAnnotation := usp.RemoteSyncer.Annotations[syngit.RtAnnotationKeyUserSpecific]
 	if userSpecificAnnotation == "" {
 		if len(boundRemoteTargets) > 0 {
 			usp.remoteTargetsToBeRemoved = boundRemoteTargets
@@ -138,7 +138,7 @@ func (usp *UserSpecificPattern) Diff(ctx context.Context) *ErrorPattern {
 
 	alreadyExists := false
 	for _, rt := range boundRemoteTargets {
-		if userSpecificAnnotation == string(syngit.RtAnnotationOneUserOneBranchValue) {
+		if userSpecificAnnotation == string(syngit.RtAnnotationValueOneUserOneBranch) {
 			// If the upstream repo & branch are the same (already filtered), the target repo is the same as the upstream and the branch is the username.
 			// An user specific target could be different branch on the same repo (target-branch != upstream-branch)
 			if rt.Spec.UpstreamBranch == usp.RemoteSyncer.Spec.DefaultBranch && rt.Spec.TargetRepository == usp.RemoteSyncer.Spec.RemoteRepository && rt.Spec.TargetBranch == usp.Username {
@@ -148,7 +148,7 @@ func (usp *UserSpecificPattern) Diff(ctx context.Context) *ErrorPattern {
 			}
 		}
 
-		if userSpecificAnnotation == string(syngit.RtAnnotationOneUserOneForkValue) {
+		if userSpecificAnnotation == string(syngit.RtAnnotationValueOneUserOneFork) {
 			// If the upstream repo & branch are the same (already filtered), then it is considered as found.
 			// To allow permissive extension for external providers, we consider that the scope is the most open as possible.
 			// An user specific target could be a fork (target-repo != upstream-repo)
@@ -166,7 +166,7 @@ func (usp *UserSpecificPattern) Diff(ctx context.Context) *ErrorPattern {
 
 	// If the remoteTarget does not exists yet AND has to be created
 	targetRepo := usp.RemoteSyncer.Spec.RemoteRepository
-	if userSpecificAnnotation == string(syngit.RtAnnotationOneUserOneForkValue) {
+	if userSpecificAnnotation == string(syngit.RtAnnotationValueOneUserOneFork) {
 		// Set it to empty because we do not know in advance the name of the fork
 		// It will later be fill by the provider
 		targetRepo = ""
@@ -221,9 +221,6 @@ func (usp *UserSpecificPattern) buildRemoteTarget(targetRepo string) (*syngit.Re
 				syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
 				syngit.K8sUserLabelKey:   usp.Username,
 			},
-			Annotations: map[string]string{
-				syngit.RtAllowInjection: "true",
-			},
 		},
 		Spec: syngit.RemoteTargetSpec{
 			UpstreamRepository: usp.RemoteSyncer.Spec.RemoteRepository,
@@ -232,6 +229,13 @@ func (usp *UserSpecificPattern) buildRemoteTarget(targetRepo string) (*syngit.Re
 			TargetBranch:       usp.Username,
 			MergeStrategy:      syngit.TryFastForwardOrHardReset,
 		},
+	}
+
+	if targetRepo == "" {
+		// Must be filled by the external provider
+		remoteTarget.Annotations = map[string]string{
+			syngit.RtLabelKeyAllowInjection: "true",
+		}
 	}
 
 	return remoteTarget, nil

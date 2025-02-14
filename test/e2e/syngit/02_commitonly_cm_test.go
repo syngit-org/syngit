@@ -49,7 +49,7 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
+					syngit.RubAnnotationKeyManaged: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -72,7 +72,7 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 				Name:      remoteSyncerName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+					syngit.RtAnnotationKeyOneOrManyBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

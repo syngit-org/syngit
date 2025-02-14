@@ -57,7 +57,7 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 				Name:      "remoteuser-luffy",
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
+					syngit.RubAnnotationKeyManaged: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -81,8 +81,8 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 				Name:      remoteSyncerName1,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationOneOrManyBranchesKey: branches,
-					syngit.RtAnnotationUserSpecificKey:      string(syngit.RtAnnotationOneUserOneBranchValue),
+					syngit.RtAnnotationKeyOneOrManyBranches: branches,
+					syngit.RtAnnotationKeyUserSpecific:      string(syngit.RtAnnotationValueOneUserOneBranch),
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -163,7 +163,7 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 		Expect(exists).To(BeTrue())
 
 		By("updating the RemoteSyncer to have only user specific pattern")
-		remotesyncer.Annotations[syngit.RtAnnotationOneOrManyBranchesKey] = ""
+		remotesyncer.Annotations[syngit.RtAnnotationKeyOneOrManyBranches] = ""
 		Eventually(func() bool {
 			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
 			return err == nil
@@ -220,7 +220,7 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 		Expect(exists).To(BeTrue())
 
 		By("updating the RemoteSyncer to not have any pattern")
-		remotesyncer.Annotations[syngit.RtAnnotationUserSpecificKey] = ""
+		remotesyncer.Annotations[syngit.RtAnnotationKeyUserSpecific] = ""
 		Eventually(func() bool {
 			err := sClient.As(Luffy).CreateOrUpdate(remotesyncer)
 			return err == nil
@@ -287,7 +287,7 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 				Name:      "remoteuser-luffy",
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
+					syngit.RubAnnotationKeyManaged: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -310,7 +310,7 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 				Name:      remoteSyncerName2,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationUserSpecificKey: string(syngit.RtAnnotationOneUserOneBranchValue),
+					syngit.RtAnnotationKeyUserSpecific: string(syngit.RtAnnotationValueOneUserOneBranch),
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -371,7 +371,7 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 		Expect(exists).To(BeTrue())
 
 		By("updating the RemoteUser to remove the association pattern")
-		remoteUserLuffy.Annotations[syngit.RubAnnotation] = "false"
+		remoteUserLuffy.Annotations[syngit.RubAnnotationKeyManaged] = "false"
 		Eventually(func() bool {
 			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffy)
 			return err == nil

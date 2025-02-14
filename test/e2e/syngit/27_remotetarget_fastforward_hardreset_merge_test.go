@@ -79,7 +79,7 @@ var _ = Describe("27 Test fast-forward or hard-reset merge", func() {
 				Namespace: namespace,
 				Labels: map[string]string{
 					syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-					syngit.RtLabelBranchKey:  customBranch,
+					syngit.RtLabelKeyBranch:  customBranch,
 				},
 			},
 			Spec: syngit.RemoteTargetSpec{
@@ -139,7 +139,7 @@ var _ = Describe("27 Test fast-forward or hard-reset merge", func() {
 				RemoteTargetSelector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-						syngit.RtLabelBranchKey:  customBranch,
+						syngit.RtLabelKeyBranch:  customBranch,
 					},
 				},
 				ScopedResources: syngit.ScopedResources{
@@ -216,7 +216,7 @@ var _ = Describe("27 Test fast-forward or hard-reset merge", func() {
 				Namespace: namespace,
 				Labels: map[string]string{
 					syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-					syngit.RtLabelBranchKey:  upstreamBranch,
+					syngit.RtLabelKeyBranch:  upstreamBranch,
 				},
 			},
 			Spec: syngit.RemoteTargetSpec{
@@ -278,7 +278,7 @@ var _ = Describe("27 Test fast-forward or hard-reset merge", func() {
 				RemoteTargetSelector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-						syngit.RtLabelBranchKey:  upstreamBranch,
+						syngit.RtLabelKeyBranch:  upstreamBranch,
 					},
 				},
 				ScopedResources: syngit.ScopedResources{

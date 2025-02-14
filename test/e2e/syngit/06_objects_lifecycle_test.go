@@ -48,7 +48,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 				Name:      remoteUserLuffyJupyterName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
+					syngit.RubAnnotationKeyManaged: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -70,7 +70,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 				Name:      remoteUserLuffySaturnName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
+					syngit.RubAnnotationKeyManaged: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -92,8 +92,8 @@ var _ = Describe("06 Test objects lifecycle", func() {
 				Name:      remoteUserLuffySaturnName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
-					"change":             "something",
+					syngit.RubAnnotationKeyManaged: "true",
+					"change":                       "something",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -112,7 +112,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 		By("checking that the RemoteUserBinding refers to 2 RemoteUsers")
 		Wait3()
 		nnRub := types.NamespacedName{
-			Name:      fmt.Sprintf("%s%s", syngit.RubPrefix, string(Luffy)),
+			Name:      fmt.Sprintf("%s-%s", syngit.RubNamePrefix, string(Luffy)),
 			Namespace: namespace,
 		}
 		getRub := &syngit.RemoteUserBinding{}
@@ -161,7 +161,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
+					syngit.RubAnnotationKeyManaged: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -184,7 +184,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 				Name:      remoteSyncerName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+					syngit.RtAnnotationKeyOneOrManyBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

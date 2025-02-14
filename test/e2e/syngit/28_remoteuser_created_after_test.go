@@ -54,8 +54,8 @@ var _ = Describe("28 RemoteUser created after RemoteSyncer & RemoteTargets", fun
 				Name:      remoteSyncerName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationOneOrManyBranchesKey: branches,
-					syngit.RtAnnotationUserSpecificKey:      string(syngit.RtAnnotationOneUserOneBranchValue),
+					syngit.RtAnnotationKeyOneOrManyBranches: branches,
+					syngit.RtAnnotationKeyUserSpecific:      string(syngit.RtAnnotationValueOneUserOneBranch),
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -92,7 +92,7 @@ var _ = Describe("28 RemoteUser created after RemoteSyncer & RemoteTargets", fun
 				Name:      "remoteuser-luffy",
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
+					syngit.RubAnnotationKeyManaged: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{

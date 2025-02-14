@@ -42,7 +42,7 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 			return admission.Errored(http.StatusBadRequest, err)
 		}
 
-		if remoteUser.Annotations[syngit.RubAnnotation] == "true" {
+		if remoteUser.Annotations[syngit.RubAnnotationKeyManaged] == "true" {
 			isEnabled = true
 		}
 	}
@@ -104,11 +104,11 @@ func (ruwh *RemoteUserAssociationWebhookHandler) triggerUserSpecificPatterns(ctx
 	// Get all RemoteSyncer of the namespace that implement the user specific pattern
 	remoteSyncerList := &syngit.RemoteSyncerList{}
 	selector := labels.NewSelector()
-	userSpecificKey, reqErr := labels.NewRequirement(syngit.RtAnnotationUserSpecificKey, selection.Exists, nil)
+	userSpecificKey, reqErr := labels.NewRequirement(syngit.RtAnnotationKeyUserSpecific, selection.Exists, nil)
 	if reqErr != nil {
 		return &patterns.ErrorPattern{Message: reqErr.Error(), Reason: patterns.Errored}
 	}
-	managedBy, reqErr := labels.NewRequirement(syngit.RtAnnotationUserSpecificKey, selection.Equals, []string{syngit.ManagedByLabelValue})
+	managedBy, reqErr := labels.NewRequirement(syngit.RtAnnotationKeyUserSpecific, selection.Equals, []string{syngit.ManagedByLabelValue})
 	if reqErr != nil {
 		return &patterns.ErrorPattern{Message: reqErr.Error(), Reason: patterns.Errored}
 	}

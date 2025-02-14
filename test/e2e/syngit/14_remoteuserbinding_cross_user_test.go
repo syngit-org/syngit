@@ -41,7 +41,7 @@ var _ = Describe("14 RemoteUser RBAC cross user test", func() {
 				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
+					syngit.RubAnnotationKeyManaged: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -64,7 +64,7 @@ var _ = Describe("14 RemoteUser RBAC cross user test", func() {
 				Name:      remoteUserChopperName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
+					syngit.RubAnnotationKeyManaged: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -84,7 +84,7 @@ var _ = Describe("14 RemoteUser RBAC cross user test", func() {
 		Wait3()
 		remoteUserChopperWithNoAssociatedRub := remoteUserChopper.DeepCopy()
 		remoteUserChopperWithNoAssociatedRub.Annotations = map[string]string{
-			syngit.RubAnnotation: "false",
+			syngit.RubAnnotationKeyManaged: "false",
 		}
 		Eventually(func() bool {
 			err := sClient.As(Luffy).CreateOrUpdate(remoteUserChopperWithNoAssociatedRub)

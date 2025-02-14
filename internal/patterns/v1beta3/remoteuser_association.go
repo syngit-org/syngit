@@ -64,7 +64,7 @@ func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *ErrorPatter
 		return &ErrorPattern{Message: diffErr.Error(), Reason: Errored}
 	}
 
-	name := syngit.RubPrefix + ruap.Username
+	name := syngit.RubNamePrefix + "-" + ruap.Username
 
 	// List all the RemoteUserBindings that are associated to this user and managed by Syngit.
 	remoteUserBindingList := &syngit.RemoteUserBindingList{}
@@ -215,7 +215,7 @@ func (ruap *RemoteUserAssociationPattern) removeRuFromRub(ctx context.Context, r
 	}
 	rub.Spec.RemoteUserRefs = newRemoteRefs
 
-	updateErr := updateOrDeleteRemoteUserBinding(ctx, ruap.Client, rub.Spec, *rub, 0)
+	updateErr := updateOrDeleteRemoteUserBinding(ctx, ruap.Client, *rub.Spec.DeepCopy(), *rub, 0)
 	if updateErr != nil {
 		return updateErr
 	}

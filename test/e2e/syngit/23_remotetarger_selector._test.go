@@ -631,7 +631,7 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 				Name:      remoteSyncerName4,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+					syngit.RtAnnotationKeyOneOrManyBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -727,7 +727,7 @@ var _ = Describe("23 RemoteTarget selector in RemoteSyncer", func() {
 				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
+					syngit.RubAnnotationKeyManaged: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{

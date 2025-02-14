@@ -276,7 +276,7 @@ func (wrc *WebhookRequestChecker) setUserTarget(details *wrcDetails) (bool, erro
 		if err != nil {
 			return false, err
 		}
-		if wrc.remoteSyncer.Annotations[syngit.RtAnnotationUserSpecificKey] != "" {
+		if wrc.remoteSyncer.Annotations[syngit.RtAnnotationKeyUserSpecific] != "" {
 			// The user specific pattern add a new association to the RemoteUserBinding.
 			// Therefore, we must either get again the new RemoteUserBinding OR
 			// add the user specific RemoteTarget to the current object.

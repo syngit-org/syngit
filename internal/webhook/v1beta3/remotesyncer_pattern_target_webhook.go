@@ -31,7 +31,7 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) Handle(ctx context.Context,
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
-		oldBranches = utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationOneOrManyBranchesKey])
+		oldBranches = utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationKeyOneOrManyBranches])
 	}
 
 	if string(req.Operation) != "DELETE" { //nolint:goconst
@@ -41,7 +41,7 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) Handle(ctx context.Context,
 			return admission.Errored(http.StatusBadRequest, err)
 		}
 
-		newBranches = utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationOneOrManyBranchesKey])
+		newBranches = utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationKeyOneOrManyBranches])
 	}
 
 	pattern := &patterns.RemoteSyncerOneOrManyBranchPattern{

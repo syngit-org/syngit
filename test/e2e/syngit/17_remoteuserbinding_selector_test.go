@@ -49,7 +49,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 		branch                     = "main"
 	)
 
-	remoteTargetName := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s", syngit.RtPrefix, giteaBaseNs, repo1, branch, giteaBaseNs, repo1, branch)
+	remoteTargetName := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s", syngit.RtManagedNamePrefix, giteaBaseNs, repo1, branch, giteaBaseNs, repo1, branch)
 
 	It("should not push because RemoteUserBinding not targeted", func() {
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")
@@ -113,7 +113,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 				Name:      remoteSyncerName1,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+					syngit.RtAnnotationKeyOneOrManyBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -252,7 +252,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 				Name:      remoteSyncerName2,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+					syngit.RtAnnotationKeyOneOrManyBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -396,7 +396,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 				Name:      remoteSyncerName3,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+					syngit.RtAnnotationKeyOneOrManyBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{

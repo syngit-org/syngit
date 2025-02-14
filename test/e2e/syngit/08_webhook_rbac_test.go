@@ -53,7 +53,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				Name:      remoteUserBrookName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
+					syngit.RubAnnotationKeyManaged: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -76,7 +76,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				Name:      remoteSyncer1Name,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+					syngit.RtAnnotationKeyOneOrManyBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -159,7 +159,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				Name:      remoteUserBrookName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
+					syngit.RubAnnotationKeyManaged: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -182,7 +182,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				Name:      remoteSyncer2Name,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+					syngit.RtAnnotationKeyOneOrManyBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
@@ -220,7 +220,7 @@ var _ = Describe("08 Webhook rbac checker", func() {
 				Name:      remoteSyncer2Name,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RtAnnotationOneOrManyBranchesKey: branch,
+					syngit.RtAnnotationKeyOneOrManyBranches: branch,
 				},
 			},
 			Spec: syngit.RemoteSyncerSpec{
