@@ -181,8 +181,8 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) getRemoteTargetsToBeSetup(in sy
 				Namespace: rsomp.NamespacedName.Namespace,
 				Labels: map[string]string{
 					syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-					syngit.RtLabelBranchKey:  branch,
-					syngit.RtLabelPatternKey: syngit.RtLabelOneOrManyBranchesValue,
+					syngit.RtLabelKeyBranch:  branch,
+					syngit.RtLabelKeyPattern: syngit.RtLabelValueOneOrManyBranches,
 				},
 			},
 			Spec: syngit.RemoteTargetSpec{
@@ -239,7 +239,7 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) getBranchesToBeRemoved(ctx cont
 
 	remoteSyncers := &syngit.RemoteSyncerList{}
 	selector := labels.NewSelector()
-	requirement, reqErr := labels.NewRequirement(syngit.RtAnnotationOneOrManyBranchesKey, selection.Exists, nil)
+	requirement, reqErr := labels.NewRequirement(syngit.RtAnnotationKeyOneOrManyBranches, selection.Exists, nil)
 	if reqErr != nil {
 		return nil, reqErr
 	}
@@ -255,7 +255,7 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) getBranchesToBeRemoved(ctx cont
 
 	for _, remoteSyncer := range remoteSyncers.Items {
 		if remoteSyncer.Name != rsomp.NamespacedName.Name || remoteSyncer.Namespace != rsomp.NamespacedName.Namespace {
-			remoteSyncerBranches := utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationOneOrManyBranchesKey])
+			remoteSyncerBranches := utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationKeyOneOrManyBranches])
 			for _, branch := range branches {
 				if slices.Contains(remoteSyncerBranches, branch) {
 					out[branch] = false

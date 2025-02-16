@@ -23,9 +23,9 @@ import (
 )
 
 const (
-	RubPrefix       = "associated-rub-"
-	RubAnnotation   = "syngit.io/remoteuserbinding.managed"
-	RemoteRefsField = "spec.remoteRefs"
+	RubNamePrefix           = "associated-rub"
+	RubAnnotationKeyManaged = "syngit.io/remoteuserbinding.managed"
+	RemoteRefsField         = "spec.remoteRefs"
 )
 
 type RemoteUserBindingSpec struct {

@@ -43,7 +43,7 @@ var _ = Describe("01 Create RemoteUser", func() {
 				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 				Annotations: map[string]string{
-					syngit.RubAnnotation: "true",
+					syngit.RubAnnotationKeyManaged: "true",
 				},
 			},
 			Spec: syngit.RemoteUserSpec{
@@ -59,7 +59,7 @@ var _ = Describe("01 Create RemoteUser", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 		nnRuLuffy := types.NamespacedName{
-			Name:      fmt.Sprintf("%s%s", syngit.RubPrefix, string(Luffy)),
+			Name:      fmt.Sprintf("%s%s", syngit.RubNamePrefix, string(Luffy)),
 			Namespace: namespace,
 		}
 		ruLuffy := &syngit.RemoteUser{}
@@ -68,7 +68,7 @@ var _ = Describe("01 Create RemoteUser", func() {
 		By("checking if the RemoteUserBinding for Luffy exists")
 		Wait3()
 		nnRubLuffy := types.NamespacedName{
-			Name:      fmt.Sprintf("%s%s", syngit.RubPrefix, string(Luffy)),
+			Name:      fmt.Sprintf("%s-%s", syngit.RubNamePrefix, string(Luffy)),
 			Namespace: namespace,
 		}
 		rubLuffy := &syngit.RemoteUserBinding{}
@@ -97,7 +97,7 @@ var _ = Describe("01 Create RemoteUser", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 		nnRuSanji := types.NamespacedName{
-			Name:      fmt.Sprintf("%s%s", syngit.RubPrefix, string(Sanji)),
+			Name:      fmt.Sprintf("%s%s", syngit.RubNamePrefix, string(Sanji)),
 			Namespace: namespace,
 		}
 		ruSanji := &syngit.RemoteUser{}
@@ -106,7 +106,7 @@ var _ = Describe("01 Create RemoteUser", func() {
 		By("checking that the RemoteUserBinding for Sanji does not exist")
 		Wait3()
 		nnRubSanji := types.NamespacedName{
-			Name:      fmt.Sprintf("%s%s", syngit.RubPrefix, string(Sanji)),
+			Name:      fmt.Sprintf("%s%s", syngit.RubNamePrefix, string(Sanji)),
 			Namespace: namespace,
 		}
 		rubSanji := &syngit.RemoteUserBinding{}

@@ -154,3 +154,44 @@ webhooks:
     resources:
     - remoteusers
   sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: syngit-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /syngit-v1beta3-remotesyncer-target-pattern
+  failurePolicy: Fail
+  name: vremotesyncers-target-pattern.v1beta3.syngit.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta3
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - remotesyncers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: syngit-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /validate-syngit-io-v1beta3-remotetarget
+  failurePolicy: Fail
+  name: vremotetarget-v1beta3.kb.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta3
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - remotetargets
+  sideEffects: None

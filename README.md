@@ -58,12 +58,12 @@ stringData:
 ```
 
 ```yaml
-apiVersion: syngit.io/v1beta2
+apiVersion: syngit.io/v1beta3
 kind: RemoteUser
 metadata:
   name: remoteuser-sample
   annotations:
-    syngit.io/associated-remoteuserbinding: "true"
+    syngit.io/remoteuserbinding.managed: "true"
     github.syngit.io/auth.test: "true"
 spec:
   gitBaseDomainFQDN: github.com
@@ -76,26 +76,22 @@ spec:
 
 The RemoteSyncer object contains the whole logic part of the operator.
 
-In this example, the RemoteSyncer will intercept all the *configmaps* of the *default* namespace. It will push them to *https://github.com/my_repo_path.git* in the branch *main* under the path `my_configmaps/`. Because the `processMode` is set to `CommitApply`, the changes will be pushed and then applied to the cluster. `CommitOnly` will only push the resource on the git server without applying it on the cluster.
+In this example, the RemoteSyncer will intercept all the *configmaps* of the *default* namespace. It will push them to *https://github.com/my_repo_path.git* in the branch *main* under the path `my_configmaps/`. Because the `strategy` is set to `CommitApply`, the changes will be pushed and then applied to the cluster. `CommitOnly` will only push the resource on the git server without applying it on the cluster.
 
 ```yaml
-apiVersion: syngit.io/v1beta2
+apiVersion: syngit.io/v1beta3
 kind: RemoteSyncer
 metadata:
   name: remotesyncer-sample
+  annotations:
+    syngit.io/remotetarget.pattern.one-or-many-branches: main
 spec:
   remoteRepository: https://github.com/my_repo_path.git
   defaultBranch: main
-  processMode: CommitApply
-  pushMode: SameBranch
+  strategy: CommitApply
+  targetStrategy: OneTarget
   defaultUnauthorizedUserMode: Block
   rootPath: my_configmaps
-  excludedFields:
-    - metadata.managedFields
-    - metadata.creationTimestamp
-    - metadata.annotations.[kubectl.kubernetes.io/last-applied-configuration]
-    - metadata.uid
-    - metadata.resourceVersion
   scopedResources:
     rules:
     - apiGroups: [""]

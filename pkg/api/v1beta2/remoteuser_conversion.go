@@ -43,8 +43,8 @@ func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
 	if dst.Annotations == nil {
 		dst.Annotations = map[string]string{}
 	}
-	dst.Annotations[v1beta3.RubAnnotation] = src.Annotations[RubAnnotation]
-	dst.Annotations[RubAnnotation] = ""
+	dst.Annotations[v1beta3.RubAnnotationKeyManaged] = src.Annotations[RubAnnotation]
+	delete(dst.Annotations, RubAnnotation)
 
 	return nil
 }
@@ -71,8 +71,8 @@ func (dst *RemoteUser) ConvertFrom(srcRaw conversion.Hub) error {
 	if dst.Annotations == nil {
 		dst.Annotations = map[string]string{}
 	}
-	dst.Annotations[RubAnnotation] = src.Annotations[v1beta3.RubAnnotation]
-	dst.Annotations[v1beta3.RubAnnotation] = ""
+	dst.Annotations[RubAnnotation] = src.Annotations[v1beta3.RubAnnotationKeyManaged]
+	delete(dst.Annotations, v1beta3.RubAnnotationKeyManaged)
 
 	return nil
 }

@@ -21,21 +21,24 @@ import (
 )
 
 const (
-	RtAnnotationUserSpecificKey      = "syngit.io/remotetarget.pattern.user-specific"
-	RtAnnotationOneOrManyBranchesKey = "syngit.io/remotetarget.pattern.one-or-many-branches"
-	RtAllowInjection                 = "syngit.io/remotetarget.allow-injection"
-	RtPrefix                         = "rt"
-	RtLabelBranchKey                 = "syngit.io/remotetarget.branch"
-	RtLabelPatternKey                = "syngit.io/remotetarget.pattern"
-	RtLabelOneOrManyBranchesValue    = "one-or-many-branches"
-	RtDefaultForkName                = "fork"
+	RtManagedNamePrefix            = "rt"
+	RtManagedDefaultForkNamePrefix = "fork"
+
+	RtAnnotationKeyUserSpecific      = "syngit.io/remotetarget.pattern.user-specific"
+	RtAnnotationKeyOneOrManyBranches = "syngit.io/remotetarget.pattern.one-or-many-branches"
+
+	RtLabelKeyAllowInjection = "syngit.io/remotetarget.allow-injection"
+	RtLabelKeyBranch         = "syngit.io/remotetarget.branch"
+	RtLabelKeyPattern        = "syngit.io/remotetarget.pattern"
+
+	RtLabelValueOneOrManyBranches = "one-or-many-branches"
 )
 
 type RemoteTargetUserSpecificValues string
 
 const (
-	RtAnnotationOneUserOneBranchValue RemoteTargetUserSpecificValues = "one-user-one-branch"
-	RtAnnotationOneUserOneForkValue   RemoteTargetUserSpecificValues = "one-user-one-fork"
+	RtAnnotationValueOneUserOneBranch RemoteTargetUserSpecificValues = "one-user-one-branch"
+	RtAnnotationValueOneUserOneFork   RemoteTargetUserSpecificValues = "one-user-one-fork"
 )
 
 // RemoteTargetSpec defines the desired state of RemoteTarget.

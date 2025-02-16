@@ -74,7 +74,7 @@ var _ = Describe("RemoteUserBinding Controller", func() {
 						Name:      remoteusername,
 						Namespace: userNamespace,
 						Annotations: map[string]string{
-							syngit.RubAnnotation: "true",
+							syngit.RubAnnotationKeyManaged: "true",
 						},
 					},
 					Spec: syngit.RemoteUserSpec{

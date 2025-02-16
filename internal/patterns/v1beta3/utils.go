@@ -10,9 +10,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	controllerClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func generateName(ctx context.Context, client client.Client, object client.Object, suffixNumber int) (string, error) {
+func generateName(ctx context.Context, client controllerClient.Client, object controllerClient.Object, suffixNumber int) (string, error) {
 	oldName := object.GetName()
 	newName := object.GetName()
 	if suffixNumber > 0 {
@@ -38,9 +39,9 @@ func generateName(ctx context.Context, client client.Client, object client.Objec
 // Delete the associated RemoteUserBinding if the spec is empty.
 // The input must be a RemoteUserBinding managed by syngit.
 // The retryNumber is used when a conflict happens.
-func updateOrDeleteRemoteUserBinding(ctx context.Context, client client.Client, spec syngit.RemoteUserBindingSpec, remoteUserBinding syngit.RemoteUserBinding, retryNumber int) error {
-	var rub syngit.RemoteUserBinding
-	if err := client.Get(ctx, types.NamespacedName{Name: remoteUserBinding.Name, Namespace: remoteUserBinding.Namespace}, &rub); err != nil {
+func updateOrDeleteRemoteUserBinding(ctx context.Context, client controllerClient.Client, spec syngit.RemoteUserBindingSpec, remoteUserBinding syngit.RemoteUserBinding, retryNumber int) error {
+	rub := &syngit.RemoteUserBinding{}
+	if err := client.Get(ctx, types.NamespacedName{Name: remoteUserBinding.Name, Namespace: remoteUserBinding.Namespace}, rub); err != nil {
 		return err
 	}
 
@@ -49,15 +50,16 @@ func updateOrDeleteRemoteUserBinding(ctx context.Context, client client.Client, 
 		remoteUserBinding.Spec.RemoteTargetRefs = []v1.ObjectReference{}
 
 		if len(spec.RemoteTargetRefs) == 0 {
-			delErr := client.Delete(ctx, &rub)
+			delErr := client.Delete(ctx, rub)
 			if delErr != nil {
 				return delErr
 			}
+			return nil
 		}
 	}
 
 	rub.Spec = spec
-	if err := client.Update(ctx, &rub); err != nil {
+	if err := client.Update(ctx, rub); err != nil {
 		if retryNumber > 0 {
 			return updateOrDeleteRemoteUserBinding(ctx, client, spec, remoteUserBinding, retryNumber-1)
 		}
@@ -66,7 +68,7 @@ func updateOrDeleteRemoteUserBinding(ctx context.Context, client client.Client, 
 	return nil
 }
 
-func createOrUpdateRemoteTarget(ctx context.Context, k8sClient client.Client, remoteTarget *syngit.RemoteTarget) error {
+func createOrUpdateRemoteTarget(ctx context.Context, k8sClient controllerClient.Client, remoteTarget *syngit.RemoteTarget) error {
 	if createErr := k8sClient.Create(ctx, remoteTarget); createErr != nil {
 		// If it already exists, then we skip this part
 		if !strings.Contains(createErr.Error(), "already exists") {

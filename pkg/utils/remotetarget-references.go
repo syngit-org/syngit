@@ -15,7 +15,7 @@ func RemoteTargetNameConstructor(upstreamRepo string, upstreamBranch string, tar
 		return "", err
 	}
 
-	targetRepoName := syngit.RtDefaultForkName
+	targetRepoName := syngit.RtManagedDefaultForkNamePrefix
 	if targetRepo != "" {
 		targetU, err := url.Parse(targetRepo)
 		if err != nil {
@@ -25,7 +25,7 @@ func RemoteTargetNameConstructor(upstreamRepo string, upstreamBranch string, tar
 	}
 
 	upstreamRepoName := strings.ReplaceAll(strings.ReplaceAll(upstreamU.Path, "/", "-"), ".git", "")
-	name := fmt.Sprintf("%s%s-%s%s-%s", syngit.RtPrefix, upstreamRepoName, upstreamBranch, targetRepoName, targetBranch)
+	name := fmt.Sprintf("%s%s-%s%s-%s", syngit.RtManagedNamePrefix, upstreamRepoName, upstreamBranch, targetRepoName, targetBranch)
 
 	return name, nil
 }
