@@ -25,20 +25,15 @@ type RemoteUserAssociationWebhookHandler struct {
 }
 
 const (
-	managedByLabelKey        = "managed-by"
-	managedByLabelValue      = "syngit.io"
-	k8sUserLabelKey          = "syngit.io/k8s-user"
-	managedByAnnotationKey   = "syngit.io/controlled-by"
-	managedByAnnotationValue = "webhook/remoteuser-association"
+	managedByLabelKey   = "managed-by"
+	managedByLabelValue = "syngit.io"
+	k8sUserLabelKey     = "syngit.io/k8s-user"
 )
 
 func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req admission.Request) admission.Response {
 
 	username := req.DeepCopy().UserInfo.Username
 	name := syngit.RubPrefix + username
-	managedByAnnotations := map[string]string{
-		managedByAnnotationKey: managedByAnnotationValue,
-	}
 
 	rubs := &syngit.RemoteUserBindingList{}
 	listOps := &client.ListOptions{
@@ -102,9 +97,6 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 			k8sUserLabelKey:   username,
 		}
 
-		// Set the annotations
-		rub.Annotations = managedByAnnotations
-
 		subject := &rbacv1.Subject{
 			Kind: "User",
 			Name: username,
@@ -143,9 +135,6 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 			remoteRefs = append(remoteRefs, objRef)
 		}
 		rub.Spec.RemoteRefs = remoteRefs
-
-		// Set the annotations
-		rub.Annotations = managedByAnnotations
 
 		updateErr := ruwh.Client.Update(ctx, &rub)
 		if updateErr != nil {
