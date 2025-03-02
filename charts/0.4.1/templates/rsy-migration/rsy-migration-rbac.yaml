@@ -1,0 +1,63 @@
+{{- if .Release.IsUpgrade -}}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rsy-migration
+  labels:
+    app.kubernetes.io/name: job
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: rsy-migration
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+  annotations:
+    "helm.sh/hook": post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rsy-migration
+  labels:
+    app.kubernetes.io/name: job
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: helm-rsy-migration
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+  annotations:
+    "helm.sh/hook": post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+rules:
+- apiGroups:
+  - "syngit.io"
+  resources:
+  - remotesyncers
+  verbs:
+  - update
+  - patch
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rsy-migration
+  labels:
+    app.kubernetes.io/name: job
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: helm-rsy-migration
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+  annotations:
+    "helm.sh/hook": post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rsy-migration
+subjects:
+  - kind: ServiceAccount
+    name: rsy-migration
+    namespace: {{ .Release.Namespace }}
+{{- end }}
