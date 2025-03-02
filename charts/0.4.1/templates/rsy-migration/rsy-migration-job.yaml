@@ -1,0 +1,45 @@
+{{- if .Release.IsUpgrade -}}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-rsy-migration
+  labels:
+    app.kubernetes.io/name: job
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: rsy-migration
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+  annotations:
+    "helm.sh/hook": post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    spec:
+      serviceAccountName: rsy-migration
+      automountServiceAccountToken: true
+      containers:
+        - name: rsy-migration
+          image: bitnami/kubectl:1.32.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              sleep 70
+
+              # Get all remotesyncers with the "syngit.io/remotetarget.pattern.one-or-many-branches" annotation
+
+              kubectl get remotesyncers.syngit.io -A -o json | \
+              jq -c '.items[] | select(.metadata.annotations["syngit.io/remotetarget.pattern.one-or-many-branches"]) | {name: .metadata.name, namespace: .metadata.namespace}' | \
+              while read -r resource; do
+                # Extract the name & the namespace of the resource
+                name=$(echo "$resource" | jq -r '.name')
+                namespace=$(echo "$resource" | jq -r '.namespace')
+                
+                kubectl patch remotesyncers.syngit.io "$name" -n "$namespace" --type merge -p '{"metadata": {"annotations": {"syngit.io/temp-annotation": ""}}}' 2>/dev/null
+                echo "Trigger RemoteTarget webhook for: $namespace/$name"
+              done
+
+      restartPolicy: Never
+  backoffLimit: 4
+{{- end }}
