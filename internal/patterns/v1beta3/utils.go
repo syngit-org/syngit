@@ -132,3 +132,15 @@ func slicesDifference(slice1 []string, slice2 []string) []string {
 
 	return diff
 }
+
+func getAssociatedRemoteUserBinding(ctx context.Context, k8sClient controllerClient.Client, remoteUserBindingList *syngit.RemoteUserBindingList, listOpts *client.ListOptions, retryNumber int) error {
+	listErr := k8sClient.List(ctx, remoteUserBindingList, listOpts)
+	if listErr != nil {
+		return listErr
+	}
+
+	if len(remoteUserBindingList.Items) == 0 && retryNumber > 0 {
+		return getAssociatedRemoteUserBinding(ctx, k8sClient, remoteUserBindingList, listOpts, retryNumber-1)
+	}
+	return nil
+}
