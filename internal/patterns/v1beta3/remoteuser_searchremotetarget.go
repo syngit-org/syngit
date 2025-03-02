@@ -51,7 +51,7 @@ func (rusp *RemoteUserSearchRemoteTargetPattern) Diff(ctx context.Context) *Erro
 		}),
 	}
 	remoteUserBindingList := &syngit.RemoteUserBindingList{}
-	listErr := rusp.Client.List(ctx, remoteUserBindingList, rubListOps)
+	listErr := getAssociatedRemoteUserBinding(ctx, rusp.Client, remoteUserBindingList, rubListOps, 5)
 	if listErr != nil {
 		return &ErrorPattern{Message: listErr.Error(), Reason: Errored}
 	}
@@ -60,7 +60,7 @@ func (rusp *RemoteUserSearchRemoteTargetPattern) Diff(ctx context.Context) *Erro
 		return &ErrorPattern{Message: fmt.Sprintf("only one RemoteUserBinding for the user %s should be managed by Syngit", rusp.Username), Reason: Denied}
 	}
 	if len(remoteUserBindingList.Items) == 0 {
-		return nil
+		return &ErrorPattern{Message: fmt.Sprintf("a RemoteUserBinding managed by Syngit should exists for the user %s", rusp.Username), Reason: Errored}
 	}
 	rusp.RemoteUserBinding = &remoteUserBindingList.Items[0]
 
