@@ -24,6 +24,7 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) Handle(ctx context.Context,
 	var remoteSyncer *syngit.RemoteSyncer
 	var oldBranches = []string{}
 	var newBranches = []string{}
+	var oldUpstreamRepo string
 
 	if string(req.Operation) != "CREATE" { //nolint:goconst
 		remoteSyncer = &syngit.RemoteSyncer{}
@@ -31,6 +32,7 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) Handle(ctx context.Context,
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
+		oldUpstreamRepo = remoteSyncer.Spec.RemoteRepository
 		oldBranches = utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationKeyOneOrManyBranches])
 	}
 
@@ -40,8 +42,11 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) Handle(ctx context.Context,
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
-
 		newBranches = utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationKeyOneOrManyBranches])
+	}
+
+	if string(req.Operation) == "CREATE" { //nolint:goconst
+		oldUpstreamRepo = remoteSyncer.Spec.RemoteRepository
 	}
 
 	pattern := &patterns.RemoteSyncerOneOrManyBranchPattern{
@@ -49,6 +54,8 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) Handle(ctx context.Context,
 			Client:         rsyt.Client,
 			NamespacedName: types.NamespacedName{Name: req.Name, Namespace: req.Namespace},
 		},
+		RemoteSyncerName:  remoteSyncer.Name,
+		OldUpstreamRepo:   oldUpstreamRepo,
 		UpstreamRepo:      remoteSyncer.Spec.RemoteRepository,
 		UpstreamBranch:    remoteSyncer.Spec.DefaultBranch,
 		TargetRepository:  remoteSyncer.Spec.RemoteRepository,

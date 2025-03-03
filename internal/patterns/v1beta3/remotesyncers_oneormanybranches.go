@@ -9,12 +9,13 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type RemoteSyncerOneOrManyBranchPattern struct {
 	PatternSpecification
+	RemoteSyncerName         string
+	OldUpstreamRepo          string
 	UpstreamRepo             string
 	UpstreamBranch           string
 	TargetRepository         string
@@ -211,14 +212,22 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) getRemoteTargetsToBeRemoved(ctx
 		}
 	}
 
-	// Search for non-dependent branches
-	deletable, depErr := rsomp.getBranchesToBeRemoved(ctx, oldBranches)
-	if depErr != nil {
-		return nil, depErr
+	// Get RemoteSyncers that manage RemoteTargets using this pattern
+	remoteSyncers, listErr := rsomp.getRemoteSyncersManagedByThisPattern(ctx)
+	if listErr != nil {
+		return nil, listErr
 	}
+
+	// Search for non-dependent branches
+	deletable := rsomp.getBranchesToBeRemoved(oldBranches, remoteSyncers)
 
 	for _, rt := range in.Items {
 		spec := rt.Spec
+		if rsomp.UpstreamRepo != rsomp.OldUpstreamRepo && spec.UpstreamRepository == rsomp.OldUpstreamRepo {
+			if rsomp.isRemoteTargetUnused(rt, rsomp.OldUpstreamRepo, remoteSyncers) {
+				out = append(out, rt)
+			}
+		}
 		if spec.UpstreamRepository == rsomp.UpstreamRepo && spec.UpstreamBranch == rsomp.UpstreamBranch && spec.TargetRepository == rsomp.TargetRepository {
 			for _, branch := range deletable {
 				if spec.TargetBranch == branch {
@@ -230,30 +239,52 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) getRemoteTargetsToBeRemoved(ctx
 	return out, nil
 }
 
-// Search for automatically created RemoteTargets that are NOT used by any other RemoteSyncer
-func (rsomp *RemoteSyncerOneOrManyBranchPattern) getBranchesToBeRemoved(ctx context.Context, branches []string) ([]string, error) {
+// Get RemoteSyncers that manage RemoteTargets using this pattern
+func (rsomp *RemoteSyncerOneOrManyBranchPattern) getRemoteSyncersManagedByThisPattern(ctx context.Context) ([]syngit.RemoteSyncer, error) {
+	remoteSyncers := []syngit.RemoteSyncer{}
+
+	remoteSyncerList := &syngit.RemoteSyncerList{}
+	listOps := &client.ListOptions{
+		Namespace: rsomp.NamespacedName.Namespace,
+	}
+	listErr := rsomp.Client.List(ctx, remoteSyncerList, listOps)
+	if listErr != nil {
+		return nil, listErr
+	}
+
+	for _, rsy := range remoteSyncerList.Items {
+		if rsy.Annotations[syngit.RtAnnotationKeyOneOrManyBranches] != "" {
+			remoteSyncers = append(remoteSyncers, rsy)
+		}
+	}
+
+	return remoteSyncers, nil
+}
+
+// Check if the RemoteTarget is unused by searching is a managed RemoteSyncer use it
+func (rsomp *RemoteSyncerOneOrManyBranchPattern) isRemoteTargetUnused(remoteTarget syngit.RemoteTarget, oldRepository string, remoteSyncers []syngit.RemoteSyncer) bool {
+	if remoteTarget.Labels[syngit.RtLabelKeyPattern] != string(syngit.RtLabelValueOneOrManyBranches) {
+		// This case is not managed by this pattern
+		return false
+	}
+
+	for _, rsy := range remoteSyncers {
+		if rsy.Spec.RemoteRepository == oldRepository && rsy.Name != rsomp.RemoteSyncerName {
+			return false
+		}
+	}
+
+	return true
+}
+
+// Search for automatically created RemoteTargets that are NOT used by any other RemoteSyncer (filtering by branches)
+func (rsomp *RemoteSyncerOneOrManyBranchPattern) getBranchesToBeRemoved(branches []string, remoteSyncers []syngit.RemoteSyncer) []string {
 	out := map[string]bool{}
 	for _, branch := range branches {
 		out[branch] = true
 	}
 
-	remoteSyncers := &syngit.RemoteSyncerList{}
-	selector := labels.NewSelector()
-	requirement, reqErr := labels.NewRequirement(syngit.RtAnnotationKeyOneOrManyBranches, selection.Exists, nil)
-	if reqErr != nil {
-		return nil, reqErr
-	}
-	selector.Add(*requirement)
-	listOps := &client.ListOptions{
-		Namespace:     rsomp.NamespacedName.Namespace,
-		LabelSelector: selector,
-	}
-	listErr := rsomp.Client.List(ctx, remoteSyncers, listOps)
-	if listErr != nil {
-		return nil, listErr
-	}
-
-	for _, remoteSyncer := range remoteSyncers.Items {
+	for _, remoteSyncer := range remoteSyncers {
 		if remoteSyncer.Name != rsomp.NamespacedName.Name || remoteSyncer.Namespace != rsomp.NamespacedName.Namespace {
 			remoteSyncerBranches := utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationKeyOneOrManyBranches])
 			for _, branch := range branches {
@@ -271,5 +302,5 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) getBranchesToBeRemoved(ctx cont
 		}
 	}
 
-	return branchesToBeRemoved, nil
+	return branchesToBeRemoved
 }

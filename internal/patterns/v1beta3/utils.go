@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	v1 "k8s.io/api/core/v1"
@@ -140,6 +141,7 @@ func getAssociatedRemoteUserBinding(ctx context.Context, k8sClient controllerCli
 	}
 
 	if len(remoteUserBindingList.Items) == 0 && retryNumber > 0 {
+		time.Sleep(500 * time.Millisecond)
 		return getAssociatedRemoteUserBinding(ctx, k8sClient, remoteUserBindingList, listOpts, retryNumber-1)
 	}
 	return nil
