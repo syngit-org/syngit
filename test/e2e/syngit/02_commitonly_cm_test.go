@@ -118,7 +118,6 @@ var _ = Describe("02 CommitOnly a ConfigMap", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			fmt.Println(err)
 			return err != nil && strings.Contains(err.Error(), defaultDeniedMessage)
 		}, timeout, interval).Should(BeTrue())
 

@@ -14,8 +14,9 @@ import (
 
 type RemoteSyncerOneOrManyBranchPattern struct {
 	PatternSpecification
-	RemoteSyncerName         string
+	RemoteSyncer             syngit.RemoteSyncer
 	OldUpstreamRepo          string
+	OldUpstreamBranch        string
 	UpstreamRepo             string
 	UpstreamBranch           string
 	TargetRepository         string
@@ -23,7 +24,6 @@ type RemoteSyncerOneOrManyBranchPattern struct {
 	NewTargetBranches        []string
 	remoteTargetsToBeRemoved []syngit.RemoteTarget
 	remoteTargetsToBeSetup   []*syngit.RemoteTarget
-	remoteUserBindings       *syngit.RemoteUserBindingList
 }
 
 func (rsomp *RemoteSyncerOneOrManyBranchPattern) Setup(ctx context.Context) *ErrorPattern {
@@ -36,7 +36,11 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) Setup(ctx context.Context) *Err
 	}
 
 	// Associate to all the RemoteUserBindings
-	associationErr := rsomp.addRemoteUserBindingAssociation(ctx, rsomp.remoteTargetsToBeSetup, *rsomp.remoteUserBindings)
+	remoteUserBindings, rubErr := rsomp.getRemoteUserBindings(ctx)
+	if rubErr != nil {
+		return &ErrorPattern{Message: rubErr.Error(), Reason: Errored}
+	}
+	associationErr := rsomp.addRemoteUserBindingAssociation(ctx, rsomp.remoteTargetsToBeSetup, *remoteUserBindings)
 	if associationErr != nil {
 		return &ErrorPattern{Message: associationErr.Error(), Reason: Errored}
 	}
@@ -63,6 +67,16 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) addRemoteUserBindingAssociation
 
 func (rsomp *RemoteSyncerOneOrManyBranchPattern) Remove(ctx context.Context) *ErrorPattern {
 
+	// Remove association from RemoteUserBindings
+	remoteUserBindings, rubErr := rsomp.getRemoteUserBindings(ctx)
+	if rubErr != nil {
+		return &ErrorPattern{Message: rubErr.Error(), Reason: Errored}
+	}
+	associationErr := rsomp.removeRemoteUserBindingAssociation(ctx, rsomp.remoteTargetsToBeRemoved, *remoteUserBindings)
+	if associationErr != nil {
+		return &ErrorPattern{Message: associationErr.Error(), Reason: Errored}
+	}
+
 	for _, rt := range rsomp.remoteTargetsToBeRemoved {
 		// Delete RemoteTarget
 		delErr := rsomp.Client.Delete(ctx, &rt)
@@ -71,30 +85,28 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) Remove(ctx context.Context) *Er
 		}
 	}
 
-	// Remove association from RemoteUserBindings
-	associationErr := rsomp.removeRemoteUserBindingAssociation(ctx, rsomp.remoteTargetsToBeRemoved, *rsomp.remoteUserBindings)
-	if associationErr != nil {
-		return &ErrorPattern{Message: associationErr.Error(), Reason: Errored}
-	}
-
 	return nil
 }
 
 func (rsomp *RemoteSyncerOneOrManyBranchPattern) removeRemoteUserBindingAssociation(ctx context.Context, remoteTargets []syngit.RemoteTarget, remoteUserBindings syngit.RemoteUserBindingList) error {
 	for _, rub := range remoteUserBindings.Items {
-		spec := rub.Spec
-		newRemoteTargetRefs := spec.RemoteTargetRefs
+		spec := rub.Spec.DeepCopy()
+		newRemoteTargetRefs := []v1.ObjectReference{}
 
-		for _, rt := range remoteTargets {
-			for _, associatedRemoteTargetRef := range rub.Spec.RemoteTargetRefs {
-				if associatedRemoteTargetRef.Name != rt.Name || associatedRemoteTargetRef.Namespace != rt.Namespace {
-					newRemoteTargetRefs = append(newRemoteTargetRefs, associatedRemoteTargetRef)
+		for _, associatedRemoteTargetRef := range rub.Spec.RemoteTargetRefs {
+			mustBeAdded := true
+			for _, rt := range remoteTargets {
+				if associatedRemoteTargetRef.Name == rt.Name {
+					mustBeAdded = false
 				}
+			}
+			if mustBeAdded {
+				newRemoteTargetRefs = append(newRemoteTargetRefs, associatedRemoteTargetRef)
 			}
 		}
 
 		spec.RemoteTargetRefs = newRemoteTargetRefs
-		err := updateOrDeleteRemoteUserBinding(ctx, rsomp.Client, spec, rub, 2)
+		err := updateOrDeleteRemoteUserBinding(ctx, rsomp.Client, *spec, rub, 2)
 		if err != nil {
 			return err
 		}
@@ -102,25 +114,35 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) removeRemoteUserBindingAssociat
 	return nil
 }
 
-func (rsomp *RemoteSyncerOneOrManyBranchPattern) Diff(ctx context.Context) *ErrorPattern {
+func (rsomp *RemoteSyncerOneOrManyBranchPattern) getRemoteUserBindings(ctx context.Context) (*syngit.RemoteUserBindingList, error) {
 
-	listOps := &client.ListOptions{
+	rubListOps := &client.ListOptions{
 		Namespace: rsomp.NamespacedName.Namespace,
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
 		}),
 	}
-
 	// Get all RemoteUserBinding of the namespace
-	rsomp.remoteUserBindings = &syngit.RemoteUserBindingList{}
-	listErr := rsomp.Client.List(ctx, rsomp.remoteUserBindings, listOps)
+	remoteUserBindings := &syngit.RemoteUserBindingList{}
+	listErr := rsomp.Client.List(ctx, remoteUserBindings, rubListOps)
 	if listErr != nil {
-		return &ErrorPattern{Message: listErr.Error(), Reason: Errored}
+		return nil, listErr
 	}
 
+	return remoteUserBindings, nil
+}
+
+func (rsomp *RemoteSyncerOneOrManyBranchPattern) Diff(ctx context.Context) *ErrorPattern {
+	rtListOps := &client.ListOptions{
+		Namespace: rsomp.NamespacedName.Namespace,
+		LabelSelector: labels.SelectorFromSet(labels.Set{
+			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
+			syngit.RtLabelKeyPattern: syngit.RtLabelValueOneOrManyBranches,
+		}),
+	}
 	// Get all RemoteTargets of the namespace
 	allRemoteTargets := &syngit.RemoteTargetList{}
-	listErr = rsomp.Client.List(ctx, allRemoteTargets, listOps)
+	listErr := rsomp.Client.List(ctx, allRemoteTargets, rtListOps)
 	if listErr != nil {
 		return &ErrorPattern{Message: listErr.Error(), Reason: Errored}
 	}
@@ -147,24 +169,7 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) Diff(ctx context.Context) *Erro
 }
 
 func (rsomp *RemoteSyncerOneOrManyBranchPattern) getRemoteTargetsToBeSetup(in syngit.RemoteTargetList) ([]*syngit.RemoteTarget, error) {
-	branches := []string{}
-
-	// Search for the branches that are not already implemented in a RemoteTarget managed by Syngit
-	for _, branch := range rsomp.NewTargetBranches {
-		found := false
-		for _, rt := range in.Items {
-			spec := rt.Spec
-			if spec.UpstreamRepository == rsomp.UpstreamRepo && spec.UpstreamBranch == rsomp.UpstreamBranch && spec.TargetRepository == rsomp.TargetRepository {
-				if spec.TargetBranch == branch {
-					found = true
-					break
-				}
-			}
-		}
-		if !found {
-			branches = append(branches, branch)
-		}
-	}
+	branches := rsomp.getBranchesToBeSetup(in)
 
 	out := []*syngit.RemoteTarget{}
 	for _, branch := range branches {
@@ -200,6 +205,33 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) getRemoteTargetsToBeSetup(in sy
 	return out, nil
 }
 
+func (rsomp *RemoteSyncerOneOrManyBranchPattern) getBranchesToBeSetup(in syngit.RemoteTargetList) []string {
+	branches := []string{}
+
+	// Search for the branches that are not already implemented in a RemoteTarget managed by Syngit
+	for _, branch := range rsomp.NewTargetBranches {
+		found := false
+		for _, rt := range in.Items {
+			spec := rt.Spec
+			if spec.UpstreamRepository == rsomp.UpstreamRepo && spec.UpstreamBranch == rsomp.UpstreamBranch && spec.TargetRepository == rsomp.TargetRepository {
+				if spec.TargetBranch == branch {
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			branches = append(branches, branch)
+		}
+	}
+
+	if rsomp.UpstreamRepo != rsomp.OldUpstreamRepo || rsomp.UpstreamBranch != rsomp.OldUpstreamBranch {
+		branches = utils.GetBranchesFromAnnotation(rsomp.RemoteSyncer.Annotations[syngit.RtAnnotationKeyOneOrManyBranches])
+	}
+
+	return branches
+}
+
 func (rsomp *RemoteSyncerOneOrManyBranchPattern) getRemoteTargetsToBeRemoved(ctx context.Context, in syngit.RemoteTargetList) ([]syngit.RemoteTarget, error) {
 	out := []syngit.RemoteTarget{}
 
@@ -223,8 +255,9 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) getRemoteTargetsToBeRemoved(ctx
 
 	for _, rt := range in.Items {
 		spec := rt.Spec
-		if rsomp.UpstreamRepo != rsomp.OldUpstreamRepo && spec.UpstreamRepository == rsomp.OldUpstreamRepo {
-			if rsomp.isRemoteTargetUnused(rt, rsomp.OldUpstreamRepo, remoteSyncers) {
+		if (rsomp.UpstreamRepo != rsomp.OldUpstreamRepo && spec.UpstreamRepository == rsomp.OldUpstreamRepo) ||
+			(rsomp.UpstreamBranch != rsomp.OldUpstreamBranch && spec.UpstreamBranch == rsomp.OldUpstreamBranch) {
+			if rsomp.isRemoteTargetUnused(rt, rsomp.OldUpstreamRepo, rsomp.OldUpstreamBranch, remoteSyncers) {
 				out = append(out, rt)
 			}
 		}
@@ -262,14 +295,14 @@ func (rsomp *RemoteSyncerOneOrManyBranchPattern) getRemoteSyncersManagedByThisPa
 }
 
 // Check if the RemoteTarget is unused by searching is a managed RemoteSyncer use it
-func (rsomp *RemoteSyncerOneOrManyBranchPattern) isRemoteTargetUnused(remoteTarget syngit.RemoteTarget, oldRepository string, remoteSyncers []syngit.RemoteSyncer) bool {
+func (rsomp *RemoteSyncerOneOrManyBranchPattern) isRemoteTargetUnused(remoteTarget syngit.RemoteTarget, oldRepository string, oldBranch string, remoteSyncers []syngit.RemoteSyncer) bool {
 	if remoteTarget.Labels[syngit.RtLabelKeyPattern] != string(syngit.RtLabelValueOneOrManyBranches) {
 		// This case is not managed by this pattern
 		return false
 	}
 
 	for _, rsy := range remoteSyncers {
-		if rsy.Spec.RemoteRepository == oldRepository && rsy.Name != rsomp.RemoteSyncerName {
+		if rsy.Name != rsomp.RemoteSyncer.Name && (rsy.Spec.RemoteRepository == oldRepository || rsy.Spec.DefaultBranch == oldBranch) {
 			return false
 		}
 	}
