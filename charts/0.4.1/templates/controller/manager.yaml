@@ -62,10 +62,7 @@ spec:
         resources: {{ toYaml .Values.controller.resources | nindent 10 }}
         ports:
         - containerPort: 9443
-          name: wbhk-crd-srv
-          protocol: TCP
-        - containerPort: 9444
-          name: wbhk-pusher-srv
+          name: webhook-svc
           protocol: TCP
         volumeMounts:
         - mountPath: /tmp/k8s-webhook-server/serving-certs
