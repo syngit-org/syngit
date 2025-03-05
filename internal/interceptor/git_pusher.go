@@ -94,7 +94,7 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 	}
 
 	// STEP 3 : Commit the changes
-	commitHash, err := gp.commitChanges(w, fullFilePath)
+	commitHash, err := gp.commitChanges(w, fullFilePath, targetRepo)
 	gpResponse.commitHash = commitHash
 	if err != nil {
 		return *gpResponse, err
@@ -217,7 +217,7 @@ func (gp *GitPusher) writeFile(path string, w *git.Worktree) (string, error) {
 	return fullFilePath, err
 }
 
-func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string) (string, error) {
+func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string, targetRepo *git.Repository) (string, error) {
 	commitMessage := ""
 
 	if gp.interceptedYAML == "" { // The file has been deleted
@@ -245,6 +245,17 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string) (string, e
 		},
 	})
 	if err != nil {
+		if strings.Contains(err.Error(), "cannot create empty commit: clean working tree") {
+			ref, refErr := targetRepo.Head()
+			if refErr != nil {
+				return "", refErr
+			}
+			commit, commitErr := targetRepo.CommitObject(ref.Hash())
+			if commitErr != nil {
+				return "", commitErr
+			}
+			return commit.Hash.String(), nil
+		}
 		errMsg := fmt.Sprintf("failed to commit changes (%s - %s): %s", gp.remoteTarget.Spec.TargetRepository, gp.remoteTarget.Spec.TargetBranch, err.Error())
 		return "", errors.New(errMsg)
 	}
