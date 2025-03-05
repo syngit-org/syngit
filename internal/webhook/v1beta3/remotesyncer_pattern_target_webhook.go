@@ -25,6 +25,8 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) Handle(ctx context.Context,
 	var oldBranches = []string{}
 	var newBranches = []string{}
 	var oldUpstreamRepo string
+	var oldUpstreamBranch string
+	isDeleted := false
 
 	if string(req.Operation) != "CREATE" { //nolint:goconst
 		remoteSyncer = &syngit.RemoteSyncer{}
@@ -33,6 +35,7 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) Handle(ctx context.Context,
 			return admission.Errored(http.StatusBadRequest, err)
 		}
 		oldUpstreamRepo = remoteSyncer.Spec.RemoteRepository
+		oldUpstreamBranch = remoteSyncer.Spec.DefaultBranch
 		oldBranches = utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationKeyOneOrManyBranches])
 	}
 
@@ -47,15 +50,20 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) Handle(ctx context.Context,
 
 	if string(req.Operation) == "CREATE" { //nolint:goconst
 		oldUpstreamRepo = remoteSyncer.Spec.RemoteRepository
+		oldUpstreamBranch = remoteSyncer.Spec.DefaultBranch
+	}
+	if string(req.Operation) == "DELETE" { //nolint:goconst
+		isDeleted = true
 	}
 
-	pattern := &patterns.RemoteSyncerOneOrManyBranchPattern{
+	oneOrManyBranchesPattern := &patterns.RemoteSyncerOneOrManyBranchPattern{
 		PatternSpecification: patterns.PatternSpecification{
 			Client:         rsyt.Client,
 			NamespacedName: types.NamespacedName{Name: req.Name, Namespace: req.Namespace},
 		},
-		RemoteSyncerName:  remoteSyncer.Name,
+		RemoteSyncer:      *remoteSyncer,
 		OldUpstreamRepo:   oldUpstreamRepo,
+		OldUpstreamBranch: oldUpstreamBranch,
 		UpstreamRepo:      remoteSyncer.Spec.RemoteRepository,
 		UpstreamBranch:    remoteSyncer.Spec.DefaultBranch,
 		TargetRepository:  remoteSyncer.Spec.RemoteRepository,
@@ -63,7 +71,28 @@ func (rsyt *RemoteSyncerTargetPatternWebhookHandler) Handle(ctx context.Context,
 		OldTargetBranches: oldBranches,
 	}
 
-	err := patterns.Trigger(pattern, ctx)
+	userSpecificRemoverPattern := &patterns.UserSpecificRemoverPattern{
+		PatternSpecification: patterns.PatternSpecification{
+			Client:         rsyt.Client,
+			NamespacedName: types.NamespacedName{Name: req.Name, Namespace: req.Namespace},
+		},
+		OldUpstreamRepo:   oldUpstreamRepo,
+		OldUpstreamBranch: oldUpstreamBranch,
+		IsDeleted:         isDeleted,
+		RemoteSyncer:      *remoteSyncer,
+	}
+
+	err := patterns.Trigger(oneOrManyBranchesPattern, ctx)
+	if err != nil {
+		if err.Reason == patterns.Denied {
+			return admission.Denied(err.Message)
+		}
+		if err.Reason == patterns.Errored {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+	}
+
+	err = patterns.Trigger(userSpecificRemoverPattern, ctx)
 	if err != nil {
 		if err.Reason == patterns.Denied {
 			return admission.Denied(err.Message)

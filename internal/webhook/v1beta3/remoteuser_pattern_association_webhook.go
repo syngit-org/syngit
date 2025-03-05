@@ -6,8 +6,6 @@ import (
 
 	patterns "github.com/syngit-org/syngit/internal/patterns/v1beta3"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -103,27 +101,22 @@ func (ruwh *RemoteUserAssociationWebhookHandler) Handle(ctx context.Context, req
 func (ruwh *RemoteUserAssociationWebhookHandler) triggerUserSpecificPatterns(ctx context.Context, req admission.Request, username string, pattern *patterns.RemoteUserSearchRemoteTargetPattern) *patterns.ErrorPattern {
 	// Get all RemoteSyncer of the namespace that implement the user specific pattern
 	remoteSyncerList := &syngit.RemoteSyncerList{}
-	selector := labels.NewSelector()
-	userSpecificKey, reqErr := labels.NewRequirement(syngit.RtAnnotationKeyUserSpecific, selection.Exists, nil)
-	if reqErr != nil {
-		return &patterns.ErrorPattern{Message: reqErr.Error(), Reason: patterns.Errored}
-	}
-	managedBy, reqErr := labels.NewRequirement(syngit.RtAnnotationKeyUserSpecific, selection.Equals, []string{syngit.ManagedByLabelValue})
-	if reqErr != nil {
-		return &patterns.ErrorPattern{Message: reqErr.Error(), Reason: patterns.Errored}
-	}
-	selector.Add(*userSpecificKey)
-	selector.Add(*managedBy)
 	listOps := &client.ListOptions{
-		LabelSelector: selector,
-		Namespace:     req.Namespace,
+		Namespace: req.Namespace,
 	}
 	listErr := ruwh.Client.List(ctx, remoteSyncerList, listOps)
 	if listErr != nil {
 		return &patterns.ErrorPattern{Message: listErr.Error(), Reason: patterns.Errored}
 	}
 
+	remoteSyncers := []syngit.RemoteSyncer{}
 	for _, rsy := range remoteSyncerList.Items {
+		if rsy.Annotations[syngit.RtAnnotationKeyUserSpecific] == string(syngit.RtAnnotationValueOneUserOneBranch) {
+			remoteSyncers = append(remoteSyncers, rsy)
+		}
+	}
+
+	for _, rsy := range remoteSyncers {
 		userSpecificPattern := &patterns.UserSpecificPattern{
 			PatternSpecification: patterns.PatternSpecification{
 				Client:         ruwh.Client,
@@ -132,6 +125,7 @@ func (ruwh *RemoteUserAssociationWebhookHandler) triggerUserSpecificPatterns(ctx
 			Username:          username,
 			RemoteSyncer:      rsy,
 			RemoteUserBinding: pattern.RemoteUserBinding,
+			RemoteSyncers:     remoteSyncers,
 		}
 
 		err := patterns.Trigger(userSpecificPattern, ctx)

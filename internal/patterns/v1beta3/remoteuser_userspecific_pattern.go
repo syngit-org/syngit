@@ -17,6 +17,7 @@ type UserSpecificPattern struct {
 	PatternSpecification
 	Username                 string
 	RemoteSyncer             syngit.RemoteSyncer
+	RemoteSyncers            []syngit.RemoteSyncer
 	associatedRemoteTarget   syngit.RemoteTarget
 	remoteTargetToBeSetuped  *syngit.RemoteTarget
 	remoteTargetsToBeRemoved []syngit.RemoteTarget
@@ -120,15 +121,9 @@ func (usp *UserSpecificPattern) Diff(ctx context.Context) *ErrorPattern {
 		usp.RemoteUserBinding = remoteUserBinding
 	}
 
-	// Get RemoteSyncers that use this patterns
-	remoteSyncers, listRsyErr := usp.getRemoteSyncersManagedByThisPattern(ctx)
-	if listRsyErr != nil {
-		return &ErrorPattern{Message: listRsyErr.Error(), Reason: Errored}
-	}
-
 	// Get RemoteTargets that are already bound to this user
 	// Scope only the RemoteTargets with the same upstream repo & branch as the RemoteSyncer
-	boundRemoteTargets, listErr := usp.getExistingRemoteTarget(ctx, remoteSyncers)
+	boundRemoteTargets, listErr := usp.getExistingRemoteTarget(ctx)
 	if listErr != nil {
 		return &ErrorPattern{Message: listErr.Error(), Reason: Errored}
 	}
@@ -188,33 +183,12 @@ func (usp *UserSpecificPattern) Diff(ctx context.Context) *ErrorPattern {
 	return nil
 }
 
-// Get RemoteSyncers that manage RemoteTargets using this pattern
-func (usp *UserSpecificPattern) getRemoteSyncersManagedByThisPattern(ctx context.Context) ([]syngit.RemoteSyncer, error) {
-	remoteSyncers := []syngit.RemoteSyncer{}
-
-	remoteSyncerList := &syngit.RemoteSyncerList{}
-	listOps := &client.ListOptions{
-		Namespace: usp.NamespacedName.Namespace,
-	}
-	listErr := usp.Client.List(ctx, remoteSyncerList, listOps)
-	if listErr != nil {
-		return nil, listErr
-	}
-
-	for _, rsy := range remoteSyncerList.Items {
-		if rsy.Annotations[syngit.RtAnnotationKeyUserSpecific] == string(syngit.RtAnnotationValueOneUserOneBranch) {
-			remoteSyncers = append(remoteSyncers, rsy)
-		}
-	}
-
-	return remoteSyncers, nil
-}
-
-func (usp *UserSpecificPattern) getExistingRemoteTarget(ctx context.Context, remoteSyncers []syngit.RemoteSyncer) ([]syngit.RemoteTarget, error) {
+func (usp *UserSpecificPattern) getExistingRemoteTarget(ctx context.Context) ([]syngit.RemoteTarget, error) {
 	var remoteTargetList = &syngit.RemoteTargetList{}
 	listOps := &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
+			syngit.RtLabelKeyPattern: syngit.RtLabelValueOneUserOneBranch,
 			syngit.K8sUserLabelKey:   usp.Username,
 		}),
 		Namespace: usp.RemoteSyncer.Namespace,
@@ -229,7 +203,7 @@ func (usp *UserSpecificPattern) getExistingRemoteTarget(ctx context.Context, rem
 		if rt.Spec.UpstreamRepository == usp.RemoteSyncer.Spec.RemoteRepository && rt.Spec.UpstreamBranch == usp.RemoteSyncer.Spec.DefaultBranch {
 
 			haveToBeRemoved := true
-			for _, rsy := range remoteSyncers {
+			for _, rsy := range usp.RemoteSyncers {
 				if rsy.Spec.RemoteRepository == rt.Spec.UpstreamRepository && rsy.Name != usp.RemoteSyncer.Name {
 					haveToBeRemoved = false
 				}
@@ -256,6 +230,7 @@ func (usp *UserSpecificPattern) buildRemoteTarget(targetRepo string) (*syngit.Re
 			Namespace: usp.RemoteSyncer.Namespace,
 			Labels: map[string]string{
 				syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
+				syngit.RtLabelKeyPattern: syngit.RtLabelValueOneUserOneBranch,
 				syngit.K8sUserLabelKey:   usp.Username,
 			},
 		},

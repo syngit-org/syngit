@@ -32,6 +32,7 @@ const (
 	RtLabelKeyPattern        = "syngit.io/remotetarget.pattern"
 
 	RtLabelValueOneOrManyBranches = "one-or-many-branches"
+	RtLabelValueOneUserOneBranch  = "user-specific.one-user-one-branch"
 )
 
 type RemoteTargetUserSpecificValues string
