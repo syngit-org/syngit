@@ -245,7 +245,7 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string, targetRepo
 		},
 	})
 	if err != nil {
-		if strings.Contains(err.Error(), "cannot create empty commit: clean working tree") {
+		if gp.isErrorSkipable(err) {
 			ref, refErr := targetRepo.Head()
 			if refErr != nil {
 				return "", refErr
@@ -261,6 +261,18 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string, targetRepo
 	}
 
 	return commit.String(), nil
+}
+
+func (gp *GitPusher) isErrorSkipable(err error) bool {
+	s := err.Error()
+	switch {
+	case strings.Contains(s, "cannot create empty commit: clean working tree"):
+		return true
+	case strings.Contains(s, "failed to delete file in staging area: entry not found"):
+		return true
+	default:
+		return false
+	}
 }
 
 func (gp *GitPusher) pushChanges(repo *git.Repository) error {
