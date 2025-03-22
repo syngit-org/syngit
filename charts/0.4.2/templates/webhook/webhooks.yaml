@@ -1,0 +1,197 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ .Release.Name }}-dynamic-remotesyncer-webhook
+  labels:
+    app.kubernetes.io/name: webhook
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: webhooks
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+  {{- if eq .Values.webhook.certmanager.enabled true }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/syngit-webhook-cert
+  {{- end }}
+webhooks: []
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ .Release.Name }}-validating-webhook-configuration
+  labels:
+    app.kubernetes.io/name: webhook
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: webhooks
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+  {{- if eq .Values.webhook.certmanager.enabled true }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/syngit-webhook-cert
+  {{- end }}
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: syngit-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /validate-syngit-io-v1beta3-remoteuser
+  failurePolicy: Fail
+  name: vremoteuser.kb.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta3
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - remoteusers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: syngit-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /syngit-v1beta3-remotesyncer-rules-permissions
+  failurePolicy: Fail
+  name: vremotesyncers-rules-permissions.v1beta3.syngit.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta3
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - remotesyncers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: syngit-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /validate-syngit-io-v1beta3-remotesyncer
+  failurePolicy: Fail
+  name: vremotesyncer.kb.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta3
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - remotesyncers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: syngit-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /syngit-v1beta3-remoteuserbinding-permissions
+  failurePolicy: Fail
+  name: vremoteuserbindings-permissions.v1beta3.syngit.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta3
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - remoteuserbindings
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: syngit-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /syngit-v1beta3-remoteuser-association
+  failurePolicy: Fail
+  name: vremoteusers-association.v1beta3.syngit.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta3
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - remoteusers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: syngit-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /syngit-v1beta3-remoteuser-permissions
+  failurePolicy: Fail
+  name: vremoteusers-permissions.v1beta3.syngit.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta3
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - remoteusers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: syngit-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /syngit-v1beta3-remotesyncer-target-pattern
+  failurePolicy: Fail
+  name: vremotesyncers-target-pattern.v1beta3.syngit.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta3
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - remotesyncers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: syngit-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /validate-syngit-io-v1beta3-remotetarget
+  failurePolicy: Fail
+  name: vremotetarget-v1beta3.kb.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta3
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - remotetargets
+  sideEffects: None

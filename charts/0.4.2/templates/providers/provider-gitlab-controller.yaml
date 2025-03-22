@@ -1,0 +1,73 @@
+{{- if eq .Values.providers.gitlab.enabled true }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syngit-provider-gitlab
+  labels:
+    control-plane: syngit-provider-gitlab
+    app.kubernetes.io/name: deployment
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}-providers
+spec:
+  selector:
+    matchLabels:
+      control-plane: syngit-provider-gitlab
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: gitlab-provider-manager
+      labels:
+        control-plane: syngit-provider-gitlab
+    spec:
+      {{- if .Values.providers.controller.imagePullSecrets }}
+      imagePullSecrets:
+        {{ toYaml .Values.providers.controller.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      containers:
+      - command:
+        - /manager
+        {{- if .Values.providers.gitlab.image.imagePullPolicy }}
+        imagePullPolicy: {{ .Values.providers.gitlab.image.imagePullPolicy }}
+        {{- end }}
+        args:
+        - "--leader-elect"
+        - "--health-probe-bind-address=:8081"
+        - "--metrics-bind-address=:8443"
+        image: {{ .Values.providers.gitlab.image.prefix }}/{{ .Values.providers.gitlab.image.name }}:{{ .Values.providers.gitlab.image.tag }}
+        env:
+        - name: MANAGER_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        name: gitlab-provider-manager
+        securityContext: {{ toYaml .Values.providers.controller.securityContext | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources: {{ toYaml .Values.providers.controller.resources | nindent 10 }}
+        ports:
+        - containerPort: 9443
+          name: wbhk-crd-srv
+          protocol: TCP
+        - containerPort: 9444
+          name: wbhk-pusher-srv
+          protocol: TCP
+      serviceAccountName: {{ .Release.Name }}-providers-controller-manager
+      terminationGracePeriodSeconds: 10
+      {{- if .Values.providers.controller.tolerations }}
+      tolerations: {{ toYaml .Values.providers.controller.tolerations | nindent 8 }}
+      {{- end }}
+{{- end }}
