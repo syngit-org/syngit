@@ -1,0 +1,9 @@
+apiVersion: syngit.io/v1beta4
+kind: RemoteTarget
+metadata:
+  labels:
+    app.kubernetes.io/name: syngit
+    app.kubernetes.io/managed-by: kustomize
+  name: remotetarget-sample
+spec:
+  # TODO(user): Add fields here
