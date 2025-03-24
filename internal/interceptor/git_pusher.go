@@ -18,8 +18,12 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	admissionv1 "k8s.io/api/admission/v1"
 
+<<<<<<< HEAD
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	features "github.com/syngit-org/syngit/pkg/feature"
+=======
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+>>>>>>> e58e761 (Initiate v1beta4)
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 

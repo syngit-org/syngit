@@ -127,8 +127,13 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 
 		By("creating a RemoteSyncer")
 		cmd := exec.Command("kubectl", "apply", "-n", testNamespace, "-f",
+<<<<<<< HEAD
 			fmt.Sprintf("%s/syngit_%s_remotesyncer.yaml", version, samplePath))
 		_, err = utils.Run(cmd)
+=======
+			fmt.Sprintf("%s/syngit_v1beta4_remotesyncer.yaml", samplePath))
+		_, err := utils.Run(cmd)
+>>>>>>> e58e761 (Initiate v1beta4)
 		ExpectWithOffset(2, err).NotTo(HaveOccurred())
 
 		By("creating a ConfigMap")
@@ -145,10 +150,17 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 
 var _ = AfterEach(func() {
 
+<<<<<<< HEAD
 	By("uninstalling the syngit chart")
 	actionConfig, settings, err := utils.NewDefaultHelmActionConfig(syngitChart)
 	ExpectWithOffset(2, err).NotTo(HaveOccurred())
 	err = utils.UninstallChart(syngitChart, actionConfig, settings)
+=======
+	// Delete RemoteSyncer
+	cmd := exec.Command("kubectl", "delete", "-n", testNamespace, "-f",
+		fmt.Sprintf("%s/syngit_v1beta4_remotesyncer.yaml", samplePath))
+	_, err := utils.Run(cmd)
+>>>>>>> e58e761 (Initiate v1beta4)
 	ExpectWithOffset(2, err).NotTo(HaveOccurred())
 
 })
