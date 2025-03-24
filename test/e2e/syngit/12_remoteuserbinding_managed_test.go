@@ -21,7 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	. "github.com/syngit-org/syngit/test/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

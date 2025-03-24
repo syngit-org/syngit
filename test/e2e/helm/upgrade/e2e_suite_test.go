@@ -74,7 +74,7 @@ var _ = BeforeSuite(func() {
 
 	By("creating the RemoteSyncer")
 	cmd = exec.Command("kubectl", "apply", "-n", testNamespace, "-f",
-		fmt.Sprintf("%s/syngit_v1beta2_remotesyncer.yaml", samplePath))
+		fmt.Sprintf("%s/syngit_v1beta3_remotesyncer.yaml", samplePath))
 	_, err = utils.Run(cmd)
 	ExpectWithOffset(2, err).NotTo(HaveOccurred())
 
@@ -95,7 +95,7 @@ var _ = BeforeSuite(func() {
 	By("deleting the RemoteSyncer")
 	Wait60()
 	cmd = exec.Command("kubectl", "delete", "-n", testNamespace, "-f",
-		fmt.Sprintf("%s/syngit_v1beta2_remotesyncer.yaml", samplePath))
+		fmt.Sprintf("%s/syngit_v1beta3_remotesyncer.yaml", samplePath))
 	_, err = utils.Run(cmd)
 	ExpectWithOffset(2, err).NotTo(HaveOccurred())
 

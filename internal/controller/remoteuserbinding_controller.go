@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 )
 
 // RemoteUserBindingReconciler reconciles a RemoteUserBinding object
