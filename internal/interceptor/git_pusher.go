@@ -302,6 +302,9 @@ func (gp *GitPusher) pushChanges(repo *git.Repository) error {
 	}
 	err := repo.Push(pushOptions)
 	if err != nil {
+		if strings.Contains(err.Error(), "already up-to-date") {
+			return nil
+		}
 		errMsg := fmt.Sprintf("failed to push changes: %s\nVerbose output:%s\nVariables: %s\n", err.Error(), verboseOutput.String(), variables)
 		return errors.New(errMsg)
 	}
