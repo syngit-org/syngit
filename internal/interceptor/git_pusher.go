@@ -222,7 +222,7 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string, targetRepo
 
 	if gp.interceptedYAML == "" { // The file has been deleted
 		_, err := w.Remove(pathToAdd)
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "entry not found") {
 			errMsg := "failed to delete file in staging area: " + err.Error()
 			return "", errors.New(errMsg)
 		}
