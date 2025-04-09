@@ -34,9 +34,9 @@ package utils
 //	    test6: value
 func ExcludedFieldsFromJson(data map[string]interface{}, path string) {
 	parts := make([]string, 0)
-
 	var current string
 	inBrackets := false
+
 	for _, char := range path {
 		switch char {
 		case '.':
@@ -67,28 +67,32 @@ func ExcludedFieldsFromJson(data map[string]interface{}, path string) {
 	if current != "" {
 		parts = append(parts, current)
 	}
-	last := len(parts) - 1
 
-	// Traverse the map based on the path
+	if len(parts) == 0 {
+		return
+	}
+
+	last := len(parts) - 1
+	currentMap := data
+
 	for i, part := range parts {
 		if i == last {
-			// Last part of the path, delete the field
-			delete(data, part)
+			// Delete the last part from the current map
+			delete(currentMap, part)
 			return
 		}
-		// Move to the next level of the map
-		val, ok := data[part]
+
+		// Traverse deeper
+		val, ok := currentMap[part]
 		if !ok {
 			// Path not found
 			return
 		}
-		// Check if the value is a map
-		next, ok := val.(map[string]interface{})
+		nextMap, ok := val.(map[string]interface{})
 		if !ok {
-			// Not a map, cannot traverse further
+			// Can't descend further, not a map
 			return
 		}
-		// Update data for next iteration
-		data = next
+		currentMap = nextMap
 	}
 }
