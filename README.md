@@ -132,7 +132,7 @@ In other words, if you like to use Kubernetes with cli or through an UI BUT you 
 
 **Can I use it to keep history of my objects?**
 
-Another useful usage is the object logging. Automatic etcd snapshot can be setted on the cluster but it will log the changes of the whole cluster. As a DevOps user (that only deploy application without managing the cluster), I want to keep an history of my objects through commits on a git repository.
+Another useful usage is the object logging. Automatic etcd snapshot can be setted on the cluster but it will log the changes of the whole cluster. As a DevOps user (that only deploy application without managing the cluster), I want to keep a history of my objects through commits on a git repository.
 
 **I use an automatic reconciliation with my CD tool, do I really need to use syngit?**
 
