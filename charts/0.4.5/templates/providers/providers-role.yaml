@@ -1,0 +1,97 @@
+{{- if or (eq .Values.providers.github.enabled true) (eq .Values.providers.gitlab.enabled true) }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-providers-manager-role
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}-providers
+rules:
+# Create and patch events related to kgio objects in any namespace
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - syngit.io
+  resources:
+  - remoteusers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - syngit.io
+  resources:
+  - remoteusers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - syngit.io
+  resources:
+  - remoteuserbindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - syngit.io
+  resources:
+  - remoteuserbindings/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - syngit.io
+  resources:
+  - remoteuserbindings/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - syngit.io
+  resources:
+  - remotesyncers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - syngit.io
+  resources:
+  - remotesyncers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - syngit.io
+  resources:
+  - remotesyncers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+{{- end }}
