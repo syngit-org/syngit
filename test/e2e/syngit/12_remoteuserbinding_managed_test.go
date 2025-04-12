@@ -57,7 +57,7 @@ var _ = Describe("12 RemoteUserBinding managed by checker", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		By("creating the RemoteUserBinding with the exact same name as the generated one")
-		remoteUserBindingLuffyName := syngit.RubNamePrefix + "-" + string(Luffy)
+		remoteUserBindingLuffyName := syngit.RubNamePrefix + "-" + SanitizeUsername(string(Luffy))
 		remoteUserBindingLuffy := &syngit.RemoteUserBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteUserBindingLuffyName,
@@ -77,7 +77,7 @@ var _ = Describe("12 RemoteUserBinding managed by checker", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		By("creating the RemoteUserBinding with the exact same name as the generated one & the suffix 1")
-		remoteUserBindingLuffyName1 := fmt.Sprintf("%s-%s-1", syngit.RubNamePrefix, string(Luffy))
+		remoteUserBindingLuffyName1 := fmt.Sprintf("%s-%s-1", syngit.RubNamePrefix, SanitizeUsername(string(Luffy)))
 		remoteUserBindingLuffy1 := &syngit.RemoteUserBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteUserBindingLuffyName1,
@@ -121,7 +121,7 @@ var _ = Describe("12 RemoteUserBinding managed by checker", func() {
 
 		By("checking if the RemoteUserBinding with suffix 2 exists")
 		Wait3()
-		remoteUserBindingName := fmt.Sprintf("%s-%s-2", syngit.RubNamePrefix, string(Luffy))
+		remoteUserBindingName := fmt.Sprintf("%s-%s-2", syngit.RubNamePrefix, SanitizeUsername(string(Luffy)))
 		nnRubLuffy := types.NamespacedName{
 			Name:      remoteUserBindingName,
 			Namespace: namespace,

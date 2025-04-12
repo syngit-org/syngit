@@ -6,6 +6,7 @@ metadata:
   labels:
     control-plane: controller-manager
     app.kubernetes.io/name: deployment
+    app.kubernetes.io/version: {{ .Chart.Version }}
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: manager
     app.kubernetes.io/created-by: {{ .Release.Name }}
@@ -22,6 +23,7 @@ spec:
       labels:
         control-plane: controller-manager
         app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/version: {{ .Chart.Version }}
     spec:
       {{- if .Values.controller.image.imagePullSecrets }}
       imagePullSecrets:

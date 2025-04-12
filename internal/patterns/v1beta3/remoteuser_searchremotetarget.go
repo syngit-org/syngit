@@ -47,7 +47,7 @@ func (rusp *RemoteUserSearchRemoteTargetPattern) Diff(ctx context.Context) *Erro
 		Namespace: rusp.NamespacedName.Namespace,
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-			syngit.K8sUserLabelKey:   rusp.Username,
+			syngit.K8sUserLabelKey:   SanitizeUsername(rusp.Username),
 		}),
 	}
 	remoteUserBindingList := &syngit.RemoteUserBindingList{}
