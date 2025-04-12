@@ -43,6 +43,7 @@ body:
         - syngit version:
         - syngit image tag:
         - syngit controller's log:
+        - kubernetes distribution: Rancher v2.11, Openshift 4.18, k3s v1.30, k0s v1.31, ...
     validations:
       required: true
   - type: textarea

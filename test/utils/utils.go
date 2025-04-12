@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:golint,revive
+	syngit_utils "github.com/syngit-org/syngit/internal/patterns/v1beta3"
 )
 
 const (
@@ -172,4 +173,8 @@ func GetProjectDir() (string, error) {
 	}
 	wd = strings.Split(wd, "/test/e2e")[0]
 	return wd, nil
+}
+
+func SanitizeUsername(username string) string {
+	return syngit_utils.SanitizeUsername(username)
 }

@@ -112,7 +112,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 		By("checking that the RemoteUserBinding refers to 2 RemoteUsers")
 		Wait3()
 		nnRub := types.NamespacedName{
-			Name:      fmt.Sprintf("%s-%s", syngit.RubNamePrefix, string(Luffy)),
+			Name:      fmt.Sprintf("%s-%s", syngit.RubNamePrefix, SanitizeUsername(string(Luffy))),
 			Namespace: namespace,
 		}
 		getRub := &syngit.RemoteUserBinding{}

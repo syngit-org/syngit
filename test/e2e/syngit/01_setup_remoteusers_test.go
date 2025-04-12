@@ -68,7 +68,7 @@ var _ = Describe("01 Create RemoteUser", func() {
 		By("checking if the RemoteUserBinding for Luffy exists")
 		Wait3()
 		nnRubLuffy := types.NamespacedName{
-			Name:      fmt.Sprintf("%s-%s", syngit.RubNamePrefix, string(Luffy)),
+			Name:      fmt.Sprintf("%s-%s", syngit.RubNamePrefix, SanitizeUsername(string(Luffy))),
 			Namespace: namespace,
 		}
 		rubLuffy := &syngit.RemoteUserBinding{}

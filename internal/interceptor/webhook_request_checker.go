@@ -255,6 +255,7 @@ func (wrc *WebhookRequestChecker) setUserTarget(details *wrcDetails) (bool, erro
 	var gitUser *gitUser
 	remoteUserBinding, gitUser, rubErr := wrc.getRemoteUserBinding(incomingUser.Username, fqdn, details)
 	if rubErr != nil {
+		details.messageAddition = rubErr.Error()
 		return false, rubErr
 	}
 
@@ -274,6 +275,7 @@ func (wrc *WebhookRequestChecker) setUserTarget(details *wrcDetails) (bool, erro
 		}
 		err := patterns.Trigger(remoteTargetPattern, ctx)
 		if err != nil {
+			details.messageAddition = err.Error()
 			return false, err
 		}
 		if wrc.remoteSyncer.Annotations[syngit.RtAnnotationKeyUserSpecific] != "" {
