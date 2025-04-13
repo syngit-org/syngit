@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:golint,revive
-	syngit_utils "github.com/syngit-org/syngit/internal/patterns/v1beta3"
+	syngit_utils "github.com/syngit-org/syngit/pkg/utils"
 )
 
 const (
@@ -176,5 +176,5 @@ func GetProjectDir() (string, error) {
 }
 
 func SanitizeUsername(username string) string {
-	return syngit_utils.SanitizeUsername(username)
+	return syngit_utils.Sanitize(username)
 }

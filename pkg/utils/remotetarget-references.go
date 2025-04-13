@@ -21,11 +21,14 @@ func RemoteTargetNameConstructor(upstreamRepo string, upstreamBranch string, tar
 		if err != nil {
 			return "", err
 		}
-		targetRepoName = strings.ReplaceAll(strings.ReplaceAll(targetU.Path, "/", "-"), ".git", "")
+		targetRepoName = strings.ToLower(strings.ReplaceAll(SoftSanitize(targetU.Path), ".git", ""))
 	}
 
-	upstreamRepoName := strings.ReplaceAll(strings.ReplaceAll(upstreamU.Path, "/", "-"), ".git", "")
-	name := fmt.Sprintf("%s%s-%s%s-%s", syngit.RtManagedNamePrefix, upstreamRepoName, upstreamBranch, targetRepoName, targetBranch)
+	upstreamRepoName := strings.ToLower(strings.ReplaceAll(SoftSanitize(upstreamU.Path), ".git", ""))
+	if len(upstreamRepoName) >= 1 {
+		upstreamRepoName = upstreamRepoName[1:]
+	}
+	name := fmt.Sprintf("%s-%s%s-%s", upstreamRepoName, strings.ToLower(upstreamBranch), targetRepoName, strings.ToLower(targetBranch))
 
 	return name, nil
 }

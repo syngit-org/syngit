@@ -106,7 +106,7 @@ func (usp *UserSpecificPattern) Diff(ctx context.Context) *ErrorPattern {
 	listOps := &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-			syngit.K8sUserLabelKey:   SanitizeUsername(usp.Username),
+			syngit.K8sUserLabelKey:   utils.Sanitize(usp.Username),
 		}),
 		Namespace: usp.RemoteSyncer.Namespace,
 	}
@@ -199,7 +199,7 @@ func (usp *UserSpecificPattern) getExistingRemoteTarget(ctx context.Context) ([]
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
 			syngit.RtLabelKeyPattern: syngit.RtLabelValueOneUserOneBranch,
-			syngit.K8sUserLabelKey:   SanitizeUsername(usp.Username),
+			syngit.K8sUserLabelKey:   utils.Sanitize(usp.Username),
 		}),
 		Namespace: usp.RemoteSyncer.Namespace,
 	}
@@ -229,7 +229,7 @@ func (usp *UserSpecificPattern) getExistingRemoteTarget(ctx context.Context) ([]
 
 func (usp *UserSpecificPattern) buildRemoteTarget(targetRepo string) (*syngit.RemoteTarget, error) {
 
-	rtName, nameErr := utils.RemoteTargetNameConstructor(usp.RemoteSyncer.Spec.RemoteRepository, usp.RemoteSyncer.Spec.DefaultBranch, targetRepo, SanitizeUsername(usp.Username))
+	rtName, nameErr := utils.RemoteTargetNameConstructor(usp.RemoteSyncer.Spec.RemoteRepository, usp.RemoteSyncer.Spec.DefaultBranch, targetRepo, utils.Sanitize(usp.Username))
 	if nameErr != nil {
 		return nil, nameErr
 	}
@@ -241,14 +241,14 @@ func (usp *UserSpecificPattern) buildRemoteTarget(targetRepo string) (*syngit.Re
 			Labels: map[string]string{
 				syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
 				syngit.RtLabelKeyPattern: syngit.RtLabelValueOneUserOneBranch,
-				syngit.K8sUserLabelKey:   SanitizeUsername(usp.Username),
+				syngit.K8sUserLabelKey:   utils.Sanitize(usp.Username),
 			},
 		},
 		Spec: syngit.RemoteTargetSpec{
 			UpstreamRepository: usp.RemoteSyncer.Spec.RemoteRepository,
 			UpstreamBranch:     usp.RemoteSyncer.Spec.DefaultBranch,
 			TargetRepository:   targetRepo,
-			TargetBranch:       SoftSanitizeUsername(usp.Username),
+			TargetBranch:       utils.SoftSanitize(usp.Username),
 			MergeStrategy:      syngit.TryFastForwardOrHardReset,
 		},
 	}
