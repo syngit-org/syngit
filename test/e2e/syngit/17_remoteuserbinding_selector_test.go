@@ -49,7 +49,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 		branch                     = "main"
 	)
 
-	remoteTargetName := fmt.Sprintf("%s-%s-%s-%s-%s-%s-%s", syngit.RtManagedNamePrefix, giteaBaseNs, repo1, branch, giteaBaseNs, repo1, branch)
+	remoteTargetName := fmt.Sprintf("%s-%s-%s-%s-%s-%s", giteaBaseNs, repo1, branch, giteaBaseNs, repo1, branch)
 
 	It("should not push because RemoteUserBinding not targeted", func() {
 		By("creating the RemoteUser & RemoteUserBinding for Luffy")

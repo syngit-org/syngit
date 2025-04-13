@@ -83,15 +83,15 @@ func validateRemoteSyncerSpec(r *syngitv1beta3.RemoteSyncerSpec) field.ErrorList
 	}
 
 	// Validate Git URI
-	gitURIPattern := regexp.MustCompile(`^(https?|git)\://[^ ]+$`)
+	gitURIPattern := regexp.MustCompile(`^(https?|git)://((([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})|(\d{1,3}(\.\d{1,3}){3}))(:\d+)?(/.+)\.git$`)
 	if !gitURIPattern.MatchString(r.RemoteRepository) {
-		errors = append(errors, field.Invalid(field.NewPath("spec").Child("remoteRepository"), r.RemoteRepository, "invalid Git URI"))
+		errors = append(errors, field.Invalid(field.NewPath("spec").Child("remoteRepository"), r.RemoteRepository, "invalid Git URI, must match this regex: "+`^(https?|git)://((([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})|(\d{1,3}(\.\d{1,3}){3}))(:\d+)?(/.+)\.git$`))
 	}
 
 	// Validate the ExcludedFields to ensure that it is a YAML path
 	for _, fieldPath := range r.ExcludedFields {
 		if !isValidYAMLPath(fieldPath) {
-			errors = append(errors, field.Invalid(field.NewPath("spec").Child("excludedFields"), fieldPath, "must be a valid YAML path. Regex : "+`^([a-zA-Z0-9_./:-]*(\[[a-zA-Z0-9_*./:-]*\])?)*$`))
+			errors = append(errors, field.Invalid(field.NewPath("spec").Child("excludedFields"), fieldPath, "invalid YAML path, must match this regex : "+`^([a-zA-Z0-9_./:-]*(\[[a-zA-Z0-9_*./:-]*\])?)*$`))
 		}
 	}
 

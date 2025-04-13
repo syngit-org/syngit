@@ -1,0 +1,35 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-startupcheck
+  labels:
+    app.kubernetes.io/name: job
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: helm-startupcheck
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    spec:
+      serviceAccountName: startupcheck
+      automountServiceAccountToken: true
+      containers:
+        - name: wait-for-controller
+          image: bitnami/kubectl:1.32.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for all pods to be Ready..."
+              kubectl wait --for=condition=ready pods -l app.kubernetes.io/instance={{ .Release.Name }} -n {{ .Release.Namespace }} --timeout=500s
+              echo "All the pods of the controller are Ready!"
+
+              echo "Waiting for the certificate to be updated..."
+              kubectl wait --for=condition=ready certificate -l app.kubernetes.io/instance={{ .Release.Name }} -n {{ .Release.Namespace }} --timeout=500s
+              echo "The certificate used for Syngit is Ready!"
+      restartPolicy: Never
+  backoffLimit: 4

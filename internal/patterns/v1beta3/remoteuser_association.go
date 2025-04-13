@@ -64,7 +64,7 @@ func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *ErrorPatter
 		return &ErrorPattern{Message: diffErr.Error(), Reason: Errored}
 	}
 
-	sanitizedUsername := SanitizeUsername(ruap.Username)
+	sanitizedUsername := utils.Sanitize(ruap.Username)
 	name := syngit.RubNamePrefix + "-" + sanitizedUsername
 
 	// List all the RemoteUserBindings that are associated to this user and managed by Syngit.

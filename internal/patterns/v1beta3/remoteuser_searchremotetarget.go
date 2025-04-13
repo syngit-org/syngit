@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	"github.com/syngit-org/syngit/pkg/utils"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,7 +48,7 @@ func (rusp *RemoteUserSearchRemoteTargetPattern) Diff(ctx context.Context) *Erro
 		Namespace: rusp.NamespacedName.Namespace,
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-			syngit.K8sUserLabelKey:   SanitizeUsername(rusp.Username),
+			syngit.K8sUserLabelKey:   utils.Sanitize(rusp.Username),
 		}),
 	}
 	remoteUserBindingList := &syngit.RemoteUserBindingList{}

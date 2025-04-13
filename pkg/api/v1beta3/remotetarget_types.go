@@ -21,7 +21,6 @@ import (
 )
 
 const (
-	RtManagedNamePrefix            = "rt"
 	RtManagedDefaultForkNamePrefix = "fork"
 
 	RtAnnotationKeyUserSpecific      = "syngit.io/remotetarget.pattern.user-specific"

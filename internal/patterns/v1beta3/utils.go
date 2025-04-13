@@ -2,10 +2,7 @@ package v1beta3
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -16,24 +13,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	controllerClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-func SanitizeUsername(username string) string {
-	h := sha256.Sum256([]byte(username))
-	return hex.EncodeToString(h[:])[:12]
-}
-
-func SoftSanitizeUsername(username string) string {
-	const validPattern = `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
-	validRegex := regexp.MustCompile(validPattern)
-
-	if validRegex.MatchString(username) {
-		return username
-	}
-
-	allowedChars := regexp.MustCompile(`[^a-z0-9\.-]`)
-	sanitized := allowedChars.ReplaceAllString(strings.ToLower(username), "-")
-	return sanitized
-}
 
 func generateName(ctx context.Context, client controllerClient.Client, object controllerClient.Object, suffixNumber int) (string, error) {
 	oldName := object.GetName()
