@@ -34,6 +34,7 @@ type wrcDetails struct {
 	interceptedGVR  schema.GroupVersionResource
 	interceptedName string
 	interceptedYAML string
+	interceptedMap  map[string]interface{}
 
 	// Process checking information
 	processPass bool
@@ -119,14 +120,20 @@ func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
 		rDetails.interceptedYAML = ""
 	}
 
-	// Step 5 : TLS constructor
+	// STEP 5 : Check for deletionTimestamp
+	deletionTimestampExists := wrc.checkForDeletion(&rDetails)
+	if deletionTimestampExists {
+		return wrc.responseConstructor(rDetails)
+	}
+
+	// Step 6 : TLS constructor
 	err = wrc.tlsContructor(&rDetails)
 	if err != nil {
 		rDetails.errorDuringProcess = true
 		return wrc.responseConstructor(rDetails)
 	}
 
-	// STEP 6 : Git push
+	// STEP 7 : Git push
 	areTheyPushed, err := wrc.gitPush(&rDetails)
 	wrc.gitPushPostChecker(areTheyPushed, err, &rDetails)
 	if err != nil {
@@ -134,7 +141,7 @@ func (wrc *WebhookRequestChecker) ProcessSteps() admissionv1.AdmissionReview {
 		return wrc.responseConstructor(rDetails)
 	}
 
-	// STEP 7 : Post checking
+	// STEP 8 : Post checking
 	wrc.postcheck(&rDetails)
 
 	return wrc.responseConstructor(rDetails)
@@ -535,6 +542,15 @@ func getPathsFromConfigMap(ctx context.Context, client client.Client, configMapN
 	return excludedFields, nil
 }
 
+func (wrc *WebhookRequestChecker) checkForDeletion(details *wrcDetails) bool {
+	metadata, _ := details.interceptedMap["metadata"].(map[string]interface{})
+	_, ok := metadata["deletionTimestamp"]
+	if ok {
+		details.webhookPass = true
+	}
+	return ok
+}
+
 func (wrc *WebhookRequestChecker) convertToYaml(details *wrcDetails) error {
 	// Convert the json string object to a yaml string
 	// We have no other choice than extracting the json into a map
@@ -550,6 +566,7 @@ func (wrc *WebhookRequestChecker) convertToYaml(details *wrcDetails) error {
 		details.messageAddition = errMsg
 		return errors.New(errMsg)
 	}
+	details.interceptedMap = data
 
 	// Excluded fields paths to remove
 	paths := []string{}
