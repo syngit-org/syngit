@@ -50,6 +50,7 @@ var _ = BeforeSuite(func() {
 	By("installing prometheus operator")
 	Expect(utils.InstallPrometheusOperator()).To(Succeed())
 
+	// TO DO: Replace the following by utils.InstallCertManagerCRDs when last stable version of syngit Helm chat is >= 0.4.8
 	By("installing the cert-manager")
 	Expect(utils.InstallCertManager()).To(Succeed())
 
