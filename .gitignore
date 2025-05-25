@@ -21,7 +21,7 @@ go.work
 # Kubernetes Generated files - skip generated files, except for vendored files
 !vendor/**/zz_generated.*
 
-# editor and IDE paraphernalia
+# Editor and IDE paraphernalia
 .idea
 .vscode
 *.swp
@@ -34,6 +34,10 @@ config/local/deploy/webhook/webhook.yaml
 config/local/run/crd
 config/local/run/webhook/webhook.yaml
 
-# developer's specific tests
+# Developer's specific tests
 config/samples/test
 test/e2e/syngit/*.ignore
+
+# Charts dependencies
+charts/*/charts
+charts/*/*.lock

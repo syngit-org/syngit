@@ -23,7 +23,7 @@ Syngit is a Kubernetes operator that allows you to push resources on a git repos
 
 ### Prerequisites
 - Access to a Kubernetes v1.11.3+ cluster.
-- ⚠️ Cert Manager version 1.13+ on the cluster.
+- ⚠️ Cert Manager version ~1.17.x installed on the cluster.
 - Helm version v3.0.0+.
 
 ### Installation

@@ -48,8 +48,8 @@ var _ = BeforeSuite(func() {
 	By("installing prometheus operator")
 	Expect(utils.InstallPrometheusOperator()).To(Succeed())
 
-	By("installing the cert-manager")
-	Expect(utils.InstallCertManager()).To(Succeed())
+	By("installing the cert-manager CRDs")
+	Expect(utils.InstallCertManagerCRDs()).To(Succeed())
 
 	By("build the image")
 	cmd = exec.Command("make", "docker-build")
@@ -73,13 +73,13 @@ var _ = AfterSuite(func() {
 	By("uninstalling the Prometheus manager bundle")
 	utils.UninstallPrometheusOperator()
 
-	By("uninstalling the cert-manager bundle")
-	utils.UninstallCertManager()
-
 	By("uninstalling the syngit chart")
 	cmd := exec.Command("make", "chart-uninstall")
 	_, err := utils.Run(cmd)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
+	By("uninstalling the cert-manager CRDs bundle")
+	utils.UninstallCertManagerCRDs()
 
 	By("removing test namespace")
 	cmd = exec.Command("kubectl", "delete", "ns", testNamespace)

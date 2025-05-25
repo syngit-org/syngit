@@ -28,6 +28,19 @@ jobs:
         uses: azure/setup-helm@b7246b12e77f7134dc2d460a3d5bad15bbe29390 #v4.1.0
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Build chart dependencies
+        run: |
+          for chart in charts/*; do
+            if [ -f "$chart/Chart.yaml" ]; then
+              helm dependency update "$chart"
+            fi
+          done
+
+      - name: Add Helm repositories
+        run: |
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo update
           
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@a917fd15b20e8b64b94d9158ad54cd6345335584 #v1.6.0

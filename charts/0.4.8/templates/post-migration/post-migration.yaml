@@ -1,0 +1,102 @@
+{{- if .Release.IsUpgrade -}}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-post-migration
+  labels:
+    app.kubernetes.io/name: job
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: post-migration
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+  annotations:
+    "helm.sh/hook": post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    spec:
+      serviceAccountName: post-migration
+      automountServiceAccountToken: true
+      containers:
+        - name: post-migration
+          image: bitnami/kubectl:1.32.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              #!/bin/sh
+              set -e
+
+              kubectl wait --for=condition=ready pods -l app.kubernetes.io/instance={{ .Release.Name }} -l app.kubernetes.io/version={{ .Chart.Version }} \
+                -n {{ .Release.Namespace }} --timeout=500s
+
+              echo "Waiting for the leader to be elected..."
+              sleep 30
+
+              API_SERVER="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}"
+              TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              CACERT=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+
+              echo "Deleting RemoteTargets managed by syngit..."
+              kubectl delete remotetarget -l managed-by=syngit.io -A || true
+
+              echo "Fetching RemoteUserBindings managed by syngit.io..."
+              bindings=$(kubectl get remoteuserbindings -l managed-by=syngit.io -A -o json)
+
+              echo "$bindings" | jq -c '.items[]' | while read -r binding; do
+                bindingname=$(echo "$binding" | jq -r '.metadata.name')
+                username=$(echo "$binding" | jq -r '.spec.subject.name')
+                remoteusers=$(echo "$binding" | jq -c '.spec.remoteUserRefs[]')
+                namespace=$(echo "$binding" | jq -r '.metadata.namespace')
+
+                echo "Remote RemoteTarget references from the RemoteUserBinding..."
+                kubectl --token="$TOKEN" \
+                        --server="$API_SERVER" \
+                        --certificate-authority="$CACERT" \
+                        --as="$username" \
+                        --as-group="syngit:post-migration-patch" \
+                        -n "$namespace" \
+                        delete remoteuserbinding "$bindingname"
+
+                echo "Processing binding for user: $username"
+
+                echo "$remoteusers" | while read -r ref; do
+                  name=$(echo "$ref" | jq -r '.name')
+                  
+                  echo "Double-update RemoteUser $name in namespace $namespace as $username... 1"
+                  
+                  kubectl --token="$TOKEN" \
+                          --server="$API_SERVER" \
+                          --certificate-authority="$CACERT" \
+                          --as="$username" \
+                          --as-group="syngit:post-migration-patch" \
+                          -n "$namespace" \
+                          patch remoteuser "$name" --type='merge' -p '{
+                    "metadata": {
+                      "annotations": {
+                        "syngit.io/remoteuserbinding.managed": "false"
+                      }
+                    }
+                  }'
+                  
+                  echo "Double-update RemoteUser $name in namespace $namespace as $username... 2"
+
+                  kubectl --token="$TOKEN" \
+                          --server="$API_SERVER" \
+                          --certificate-authority="$CACERT" \
+                          --as="$username" \
+                          --as-group="syngit:post-migration-patch" \
+                          -n "$namespace" \
+                          patch remoteuser "$name" --type='merge' -p '{
+                    "metadata": {
+                      "annotations": {
+                        "syngit.io/remoteuserbinding.managed": "true"
+                      }
+                    }
+                  }'
+                done
+              done
+      restartPolicy: Never
+  backoffLimit: 4
+{{- end }}
