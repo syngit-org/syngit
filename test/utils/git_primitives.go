@@ -40,7 +40,7 @@ func AreObjectsUploaded(repo Repo, objects []runtime.Object) bool {
 	return true
 }
 
-func GetObjectInRepo(repo Repo, tree []Tree, obj runtime.Object) (*File, error) {
+func GetObjectInRepo(repo Repo, tree []Tree, obj runtime.Object) ([]File, error) {
 	return searchForObjectInAllManifests(repo, tree, obj)
 }
 
@@ -49,27 +49,38 @@ func IsObjectInRepo(repo Repo, obj runtime.Object) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	file, err := searchForObjectInAllManifests(repo, tree, obj)
-	return (file != nil), err
+	files, err := searchForObjectInAllManifests(repo, tree, obj)
+	return len(files) > 0, err
+}
+
+func SearchForObjectInRepo(repo Repo, obj runtime.Object) ([]File, error) {
+	tree, err := GetRepoTree(repo)
+	if err != nil {
+		return nil, err
+	}
+	return searchForObjectInAllManifests(repo, tree, obj)
 }
 
 func IsFieldDefined(repo Repo, obj runtime.Object, yamlPath string) (bool, error) {
+	found := false
+
 	tree, err := GetRepoTree(repo)
 	if err != nil {
 		return false, err
 	}
-	file, err := searchForObjectInAllManifests(repo, tree, obj)
+	files, err := searchForObjectInAllManifests(repo, tree, obj)
 	if err != nil {
 		return false, err
 	}
 
-	var parsed map[string]interface{}
-	err = yaml.Unmarshal(file.Content, &parsed)
-	if err != nil {
-		return false, err
+	for _, file := range files {
+		var parsed map[string]interface{}
+		err = yaml.Unmarshal(file.Content, &parsed)
+		if err != nil {
+			return false, err
+		}
+		_, found = isFieldDefinedInYaml(parsed, yamlPath)
 	}
-
-	_, found := isFieldDefinedInYaml(parsed, yamlPath)
 
 	return found, nil
 }
@@ -123,4 +134,16 @@ func GetRepoTree(repo Repo) ([]Tree, error) {
 		branch = repo.Branch
 	}
 	return getTree(repo.Fqdn, repo.Owner, repo.Name, branch)
+}
+
+func CommitObjectOnSpecifiedPath(repo Repo, obj runtime.Object, path string) error {
+	content, err := yaml.Marshal(obj)
+	if err != nil {
+		return fmt.Errorf("failed to marshal object: %w", err)
+	}
+	return commitYamlOnSpecifiedPath(repo, content, path)
+}
+
+func CommitYamlOnSpecifiedPath(repo Repo, content []byte, path string) error {
+	return commitYamlOnSpecifiedPath(repo, content, path)
 }
