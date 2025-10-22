@@ -201,7 +201,7 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 			},
 			ObjectMeta: metav1.ObjectMeta{Name: excludedFieldsConfiMapName, Namespace: namespace},
 			Data: map[string]string{
-				"excludedFields": "[\"metadata.uid\", \"metadata.managedFields\", \"metadata.annotations[test-annotation1]\", \"metadata.annotations.[test-annotation2]\"]",
+				"excludedFields": "[\"metadata.uid\", \"metadata.managedFields\", \"metadata.annotations[test-annotation1]\", \"metadata.annotations.[test-annotation2]\"]", //nolint:lll
 			},
 		}
 		_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,

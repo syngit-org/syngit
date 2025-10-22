@@ -2,6 +2,7 @@
 # Image URL to use all building/pushing image targets
 IMG ?= local/syngit-controller:dev
 DEV_CLUSTER ?= syngit-dev-cluster
+KIND_KUBECONFIG_PATH ?= /tmp/syngit-dev-cluster-kubeconfig
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.29.0
 CRD_OPTIONS ?= "crd"
@@ -108,14 +109,20 @@ vet: ## Run go vet against code.
 ##@ Test
 
 .PHONY: test
+test: kind-create-cluster
+test: export KUBECONFIG=${KIND_KUBECONFIG_PATH}
 test: test-controller test-build-deploy test-behavior test-chart-install test-chart-upgrade ## Run all the tests.
 
 .PHONY: test-controller
+test-controller: kind-create-cluster
+test-controller: export KUBECONFIG=${KIND_KUBECONFIG_PATH}
 test-controller: manifests generate fmt vet envtest setup-webhooks-for-run ## Run tests embeded in the controller package & webhook package.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 	make cleanup-webhooks-for-run
 
 .PHONY: test-build-deploy
+test-build-deploy: kind-create-cluster
+test-build-deploy: export KUBECONFIG=${KIND_KUBECONFIG_PATH}
 test-build-deploy: ## Run tests to build the Docker image and deploy all the manifests.
 	go test ./test/e2e/build -v -ginkgo.v
 
@@ -125,6 +132,8 @@ DEPREACTED_API_VERSIONS = $(shell go list ./... | grep -oP 'v\d+\w+\d+' | sort -
 COVERPKG = $(shell go list ./... | grep -v 'test' | grep -v -E "$(DEPREACTED_API_VERSIONS)" | paste -sd "," -)
 
 .PHONY: test-behavior
+test-behavior: kind-create-cluster
+test-behavior: export KUBECONFIG=${KIND_KUBECONFIG_PATH}
 test-behavior: cleanup-tests ## Install the test env (gitea). Run the behavior tests against a Kind k8s instance that is spun up. Cleanup when finished.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./test/e2e/syngit -timeout 25m -v -ginkgo.v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt
 
@@ -133,6 +142,8 @@ fast-behavior: ## Install the test env if not already installed. Run the behavio
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./test/e2e/syngit -timeout 25m -v -ginkgo.v -cover -coverpkg=$(COVERPKG) -setup fast
 
 .PHONY: test-selected
+test-selected: kind-create-cluster
+test-selected: export KUBECONFIG=${KIND_KUBECONFIG_PATH}
 test-selected: ## Install the test env if not already installed. Run only one selected test against a Kind k8s instance that is spun up. Does not cleanup when finished (meant to be run often).
 	@bash -c ' \
 		TEST_NUMBER=$(TEST_NUMBER) ./hack/tests/run_one_test.sh $(TEST_NUMBER); \
@@ -141,6 +152,8 @@ test-selected: ## Install the test env if not already installed. Run only one se
 	'
 
 .PHONY: cleanup-tests
+test-selected: kind-create-cluster
+test-selected: export KUBECONFIG=${KIND_KUBECONFIG_PATH}
 cleanup-tests: ## Uninstall all the charts needed for the tests.
 	helm uninstall -n syngit syngit || true
 	helm uninstall -n cert-manager cert-manager || true
@@ -150,11 +163,15 @@ cleanup-tests: ## Uninstall all the charts needed for the tests.
 	./hack/tests/reset_test.sh
 
 .PHONY: test-chart-install
+test-chart-install: kind-create-cluster
+test-chart-install: export KUBECONFIG=${KIND_KUBECONFIG_PATH}
 test-chart-install: ## Run tests to install the chart.
 	kubectl delete ns test || true
 	go test ./test/e2e/helm/install -v -ginkgo.v
 
 .PHONY: test-chart-upgrade
+test-chart-upgrade: kind-create-cluster
+test-chart-upgrade: export KUBECONFIG=${KIND_KUBECONFIG_PATH}
 test-chart-upgrade: ## Run tests to upgrade the chart.
 	kubectl delete ns test || true
 	go test ./test/e2e/helm/upgrade -v -ginkgo.v
@@ -315,6 +332,7 @@ chart-uninstall: ## Uninstall the chart.
 .PHONY: kind-create-cluster
 kind-create-cluster: ## Create the dev KinD cluster.
 	kind create cluster --name ${DEV_CLUSTER} || true
+	kind export kubeconfig --kubeconfig ${KIND_KUBECONFIG_PATH} --name syngit-dev-cluster
 
 .PHONY: kind-delete-cluster
 kind-delete-cluster: ## Delete the dev KinD cluster.
@@ -360,7 +378,7 @@ GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 KUSTOMIZE_VERSION ?= v5.3.0
 CONTROLLER_TOOLS_VERSION ?= v0.14.0
 ENVTEST_VERSION ?= latest
-GOLANGCI_LINT_VERSION ?= v1.62.2
+GOLANGCI_LINT_VERSION ?= v2.5.0
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -381,7 +399,7 @@ $(ENVTEST): $(LOCALBIN)
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
+	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)

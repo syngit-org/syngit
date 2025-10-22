@@ -1,0 +1,13 @@
+controller:
+  image:
+    prefix: local
+    name: syngit-controller
+    tag: dev
+providers:
+  github:
+    enabled: true
+  gitlab:
+    enabled: true
+certmanager:
+  dependency:
+    enabled: true

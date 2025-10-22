@@ -17,6 +17,9 @@ limitations under the License.
 package v1beta1
 
 import (
+	"context"
+	"fmt"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -34,27 +37,39 @@ func (r *RemoteUser) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-var _ webhook.Validator = &RemoteUser{}
+var _ webhook.CustomValidator = &RemoteUser{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *RemoteUser) ValidateCreate() (admission.Warnings, error) {
-	remoteuserlog.Info("validate create", "name", r.Name)
+func (r *RemoteUser) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	remoteuser, ok := obj.(*RemoteUser)
+	if !ok {
+		return nil, fmt.Errorf("expected a CronJob object but got %T", obj)
+	}
+	remoteuserlog.Info("validate update", "name", remoteuser.Name)
 
 	// TODO(user): fill in your validation logic upon object creation.
 	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *RemoteUser) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	remoteuserlog.Info("validate update", "name", r.Name)
+func (r *RemoteUser) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+	remoteuser, ok := newObj.(*RemoteUser)
+	if !ok {
+		return nil, fmt.Errorf("expected a CronJob object for the newObj but got %T", newObj)
+	}
+	remoteuserlog.Info("validate update", "name", remoteuser.Name)
 
 	// TODO(user): fill in your validation logic upon object update.
 	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *RemoteUser) ValidateDelete() (admission.Warnings, error) {
-	remoteuserlog.Info("validate delete", "name", r.Name)
+func (r *RemoteUser) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
+	remoteuser, ok := obj.(*RemoteUser)
+	if !ok {
+		return nil, fmt.Errorf("expected a CronJob object but got %T", obj)
+	}
+	remoteuserlog.Info("validate delete", "name", remoteuser.Name)
 
 	// TODO(user): fill in your validation logic upon object deletion.
 	return nil, nil

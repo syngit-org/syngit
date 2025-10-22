@@ -112,14 +112,15 @@ func init() {
 func TestE2E(t *testing.T) {
 	projectDir, err := utils.GetProjectDir()
 	if err != nil {
-		fmt.Fprintf(GinkgoWriter, "Failed to get project dir: %v\n", err)
+		fmt.Fprintf(GinkgoWriter, "Failed to get project dir: %v\n", err) //nolint:errcheck
 	}
 	if err := godotenv.Load(projectDir + "/test/utils/.env"); err != nil {
-		fmt.Fprintf(GinkgoWriter, "Failed to load .env file: %v\n", err)
+		fmt.Fprintf(GinkgoWriter, "Failed to load .env file: %v\n", err) //nolint:errcheck
 	}
 
 	RegisterFailHandler(Fail)
-	fmt.Fprintf(GinkgoWriter, "Starting syngit suite\n")
+	_, err = fmt.Fprintf(GinkgoWriter, "Starting syngit suite\n")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 	flag.Parse()
 	RunSpecs(t, "behavior suite syngit")
 }
@@ -145,13 +146,16 @@ func setupGitea() {
 // setupManager creates the manager and the webhooks for the tests.
 func setupManager() {
 
-	os.Setenv("MANAGER_NAMESPACE", operatorNamespace)
-	os.Setenv("DYNAMIC_WEBHOOK_NAME", dynamicWebhookName)
-	os.Setenv("GITEA_TEMP_CERT_DIR", "/tmp/gitea-certs")
+	err := os.Setenv("MANAGER_NAMESPACE", operatorNamespace)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	err = os.Setenv("DYNAMIC_WEBHOOK_NAME", dynamicWebhookName)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	err = os.Setenv("GITEA_TEMP_CERT_DIR", "/tmp/gitea-certs")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	By("adding syngit to scheme")
 	// Add the previous apiVersion for conversion
-	err := syngitv1beta2.AddToScheme(scheme.Scheme)
+	err = syngitv1beta2.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	// Add the current apiVersion
 	err = syngit.AddToScheme(scheme.Scheme)
@@ -198,10 +202,14 @@ func setupManager() {
 	Expect(errK8sManager).ToNot(HaveOccurred())
 
 	By("setting up the webhooks dev variables")
-	os.Setenv("DEV_MODE", "true")
-	os.Setenv("DEV_WEBHOOK_HOST", webhookInstallOptions.LocalServingHost)
-	os.Setenv("DEV_WEBHOOK_PORT", fmt.Sprint(webhookInstallOptions.LocalServingPort))
-	os.Setenv("DEV_WEBHOOK_CERT", webhookInstallOptions.LocalServingCertDir+"/tls.crt")
+	err = os.Setenv("DEV_MODE", "true")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	err = os.Setenv("DEV_WEBHOOK_HOST", webhookInstallOptions.LocalServingHost)
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	err = os.Setenv("DEV_WEBHOOK_PORT", fmt.Sprint(webhookInstallOptions.LocalServingPort))
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	err = os.Setenv("DEV_WEBHOOK_CERT", webhookInstallOptions.LocalServingCertDir+"/tls.crt")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	By("registring webhook server")
 	errWebhook := webhooksyngitv1beta3.SetupRemoteUserWebhookWithManager(k8sManager)
@@ -212,26 +220,31 @@ func setupManager() {
 	Expect(errWebhook).NotTo(HaveOccurred())
 	errWebhook = webhooksyngitv1beta3.SetupRemoteTargetWebhookWithManager(k8sManager)
 	Expect(errWebhook).NotTo(HaveOccurred())
-	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remoteuser-association", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserAssociationWebhookHandler{
-		Client:  k8sManager.GetClient(),
-		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
-	}})
-	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remoteuser-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserPermissionsWebhookHandler{
-		Client:  k8sManager.GetClient(),
-		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
-	}})
-	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remoteuserbinding-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserBindingPermissionsWebhookHandler{
-		Client:  k8sManager.GetClient(),
-		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
-	}})
-	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remotesyncer-rules-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteSyncerWebhookHandler{
-		Client:  k8sManager.GetClient(),
-		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
-	}})
-	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remotesyncer-target-pattern", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteSyncerTargetPatternWebhookHandler{
-		Client:  k8sManager.GetClient(),
-		Decoder: admission.NewDecoder(k8sManager.GetScheme()),
-	}})
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remoteuser-association",
+		&webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserAssociationWebhookHandler{
+			Client:  k8sManager.GetClient(),
+			Decoder: admission.NewDecoder(k8sManager.GetScheme()),
+		}})
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remoteuser-permissions",
+		&webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserPermissionsWebhookHandler{
+			Client:  k8sManager.GetClient(),
+			Decoder: admission.NewDecoder(k8sManager.GetScheme()),
+		}})
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remoteuserbinding-permissions",
+		&webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserBindingPermissionsWebhookHandler{
+			Client:  k8sManager.GetClient(),
+			Decoder: admission.NewDecoder(k8sManager.GetScheme()),
+		}})
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remotesyncer-rules-permissions",
+		&webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteSyncerWebhookHandler{
+			Client:  k8sManager.GetClient(),
+			Decoder: admission.NewDecoder(k8sManager.GetScheme()),
+		}})
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta3-remotesyncer-target-pattern",
+		&webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteSyncerTargetPatternWebhookHandler{
+			Client:  k8sManager.GetClient(),
+			Decoder: admission.NewDecoder(k8sManager.GetScheme()),
+		}})
 
 	By("setting up the controllers")
 	errController := (&controllerssyngit.RemoteUserReconciler{
@@ -526,7 +539,7 @@ func deleteRbac(ctx context.Context) {
 	Expect(err).NotTo(HaveOccurred())
 	err = sClient.KAs(Admin).RbacV1().RoleBindings(namespace).Delete(ctx, devopsRoleBindingName, metav1.DeleteOptions{})
 	Expect(err).NotTo(HaveOccurred())
-	err = sClient.KAs(Admin).RbacV1().RoleBindings(namespace).Delete(ctx, limitedDevopsRoleBindingName, metav1.DeleteOptions{})
+	err = sClient.KAs(Admin).RbacV1().RoleBindings(namespace).Delete(ctx, limitedDevopsRoleBindingName, metav1.DeleteOptions{}) //nolint:lll
 	Expect(err).NotTo(HaveOccurred())
 
 }

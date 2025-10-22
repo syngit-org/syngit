@@ -8,7 +8,12 @@ import (
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 )
 
-func RemoteTargetNameConstructor(upstreamRepo string, upstreamBranch string, targetRepo string, targetBranch string) (string, error) {
+func RemoteTargetNameConstructor(
+	upstreamRepo string,
+	upstreamBranch string,
+	targetRepo string,
+	targetBranch string,
+) (string, error) {
 
 	upstreamU, err := url.Parse(upstreamRepo)
 	if err != nil {
@@ -28,7 +33,12 @@ func RemoteTargetNameConstructor(upstreamRepo string, upstreamBranch string, tar
 	if len(upstreamRepoName) >= 1 {
 		upstreamRepoName = upstreamRepoName[1:]
 	}
-	name := fmt.Sprintf("%s-%s%s-%s", upstreamRepoName, strings.ToLower(upstreamBranch), targetRepoName, strings.ToLower(targetBranch))
+	name := fmt.Sprintf("%s-%s%s-%s",
+		upstreamRepoName,
+		strings.ToLower(upstreamBranch),
+		targetRepoName,
+		strings.ToLower(targetBranch),
+	)
 
 	return name, nil
 }

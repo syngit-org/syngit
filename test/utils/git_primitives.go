@@ -94,7 +94,7 @@ func GetLatestCommit(repoUrl string, repoOwner string, repoName string) (*Commit
 	if err != nil {
 		return nil, fmt.Errorf("failed to get latest commit: %v", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() // nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get latest commit: %s", resp.Status)

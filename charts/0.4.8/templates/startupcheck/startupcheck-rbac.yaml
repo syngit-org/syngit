@@ -3,6 +3,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: startupcheck
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: job
     app.kubernetes.io/instance: {{ .Release.Name }}
@@ -17,6 +18,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: startupcheck
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: job
     app.kubernetes.io/instance: {{ .Release.Name }}
@@ -42,6 +44,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: startupcheck
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: job
     app.kubernetes.io/instance: {{ .Release.Name }}

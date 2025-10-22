@@ -4,6 +4,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: syngit-provider-github
+  namespace: {{ .Release.Namespace }}
   labels:
     control-plane: syngit-provider-github
     app.kubernetes.io/name: deployment

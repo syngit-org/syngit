@@ -21,7 +21,7 @@ import (
 
 type RemoteUserAssociationWebhookHandler struct {
 	Client  client.Client
-	Decoder *admission.Decoder
+	Decoder admission.Decoder
 }
 
 const (

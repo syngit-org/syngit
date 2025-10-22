@@ -73,7 +73,10 @@ var _ = Describe("16 Wrong reference or value test", func() {
 		ruLuffy := &syngit.RemoteUser{}
 		Eventually(func() bool {
 			err := sClient.As(Luffy).Get(nnRuLuffy, ruLuffy)
-			return err == nil && len(ruLuffy.Status.Conditions) > 0 && ruLuffy.Status.Conditions[0].Type == "SecretBound" && ruLuffy.Status.Conditions[0].Status == metav1.ConditionFalse
+			return err == nil &&
+				len(ruLuffy.Status.Conditions) > 0 &&
+				ruLuffy.Status.Conditions[0].Type == "SecretBound" &&
+				ruLuffy.Status.Conditions[0].Status == metav1.ConditionFalse
 		}, timeout, interval).Should(BeTrue())
 
 		By("creating the RemoteUserBinding for Luffy with wrong RemoteUser reference")

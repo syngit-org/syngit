@@ -10,6 +10,7 @@ metadata:
     app.kubernetes.io/created-by: {{ .Release.Name }}
     app.kubernetes.io/part-of: {{ .Release.Name }}-providers
   name: {{ .Release.Name }}-providers-leader-election-role
+  namespace: {{ .Release.Namespace }}
 rules:
 - apiGroups:
   - coordination.k8s.io

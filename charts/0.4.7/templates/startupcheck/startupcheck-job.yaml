@@ -3,6 +3,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ .Release.Name }}-startupcheck
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: job
     app.kubernetes.io/instance: {{ .Release.Name }}
@@ -19,7 +20,7 @@ spec:
       automountServiceAccountToken: true
       containers:
         - name: wait-for-controller
-          image: bitnami/kubectl:1.32.0
+          image: alpine/kubectl:1.34.1
           command:
             - /bin/sh
             - -c

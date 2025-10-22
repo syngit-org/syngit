@@ -18,7 +18,7 @@ import (
 
 type RemoteUserPermissionsWebhookHandler struct {
 	Client  client.Client
-	Decoder *admission.Decoder
+	Decoder admission.Decoder
 }
 
 // +kubebuilder:webhook:path=/syngit-v1beta3-remoteuser-permissions,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remoteusers,verbs=create;update;delete,versions=v1beta3,admissionReviewVersions=v1,name=vremoteusers-permissions.v1beta3.syngit.io
@@ -29,7 +29,7 @@ func (ruwh *RemoteUserPermissionsWebhookHandler) Handle(ctx context.Context, req
 
 	ru := &syngit.RemoteUser{}
 
-	if err := utils.GetObjectFromWebhookRequest(*ruwh.Decoder, ru, req); err != nil {
+	if err := utils.GetObjectFromWebhookRequest(ruwh.Decoder, ru, req); err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 

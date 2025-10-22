@@ -330,7 +330,7 @@ type RemoteUserSearchErrorReason string
 
 const (
 	RemoteUserNotFound         RemoteUserSearchErrorReason = "no RemoteUser found for the current user with this fqdn: "
-	MoreThanOneRemoteUserFound RemoteUserSearchErrorReason = "more than one RemoteUser found for the current user with this fqdn: "
+	MoreThanOneRemoteUserFound RemoteUserSearchErrorReason = "more than one RemoteUser found for the current user with this fqdn: " //nolint:lll
 )
 
 type RemoteUserSearchError struct {
@@ -362,9 +362,9 @@ func (ruse RemoteUserSearchError) ShouldContains(errorString string) bool {
 type CrendentialSearchErrorReason string
 
 const (
-	SecretNotFound         CrendentialSearchErrorReason = "no Secret found for the current user to log on the git repository with the RemoteUser: %s"
-	MoreThanOneSecretFound CrendentialSearchErrorReason = "more than one Secret found for the current user with the RemoteUser: %s"
-	TokenNotFound          CrendentialSearchErrorReason = "no token found in the secret for the RemoteUser: %s; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth"
+	SecretNotFound         CrendentialSearchErrorReason = "no Secret found for the current user to log on the git repository with the RemoteUser: %s"                                                                   //nolint:lll
+	MoreThanOneSecretFound CrendentialSearchErrorReason = "more than one Secret found for the current user with the RemoteUser: %s"                                                                                     //nolint:lll
+	TokenNotFound          CrendentialSearchErrorReason = "no token found in the secret for the RemoteUser: %s; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth" //nolint:lll
 )
 
 type CrendentialSearchError struct {
@@ -404,7 +404,7 @@ type RemoteTargetSearchError struct {
 
 func (rtse RemoteTargetSearchError) Error() string {
 	return fmt.Sprintf(
-		"the RemoteSyncer's repository or branch does not match the upstream repository or branch of the default RemoteTarget. RemoteSyncer repo: %s; RemoteSyncer branch: %s; RemoteTarget upstream repo: %s; RemoteTarget upstream branch: %s",
+		"the RemoteSyncer's repository or branch does not match the upstream repository or branch of the default RemoteTarget. RemoteSyncer repo: %s; RemoteSyncer branch: %s; RemoteTarget upstream repo: %s; RemoteTarget upstream branch: %s", //nolint:lll
 		rtse.UpstreamRepository,
 		rtse.UpstreamBranch,
 		rtse.TargetRepository,
@@ -413,7 +413,7 @@ func (rtse RemoteTargetSearchError) Error() string {
 }
 
 func (rtse RemoteTargetSearchError) ShouldContains(errorString string) bool {
-	return strings.Contains(errorString, "the RemoteSyncer's repository or branch does not match the upstream repository or branch of the default RemoteTarget. RemoteSyncer repo: ")
+	return strings.Contains(errorString, "the RemoteSyncer's repository or branch does not match the upstream repository or branch of the default RemoteTarget. RemoteSyncer repo: ") //nolint:lll
 }
 
 /*
@@ -439,8 +439,8 @@ func (mte MultipleTargetError) ShouldContains(errorString string) bool {
 type LabelSeletorParsingErrorKind string
 
 const (
-	RemoteUserBindingSelectorError LabelSeletorParsingErrorKind = "error parsing the LabelSelector for the remoteUserBindingSelector: "
-	RemoteTargetSelectorError      LabelSeletorParsingErrorKind = "error parsing the LabelSelector for the remoteTargetSelector: "
+	RemoteUserBindingSelectorError LabelSeletorParsingErrorKind = "error parsing the LabelSelector for the remoteUserBindingSelector: " //nolint:lll
+	RemoteTargetSelectorError      LabelSeletorParsingErrorKind = "error parsing the LabelSelector for the remoteTargetSelector: "      //nolint:lll
 )
 
 type LabelSeletorParsingError struct {
@@ -487,7 +487,7 @@ type MultipleRemoteUserBindingError struct {
 }
 
 func (mrube MultipleRemoteUserBindingError) Error() string {
-	return "multiple RemoteUserBinding found OR the name of the user is not unique; this version of the operator work with the name as unique identifier for users"
+	return "multiple RemoteUserBinding found OR the name of the user is not unique; this version of the operator work with the name as unique identifier for users" //nolint:lll
 }
 
 func (mrube MultipleRemoteUserBindingError) ShouldContains(errorString string) bool {
@@ -515,7 +515,7 @@ type NonUniqueUserError struct {
 }
 
 func (nuue NonUniqueUserError) Error() string {
-	return "the name of the user is not unique; this version of the operator work with the name as unique identifier for users"
+	return "the name of the user is not unique; this version of the operator work with the name as unique identifier for users" //nolint:lll
 }
 
 func (nuue NonUniqueUserError) ShouldContains(errorString string) bool {

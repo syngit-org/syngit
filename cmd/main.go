@@ -205,26 +205,31 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteTarget")
 			os.Exit(1)
 		}
-		mgr.GetWebhookServer().Register("/syngit-v1beta3-remoteuser-association", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserAssociationWebhookHandler{
-			Client:  mgr.GetClient(),
-			Decoder: admission.NewDecoder(mgr.GetScheme()),
-		}})
-		mgr.GetWebhookServer().Register("/syngit-v1beta3-remoteuser-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserPermissionsWebhookHandler{
-			Client:  mgr.GetClient(),
-			Decoder: admission.NewDecoder(mgr.GetScheme()),
-		}})
-		mgr.GetWebhookServer().Register("/syngit-v1beta3-remoteuserbinding-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserBindingPermissionsWebhookHandler{
-			Client:  mgr.GetClient(),
-			Decoder: admission.NewDecoder(mgr.GetScheme()),
-		}})
-		mgr.GetWebhookServer().Register("/syngit-v1beta3-remotesyncer-rules-permissions", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteSyncerWebhookHandler{
-			Client:  mgr.GetClient(),
-			Decoder: admission.NewDecoder(mgr.GetScheme()),
-		}})
-		mgr.GetWebhookServer().Register("/syngit-v1beta3-remotesyncer-target-pattern", &webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteSyncerTargetPatternWebhookHandler{
-			Client:  mgr.GetClient(),
-			Decoder: admission.NewDecoder(mgr.GetScheme()),
-		}})
+		mgr.GetWebhookServer().Register("/syngit-v1beta3-remoteuser-association",
+			&webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserAssociationWebhookHandler{
+				Client:  mgr.GetClient(),
+				Decoder: admission.NewDecoder(mgr.GetScheme()),
+			}})
+		mgr.GetWebhookServer().Register("/syngit-v1beta3-remoteuser-permissions",
+			&webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserPermissionsWebhookHandler{
+				Client:  mgr.GetClient(),
+				Decoder: admission.NewDecoder(mgr.GetScheme()),
+			}})
+		mgr.GetWebhookServer().Register("/syngit-v1beta3-remoteuserbinding-permissions",
+			&webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserBindingPermissionsWebhookHandler{
+				Client:  mgr.GetClient(),
+				Decoder: admission.NewDecoder(mgr.GetScheme()),
+			}})
+		mgr.GetWebhookServer().Register("/syngit-v1beta3-remotesyncer-rules-permissions",
+			&webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteSyncerWebhookHandler{
+				Client:  mgr.GetClient(),
+				Decoder: admission.NewDecoder(mgr.GetScheme()),
+			}})
+		mgr.GetWebhookServer().Register("/syngit-v1beta3-remotesyncer-target-pattern",
+			&webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteSyncerTargetPatternWebhookHandler{
+				Client:  mgr.GetClient(),
+				Decoder: admission.NewDecoder(mgr.GetScheme()),
+			}})
 	}
 
 	//+kubebuilder:scaffold:builder

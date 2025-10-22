@@ -111,7 +111,7 @@ func getAdminToken(baseFqdn string) (string, error) {
 		return "", err
 	}
 
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	// Check HTTP status code
 	if resp.StatusCode != http.StatusCreated {
@@ -160,9 +160,7 @@ func getTree(repoFqdn string, repoOwner string, repoName string, sha string) ([]
 	if err != nil {
 		return nil, fmt.Errorf("HTTP GET failed: %w", err)
 	}
-	defer resp.Body.Close()
-
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get repo tree: %s", resp.Status)
@@ -310,7 +308,7 @@ func fetchFileContent(url string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch file content: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	// Check for a successful response
 	if resp.StatusCode != http.StatusOK {
@@ -388,7 +386,7 @@ func merge(repo Repo, sourceBranch string, targetBranch string) error {
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusCreated {
 		bodyBytes, _ := io.ReadAll(resp.Body)
@@ -431,7 +429,7 @@ func merge(repo Repo, sourceBranch string, targetBranch string) error {
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)

@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha4
 
 import (
+	"context"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -36,7 +38,7 @@ func (r *RemoteUser) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-var _ webhook.Validator = &RemoteUser{}
+var _ webhook.CustomValidator = &RemoteUser{}
 
 // Validate validates the RemoteUserSpec
 func (r *RemoteUserSpec) ValidateRemoteUserSpec() field.ErrorList {
@@ -60,21 +62,21 @@ func (r *RemoteUser) ValidateRemoteUser() error {
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *RemoteUser) ValidateCreate() (admission.Warnings, error) {
+func (r *RemoteUser) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	remoteuserlog.Info("validate create", "name", r.Name)
 
 	return nil, r.ValidateRemoteUser()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *RemoteUser) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+func (r *RemoteUser) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	remoteuserlog.Info("validate update", "name", r.Name)
 
 	return nil, r.ValidateRemoteUser()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *RemoteUser) ValidateDelete() (admission.Warnings, error) {
+func (r *RemoteUser) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	remoteuserlog.Info("validate delete", "name", r.Name)
 
 	// Nothing to validate

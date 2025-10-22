@@ -27,7 +27,8 @@ import (
 // Run e2e tests using the Ginkgo runner.
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
-	fmt.Fprintf(GinkgoWriter, "Starting syngit build suite\n")
+	_, err := fmt.Fprintf(GinkgoWriter, "Starting syngit build suite\n")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 	RunSpecs(t, "e2e suite")
 }
 

@@ -41,7 +41,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 		branch              = "main"
 	)
 
-	It("should apply the resource on the cluster but not push it on the git repository (CommitApply)", func() { //nolint:dupl
+	It("should apply the resource on the cluster but not push it on the git repository (CommitApply)", func() { //nolint:dupl,lll
 
 		ctx := context.TODO()
 
@@ -154,7 +154,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 
 	})
 
-	It("should apply the resource on the cluster but not push it on the git repository (CommitOnly)", func() { //nolint:dupl
+	It("should apply the resource on the cluster but not push it on the git repository (CommitOnly)", func() { //nolint:dupl,lll
 
 		ctx := context.TODO()
 
