@@ -41,9 +41,9 @@ type RemoteUserBindingReconciler struct {
 	Recorder record.EventRecorder
 }
 
-//+kubebuilder:rbac:groups=syngit.io,resources=remoteuserbindings,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=syngit.io,resources=remoteuserbindings/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=syngit.io,resources=remoteuserbindings/finalizers,verbs=update
+// +kubebuilder:rbac:groups=syngit.io,resources=remoteuserbindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=syngit.io,resources=remoteuserbindings/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=syngit.io,resources=remoteuserbindings/finalizers,verbs=update
 
 func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)

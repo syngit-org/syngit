@@ -52,8 +52,6 @@ type Chart interface {
 	GetChartVersion() string
 	GetReleaseName() string
 	GetReleaseNamespace() string
-	SetInstallAction(installAction *action.Install)
-	SetUpgradeAction(upgradeAction *action.Upgrade)
 }
 
 type BaseChart struct {
@@ -62,8 +60,6 @@ type BaseChart struct {
 	ChartVersion     string
 	ReleaseName      string
 	ReleaseNamespace string
-	installAction    *action.Install
-	upgradeAction    *action.Upgrade
 }
 
 func (chart BaseChart) GetValuesPath() string {
@@ -81,12 +77,6 @@ func (chart BaseChart) GetReleaseName() string {
 func (chart BaseChart) GetReleaseNamespace() string {
 	return chart.ReleaseNamespace
 }
-func (chart BaseChart) SetInstallAction(installAction *action.Install) {
-	chart.installAction = installAction
-}
-func (chart BaseChart) SetUpgradeAction(upgradeAction *action.Upgrade) {
-	chart.upgradeAction = upgradeAction
-}
 
 type LocalChart struct {
 	BaseChart
@@ -95,7 +85,9 @@ type LocalChart struct {
 
 type RemoteChart struct {
 	BaseChart
-	RepoURL string
+	RepoURL       string
+	InstallAction *action.Install
+	UpgradeAction *action.Upgrade
 }
 
 func (c LocalChart) GetChartPath(settings *cli.EnvSettings) (string, error) {
@@ -105,14 +97,14 @@ func (c LocalChart) GetChartPath(settings *cli.EnvSettings) (string, error) {
 func (c RemoteChart) GetChartPath(settings *cli.EnvSettings) (string, error) {
 	var chartPath string
 	var err error
-	if c.installAction != nil {
-		chartPath, err = c.installAction.LocateChart(c.ChartName, settings)
+	if c.InstallAction != nil {
+		chartPath, err = c.InstallAction.LocateChart(c.ChartName, settings)
 		if err != nil {
 			return "", err
 		}
 	}
-	if c.upgradeAction != nil {
-		chartPath, err = c.upgradeAction.LocateChart(c.ChartName, settings)
+	if c.UpgradeAction != nil {
+		chartPath, err = c.UpgradeAction.LocateChart(c.ChartName, settings)
 		if err != nil {
 			return "", err
 		}
@@ -129,7 +121,11 @@ func InstallChart(chart Chart, actionConfig *action.Configuration, settings *cli
 	install.Wait = true
 	install.WaitForJobs = true
 
-	chart.SetInstallAction(install)
+	remote, ok := chart.(RemoteChart)
+	if ok {
+		remote.InstallAction = install
+		chart = remote
+	}
 	chartPath, err := chart.GetChartPath(settings)
 	if err != nil {
 		return err
@@ -175,7 +171,11 @@ func UpgradeChart(chart Chart, actionConfig *action.Configuration, settings *cli
 	upgrade.Wait = true
 	upgrade.WaitForJobs = true
 
-	chart.SetUpgradeAction(upgrade)
+	remote, ok := chart.(RemoteChart)
+	if ok {
+		remote.UpgradeAction = upgrade
+		chart = remote
+	}
 	chartPath, err := chart.GetChartPath(settings)
 	if err != nil {
 		return err

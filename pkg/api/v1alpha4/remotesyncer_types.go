@@ -76,8 +76,8 @@ type RemoteSyncerStatus struct {
 	LastPushedObjectState LastPushedObjectState `json:"lastPushedObjectState,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:unservedversion
+// +kubebuilder:object:root=true
+// +kubebuilder:unservedversion
 // +kubebuilder:skipversion
 
 // RemoteSyncer is the Schema for the remotesyncers API
@@ -89,7 +89,7 @@ type RemoteSyncer struct {
 	Status RemoteSyncerStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // RemoteSyncerList contains a list of RemoteSyncer
 type RemoteSyncerList struct {

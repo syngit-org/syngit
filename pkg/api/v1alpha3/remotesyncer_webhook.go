@@ -22,7 +22,6 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -84,20 +83,6 @@ func isValidYAMLPath(path string) bool {
 	// Regular expression to match a valid YAML path
 	yamlPathRegex := regexp.MustCompile(`^([a-zA-Z0-9_./:-]*(\[[a-zA-Z0-9_*./:-]*\])?)*$`)
 	return yamlPathRegex.MatchString(path)
-}
-
-func (r *RemoteSyncerSpec) searchForDuplicates(gvrns []GroupVersionResourceName) []*schema.GroupVersionResource {
-	seen := make(map[string]bool)
-	duplicates := make([]*schema.GroupVersionResource, 0)
-
-	for _, item := range gvrns {
-		if _, ok := seen[item.String()]; ok {
-			duplicates = append(duplicates, item.GroupVersionResource)
-		}
-		seen[item.String()] = true
-	}
-
-	return duplicates
 }
 
 func (r *RemoteSyncer) ValidateRemoteSyncer() error {

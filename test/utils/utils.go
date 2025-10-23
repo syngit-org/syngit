@@ -21,7 +21,7 @@ import (
 	"os"
 	"strings"
 
-	. "github.com/onsi/ginkgo/v2" //nolint:golint,revive
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck
 	syngit_utils "github.com/syngit-org/syngit/pkg/utils"
 )
 

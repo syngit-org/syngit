@@ -42,7 +42,7 @@ import (
 	syngitv1beta1 "github.com/syngit-org/syngit/pkg/api/v1beta1"
 	syngitv1beta2 "github.com/syngit-org/syngit/pkg/api/v1beta2"
 	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
-	//+kubebuilder:scaffold:imports
+	// +kubebuilder:scaffold:imports
 )
 
 var (
@@ -56,7 +56,7 @@ func init() {
 	utilruntime.Must(syngitv1beta1.AddToScheme(scheme))
 	utilruntime.Must(syngitv1beta2.AddToScheme(scheme))
 	utilruntime.Must(syngitv1beta3.AddToScheme(scheme))
-	//+kubebuilder:scaffold:scheme
+	// +kubebuilder:scaffold:scheme
 }
 
 func main() {
@@ -232,7 +232,7 @@ func main() {
 			}})
 	}
 
-	//+kubebuilder:scaffold:builder
+	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")

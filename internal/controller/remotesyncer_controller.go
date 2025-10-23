@@ -22,7 +22,7 @@ import (
 	"os"
 	"slices"
 
-	. "github.com/syngit-org/syngit/internal/interceptor"
+	interceptor "github.com/syngit-org/syngit/internal/interceptor"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	"github.com/syngit-org/syngit/pkg/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -49,7 +49,7 @@ const (
 type RemoteSyncerReconciler struct {
 	client.Client
 	Scheme             *runtime.Scheme
-	webhookServer      WebhookInterceptsAll
+	webhookServer      interceptor.WebhookInterceptsAll
 	dynamicWebhookName string
 	Namespace          string
 	devMode            bool
@@ -59,13 +59,13 @@ type RemoteSyncerReconciler struct {
 	Recorder           record.EventRecorder
 }
 
-//+kubebuilder:rbac:groups=syngit.io,resources=remotesyncers,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=syngit.io,resources=remotesyncers/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=syngit.io,resources=remotesyncers/finalizers,verbs=update
-//+kubebuilder:rbac:groups=*,resources=*,verbs=get;list;watch
-//+kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations,verbs=create;get;list;watch;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch;list;watch
-//+kubebuilder:rbac:groups=authorization.k8s.io,resources=subjectaccessreviews,verbs=create
+// +kubebuilder:rbac:groups=syngit.io,resources=remotesyncers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=syngit.io,resources=remotesyncers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=syngit.io,resources=remotesyncers/finalizers,verbs=update
+// +kubebuilder:rbac:groups=*,resources=*,verbs=get;list;watch
+// +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations,verbs=create;get;list;watch;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch;list;watch
+// +kubebuilder:rbac:groups=authorization.k8s.io,resources=subjectaccessreviews,verbs=create
 
 func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
@@ -311,7 +311,7 @@ func (r *RemoteSyncerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.dynamicWebhookName = os.Getenv("DYNAMIC_WEBHOOK_NAME")
 
 	// Initialize the webhookServer
-	r.webhookServer = WebhookInterceptsAll{
+	r.webhookServer = interceptor.WebhookInterceptsAll{
 		K8sClient: mgr.GetClient(),
 		Manager:   mgr,
 	}

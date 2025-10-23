@@ -523,9 +523,9 @@ func (wrc *WebhookRequestChecker) letPassRequest(details *wrcDetails) admissionv
 	return wrc.responseConstructor(*details)
 }
 
-func getPathsFromConfigMap(ctx context.Context, client client.Client, configMapNN types.NamespacedName) ([]string, error) {
+func getPathsFromConfigMap(ctx context.Context, c client.Client, configMapNN types.NamespacedName) ([]string, error) {
 	excludedFieldsConfig := &corev1.ConfigMap{}
-	err := client.Get(ctx, configMapNN, excludedFieldsConfig)
+	err := c.Get(ctx, configMapNN, excludedFieldsConfig)
 	if err != nil {
 		return nil, err
 	}

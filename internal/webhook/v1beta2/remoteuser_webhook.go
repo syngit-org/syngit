@@ -41,7 +41,7 @@ func SetupRemoteUserWebhookWithManager(mgr ctrl.Manager) error {
 }
 
 type RemoteUserCustomValidator struct {
-	//TODO(user): Add more fields as needed for validation
+	// TODO(user): Add more fields as needed for validation
 }
 
 var _ webhook.CustomValidator = &RemoteUserCustomValidator{}

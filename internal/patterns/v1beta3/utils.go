@@ -10,11 +10,10 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	controllerClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func generateName(ctx context.Context, client controllerClient.Client, object controllerClient.Object, suffixNumber int) (string, error) {
+func generateName(ctx context.Context, ctrlClient controllerClient.Client, object controllerClient.Object, suffixNumber int) (string, error) {
 	oldName := object.GetName()
 	newName := object.GetName()
 	if suffixNumber > 0 {
@@ -24,10 +23,10 @@ func generateName(ctx context.Context, client controllerClient.Client, object co
 		Name:      newName,
 		Namespace: object.GetNamespace(),
 	}
-	getErr := client.Get(ctx, *webhookNamespacedName, object)
+	getErr := ctrlClient.Get(ctx, *webhookNamespacedName, object)
 	if getErr == nil {
 		object.SetName(oldName)
-		return generateName(ctx, client, object, suffixNumber+1)
+		return generateName(ctx, ctrlClient, object, suffixNumber+1)
 	} else {
 		if strings.Contains(getErr.Error(), "not found") {
 			return newName, nil
@@ -40,9 +39,9 @@ func generateName(ctx context.Context, client controllerClient.Client, object co
 // Delete the associated RemoteUserBinding if the spec is empty.
 // The input must be a RemoteUserBinding managed by syngit.
 // The retryNumber is used when a conflict happens.
-func updateOrDeleteRemoteUserBinding(ctx context.Context, client controllerClient.Client, spec syngit.RemoteUserBindingSpec, remoteUserBinding syngit.RemoteUserBinding, retryNumber int) error {
+func updateOrDeleteRemoteUserBinding(ctx context.Context, ctrlClient controllerClient.Client, spec syngit.RemoteUserBindingSpec, remoteUserBinding syngit.RemoteUserBinding, retryNumber int) error {
 	rub := &syngit.RemoteUserBinding{}
-	if err := client.Get(ctx, types.NamespacedName{Name: remoteUserBinding.Name, Namespace: remoteUserBinding.Namespace}, rub); err != nil {
+	if err := ctrlClient.Get(ctx, types.NamespacedName{Name: remoteUserBinding.Name, Namespace: remoteUserBinding.Namespace}, rub); err != nil {
 		return err
 	}
 
@@ -51,7 +50,7 @@ func updateOrDeleteRemoteUserBinding(ctx context.Context, client controllerClien
 		remoteUserBinding.Spec.RemoteTargetRefs = []v1.ObjectReference{}
 
 		if len(spec.RemoteTargetRefs) == 0 {
-			delErr := client.Delete(ctx, rub)
+			delErr := ctrlClient.Delete(ctx, rub)
 			if delErr != nil {
 				return delErr
 			}
@@ -60,9 +59,9 @@ func updateOrDeleteRemoteUserBinding(ctx context.Context, client controllerClien
 	}
 
 	rub.Spec = spec
-	if err := client.Update(ctx, rub); err != nil {
+	if err := ctrlClient.Update(ctx, rub); err != nil {
 		if retryNumber > 0 {
-			return updateOrDeleteRemoteUserBinding(ctx, client, spec, remoteUserBinding, retryNumber-1)
+			return updateOrDeleteRemoteUserBinding(ctx, ctrlClient, spec, remoteUserBinding, retryNumber-1)
 		}
 		return err
 	}
@@ -79,7 +78,7 @@ func createOrUpdateRemoteTarget(ctx context.Context, k8sClient controllerClient.
 
 	// Add the association to each RemoteUserBindings
 	rubs := &syngit.RemoteUserBindingList{}
-	listOps := &client.ListOptions{
+	listOps := &controllerClient.ListOptions{
 		Namespace: remoteTarget.Namespace,
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
@@ -134,7 +133,7 @@ func slicesDifference(slice1 []string, slice2 []string) []string {
 	return diff
 }
 
-func getAssociatedRemoteUserBinding(ctx context.Context, k8sClient controllerClient.Client, remoteUserBindingList *syngit.RemoteUserBindingList, listOpts *client.ListOptions, retryNumber int) error {
+func getAssociatedRemoteUserBinding(ctx context.Context, k8sClient controllerClient.Client, remoteUserBindingList *syngit.RemoteUserBindingList, listOpts *controllerClient.ListOptions, retryNumber int) error {
 	listErr := k8sClient.List(ctx, remoteUserBindingList, listOpts)
 	if listErr != nil {
 		return listErr

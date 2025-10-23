@@ -35,8 +35,7 @@ import (
 	. "github.com/onsi/gomega"
 	controllerssyngit "github.com/syngit-org/syngit/internal/controller"
 	webhooksyngitv1beta3 "github.com/syngit-org/syngit/internal/webhook/v1beta3"
-	"github.com/syngit-org/syngit/test/utils"
-	. "github.com/syngit-org/syngit/test/utils"
+	. "github.com/syngit-org/syngit/test/utils" //nolint:staticcheck
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -110,7 +109,7 @@ func init() {
 
 // Run e2e tests using the Ginkgo runner.
 func TestE2E(t *testing.T) {
-	projectDir, err := utils.GetProjectDir()
+	projectDir, err := GetProjectDir()
 	if err != nil {
 		fmt.Fprintf(GinkgoWriter, "Failed to get project dir: %v\n", err) //nolint:errcheck
 	}

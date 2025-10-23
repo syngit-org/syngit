@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	. "k8s.io/client-go/kubernetes"
+	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,11 +23,11 @@ var (
 var Users map[string]TestUser
 
 type SyngitTestUsersClientset struct {
-	admin  *Clientset
+	admin  *k8s.Clientset
 	config *rest.Config
 }
 
-func (tu *SyngitTestUsersClientset) asWithError(username TestUser) (*Clientset, error) {
+func (tu *SyngitTestUsersClientset) asWithError(username TestUser) (*k8s.Clientset, error) {
 	if username != Admin {
 		return tu.kImpersonate(username)
 	} else {
@@ -35,7 +35,7 @@ func (tu *SyngitTestUsersClientset) asWithError(username TestUser) (*Clientset, 
 	}
 }
 
-func (tu *SyngitTestUsersClientset) KAs(username TestUser) *Clientset {
+func (tu *SyngitTestUsersClientset) KAs(username TestUser) *k8s.Clientset {
 	cs, err := tu.asWithError(username)
 	if err != nil {
 		return tu.admin
@@ -45,15 +45,15 @@ func (tu *SyngitTestUsersClientset) KAs(username TestUser) *Clientset {
 }
 
 func (tu *SyngitTestUsersClientset) CAs(username TestUser) client.Client {
-	client, _ := tu.impersonate(username)
-	return client
+	c, _ := tu.impersonate(username)
+	return c
 }
 
 func (tu *SyngitTestUsersClientset) As(username TestUser) CustomClient {
-	client, _ := tu.impersonate(username)
+	c, _ := tu.impersonate(username)
 	customClient := CustomClient{
 		ctx:    context.TODO(),
-		client: client,
+		client: c,
 	}
 	return customClient
 }
@@ -80,18 +80,18 @@ func (tu *SyngitTestUsersClientset) Initialize(cfg *rest.Config) error {
 	tu.config = cfg
 
 	var err error
-	tu.admin, err = NewForConfig(tu.config)
+	tu.admin, err = k8s.NewForConfig(tu.config)
 
 	return err
 }
 
-func (tu *SyngitTestUsersClientset) kImpersonate(username TestUser) (*Clientset, error) {
+func (tu *SyngitTestUsersClientset) kImpersonate(username TestUser) (*k8s.Clientset, error) {
 	tu.config.Impersonate = rest.ImpersonationConfig{
 		UserName: string(username),
 		Groups:   []string{"system:authenticated"}, // Ensure user is authenticated
 	}
 
-	clientset, err := NewForConfig(tu.config)
+	clientset, err := k8s.NewForConfig(tu.config)
 
 	return clientset, err
 }

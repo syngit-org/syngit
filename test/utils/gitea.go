@@ -193,7 +193,8 @@ func getTree(repoFqdn string, repoOwner string, repoName string, sha string) ([]
 	return allEntries, nil
 }
 
-// searchForObjectInAllManifests checks if a YAML file in the tree contains the specified `.metadata.name` with the given value.
+// searchForObjectInAllManifests checks if a YAML file in the tree
+// contains the specified `.metadata.name` with the given value.
 func searchForObjectInAllManifests(repo Repo, tree []Tree, obj runtime.Object) (*File, error) {
 	for _, entry := range tree {
 		if entry.Type == "blob" { // Only process files
@@ -221,7 +222,7 @@ func searchForObjectInAllManifests(repo Repo, tree []Tree, obj runtime.Object) (
 
 // containsYAMLMetadataName parses the content of a YAML file and checks if `.metadata.name` matches the given value.
 func containsYamlMetadataName(content []byte, obj runtime.Object) bool {
-	meta, err := getObjectMetadata(obj)
+	metadata, err := getObjectMetadata(obj)
 	if err != nil {
 		return false
 	}
@@ -249,8 +250,13 @@ func containsYamlMetadataName(content []byte, obj runtime.Object) bool {
 		namespace = namespaceValue.(string)
 	}
 
-	constructedApiVersion := obj.GetObjectKind().GroupVersionKind().Group + "/" + obj.GetObjectKind().GroupVersionKind().Version
-	return name == meta.GetName() && namespace == meta.GetNamespace() && (apiVersion == constructedApiVersion || (strings.HasPrefix(constructedApiVersion, "/") && !strings.Contains(apiVersion, "/"))) && kind == obj.GetObjectKind().GroupVersionKind().Kind
+	constructedApiVersion := obj.GetObjectKind().GroupVersionKind().Group + "/" + obj.GetObjectKind().GroupVersionKind().Version //nolint:lll
+
+	return name == metadata.GetName() &&
+		namespace == metadata.GetNamespace() &&
+		(apiVersion == constructedApiVersion || (strings.HasPrefix(constructedApiVersion, "/") &&
+			!strings.Contains(apiVersion, "/"))) &&
+		kind == obj.GetObjectKind().GroupVersionKind().Kind
 }
 
 func isFieldDefinedInYaml(parsed map[interface{}]interface{}, path string) (interface{}, bool) {
