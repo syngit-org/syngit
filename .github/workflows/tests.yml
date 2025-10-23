@@ -107,7 +107,7 @@ jobs:
       uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3 #v1.12.0
       with:
         version: v0.23.0
-        cluster_name: syngit-dev-cluster
+        cluster_name: syngit-dev-cluster-install
 
     - name: Set up Go
       uses: actions/setup-go@v5.2.0
@@ -124,7 +124,7 @@ jobs:
       with:
         timeout_minutes: 5
         max_attempts: 3
-        command: make test-chart-install
+        command: go test ./test/e2e/helm/install -v -ginkgo.v
 
   test-helm-upgrade:
     name: Helm upgrade test
@@ -147,7 +147,7 @@ jobs:
       uses: helm/kind-action@fa81e57adff234b2908110485695db0f181f3c67 #v1.7.0
       with:
         version: v0.23.0
-        cluster_name: syngit-dev-cluster
+        cluster_name: syngit-dev-cluster-upgrade
 
     - name: Install dependencies
       run: |
@@ -159,4 +159,4 @@ jobs:
       with:
         timeout_minutes: 10
         max_attempts: 3
-        command: make test-chart-upgrade
+        command: go test ./test/e2e/helm/upgrade -v -ginkgo.v
