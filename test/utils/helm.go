@@ -12,6 +12,7 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/cli/values"
+	"helm.sh/helm/v3/pkg/downloader"
 	"helm.sh/helm/v3/pkg/getter"
 	"k8s.io/client-go/rest"
 )
@@ -112,6 +113,30 @@ func (c RemoteChart) GetChartPath(settings *cli.EnvSettings) (string, error) {
 	return chartPath, nil
 }
 
+func updateDependencies(chartPath string, settings *cli.EnvSettings) error {
+	// Create getter providers for downloading charts
+	providers := getter.All(settings)
+
+	// Create a manager for dependency operations
+	man := &downloader.Manager{
+		Out:              os.Stdout,
+		ChartPath:        chartPath,
+		Keyring:          "", // Optional: path to keyring for verification
+		SkipUpdate:       false,
+		Getters:          providers,
+		RepositoryConfig: settings.RepositoryConfig,
+		RepositoryCache:  settings.RepositoryCache,
+		Debug:            false,
+	}
+
+	// Update dependencies
+	if err := man.Update(); err != nil {
+		return fmt.Errorf("failed to update dependencies: %v", err)
+	}
+
+	return nil
+}
+
 func InstallChart(chart Chart, actionConfig *action.Configuration, settings *cli.EnvSettings) error {
 	install := action.NewInstall(actionConfig)
 	install.ReleaseName = chart.GetReleaseName()
@@ -127,6 +152,12 @@ func InstallChart(chart Chart, actionConfig *action.Configuration, settings *cli
 		chart = remote
 	}
 	chartPath, err := chart.GetChartPath(settings)
+	if err != nil {
+		return err
+	}
+
+	// Update dependencies
+	err = updateDependencies(chartPath, settings)
 	if err != nil {
 		return err
 	}

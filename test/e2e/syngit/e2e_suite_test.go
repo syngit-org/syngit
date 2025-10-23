@@ -431,13 +431,8 @@ func rbacSetup(ctx context.Context) {
 
 // namespaceSetup creates the test namespace and the secrets for the users to connect to the gitea platforms.
 func namespaceSetup(ctx context.Context) {
-	By("setting the default client successfully")
-	sClient = &SyngitTestUsersClientset{}
-	err := sClient.Initialize(cfg)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
 	By("creating the syngit namespace")
-	_, err = sClient.KAs(Admin).CoreV1().Namespaces().Create(ctx,
+	_, err := sClient.KAs(Admin).CoreV1().Namespaces().Create(ctx,
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: operatorNamespace}},
 		metav1.CreateOptions{},
 	)
@@ -488,7 +483,6 @@ func isGiteaInstalled() bool {
 }
 
 var _ = BeforeSuite(func() {
-	ctx := context.TODO()
 	log.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 	if setupType == "full" {
@@ -500,9 +494,6 @@ var _ = BeforeSuite(func() {
 	}
 
 	setupManager()
-	namespaceSetup(ctx)
-	rbacSetup(ctx)
-	createCredentials(ctx)
 
 	By("retrieving the gitea urls")
 	var err error
@@ -512,6 +503,17 @@ var _ = BeforeSuite(func() {
 	gitP2Fqdn, err = GetGiteaURL(os.Getenv("PLATFORM2"))
 	Expect(err).NotTo(HaveOccurred())
 	fmt.Printf("  Gitea URL for %s: %s\n", os.Getenv("PLATFORM2"), gitP2Fqdn)
+
+	By("setting the default client successfully")
+	sClient = &SyngitTestUsersClientset{}
+	err = sClient.Initialize(cfg)
+
+	ctx := context.Background()
+
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	namespaceSetup(ctx)
+	rbacSetup(ctx)
+	createCredentials(ctx)
 })
 
 // uninstallSetup deletes the kind cluster it did not exist before and uninstall the gitea charts.
@@ -538,6 +540,8 @@ func deleteRbac(ctx context.Context) {
 	Expect(err).NotTo(HaveOccurred())
 	err = sClient.KAs(Admin).RbacV1().RoleBindings(namespace).Delete(ctx, devopsRoleBindingName, metav1.DeleteOptions{})
 	Expect(err).NotTo(HaveOccurred())
+	fmt.Println("GOING TO DELETE")
+	fmt.Println(Admin)
 	err = sClient.KAs(Admin).RbacV1().RoleBindings(namespace).Delete(ctx, limitedDevopsRoleBindingName, metav1.DeleteOptions{}) //nolint:lll
 	Expect(err).NotTo(HaveOccurred())
 

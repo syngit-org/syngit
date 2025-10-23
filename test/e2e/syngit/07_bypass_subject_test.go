@@ -37,7 +37,8 @@ var _ = Describe("07 Subject bypasses interception", func() {
 		remoteUserLuffyName = "remoteuser-luffy"
 		remoteSyncer1Name   = "remotesyncer-test7.1"
 		remoteSyncer2Name   = "remotesyncer-test7.2"
-		cmName              = "test-cm7"
+		cmName1             = "test-cm7.1"
+		cmName2             = "test-cm7.2"
 		branch              = "main"
 	)
 
@@ -118,7 +119,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 				Kind:       "ConfigMap",
 				APIVersion: "v1",
 			},
-			ObjectMeta: metav1.ObjectMeta{Name: cmName, Namespace: namespace},
+			ObjectMeta: metav1.ObjectMeta{Name: cmName1, Namespace: namespace},
 			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
@@ -142,7 +143,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 
 		By("checking that the configmap is present on the cluster")
 		nnCm := types.NamespacedName{
-			Name:      cmName,
+			Name:      cmName1,
 			Namespace: namespace,
 		}
 		getCm := &corev1.ConfigMap{}
@@ -231,7 +232,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 				Kind:       "ConfigMap",
 				APIVersion: "v1",
 			},
-			ObjectMeta: metav1.ObjectMeta{Name: cmName, Namespace: namespace},
+			ObjectMeta: metav1.ObjectMeta{Name: cmName2, Namespace: namespace},
 			Data:       map[string]string{"test": "oui"},
 		}
 		Eventually(func() bool {
@@ -255,7 +256,7 @@ var _ = Describe("07 Subject bypasses interception", func() {
 
 		By("checking that the configmap is present on the cluster")
 		nnCm := types.NamespacedName{
-			Name:      cmName,
+			Name:      cmName2,
 			Namespace: namespace,
 		}
 		getCm := &corev1.ConfigMap{}

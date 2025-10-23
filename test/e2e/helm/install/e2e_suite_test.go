@@ -65,13 +65,8 @@ var _ = BeforeSuite(func() {
 	By("installing the cert-manager CRDs")
 	Expect(utils.InstallCertManagerCRDs()).To(Succeed())
 
-	By("build the image")
-	cmd := exec.Command("make", "docker-build")
-	_, err = utils.Run(cmd)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
 	By("load the image in the KinD cluster")
-	cmd = exec.Command("make", "kind-load-image")
+	cmd := exec.Command("make", "kind-load-image")
 	_, err = utils.Run(cmd)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
