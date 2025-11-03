@@ -17,7 +17,7 @@ func Merge(repo Repo, sourceBranch string, targetBranch string) error {
 
 func GetGiteaURL(namespace string) (string, error) {
 	// Run kubectl to get the NodePort of the gitea service in the given namespace
-	port, err := exec.Command("kubectl", "get", "svc", "gitea-http", "-n", namespace, "-o", "jsonpath={.spec.ports[0].nodePort}").Output()
+	port, err := exec.Command("kubectl", "get", "svc", "gitea-http", "-n", namespace, "-o", "jsonpath={.spec.ports[0].nodePort}").Output() //nolint:lll
 	if err != nil {
 		return "", err
 	}
@@ -94,7 +94,7 @@ func GetLatestCommit(repoUrl string, repoOwner string, repoName string) (*Commit
 	if err != nil {
 		return nil, fmt.Errorf("failed to get latest commit: %v", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() // nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get latest commit: %s", resp.Status)

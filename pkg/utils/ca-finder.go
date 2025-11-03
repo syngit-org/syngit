@@ -12,11 +12,11 @@ import (
 
 const CaSecretWrongTypeErrorMessage = "the CA bundle secret must be of type \"kubernetes.io/ts\""
 
-func FindGlobalCABundle(client client.Client, host string) ([]byte, error) {
-	return FindCABundle(client, os.Getenv("MANAGER_NAMESPACE"), host+"-ca-cert")
+func FindGlobalCABundle(c client.Client, host string) ([]byte, error) {
+	return FindCABundle(c, os.Getenv("MANAGER_NAMESPACE"), host+"-ca-cert")
 }
 
-func FindCABundle(client client.Client, namespace string, name string) ([]byte, error) {
+func FindCABundle(c client.Client, namespace string, name string) ([]byte, error) {
 	if name == "" {
 		return nil, nil
 	}
@@ -25,7 +25,7 @@ func FindCABundle(client client.Client, namespace string, name string) ([]byte, 
 	globalNamespacedName := types.NamespacedName{Namespace: namespace, Name: name}
 	caBundleSecret := &corev1.Secret{}
 
-	err := client.Get(ctx, globalNamespacedName, caBundleSecret)
+	err := c.Get(ctx, globalNamespacedName, caBundleSecret)
 	if err != nil {
 		return nil, err
 	}

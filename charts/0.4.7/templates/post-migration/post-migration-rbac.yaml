@@ -4,6 +4,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: post-migration
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: job
     app.kubernetes.io/instance: {{ .Release.Name }}

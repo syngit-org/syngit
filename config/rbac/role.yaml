@@ -5,6 +5,23 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - '*'
   resources:
   - '*'
@@ -31,103 +48,11 @@ rules:
   verbs:
   - create
 - apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - list
-  - patch
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
   - syngit.io
   resources:
   - remotesyncers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - syngit.io
-  resources:
-  - remotesyncers/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - syngit.io
-  resources:
-  - remotesyncers/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - syngit.io
-  resources:
   - remotetargets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - syngit.io
-  resources:
-  - remotetargets/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - syngit.io
-  resources:
-  - remotetargets/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - syngit.io
-  resources:
   - remoteuserbindings
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - syngit.io
-  resources:
-  - remoteuserbindings/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - syngit.io
-  resources:
-  - remoteuserbindings/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - syngit.io
-  resources:
   - remoteusers
   verbs:
   - create
@@ -140,12 +65,18 @@ rules:
 - apiGroups:
   - syngit.io
   resources:
+  - remotesyncers/finalizers
+  - remotetargets/finalizers
+  - remoteuserbindings/finalizers
   - remoteusers/finalizers
   verbs:
   - update
 - apiGroups:
   - syngit.io
   resources:
+  - remotesyncers/status
+  - remotetargets/status
+  - remoteuserbindings/status
   - remoteusers/status
   verbs:
   - get

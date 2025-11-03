@@ -14,7 +14,7 @@ import (
 
 type RemoteSyncerTargetPatternWebhookHandler struct {
 	Client  client.Client
-	Decoder *admission.Decoder
+	Decoder admission.Decoder
 }
 
 // +kubebuilder:webhook:path=/syngit-v1beta3-remotesyncer-target-pattern,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remotesyncers,verbs=create;update;delete,versions=v1beta3,admissionReviewVersions=v1,name=vremotesyncers-target-pattern.v1beta3.syngit.io

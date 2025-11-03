@@ -41,9 +41,9 @@ type RemoteUserBindingReconciler struct {
 	Recorder record.EventRecorder
 }
 
-//+kubebuilder:rbac:groups=syngit.io,resources=remoteuserbindings,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=syngit.io,resources=remoteuserbindings/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=syngit.io,resources=remoteuserbindings/finalizers,verbs=update
+// +kubebuilder:rbac:groups=syngit.io,resources=remoteuserbindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=syngit.io,resources=remoteuserbindings/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=syngit.io,resources=remoteuserbindings/finalizers,verbs=update
 
 func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
@@ -63,13 +63,13 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	)
 
 	// Get the referenced RemoteUsers
-	var isGloballyBound bool = true
+	var isGloballyBound = true
 
 	gitUserHosts := []syngit.GitUserHost{}
 	for _, remoteUserRef := range remoteUserBinding.Spec.RemoteUserRefs {
 
 		// Set already known values about this RemoteUser
-		var gitUserHost syngit.GitUserHost = syngit.GitUserHost{}
+		var gitUserHost = syngit.GitUserHost{}
 		gitUserHost.RemoteUserUsed = remoteUserRef.Name
 
 		var remoteUser syngit.RemoteUser

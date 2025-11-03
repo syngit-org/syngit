@@ -80,7 +80,7 @@ var _ = Describe("18 Cluster default excluded fields test", func() {
 				},
 			},
 			Data: map[string]string{
-				"excludedFields": "[\"metadata.uid\", \"metadata.managedFields\", \"metadata.annotations[test-annotation1]\", \"metadata.annotations.[test-annotation2]\"]",
+				"excludedFields": "[\"metadata.uid\", \"metadata.managedFields\", \"metadata.annotations[test-annotation1]\", \"metadata.annotations.[test-annotation2]\"]", //nolint:lll
 			},
 		}
 		_, err := sClient.KAs(Admin).CoreV1().ConfigMaps(operatorNamespace).Create(ctx,

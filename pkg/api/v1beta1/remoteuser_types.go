@@ -53,9 +53,9 @@ type RemoteUserStatus struct {
 	SecretBoundStatus SecretBoundStatus `json:"secretBoundStatus,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 // +kubebuilder:deprecatedversion
-//+kubebuilder:unservedversion
+// +kubebuilder:unservedversion
 // +kubebuilder:skipversion
 
 // RemoteUser is the Schema for the remoteusers API
@@ -67,7 +67,7 @@ type RemoteUser struct {
 	Status RemoteUserStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // RemoteUserList contains a list of RemoteUser
 type RemoteUserList struct {

@@ -10,6 +10,7 @@ metadata:
     app.kubernetes.io/created-by: {{ .Release.Name }}
     app.kubernetes.io/part-of: {{ .Release.Name }}
   name: {{ .Release.Name }}-selfsigned-issuer
+  namespace: {{ .Release.Namespace }}
 spec:
   selfSigned: {}
 ---
@@ -23,6 +24,7 @@ metadata:
     app.kubernetes.io/created-by: {{ .Release.Name }}
     app.kubernetes.io/part-of: {{ .Release.Name }}
   name: syngit-webhook-cert
+  namespace: {{ .Release.Namespace }}
 spec:
   dnsNames:
   - syngit-webhook-service.{{ .Release.Namespace }}.svc

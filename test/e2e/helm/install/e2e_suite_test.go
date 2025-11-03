@@ -17,6 +17,7 @@ limitations under the License.
 package e2e_helm_install
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"testing"
@@ -25,24 +26,37 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/syngit-org/syngit/test/utils"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
 	testNamespace = "test"
 )
 
+var k8sClient *kubernetes.Clientset
+
 // Run e2e tests using the Ginkgo runner.
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
-	fmt.Fprintf(GinkgoWriter, "Starting syngit helm install suite\n")
+	_, err := fmt.Fprintf(GinkgoWriter, "Starting syngit helm install suite\n")
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 	RunSpecs(t, "e2e suite")
 }
 
 var _ = BeforeSuite(func() {
+	var err error
+	k8sClient, err = utils.GetKubernetesClient()
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	By("creating test namespace")
-	cmd := exec.Command("kubectl", "create", "ns", testNamespace)
-	_, err := utils.Run(cmd)
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: testNamespace,
+		},
+	}
+	_, err = k8sClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	By("installing prometheus operator")
@@ -51,18 +65,8 @@ var _ = BeforeSuite(func() {
 	By("installing the cert-manager CRDs")
 	Expect(utils.InstallCertManagerCRDs()).To(Succeed())
 
-	By("build the image")
-	cmd = exec.Command("make", "docker-build")
-	_, err = utils.Run(cmd)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
 	By("load the image in the KinD cluster")
-	cmd = exec.Command("make", "kind-load-image")
-	_, err = utils.Run(cmd)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-	By("installing the syngit chart")
-	cmd = exec.Command("make", "chart-install-providers")
+	cmd := exec.Command("make", "kind-load-image")
 	_, err = utils.Run(cmd)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
@@ -73,24 +77,16 @@ var _ = AfterSuite(func() {
 	By("uninstalling the Prometheus manager bundle")
 	utils.UninstallPrometheusOperator()
 
-	By("uninstalling the syngit chart")
-	cmd := exec.Command("make", "chart-uninstall")
-	_, err := utils.Run(cmd)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
 	By("uninstalling the cert-manager CRDs bundle")
 	utils.UninstallCertManagerCRDs()
 
 	By("removing test namespace")
-	cmd = exec.Command("kubectl", "delete", "ns", testNamespace)
-	_, err = utils.Run(cmd)
+	err := k8sClient.CoreV1().Namespaces().Delete(context.Background(), testNamespace, metav1.DeleteOptions{})
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	By("removing syngit namespace")
-	cmd = exec.Command("kubectl", "delete", "ns", "syngit")
-	_, err = utils.Run(cmd)
+	err = k8sClient.CoreV1().Namespaces().Delete(context.Background(), "syngit", metav1.DeleteOptions{})
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
 })
 
 // Wait5 sleeps for 5 seconds

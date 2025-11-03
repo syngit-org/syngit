@@ -17,12 +17,12 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"regexp"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -40,7 +40,7 @@ func (r *RemoteSyncer) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-var _ webhook.Validator = &RemoteSyncer{}
+var _ webhook.CustomValidator = &RemoteSyncer{}
 
 // Validate validates the RemoteSyncerSpec
 func (r *RemoteSyncerSpec) ValidateRemoteSyncerSpec() field.ErrorList {
@@ -100,44 +100,6 @@ func isValidYAMLPath(path string) bool {
 	return yamlPathRegex.MatchString(path)
 }
 
-func (r *RemoteSyncerSpec) searchForDuplicates(gvrns []GroupVersionResourceName) []*schema.GroupVersionResource {
-	seen := make(map[string]bool)
-	duplicates := make([]*schema.GroupVersionResource, 0)
-
-	for _, item := range gvrns {
-		if _, ok := seen[item.GroupVersionResource.String()]; ok {
-			duplicates = append(duplicates, item.GroupVersionResource)
-		}
-		seen[item.GroupVersionResource.String()] = true
-	}
-
-	return duplicates
-}
-
-func (r *RemoteSyncerSpec) validateFineGrainedIncludedResources(gvrns []GroupVersionResourceName) field.ErrorList {
-	var errors field.ErrorList
-
-	duplicates := r.searchForDuplicates(gvrns)
-
-	if len(duplicates) > 0 {
-		errors = append(errors, field.Invalid(field.NewPath("spec").Child("includedResources"), r.IncludedResources, "duplicate GVRName found"))
-	}
-
-	return errors
-}
-
-func (r *RemoteSyncerSpec) validateFineGrainedExcludedResources(gvrns []GroupVersionResourceName) field.ErrorList {
-	var errors field.ErrorList
-
-	duplicates := r.searchForDuplicates(gvrns)
-
-	if len(duplicates) > 0 {
-		errors = append(errors, field.Invalid(field.NewPath("spec").Child("excludedResources"), r.ExcludedResources, "duplicate GVRName found"))
-	}
-
-	return errors
-}
-
 func (r *RemoteSyncer) ValidateRemoteSyncer() error {
 	var allErrs field.ErrorList
 	if err := r.Spec.ValidateRemoteSyncerSpec(); err != nil {
@@ -153,21 +115,21 @@ func (r *RemoteSyncer) ValidateRemoteSyncer() error {
 }
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *RemoteSyncer) ValidateCreate() (admission.Warnings, error) {
+func (r *RemoteSyncer) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	remotesyncerlog.Info("validate create", "name", r.Name)
 
 	return nil, r.ValidateRemoteSyncer()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *RemoteSyncer) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+func (r *RemoteSyncer) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	remotesyncerlog.Info("validate update", "name", r.Name)
 
 	return nil, r.ValidateRemoteSyncer()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *RemoteSyncer) ValidateDelete() (admission.Warnings, error) {
+func (r *RemoteSyncer) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
 	remotesyncerlog.Info("validate delete", "name", r.Name)
 
 	// Nothing to validate

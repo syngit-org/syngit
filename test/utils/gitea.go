@@ -111,7 +111,7 @@ func getAdminToken(baseFqdn string) (string, error) {
 		return "", err
 	}
 
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	// Check HTTP status code
 	if resp.StatusCode != http.StatusCreated {
@@ -160,9 +160,7 @@ func getTree(repoFqdn string, repoOwner string, repoName string, sha string) ([]
 	if err != nil {
 		return nil, fmt.Errorf("HTTP GET failed: %w", err)
 	}
-	defer resp.Body.Close()
-
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get repo tree: %s", resp.Status)
@@ -195,7 +193,8 @@ func getTree(repoFqdn string, repoOwner string, repoName string, sha string) ([]
 	return allEntries, nil
 }
 
-// searchForObjectInAllManifests checks if a YAML file in the tree contains the specified `.metadata.name` with the given value.
+// searchForObjectInAllManifests checks if a YAML file in the tree
+// contains the specified `.metadata.name` with the given value.
 func searchForObjectInAllManifests(repo Repo, tree []Tree, obj runtime.Object) (*File, error) {
 	for _, entry := range tree {
 		if entry.Type == "blob" { // Only process files
@@ -223,7 +222,7 @@ func searchForObjectInAllManifests(repo Repo, tree []Tree, obj runtime.Object) (
 
 // containsYAMLMetadataName parses the content of a YAML file and checks if `.metadata.name` matches the given value.
 func containsYamlMetadataName(content []byte, obj runtime.Object) bool {
-	meta, err := getObjectMetadata(obj)
+	metadata, err := getObjectMetadata(obj)
 	if err != nil {
 		return false
 	}
@@ -251,8 +250,13 @@ func containsYamlMetadataName(content []byte, obj runtime.Object) bool {
 		namespace = namespaceValue.(string)
 	}
 
-	constructedApiVersion := obj.GetObjectKind().GroupVersionKind().Group + "/" + obj.GetObjectKind().GroupVersionKind().Version
-	return name == meta.GetName() && namespace == meta.GetNamespace() && (apiVersion == constructedApiVersion || (strings.HasPrefix(constructedApiVersion, "/") && !strings.Contains(apiVersion, "/"))) && kind == obj.GetObjectKind().GroupVersionKind().Kind
+	constructedApiVersion := obj.GetObjectKind().GroupVersionKind().Group + "/" + obj.GetObjectKind().GroupVersionKind().Version //nolint:lll
+
+	return name == metadata.GetName() &&
+		namespace == metadata.GetNamespace() &&
+		(apiVersion == constructedApiVersion || (strings.HasPrefix(constructedApiVersion, "/") &&
+			!strings.Contains(apiVersion, "/"))) &&
+		kind == obj.GetObjectKind().GroupVersionKind().Kind
 }
 
 func isFieldDefinedInYaml(parsed map[interface{}]interface{}, path string) (interface{}, bool) {
@@ -310,7 +314,7 @@ func fetchFileContent(url string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch file content: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	// Check for a successful response
 	if resp.StatusCode != http.StatusOK {
@@ -388,7 +392,7 @@ func merge(repo Repo, sourceBranch string, targetBranch string) error {
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusCreated {
 		bodyBytes, _ := io.ReadAll(resp.Body)
@@ -431,7 +435,7 @@ func merge(repo Repo, sourceBranch string, targetBranch string) error {
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)

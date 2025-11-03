@@ -122,7 +122,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Expect(len(getRub.Spec.RemoteUserRefs)).To(Equal(2))
+		Expect(getRub.Spec.RemoteUserRefs).To(HaveLen(2))
 
 		By("deleting the saturn RemoteUser")
 		Eventually(func() bool {
@@ -137,7 +137,7 @@ var _ = Describe("06 Test objects lifecycle", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Expect(len(getRub.Spec.RemoteUserRefs)).To(Equal(1))
+		Expect(getRub.Spec.RemoteUserRefs).To(HaveLen(1))
 
 		By("deleting the jupyter RemoteUser")
 		Eventually(func() bool {

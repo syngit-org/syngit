@@ -63,9 +63,9 @@ type RemoteUserStatus struct {
 	GitServerConfiguration GitServerConfiguration `json:"gitServerConfiguration,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:unservedversion
-//+kubebuilder:skipversion
+// +kubebuilder:object:root=true
+// +kubebuilder:unservedversion
+// +kubebuilder:skipversion
 
 // RemoteUser is the Schema for the remoteusers API
 type RemoteUser struct {
@@ -76,7 +76,7 @@ type RemoteUser struct {
 	Status RemoteUserStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // RemoteUserList contains a list of RemoteUser
 type RemoteUserList struct {
@@ -96,7 +96,7 @@ func init() {
 type GitServerConfiguration struct {
 	// +optional
 	Inherited bool `json:"inherited,omitempty" yaml:"inherited,omitempty"`
-	//+ optional
+	// +optional
 	AuthenticationEndpoint string `json:"authenticationEndpoint,omitempty" yaml:"authenticationEndpoint,omitempty"`
 	// +optional
 	CaBundle string `json:"caBundle,omitempty" yaml:"caBundle,omitempty"`

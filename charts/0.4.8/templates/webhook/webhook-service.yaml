@@ -8,6 +8,7 @@ metadata:
     app.kubernetes.io/created-by: {{ .Release.Name }}
     app.kubernetes.io/part-of: {{ .Release.Name }}
   name: syngit-webhook-service
+  namespace: {{ .Release.Namespace }}
 spec:
   ports:
     - port: 443
