@@ -1,9 +1,9 @@
-name: Release charts
+name: Release
 
 on:
   push:
     tags:
-      - '*'
+      - "v*.*.*"
 
 jobs:
   release:
@@ -42,12 +42,37 @@ jobs:
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
           
-      - name: Run chart-releaser
-        uses: helm/chart-releaser-action@a917fd15b20e8b64b94d9158ad54cd6345335584 #v1.6.0
+      - name: Package chart
+        run: |
+          helm package charts/${{ github.ref_name }}
+
+      - name: Release
+        uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 #v2.4.1
         with:
-          charts_dir: charts
-          config: charts/release_config.yml
-          skip_existing: true
-          mark_as_latest: true
+          prerelease: true
+          generate_release_notes: true
+          append_body: true
+          tag_name: ${{ github.ref_name }}
+          files: "*.tgz"
+      
+      - name: Upload chart package and update Helm index
+        run: |
+          TAG_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
+  
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+          git stash
+          git checkout gh-pages
+
+          if [ -f index.yaml ]; then
+            helm repo index . --url $TAG_URL --merge index.yaml
+          else
+            helm repo index . --url $TAG_URL
+          fi
+
+          git add index.yaml
+          git commit -m "feat(release): Update Helm index for the ${CHART_VERSION} version" || echo "No changes to commit"
+          git push origin gh-pages
         env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
