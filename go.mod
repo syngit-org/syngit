@@ -3,7 +3,7 @@ module github.com/syngit-org/syngit
 go 1.24.0
 
 require (
-	github.com/go-git/go-billy/v5 v5.6.0
+	github.com/go-git/go-billy/v5 v5.6.2
 	github.com/go-git/go-git/v5 v5.13.0
 	github.com/gorilla/mux v1.8.1
 	github.com/joho/godotenv v1.5.1
