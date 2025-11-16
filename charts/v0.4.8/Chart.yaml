@@ -10,7 +10,7 @@ dependencies:
   - name: cert-manager
     condition: certmanager.dependency.enabled
     repository: https://charts.jetstack.io
-    version: ~v1.17
+    version: ~v1.19
 maintainers:
   - email: dassieu.damien@gmail.com
     name: Damien
