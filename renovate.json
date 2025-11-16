@@ -1,0 +1,7 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "ignorePaths": [".github/**", "config/**", "charts/**"],
+  "extends": [
+    "config:recommended"
+  ]
+}
