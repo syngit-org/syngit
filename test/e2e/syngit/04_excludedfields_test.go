@@ -25,10 +25,10 @@ import (
 	. "github.com/onsi/gomega"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	. "github.com/syngit-org/syngit/test/utils"
-	"gopkg.in/yaml.v2"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 )
 
 var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
@@ -155,11 +155,11 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 		Expect(err).ToNot(HaveOccurred())
 		getCm, err := GetObjectInRepo(*repo, tree, cm)
 		Expect(err).ToNot(HaveOccurred())
-		var parsed map[interface{}]interface{}
+		var parsed map[string]interface{}
 		err = yaml.Unmarshal(getCm.Content, &parsed)
 		Expect(err).ToNot(HaveOccurred())
-		metadata := parsed["metadata"].(map[interface{}]interface{})
-		annotations := metadata["annotations"].(map[interface{}]interface{})
+		metadata := parsed["metadata"].(map[string]interface{})
+		annotations := metadata["annotations"].(map[string]interface{})
 		annotation1 := annotations[annotation1Key]
 		Expect(annotation1).To(BeNil())
 		annotation2 := annotations[annotation2Key]
@@ -295,11 +295,11 @@ var _ = Describe("04 Create RemoteSyncer with excluded fields", func() {
 		Expect(err).ToNot(HaveOccurred())
 		getCm, err := GetObjectInRepo(*repo, tree, cm)
 		Expect(err).ToNot(HaveOccurred())
-		var parsed map[interface{}]interface{}
+		var parsed map[string]interface{}
 		err = yaml.Unmarshal(getCm.Content, &parsed)
 		Expect(err).ToNot(HaveOccurred())
-		metadata := parsed["metadata"].(map[interface{}]interface{})
-		annotations := metadata["annotations"].(map[interface{}]interface{})
+		metadata := parsed["metadata"].(map[string]interface{})
+		annotations := metadata["annotations"].(map[string]interface{})
 		annotation1 := annotations[annotation1Key]
 		Expect(annotation1).To(BeNil())
 		annotation2 := annotations[annotation2Key]

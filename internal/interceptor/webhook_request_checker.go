@@ -12,7 +12,6 @@ import (
 	patterns "github.com/syngit-org/syngit/internal/patterns/v1beta3"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	"github.com/syngit-org/syngit/pkg/utils"
-	"gopkg.in/yaml.v3"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/yaml"
 )
 
 type gitUser struct {
