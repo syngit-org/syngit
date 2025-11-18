@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os/exec"
 
-	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
 )
 
 func Merge(repo Repo, sourceBranch string, targetBranch string) error {
@@ -63,7 +63,7 @@ func IsFieldDefined(repo Repo, obj runtime.Object, yamlPath string) (bool, error
 		return false, err
 	}
 
-	var parsed map[interface{}]interface{}
+	var parsed map[string]interface{}
 	err = yaml.Unmarshal(file.Content, &parsed)
 	if err != nil {
 		return false, err

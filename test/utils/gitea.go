@@ -30,10 +30,10 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
 )
 
 type Repo struct {
@@ -227,7 +227,7 @@ func containsYamlMetadataName(content []byte, obj runtime.Object) bool {
 		return false
 	}
 
-	var parsed map[interface{}]interface{}
+	var parsed map[string]interface{}
 	err = yaml.Unmarshal(content, &parsed)
 	if err != nil {
 		return false
@@ -259,7 +259,7 @@ func containsYamlMetadataName(content []byte, obj runtime.Object) bool {
 		kind == obj.GetObjectKind().GroupVersionKind().Kind
 }
 
-func isFieldDefinedInYaml(parsed map[interface{}]interface{}, path string) (interface{}, bool) {
+func isFieldDefinedInYaml(parsed map[string]interface{}, path string) (interface{}, bool) {
 	// Split the path by dots to traverse the map
 	keys := strings.Split(path, ".")
 	current := parsed
@@ -272,7 +272,7 @@ func isFieldDefinedInYaml(parsed map[interface{}]interface{}, path string) (inte
 			}
 
 			// Check if the value is a nested map
-			next, ok := value.(map[interface{}]interface{})
+			next, ok := value.(map[string]interface{})
 			if ok {
 				return isFieldDefinedInYaml(next, strings.Join(keys[1:], "."))
 			} else {
