@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,21 +36,21 @@ type GitPusher struct {
 }
 
 type GitPushResponse struct {
-	path       string // The git path were the resource has been pushed
-	commitHash string // The commit hash of the commit
-	url        string // The url of the repository
+	paths      []string // The git paths where the resource has been pushed
+	commitHash string   // The commit hash of the commit
+	url        string   // The url of the repository
 }
 
 var forcePush bool
 
 func (gp *GitPusher) Push() (GitPushResponse, error) {
-	gpResponse := &GitPushResponse{path: "", commitHash: "", url: gp.remoteTarget.Spec.TargetRepository}
+	gpResponse := &GitPushResponse{paths: []string{}, commitHash: "", url: gp.remoteTarget.Spec.TargetRepository}
 
 	var w *git.Worktree
 
 	repoRetriever := RepoRetriever{gitPusher: gp}
 
-	// PRE-STEP 1 : Get the repos
+	// STEP 1 : Get the repos
 	targetRepo, getRepoErr := repoRetriever.GetTargetRepository()
 	if getRepoErr != nil {
 		return *gpResponse, getRepoErr
@@ -67,7 +68,7 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 		}
 	}
 
-	// PRE-STEP 2 : Get the worktree
+	// STEP 2 : Get the worktree
 	wr := WorktreeRetriever{
 		upstreamRepository: upstreamRepo,
 		targetRepository:   targetRepo,
@@ -80,27 +81,51 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 		return *gpResponse, errors.New(errMsg)
 	}
 
-	// STEP 1 : Set the path
-	path, err := gp.pathConstructor(w)
+	// STEP 3 : Resource Finder
+	resourceFinder := ResourceFinder{
+		SearchedGVK:       gp.interceptedGVR,
+		SearchedName:      gp.interceptedName,
+		SearchedNamespace: gp.remoteSyncer.Namespace,
+		Content:           gp.interceptedYAML,
+	}
+	results, err := resourceFinder.BuildWorktree(w)
 	if err != nil {
 		return *gpResponse, err
 	}
 
-	// STEP 2 : Write the file
-	fullFilePath, err := gp.writeFile(path, w)
-	gpResponse.path = fullFilePath
-	if err != nil {
-		return *gpResponse, err
+	pathsShouldExist := map[string]bool{}
+	for _, path := range results.Paths {
+		gpResponse.paths = append(gpResponse.paths, path)
+		pathsShouldExist[path] = true
 	}
 
-	// STEP 3 : Commit the changes
-	commitHash, err := gp.commitChanges(w, fullFilePath, targetRepo)
+	if !results.Found {
+		path, err := gp.pathConstructor(w)
+		if err != nil {
+			return *gpResponse, err
+		}
+
+		fullFilePath, err := gp.writeFile(path, w)
+		gpResponse.paths = append(gpResponse.paths, fullFilePath)
+		if err != nil {
+			return *gpResponse, err
+		}
+
+		if gp.interceptedYAML == "" {
+			pathsShouldExist[fullFilePath] = false
+		} else {
+			pathsShouldExist[fullFilePath] = true
+		}
+	}
+
+	// STEP 4 : Commit the changes
+	commitHash, err := gp.commitChanges(w, pathsShouldExist, targetRepo)
 	gpResponse.commitHash = commitHash
 	if err != nil {
 		return *gpResponse, err
 	}
 
-	// STEP 4 : Push the changes
+	// STEP 5 : Push the changes
 	err = gp.pushChanges(targetRepo)
 	if err != nil {
 		return *gpResponse, err
@@ -217,27 +242,86 @@ func (gp *GitPusher) writeFile(path string, w *git.Worktree) (string, error) {
 	return fullFilePath, err
 }
 
-func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string, targetRepo *git.Repository) (string, error) {
+func (gp *GitPusher) commitMessageConstructor(current string, isAddition bool) (string, error) {
+	commitMessage := ""
+	resourceMessage := fmt.Sprintf("%s.%s/%s: %s/%s",
+		gp.interceptedGVR.Resource,
+		gp.interceptedGVR.Group,
+		gp.interceptedGVR.Version,
+		gp.remoteSyncer.Namespace,
+		gp.interceptedName,
+	)
+	const additionPrefix = "1+"
+	const addition = "+"
+	const deletionPrefix = "1-"
+	const deletion = "-"
+
+	const errorMessage = "error during commit message construction: "
+
+	if current == "" {
+		if !isAddition {
+			commitMessage = deletionPrefix + resourceMessage
+		} else {
+			commitMessage = additionPrefix + resourceMessage
+		}
+	} else {
+		if !isAddition {
+			deletionSlice := strings.Split(current, deletion)
+			lengthBefore := len(deletionSlice[0])
+			number, err := strconv.Atoi(deletionSlice[0][lengthBefore-1:])
+			if err != nil {
+				return "", fmt.Errorf("%s %w", errorMessage, err)
+			}
+			number++
+			if lengthBefore == 3 {
+				commitMessage = deletionSlice[0][0:lengthBefore-1] + strconv.Itoa(number) + deletion + current[3:len(current)-1]
+			} else {
+				commitMessage = strconv.Itoa(number) + deletion + current[3:len(current)-1]
+			}
+		}
+		if isAddition {
+			additionSlice := strings.Split(current, addition)
+			number, err := strconv.Atoi(additionSlice[0])
+			if err != nil {
+				return "", fmt.Errorf("%s %w", errorMessage, err)
+			}
+			number++
+			commitMessage = strconv.Itoa(number) + addition + additionSlice[1]
+		}
+	}
+
+	return commitMessage, nil
+}
+
+func (gp *GitPusher) commitChanges(w *git.Worktree, pathsShouldExist map[string]bool, targetRepo *git.Repository) (string, error) {
 	commitMessage := ""
 
-	if gp.interceptedYAML == "" { // The file has been deleted
-		_, err := w.Remove(pathToAdd)
-		if err != nil && !strings.Contains(err.Error(), "entry not found") {
-			errMsg := "failed to delete file in staging area: " + err.Error()
-			return "", errors.New(errMsg)
+	for path, shouldExist := range pathsShouldExist {
+		if shouldExist {
+			_, err := w.Add(path)
+			if err != nil {
+				errMsg := "failed to add file to staging area: " + err.Error()
+				return "", errors.New(errMsg)
+			}
+			commitMessage, err = gp.commitMessageConstructor(commitMessage, true)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			_, err := w.Remove(path)
+			if err != nil && !strings.Contains(err.Error(), "entry not found") {
+				errMsg := "failed to delete file in staging area: " + err.Error()
+				return "", errors.New(errMsg)
+			}
+			commitMessage, err = gp.commitMessageConstructor(commitMessage, false)
+			if err != nil {
+				return "", err
+			}
 		}
-		commitMessage = "Delete "
-	} else { // Add the file to the staging area
-		_, err := w.Add(pathToAdd)
-		if err != nil {
-			errMsg := "failed to add file to staging area: " + err.Error()
-			return "", errors.New(errMsg)
-		}
-		commitMessage = "Add or modify "
 	}
 
 	// Commit the changes
-	commit, err := w.Commit(commitMessage+gp.interceptedGVR.Resource+" "+gp.interceptedName, &git.CommitOptions{
+	commit, err := w.Commit(commitMessage, &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  gp.gitUser,
 			Email: gp.gitEmail,
@@ -256,7 +340,7 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathToAdd string, targetRepo
 			}
 			return commit.Hash.String(), nil
 		}
-		errMsg := fmt.Sprintf("failed to commit changes (%s - %s): %s", gp.remoteTarget.Spec.TargetRepository, gp.remoteTarget.Spec.TargetBranch, err.Error())
+		errMsg := fmt.Sprintf("failed to commit changes (%s/%s): %s", gp.remoteTarget.Spec.TargetRepository, gp.remoteTarget.Spec.TargetBranch, err.Error())
 		return "", errors.New(errMsg)
 	}
 

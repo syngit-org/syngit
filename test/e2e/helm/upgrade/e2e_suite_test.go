@@ -62,10 +62,8 @@ var _ = BeforeSuite(func() {
 	By("installing prometheus operator")
 	Expect(utils.InstallPrometheusOperator()).To(Succeed())
 
-	// TODO: Replace the following by utils.InstallCertManagerCRDs
-	// when last stable version of syngit Helm chat is >= 0.4.8
 	By("installing the cert-manager")
-	Expect(utils.InstallCertManager()).To(Succeed())
+	Expect(utils.InstallCertManagerCRDs()).To(Succeed())
 
 	By("build the image")
 	cmd := exec.Command("make", "docker-build")

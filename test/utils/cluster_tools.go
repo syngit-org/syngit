@@ -82,33 +82,6 @@ func UninstallCertManagerCRDs() {
 	}
 }
 
-// TODO: delete following function when last stable version of syngit Helm chat is >= 0.4.8
-func InstallCertManager() error {
-	cmd := exec.Command("helm", "repo", "add", "jetstack", "https://charts.jetstack.io")
-	if _, err := Run(cmd); err != nil {
-		warnError(err)
-	}
-
-	cmd = exec.Command("helm", "install", "cert-manager", "-n", "cert-manager", "--version", "v1.17.2", "--create-namespace", "jetstack/cert-manager", "--set", "installCRDs=true") //nolint:lll
-	if _, err := Run(cmd); err != nil {
-		return err
-	}
-	// Wait for cert-manager-webhook to be ready, which can take time if cert-manager
-	// was re-installed after uninstalling on a cluster.
-	cmd = exec.Command("kubectl", "wait", "deployment.apps/cert-manager-webhook",
-		"--for", "condition=Available",
-		"--namespace", "cert-manager",
-		"--timeout", "5m",
-	)
-
-	_, err := Run(cmd)
-	if err != nil {
-		return err
-	}
-
-	return err
-}
-
 func InstallCertManagerCRDs() error {
 	url := fmt.Sprintf(certmanagerCRDsURL, certmanagerVersion)
 	cmd := exec.Command("kubectl", "apply", "-f", url)

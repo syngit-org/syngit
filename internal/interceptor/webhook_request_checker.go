@@ -57,7 +57,7 @@ type wrcDetails struct {
 
 type pushInformation struct {
 	repoUrl    string
-	repoPath   string
+	repoPaths  []string
 	commitHash string
 }
 
@@ -689,7 +689,7 @@ func (wrc *WebhookRequestChecker) gitPush(details *wrcDetails) (bool, error) {
 		}
 
 		details.targetsPushInformation = append(details.targetsPushInformation, pushInformation{
-			repoPath:   res.path,
+			repoPaths:  res.paths,
 			commitHash: res.commitHash,
 			repoUrl:    res.url,
 		})
@@ -841,9 +841,9 @@ func (wrc *WebhookRequestChecker) updateStatusState(kind string, details wrcDeta
 		commitHashes = append(commitHashes, info.commitHash)
 	}
 
-	repoPath := ""
+	repoPaths := []string{""}
 	if len(details.targetsPushInformation) > 0 {
-		repoPath = details.targetsPushInformation[0].repoPath
+		repoPaths = details.targetsPushInformation[0].repoPaths
 	}
 
 	switch kind {
@@ -865,7 +865,7 @@ func (wrc *WebhookRequestChecker) updateStatusState(kind string, details wrcDeta
 		lastPushedObjectState := &syngit.LastPushedObjectState{
 			LastPushedObjectTime:            v1.Now(),
 			LastPushedObject:                *gvrn,
-			LastPushedObjectGitPath:         repoPath,
+			LastPushedObjectGitPath:         repoPaths[0],
 			LastPushedObjectGitRepos:        repos,
 			LastPushedObjectGitCommitHashes: commitHashes,
 			LastPushedGitUser:               details.gitUser.gitUser,
