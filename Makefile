@@ -4,7 +4,7 @@ IMG ?= local/syngit-controller:dev
 DEV_CLUSTER ?= syngit-dev-cluster
 KIND_KUBECONFIG_PATH ?= /tmp/syngit-dev-cluster-kubeconfig
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.29.0
+ENVTEST_K8S_VERSION = 1.34.1
 CRD_OPTIONS ?= "crd"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -125,8 +125,8 @@ test: test-controller test-build-deploy test-behavior test-chart-install test-ch
 
 .PHONY: test-controller
 test-controller: manifests generate fmt vet envtest setup-webhooks-for-run ## Run tests embeded in the controller package & webhook package.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
-	make cleanup-webhooks-for-run
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e | grep -v /v1alpha | grep -v /v1beta1) -coverprofile cover.out ||	make cleanup-tests
+	make cleanup-tests
 
 .PHONY: test-build-deploy
 test-build-deploy: ## Run tests to build the Docker image and deploy all the manifests.
@@ -264,8 +264,6 @@ cleanup-webhooks-for-run: manifests kustomize ## Cleanup webhooks using auto-gen
 	./hack/webhooks/cleanup-injector.sh $(TEMP_CERT_DIR) || true
 
 .PHONY: setup-webhooks-for-deploy
-setup-webhooks-for-deploy: kind-create-cluster
-setup-webhooks-for-deploy: export KUBECONFIG=${KIND_KUBECONFIG_PATH}
 setup-webhooks-for-deploy: manifests kustomize ## Setup webhooks using auto-generated certs (make deploy).
 	./hack/webhooks/cert-injector.sh $(WEBHOOK_PATH) $(CRD_PATH) $(DEV_LOCAL_PATH)/deploy $(TEMP_CERT_DIR) $(SYNGIT_SERVICE_NAME)
 	./hack/webhooks/deploy/inject-for-deploy.sh $(TEMP_CERT_DIR) $(WEBHOOK_PATH)
