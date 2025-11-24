@@ -1,0 +1,16 @@
+apiVersion: v2
+name: syngit
+description: An operator to push resources to git
+type: application
+version: v0.5.0
+appVersion: v0.5.0
+home: https://github.com/syngit-org/syngit
+icon: https://raw.githubusercontent.com/syngit-org/syngit/main/img/mini-icon.png
+dependencies:
+  - name: cert-manager
+    condition: certmanager.dependency.enabled
+    repository: https://charts.jetstack.io
+    version: ~v1.19
+maintainers:
+  - email: dassieu.damien@gmail.com
+    name: Damien
