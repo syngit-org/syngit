@@ -168,10 +168,11 @@ var _ = Describe("18 Cluster default excluded fields test", func() {
 
 		tree, err := GetRepoTree(*repo)
 		Expect(err).ToNot(HaveOccurred())
-		getCm, err := GetObjectInRepo(*repo, tree, cm)
+		configmaps, err := GetObjectInRepo(*repo, tree, cm)
 		Expect(err).ToNot(HaveOccurred())
+		Expect(configmaps).To(HaveLen(1))
 		var parsed map[string]interface{}
-		err = yaml.Unmarshal(getCm.Content, &parsed)
+		err = yaml.Unmarshal(configmaps[0].Content, &parsed)
 		Expect(err).ToNot(HaveOccurred())
 		metadata := parsed["metadata"].(map[string]interface{})
 		annotations := metadata["annotations"].(map[string]interface{})
