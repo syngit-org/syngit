@@ -19,6 +19,7 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"os"
 	"sync"
 
@@ -42,6 +43,7 @@ import (
 	syngitv1beta1 "github.com/syngit-org/syngit/pkg/api/v1beta1"
 	syngitv1beta2 "github.com/syngit-org/syngit/pkg/api/v1beta2"
 	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	features "github.com/syngit-org/syngit/pkg/feature"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -65,6 +67,7 @@ func main() {
 	var probeAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
+	var featureGatesFlag string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -74,6 +77,9 @@ func main() {
 		"If set the metrics endpoint is served securely")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	flag.StringVar(&featureGatesFlag, "feature-gates", "",
+		"A comma-separated list of key=value pairs that describe feature gates. "+
+			fmt.Sprintf("Example: %s=true", features.ResourceFinder))
 	opts := zap.Options{
 		Development: true,
 	}
@@ -81,6 +87,13 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	// Parse feature gates
+	if err := features.LoadedFeatureGates.Set(featureGatesFlag); err != nil {
+		setupLog.Error(err, "invalid feature gates, skipping")
+	}
+
+	setupLog.Info("Feature gates", "loaded", features.LoadedFeatureGates.String())
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will

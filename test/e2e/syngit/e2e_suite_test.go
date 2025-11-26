@@ -51,6 +51,7 @@ import (
 
 	syngitv1beta2 "github.com/syngit-org/syngit/pkg/api/v1beta2"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	features "github.com/syngit-org/syngit/pkg/feature"
 )
 
 const (
@@ -185,6 +186,8 @@ func setupManager() {
 
 	errScheme := syngit.AddToScheme(scheme.Scheme)
 	Expect(errScheme).NotTo(HaveOccurred())
+	By("setting up the feature gates")
+	_ = features.LoadedFeatureGates.Set(fmt.Sprintf("%s=true", features.ResourceFinder))
 
 	By("creating the manager")
 	webhookInstallOptions := &testEnv.WebhookInstallOptions
