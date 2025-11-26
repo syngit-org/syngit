@@ -19,6 +19,7 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	features "github.com/syngit-org/syngit/pkg/feature"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -81,25 +82,29 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 		return *gpResponse, errors.New(errMsg)
 	}
 
-	// STEP 3 : Resource Finder
-	resourceFinder := ResourceFinder{
-		SearchedGVK:       gp.interceptedGVR,
-		SearchedName:      gp.interceptedName,
-		SearchedNamespace: gp.remoteSyncer.Namespace,
-		Content:           gp.interceptedYAML,
-	}
-	results, err := resourceFinder.BuildWorktree(w)
-	if err != nil {
-		return *gpResponse, err
+	// STEP 3 : Construct path
+	var results ResourceFinderResults
+	var pathsShouldExist = map[string]bool{}
+
+	if features.LoadedFeatureGates[features.ResourceFinder] {
+		resourceFinder := ResourceFinder{
+			SearchedGVK:       gp.interceptedGVR,
+			SearchedName:      gp.interceptedName,
+			SearchedNamespace: gp.remoteSyncer.Namespace,
+			Content:           gp.interceptedYAML,
+		}
+		results, err = resourceFinder.BuildWorktree(w)
+		if err != nil {
+			return *gpResponse, err
+		}
+
+		for _, path := range results.Paths {
+			gpResponse.paths = append(gpResponse.paths, path)
+			pathsShouldExist[path] = true
+		}
 	}
 
-	pathsShouldExist := map[string]bool{}
-	for _, path := range results.Paths {
-		gpResponse.paths = append(gpResponse.paths, path)
-		pathsShouldExist[path] = true
-	}
-
-	if !results.Found {
+	if !features.LoadedFeatureGates[features.ResourceFinder] || !results.Found {
 		path, err := gp.pathConstructor(w)
 		if err != nil {
 			return *gpResponse, err
