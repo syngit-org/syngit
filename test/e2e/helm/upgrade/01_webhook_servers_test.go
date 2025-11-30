@@ -95,7 +95,7 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 
 		err = utils.ApplyFromYAML(
 			config,
-			fmt.Sprintf("%s/syngit_%s_remotesyncer.yaml", version, samplePath),
+			fmt.Sprintf("%s/syngit_%s_remotesyncer.yaml", samplePath, version),
 			testNamespace,
 			remoteSyncerGVR,
 		)
@@ -127,7 +127,7 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 
 		By("creating a RemoteSyncer")
 		cmd := exec.Command("kubectl", "apply", "-n", testNamespace, "-f",
-			fmt.Sprintf("%s/syngit_%s_remotesyncer.yaml", version, samplePath))
+			fmt.Sprintf("%s/syngit_%s_remotesyncer.yaml", samplePath, version))
 		_, err = utils.Run(cmd)
 		ExpectWithOffset(2, err).NotTo(HaveOccurred())
 
