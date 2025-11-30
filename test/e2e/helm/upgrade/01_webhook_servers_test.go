@@ -80,7 +80,7 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 		Wait15()
 
 		By("getting the latest API version")
-		version, err := utils.GetLatestAPIVersion()
+		version, err := utils.GetPrevLatestAPIVersion()
 		ExpectWithOffset(2, err).NotTo(HaveOccurred())
 
 		remoteSyncerGVR = schema.GroupVersionResource{
@@ -95,7 +95,7 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 
 		err = utils.ApplyFromYAML(
 			config,
-			fmt.Sprintf("%s/syngit_v1beta3_remotesyncer.yaml", samplePath),
+			fmt.Sprintf("%s/syngit_%s_remotesyncer.yaml", version, samplePath),
 			testNamespace,
 			remoteSyncerGVR,
 		)
@@ -127,7 +127,7 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 
 		By("creating a RemoteSyncer")
 		cmd := exec.Command("kubectl", "apply", "-n", testNamespace, "-f",
-			fmt.Sprintf("%s/syngit_v1beta3_remotesyncer.yaml", samplePath))
+			fmt.Sprintf("%s/syngit_%s_remotesyncer.yaml", version, samplePath))
 		_, err = utils.Run(cmd)
 		ExpectWithOffset(2, err).NotTo(HaveOccurred())
 
