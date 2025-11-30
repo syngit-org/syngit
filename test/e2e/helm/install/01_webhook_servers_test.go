@@ -81,9 +81,12 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 		config, err := utils.GetKubeConfig()
 		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
+		version, err := utils.GetLatestAPIVersion()
+		ExpectWithOffset(2, err).NotTo(HaveOccurred())
+
 		err = utils.ApplyFromYAML(
 			config,
-			fmt.Sprintf("%s/syngit_v1beta3_remotesyncer.yaml", samplePath),
+			fmt.Sprintf("%s/syngit_%s_remotesyncer.yaml", version, samplePath),
 			testNamespace,
 			remoteSyncerGVR,
 		)
@@ -104,18 +107,6 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 })
 
 var _ = AfterEach(func() {
-
-	By("deleting RemoteSyncer")
-	config, err := utils.GetKubeConfig()
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-	err = utils.DeleteFromYAML(
-		config,
-		fmt.Sprintf("%s/syngit_v1beta3_remotesyncer.yaml", samplePath),
-		testNamespace,
-		remoteSyncerGVR,
-	)
-	ExpectWithOffset(2, err).NotTo(HaveOccurred())
 
 	By("uninstalling the syngit chart")
 	actionConfig, settings, err := utils.NewDefaultHelmActionConfig(syngitChart)
