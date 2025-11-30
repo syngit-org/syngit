@@ -74,46 +74,6 @@ var _ = BeforeSuite(func() {
 	cmd = exec.Command("make", "kind-load-image")
 	_, err = utils.Run(cmd)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-<<<<<<< HEAD
-=======
-
-	By("installing the syngit chart")
-	cmd = exec.Command("helm", "repo", "add", "syngit", "https://syngit-org.github.io/syngit")
-	_, err = utils.Run(cmd)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-	cmd = exec.Command("helm", "install", "syngit", "syngit/syngit", "-n", "syngit", "--create-namespace")
-	_, err = utils.Run(cmd)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-	Wait15()
-
-	By("creating the RemoteSyncer")
-	cmd = exec.Command("kubectl", "apply", "-n", testNamespace, "-f",
-		fmt.Sprintf("%s/syngit_v1beta3_remotesyncer.yaml", samplePath))
-	_, err = utils.Run(cmd)
-	ExpectWithOffset(2, err).NotTo(HaveOccurred())
-
-	Wait5()
-	By("upgrading the syngit chart")
-	cmd = exec.Command("make", "chart-upgrade")
-	_, err = utils.Run(cmd)
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
-
-	By("creating a ConfigMap")
-	Wait60()
-	cmd = exec.Command("kubectl", "apply", "-n", testNamespace, "-f",
-		fmt.Sprintf("%s/sample_configmap.yaml", samplePath))
-	_, err = utils.Run(cmd)
-	ExpectWithOffset(2, err).To(HaveOccurred())
-	Expect(syngitutils.ErrorTypeChecker(&syngitutils.RemoteUserBindingNotFoundError{}, err.Error())).To(BeTrue())
-
-	By("deleting the RemoteSyncer")
-	Wait60()
-	cmd = exec.Command("kubectl", "delete", "-n", testNamespace, "-f",
-		fmt.Sprintf("%s/syngit_v1beta3_remotesyncer.yaml", samplePath))
-	_, err = utils.Run(cmd)
-	ExpectWithOffset(2, err).NotTo(HaveOccurred())
-
->>>>>>> e58e761 (Initiate v1beta4)
 })
 
 var _ = AfterSuite(func() {

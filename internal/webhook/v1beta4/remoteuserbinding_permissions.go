@@ -18,18 +18,18 @@ import (
 
 type RemoteUserBindingPermissionsWebhookHandler struct {
 	Client  client.Client
-	Decoder *admission.Decoder
+	Decoder admission.Decoder
 }
 
 // +kubebuilder:webhook:path=/syngit-v1beta4-remoteuserbinding-permissions,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remoteuserbindings,verbs=create;update;delete,versions=v1beta4,admissionReviewVersions=v1,name=vremoteuserbindings-permissions.v1beta4.syngit.io
 
-func (rubwh *RemoteUserBindingPermissionsWebhookHandler) Handle(ctx context.Context, req admission.Request) admission.Response {
+func (rubwh RemoteUserBindingPermissionsWebhookHandler) Handle(ctx context.Context, req admission.Request) admission.Response {
 
 	user := req.DeepCopy().UserInfo
 
 	rub := &syngit.RemoteUserBinding{}
 
-	if err := utils.GetObjectFromWebhookRequest(*rubwh.Decoder, rub, req); err != nil {
+	if err := utils.GetObjectFromWebhookRequest(rubwh.Decoder, rub, req); err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 

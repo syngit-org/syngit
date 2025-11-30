@@ -33,13 +33,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-<<<<<<< HEAD
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
-	// +kubebuilder:scaffold:imports
-=======
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
-	//+kubebuilder:scaffold:imports
->>>>>>> e58e761 (Initiate v1beta4)
+	// +kubebuilder:scaffold:imports
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to

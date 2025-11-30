@@ -113,8 +113,8 @@ var _ = Describe("15 conversion webhook test", func() {
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngitv1beta3.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngitv1beta3.CommitOnly,
-				PushMode:                    syngitv1beta3.SameBranch,
+				Strategy:                    syngitv1beta3.CommitOnly,
+				TargetStrategy:              syngitv1beta3.OneTarget,
 				RemoteRepository:            "https://fake-repo.com/my_repo.git",
 				ScopedResources: syngitv1beta3.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{

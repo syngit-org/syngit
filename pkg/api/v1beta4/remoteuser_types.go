@@ -54,10 +54,10 @@ type RemoteUserStatus struct {
 	SecretBoundStatus SecretBoundStatus `json:"secretBoundStatus,omitempty" protobuf:"bytes,5,rep,name=secretBoundStatus"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:storageversion
-//+kubebuilder:resource:path=remoteusers,shortName=ru;rus,categories=syngit
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:storageversion
+// +kubebuilder:resource:path=remoteusers,shortName=ru;rus,categories=syngit
 
 // RemoteUser is the Schema for the remoteusers API
 type RemoteUser struct {
@@ -68,7 +68,7 @@ type RemoteUser struct {
 	Status RemoteUserStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // RemoteUserList contains a list of RemoteUser
 type RemoteUserList struct {

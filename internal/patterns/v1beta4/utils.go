@@ -10,7 +10,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	controllerClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -79,7 +78,7 @@ func createOrUpdateRemoteTarget(ctx context.Context, k8sClient controllerClient.
 
 	// Add the association to each RemoteUserBindings
 	rubs := &syngit.RemoteUserBindingList{}
-	listOps := &client.ListOptions{
+	listOps := &controllerClient.ListOptions{
 		Namespace: remoteTarget.Namespace,
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
@@ -134,7 +133,7 @@ func slicesDifference(slice1 []string, slice2 []string) []string {
 	return diff
 }
 
-func getAssociatedRemoteUserBinding(ctx context.Context, k8sClient controllerClient.Client, remoteUserBindingList *syngit.RemoteUserBindingList, listOpts *client.ListOptions, retryNumber int) error {
+func getAssociatedRemoteUserBinding(ctx context.Context, k8sClient controllerClient.Client, remoteUserBindingList *syngit.RemoteUserBindingList, listOpts *controllerClient.ListOptions, retryNumber int) error {
 	listErr := k8sClient.List(ctx, remoteUserBindingList, listOpts)
 	if listErr != nil {
 		return listErr

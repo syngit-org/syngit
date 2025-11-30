@@ -49,16 +49,10 @@ type RemoteUserBindingStatus struct {
 	LastUsedTime metav1.Time `json:"lastUsedTime,omitempty"`
 }
 
-<<<<<<< HEAD
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=remoteuserbindings,shortName=rub;rubs,categories=syngit
-=======
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
 // +kubebuilder:deprecatedversion
-//+kubebuilder:resource:path=remoteuserbindings,shortName=rub;rubs,categories=syngit
->>>>>>> e58e761 (Initiate v1beta4)
 
 // RemoteUserBinding is the Schema for the remoteuserbindings API
 type RemoteUserBinding struct {
