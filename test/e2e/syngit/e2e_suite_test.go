@@ -546,8 +546,6 @@ func deleteRbac(ctx context.Context) {
 	Expect(err).NotTo(HaveOccurred())
 	err = sClient.KAs(Admin).RbacV1().RoleBindings(namespace).Delete(ctx, devopsRoleBindingName, metav1.DeleteOptions{})
 	Expect(err).NotTo(HaveOccurred())
-	fmt.Println("GOING TO DELETE")
-	fmt.Println(Admin)
 	err = sClient.KAs(Admin).RbacV1().RoleBindings(namespace).Delete(ctx, limitedDevopsRoleBindingName, metav1.DeleteOptions{}) //nolint:lll
 	Expect(err).NotTo(HaveOccurred())
 

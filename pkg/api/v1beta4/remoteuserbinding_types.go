@@ -29,17 +29,24 @@ const (
 )
 
 type RemoteUserBindingSpec struct {
+
+	// subject is the Kubernetes User/ServiceAccount that is bound to the listed RemoteUsers & RemoteTargets.
 	// +kubebuilder:validation:Required
 	Subject rbacv1.Subject `json:"subject" protobuf:"bytes,1,name=subject"`
 
+	// remoteUserRefs is a list of reference to RemoteUser(s) that are bound to the subject.
 	// +kubebuilder:validation:Required
 	RemoteUserRefs []corev1.ObjectReference `json:"remoteUserRefs" protobuf:"bytes,2,name=remoteUserRefs"` // Ref to the listed RemoteUser objects
 
+	// remoteTargetRefs is a list of reference to RemoteTarget(s) that are bound to the subject.
 	// +kubebuilder:validation:Optional
 	RemoteTargetRefs []corev1.ObjectReference `json:"remoteTargetRefs" protobuf:"bytes,3,name=remoteTargetRefs"` // Ref to the listed RemoteTarget objects
 }
 
 type RemoteUserBindingStatus struct {
+
+	// conditions represents the current state of the RemoteUser resource.
+	// Each condition has a unique type and reflects the status of a specific aspect of the resource.
 	// +listType=map
 	// +listMapKey=type
 	// +patchStrategy=merge
@@ -47,23 +54,32 @@ type RemoteUserBindingStatus struct {
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 
+	// remoteUserState represents the overall state of the RemoteUser(s) secret.
+	// Can be one of these values:
+	// - "AllBound" when the secret of all the RemoteUser(s) are bound
+	// - "PartiallyBound" when some secret are bound and some other are not
+	// - "NoneBound" when no secret among all the RemoteUser are bound
 	// +optional
-	State GitUserBindingState `json:"state,omitempty" protobuf:"bytes,2,rep,name=state"`
+	RemoteUserState RemoteUserBindingState `json:"remoteUserState,omitempty" protobuf:"bytes,2,rep,name=remoteUserState"`
 
+	// remoteUserHosts tracks the spec and the status of each RemoteUser.
+	// It describes the name of the RemoteUser, the secret reference, the state of the secret, the git server FQDN and the last time it has been used.
 	// +optional
-	GitUserHosts []GitUserHost `json:"gitUserHosts" protobuf:"bytes,3,rep,name=gitUserHosts"`
+	RemoteUserHosts []RemoteUserHost `json:"remoteUserHosts" protobuf:"bytes,3,rep,name=remoteUserHosts"`
 
+	// userKubernetesID is the ID of the Kubernetes user
 	// +optional
 	UserKubernetesID string `json:"userKubernetesID,omitempty" protobuf:"bytes,4,rep,name=userKubernetesID"`
-
-	// +optional
-	LastUsedTime metav1.Time `json:"lastUsedTime,omitempty" protobuf:"bytes,5,rep,name=lastUsedTime"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:resource:path=remoteuserbindings,shortName=rub;rubs,categories=syngit
+
+// +kubebuilder:printcolumn:name="Kubernetes User ID",type=string,JSONPath=`.status.userKubernetesID`,priority=0
+// +kubebuilder:printcolumn:name="Remote Users State",type=string,JSONPath=`.status.remoteUserState`,priority=1
+// +kubebuilder:printcolumn:name="Age",type=string,JSONPath=`.metadata.creationTimestamp`,priority=0
 
 // RemoteUserBinding is the Schema for the remoteuserbindings API
 type RemoteUserBinding struct {
@@ -91,20 +107,19 @@ func init() {
 	STATUS EXTENSION
 */
 
-type GitUserBindingState string
+type RemoteUserBindingState string
 
 const (
-	AllBound       GitUserBindingState = "AllBound"
-	PartiallyBound GitUserBindingState = "PartiallyBound"
-	NoneBound      GitUserBindingState = "NoneBound"
-	Bound          GitUserBindingState = "Bound"
-	NotBound       GitUserBindingState = "NotBound"
+	AllBound       RemoteUserBindingState = "AllBound"
+	PartiallyBound RemoteUserBindingState = "PartiallyBound"
+	NoneBound      RemoteUserBindingState = "NoneBound"
+	Bound          RemoteUserBindingState = "Bound"
+	NotBound       RemoteUserBindingState = "NotBound"
 )
 
-type GitUserHost struct {
+type RemoteUserHost struct {
 	RemoteUserUsed string                 `json:"remoteUserUsed,omitempty"`
 	SecretRef      corev1.SecretReference `json:"secretRef"`
 	GitFQDN        string                 `json:"gitFQDN,omitempty"`
-	State          GitUserBindingState    `json:"state,omitempty"`
-	LastUsedTime   metav1.Time            `json:"lastUsedTime,omitempty"`
+	State          RemoteUserBindingState `json:"state,omitempty"`
 }

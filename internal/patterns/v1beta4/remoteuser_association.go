@@ -64,14 +64,15 @@ func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *ErrorPatter
 		return &ErrorPattern{Message: diffErr.Error(), Reason: Errored}
 	}
 
-	name := syngit.RubNamePrefix + "-" + ruap.Username
+	sanitizedUsername := utils.Sanitize(ruap.Username)
+	name := syngit.RubNamePrefix + "-" + sanitizedUsername
 
 	// List all the RemoteUserBindings that are associated to this user and managed by Syngit.
 	remoteUserBindingList := &syngit.RemoteUserBindingList{}
 	listOps := &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-			syngit.K8sUserLabelKey:   ruap.Username,
+			syngit.K8sUserLabelKey:   sanitizedUsername,
 		}),
 		Namespace: ruap.NamespacedName.Namespace,
 	}
@@ -114,7 +115,7 @@ func (ruap *RemoteUserAssociationPattern) Diff(ctx context.Context) *ErrorPatter
 		// Set the labels
 		rub.Labels = map[string]string{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-			syngit.K8sUserLabelKey:   ruap.Username,
+			syngit.K8sUserLabelKey:   sanitizedUsername,
 		}
 
 		subject := &rbacv1.Subject{

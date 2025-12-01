@@ -65,11 +65,11 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	// Get the referenced RemoteUsers
 	var isGloballyBound = true
 
-	gitUserHosts := []syngit.GitUserHost{}
+	gitUserHosts := []syngit.RemoteUserHost{}
 	for _, remoteUserRef := range remoteUserBinding.Spec.RemoteUserRefs {
 
 		// Set already known values about this RemoteUser
-		var gitUserHost = syngit.GitUserHost{}
+		var gitUserHost = syngit.RemoteUserHost{}
 		gitUserHost.RemoteUserUsed = remoteUserRef.Name
 
 		var remoteUser syngit.RemoteUser
@@ -90,14 +90,14 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		gitUserHosts = append(gitUserHosts, gitUserHost)
 
 	}
-	remoteUserBinding.Status.GitUserHosts = gitUserHosts
+	remoteUserBinding.Status.RemoteUserHosts = gitUserHosts
 
 	if !isGloballyBound {
-		remoteUserBinding.Status.State = syngit.PartiallyBound
+		remoteUserBinding.Status.RemoteUserState = syngit.PartiallyBound
 		const partiallyBoundMessage = "Some of the remote users are not bound"
 		r.Recorder.Event(&remoteUserBinding, "Warning", "PartiallyBound", partiallyBoundMessage)
 	} else {
-		remoteUserBinding.Status.State = syngit.Bound
+		remoteUserBinding.Status.RemoteUserState = syngit.Bound
 		const boundMessage = "Every remote users are bound"
 		r.Recorder.Event(&remoteUserBinding, "Normal", "Bound", boundMessage)
 	}

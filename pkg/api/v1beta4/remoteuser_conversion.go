@@ -36,7 +36,6 @@ func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
 	dst.Status.ConnexionStatus.Details = src.Status.ConnexionStatus.Details
 	dst.Status.ConnexionStatus.Status = v1beta3.RemoteUserConnexionStatusReason(src.Status.ConnexionStatus.Status)
 	dst.Status.GitUser = src.Status.GitUser
-	dst.Status.LastAuthTime = src.Status.LastAuthTime
 	dst.Status.SecretBoundStatus = v1beta3.SecretBoundStatus(src.Status.SecretBoundStatus)
 
 	return nil
@@ -57,7 +56,6 @@ func (dst *RemoteUser) ConvertFrom(srcRaw conversion.Hub) error {
 	dst.Status.ConnexionStatus.Details = src.Status.ConnexionStatus.Details
 	dst.Status.ConnexionStatus.Status = RemoteUserConnexionStatusReason(src.Status.ConnexionStatus.Status)
 	dst.Status.GitUser = src.Status.GitUser
-	dst.Status.LastAuthTime = src.Status.LastAuthTime
 	dst.Status.SecretBoundStatus = SecretBoundStatus(src.Status.SecretBoundStatus)
 
 	return nil

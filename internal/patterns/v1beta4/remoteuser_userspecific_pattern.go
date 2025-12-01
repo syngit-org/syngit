@@ -3,6 +3,7 @@ package v1beta4
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	"github.com/syngit-org/syngit/pkg/utils"
@@ -30,18 +31,27 @@ func (usp *UserSpecificPattern) GetRemoteTarget() syngit.RemoteTarget {
 
 func (usp *UserSpecificPattern) Setup(ctx context.Context) *ErrorPattern {
 	if usp.remoteTargetToBeSetuped != nil {
+		alreadyExists := false
 		createErr := usp.Client.Create(ctx, usp.remoteTargetToBeSetuped)
 		if createErr != nil {
-			return &ErrorPattern{Message: createErr.Error(), Reason: Errored}
+			// If the associated RemoteUser does not exists anymore,
+			// we keep the RemoteTarget. It will be deleted when the
+			// RemoteSyncer will be deleted.
+			if !strings.Contains(createErr.Error(), "already exists") {
+				return &ErrorPattern{Message: createErr.Error(), Reason: Errored}
+			}
+			alreadyExists = true
 		}
 
-		spec := usp.RemoteUserBinding.Spec.DeepCopy()
-		spec.RemoteTargetRefs = append(spec.RemoteTargetRefs, corev1.ObjectReference{
-			Name: usp.remoteTargetToBeSetuped.Name,
-		})
-		updateErr := updateOrDeleteRemoteUserBinding(ctx, usp.Client, *spec, *usp.RemoteUserBinding, 2)
-		if updateErr != nil {
-			return &ErrorPattern{Message: updateErr.Error(), Reason: Errored}
+		if !alreadyExists {
+			spec := usp.RemoteUserBinding.Spec.DeepCopy()
+			spec.RemoteTargetRefs = append(spec.RemoteTargetRefs, corev1.ObjectReference{
+				Name: usp.remoteTargetToBeSetuped.Name,
+			})
+			updateErr := updateOrDeleteRemoteUserBinding(ctx, usp.Client, *spec, *usp.RemoteUserBinding, 2)
+			if updateErr != nil {
+				return &ErrorPattern{Message: updateErr.Error(), Reason: Errored}
+			}
 		}
 	}
 
@@ -96,7 +106,7 @@ func (usp *UserSpecificPattern) Diff(ctx context.Context) *ErrorPattern {
 	listOps := &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-			syngit.K8sUserLabelKey:   usp.Username,
+			syngit.K8sUserLabelKey:   utils.Sanitize(usp.Username),
 		}),
 		Namespace: usp.RemoteSyncer.Namespace,
 	}
@@ -189,7 +199,7 @@ func (usp *UserSpecificPattern) getExistingRemoteTarget(ctx context.Context) ([]
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
 			syngit.RtLabelKeyPattern: syngit.RtLabelValueOneUserOneBranch,
-			syngit.K8sUserLabelKey:   usp.Username,
+			syngit.K8sUserLabelKey:   utils.Sanitize(usp.Username),
 		}),
 		Namespace: usp.RemoteSyncer.Namespace,
 	}
@@ -219,7 +229,7 @@ func (usp *UserSpecificPattern) getExistingRemoteTarget(ctx context.Context) ([]
 
 func (usp *UserSpecificPattern) buildRemoteTarget(targetRepo string) (*syngit.RemoteTarget, error) {
 
-	rtName, nameErr := utils.RemoteTargetNameConstructor(usp.RemoteSyncer.Spec.RemoteRepository, usp.RemoteSyncer.Spec.DefaultBranch, targetRepo, usp.Username)
+	rtName, nameErr := utils.RemoteTargetNameConstructor(usp.RemoteSyncer.Spec.RemoteRepository, usp.RemoteSyncer.Spec.DefaultBranch, targetRepo, utils.Sanitize(usp.Username))
 	if nameErr != nil {
 		return nil, nameErr
 	}
@@ -231,14 +241,14 @@ func (usp *UserSpecificPattern) buildRemoteTarget(targetRepo string) (*syngit.Re
 			Labels: map[string]string{
 				syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
 				syngit.RtLabelKeyPattern: syngit.RtLabelValueOneUserOneBranch,
-				syngit.K8sUserLabelKey:   usp.Username,
+				syngit.K8sUserLabelKey:   utils.Sanitize(usp.Username),
 			},
 		},
 		Spec: syngit.RemoteTargetSpec{
 			UpstreamRepository: usp.RemoteSyncer.Spec.RemoteRepository,
 			UpstreamBranch:     usp.RemoteSyncer.Spec.DefaultBranch,
 			TargetRepository:   targetRepo,
-			TargetBranch:       usp.Username,
+			TargetBranch:       utils.SoftSanitize(usp.Username),
 			MergeStrategy:      syngit.TryFastForwardOrHardReset,
 		},
 	}

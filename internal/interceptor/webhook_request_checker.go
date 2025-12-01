@@ -865,7 +865,7 @@ func (wrc *WebhookRequestChecker) updateStatusState(kind string, details wrcDeta
 		lastPushedObjectState := &syngit.LastPushedObjectState{
 			LastPushedObjectTime:            v1.Now(),
 			LastPushedObject:                *gvrn,
-			LastPushedObjectGitPath:         repoPaths[0],
+			LastPushedObjectGitPaths:        repoPaths,
 			LastPushedObjectGitRepos:        repos,
 			LastPushedObjectGitCommitHashes: commitHashes,
 			LastPushedGitUser:               details.gitUser.gitUser,
