@@ -19,7 +19,8 @@ spec:
     singular: remotetarget
   scope: Namespaced
   versions:
-  - name: v1beta3
+  - deprecated: true
+    name: v1beta3
     schema:
       openAPIV3Schema:
         description: RemoteTarget is the Schema for the remotetargets API.
@@ -169,6 +170,20 @@ spec:
             description: RemoteTargetSpec defines the desired state of RemoteTarget.
             properties:
               mergeStrategy:
+                description: |2-
+                   mergeStrategy defines the strategy that must be used to get
+                  the commits from the upstream. It must be empty if the target
+                  repository and branch are the same.
+                  Can be one of these values:
+                  - TryFastForwardOrDie:       Try to pull the changes from the upstream.
+                                               If it is not a fast forward, the webhook
+                                               will return an error instead of pushing the
+                                               resource.
+                  - TryHardResetOrDie:         Try to do an hard reset on the latest commit
+                                               of the upstream.
+                  - TryFastForwardOrHardReset: First try the fast forward strategy,
+                                               if there is an error, then try the hard
+                                               reset strategy.
                 enum:
                 - TryFastForwardOrDie
                 - TryFastForwardOrHardReset
@@ -176,14 +191,29 @@ spec:
                 - ""
                 type: string
               targetBranch:
+                description: |-
+                  targetBranch defines the branch where the resource
+                  should be pushed. It can be the same as the upstream branch.
                 type: string
               targetRepository:
+                description: |-
+                  targetRepository defines the repository where the
+                  resource should be pushed. It can be the same as the upstream
+                  repository.
                 example: https://git.example.com/my-target-repo.git
                 format: uri
                 type: string
               upstreamBranch:
+                description: |-
+                  upstreamBranch is used to ensure the mapping with
+                  the RemoteSyncer(s) that defines it as the default repository.
+                  It will also be used for the merge strategies.
                 type: string
               upstreamRepository:
+                description: |-
+                  upstreamRepository is used to ensure the mapping with
+                  the RemoteSyncer(s) that defines it as the default repository.
+                  It will also be used for the merge strategies.
                 example: https://git.example.com/my-upstream-repo.git
                 format: uri
                 type: string
@@ -197,17 +227,12 @@ spec:
             description: RemoteTargetStatus defines the observed state of RemoteTarget.
             properties:
               conditions:
+                description: |-
+                  conditions represents the current state of the RemoteUser resource.
+                  Each condition has a unique type and reflects the status of a specific aspect of the resource.
                 items:
-                  description: "Condition contains details for one aspect of the current
-                    state of this API Resource.\n---\nThis struct is intended for
-                    direct use as an array at the field path .status.conditions.  For
-                    example,\n\n\n\ttype FooStatus struct{\n\t    // Represents the
-                    observations of a foo's current state.\n\t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\"\n\t    //
-                    +patchMergeKey=type\n\t    // +patchStrategy=merge\n\t    // +listType=map\n\t
-                    \   // +listMapKey=type\n\t    Conditions []metav1.Condition `json:\"conditions,omitempty\"
-                    patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"`\n\n\n\t
-                    \   // other fields\n\t}"
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
                   properties:
                     lastTransitionTime:
                       description: |-
@@ -248,12 +273,7 @@ spec:
                       - Unknown
                       type: string
                     type:
-                      description: |-
-                        type of condition in CamelCase or in foo.example.com/CamelCase.
-                        ---
-                        Many .condition.type values are consistent across resources like Available, but because arbitrary conditions can be
-                        useful (see .node.status.conditions), the ability to deconflict is important.
-                        The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
                       maxLength: 316
                       pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                       type: string
@@ -268,15 +288,7 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              lastConsistencyOperationTime:
-                type: string
-              lastConsistencyOperationType:
-                type: string
-              lastObservedCommitHash:
-                type: string
             type: object
         type: object
     served: true
     storage: true
-    subresources:
-      status: {}

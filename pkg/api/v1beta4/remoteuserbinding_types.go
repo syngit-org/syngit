@@ -72,14 +72,15 @@ type RemoteUserBindingStatus struct {
 	UserKubernetesID string `json:"userKubernetesID,omitempty" protobuf:"bytes,4,rep,name=userKubernetesID"`
 }
 
-// +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:storageversion
 // +kubebuilder:resource:path=remoteuserbindings,shortName=rub;rubs,categories=syngit
 
 // +kubebuilder:printcolumn:name="Kubernetes User ID",type=string,JSONPath=`.status.userKubernetesID`,priority=0
 // +kubebuilder:printcolumn:name="Remote Users State",type=string,JSONPath=`.status.remoteUserState`,priority=1
 // +kubebuilder:printcolumn:name="Age",type=string,JSONPath=`.metadata.creationTimestamp`,priority=0
+
+// +kubebuilder:storageversion
+// +kubebuilder:object:root=true
 
 // RemoteUserBinding is the Schema for the remoteuserbindings API
 type RemoteUserBinding struct {

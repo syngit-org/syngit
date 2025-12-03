@@ -100,9 +100,9 @@ type RemoteSyncerStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
 // +kubebuilder:resource:path=remotesyncers,shortName=rsy;rsys,categories=syngit
-// +kubebuilder:deprecatedversion
+// +kubebuilder:unservedversion
+// +kubebuilder:skipversion
 
 // RemoteSyncer is the Schema for the remotesyncers API
 type RemoteSyncer struct {

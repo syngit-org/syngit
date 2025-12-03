@@ -169,9 +169,7 @@ type RemoteSyncerStatus struct {
 	LastPushedObjectState LastPushedObjectState `json:"lastPushedObjectState,omitempty" protobuf:"bytes,4,rep,name=lastPushedObjectState"`
 }
 
-// +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:storageversion
 // +kubebuilder:resource:path=remotesyncers,shortName=rsy;rsys,categories=syngit
 
 // +kubebuilder:printcolumn:name="Last pushed resource time",type=string,JSONPath=`.status.lastPushedObjectState.lastPushedObjectTime`,priority=0
@@ -179,6 +177,9 @@ type RemoteSyncerStatus struct {
 // +kubebuilder:printcolumn:name="Last bypassed resource time",type=string,JSONPath=`.status.lastBypassedObjectState.lastBypassObjectTime`,priority=1
 // +kubebuilder:printcolumn:name="Last bypassed resource name",type=string,JSONPath=`.status.lastPushedObjectState.lastBypassObject.name`,priority=1
 // +kubebuilder:printcolumn:name="Age",type=string,JSONPath=`.metadata.creationTimestamp`,priority=0
+
+// +kubebuilder:storageversion
+// +kubebuilder:object:root=true
 
 // RemoteSyncer is the Schema for the remotesyncers API
 type RemoteSyncer struct {
