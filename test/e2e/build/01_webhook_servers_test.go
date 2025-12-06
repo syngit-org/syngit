@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	samplePath = "test/e2e/build/samples"
+	samplePath = "test/e2e/samples"
 )
 
 var _ = Describe("01 Test webhook servers", Ordered, func() {

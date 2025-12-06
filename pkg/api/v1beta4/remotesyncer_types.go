@@ -46,7 +46,7 @@ type RemoteSyncerSpec struct {
 	ScopedResources ScopedResources `json:"scopedResources" protobuf:"bytes,3,name=scopedResources,casttype=ScopedResources"`
 
 	// strategy field specify if the applied Kubernetes object must be
-	// commited and applied (CommitApply) OR only commited (CommitOnly) and blocked
+	// committed and applied (CommitApply) OR only committed (CommitOnly) and blocked
 	// to the Kubernetes API.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:default:value="CommitApply"
