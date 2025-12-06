@@ -16,47 +16,4 @@ limitations under the License.
 
 package v1beta4
 
-import (
-	v1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
-	"sigs.k8s.io/controller-runtime/pkg/conversion"
-)
-
-func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*v1beta3.RemoteUser)
-
-	// Common conversion
-	dst.ObjectMeta = src.ObjectMeta
-
-	dst.Spec.Email = src.Spec.Email
-	gitBaseDomainFQDN := src.Spec.GitBaseDomainFQDN
-	dst.Spec.GitBaseDomainFQDN = gitBaseDomainFQDN
-	dst.Spec.SecretRef = src.Spec.SecretRef
-
-	dst.Status.Conditions = src.Status.Conditions
-	dst.Status.ConnexionStatus.Details = src.Status.ConnexionStatus.Details
-	dst.Status.ConnexionStatus.Status = v1beta3.RemoteUserConnexionStatusReason(src.Status.ConnexionStatus.Status)
-	dst.Status.GitUser = src.Status.GitUser
-	dst.Status.SecretBoundStatus = v1beta3.SecretBoundStatus(src.Status.SecretBoundStatus)
-
-	return nil
-}
-
-func (dst *RemoteUser) ConvertFrom(srcRaw conversion.Hub) error {
-	src := srcRaw.(*v1beta3.RemoteUser)
-
-	// Common conversion
-	dst.ObjectMeta = src.ObjectMeta
-
-	dst.Spec.Email = src.Spec.Email
-	gitBaseDomainFQDN := src.Spec.GitBaseDomainFQDN
-	dst.Spec.GitBaseDomainFQDN = gitBaseDomainFQDN
-	dst.Spec.SecretRef = src.Spec.SecretRef
-
-	dst.Status.Conditions = src.Status.Conditions
-	dst.Status.ConnexionStatus.Details = src.Status.ConnexionStatus.Details
-	dst.Status.ConnexionStatus.Status = RemoteUserConnexionStatusReason(src.Status.ConnexionStatus.Status)
-	dst.Status.GitUser = src.Status.GitUser
-	dst.Status.SecretBoundStatus = SecretBoundStatus(src.Status.SecretBoundStatus)
-
-	return nil
-}
+func (*RemoteUser) Hub() {}

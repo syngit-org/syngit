@@ -62,7 +62,6 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 		}
 		Eventually(func() bool {
 			err := sClient.As(Luffy).CreateOrUpdate(remoteUserLuffy)
-			fmt.Println(err)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 

@@ -1165,7 +1165,7 @@ spec:
                 default: CommitApply
                 description: |-
                   strategy field specify if the applied Kubernetes object must be
-                  commited and applied (CommitApply) OR only commited (CommitOnly) and blocked
+                  committed and applied (CommitApply) OR only committed (CommitOnly) and blocked
                   to the Kubernetes API.
                 enum:
                 - CommitOnly
@@ -1386,3 +1386,5 @@ spec:
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}

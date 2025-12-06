@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	samplePath = "test/e2e/build/samples"
+	samplePath = "test/e2e/samples"
 )
 
 var syngitChart utils.LocalChart
@@ -86,7 +86,7 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 
 		err = utils.ApplyFromYAML(
 			config,
-			fmt.Sprintf("%s/syngit_%s_remotesyncer.yaml", version, samplePath),
+			fmt.Sprintf("%s/syngit_%s_remotesyncer.yaml", samplePath, version),
 			testNamespace,
 			remoteSyncerGVR,
 		)

@@ -155,7 +155,6 @@ var _ = Describe("09 Multi RemoteSyncer test", func() {
 				cm,
 				metav1.CreateOptions{},
 			)
-			fmt.Println(err)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 

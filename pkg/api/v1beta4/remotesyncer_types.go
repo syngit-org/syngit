@@ -46,7 +46,7 @@ type RemoteSyncerSpec struct {
 	ScopedResources ScopedResources `json:"scopedResources" protobuf:"bytes,3,name=scopedResources,casttype=ScopedResources"`
 
 	// strategy field specify if the applied Kubernetes object must be
-	// commited and applied (CommitApply) OR only commited (CommitOnly) and blocked
+	// committed and applied (CommitApply) OR only committed (CommitOnly) and blocked
 	// to the Kubernetes API.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:default:value="CommitApply"
@@ -169,7 +169,6 @@ type RemoteSyncerStatus struct {
 	LastPushedObjectState LastPushedObjectState `json:"lastPushedObjectState,omitempty" protobuf:"bytes,4,rep,name=lastPushedObjectState"`
 }
 
-// +kubebuilder:subresource:status
 // +kubebuilder:resource:path=remotesyncers,shortName=rsy;rsys,categories=syngit
 
 // +kubebuilder:printcolumn:name="Last pushed resource time",type=string,JSONPath=`.status.lastPushedObjectState.lastPushedObjectTime`,priority=0
@@ -178,8 +177,9 @@ type RemoteSyncerStatus struct {
 // +kubebuilder:printcolumn:name="Last bypassed resource name",type=string,JSONPath=`.status.lastPushedObjectState.lastBypassObject.name`,priority=1
 // +kubebuilder:printcolumn:name="Age",type=string,JSONPath=`.metadata.creationTimestamp`,priority=0
 
-// +kubebuilder:storageversion
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:storageversion
 
 // RemoteSyncer is the Schema for the remotesyncers API
 type RemoteSyncer struct {

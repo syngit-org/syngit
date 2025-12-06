@@ -105,11 +105,11 @@ type RemoteTargetStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
-// +kubebuilder:subresource:status
 // +kubebuilder:resource:path=remotetargets,shortName=rt;rts,categories=syngit
 
-// +kubebuilder:storageversion
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:storageversion
 
 // RemoteTarget is the Schema for the remotetargets API.
 type RemoteTarget struct {

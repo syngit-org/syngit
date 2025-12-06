@@ -49,7 +49,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	syngitv1beta2 "github.com/syngit-org/syngit/pkg/api/v1beta2"
 	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	features "github.com/syngit-org/syngit/pkg/feature"
@@ -156,8 +155,6 @@ func setupManager() {
 
 	By("adding syngit to scheme")
 	// Add the previous apiVersion for conversion
-	err = syngitv1beta2.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
 	err = syngitv1beta3.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	// Add the current apiVersion
