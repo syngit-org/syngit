@@ -40,6 +40,7 @@ spec:
         - "--leader-elect"
         - "--health-probe-bind-address=:8081"
         - "--metrics-bind-address=:8443"
+        - "--feature-gates={{ .Values.controller.featureGates }}"
         image: {{ .Values.controller.image.prefix }}/{{ .Values.controller.image.name }}:{{ .Values.controller.image.tag }}
         env:
         - name: MANAGER_NAMESPACE

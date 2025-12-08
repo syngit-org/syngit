@@ -12,6 +12,7 @@ controller:
     prefix: ghcr.io/syngit-org
     name: syngit
     tag: v0.5.0
+    featureGates: ResourceFinder=true
     # imagePullSecrets:
     # imagePullPolicy:
 
