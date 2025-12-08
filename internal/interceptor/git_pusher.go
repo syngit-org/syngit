@@ -86,7 +86,8 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 	var results ResourceFinderResults
 	var pathsShouldExist = map[string]bool{}
 
-	if features.LoadedFeatureGates.Enabled(features.ResourceFinder) {
+	if features.LoadedFeatureGates.Enabled(features.ResourceFinder) &&
+		gp.remoteSyncer.Spec.ResourceFinder {
 		resourceFinder := ResourceFinder{
 			SearchedGVK:       gp.interceptedGVR,
 			SearchedName:      gp.interceptedName,
@@ -104,7 +105,9 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 		}
 	}
 
-	if !features.LoadedFeatureGates.Enabled(features.ResourceFinder) || !results.Found {
+	if !features.LoadedFeatureGates.Enabled(features.ResourceFinder) ||
+		!gp.remoteSyncer.Spec.ResourceFinder ||
+		!results.Found {
 		path, err := gp.pathConstructor(w)
 		if err != nil {
 			return *gpResponse, err

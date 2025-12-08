@@ -93,16 +93,23 @@ type RemoteSyncerSpec struct {
 	// +kubebuilder:validation:Optional
 	RootPath string `json:"rootPath,omitempty" protobuf:"bytes,opt,10,name=rootPath"`
 
+	// resourceFinder locates the resource amongst the files of the repository.
+	// When the resource is intercepted, the corresponding yaml manifest replaces
+	// the one(s) currently existing in the repository.
+	// +kubebuilder:default:value=true
+	// +kubebuilder:validation:Required
+	ResourceFinder bool `json:"resourceFinder,omitempty" protobuf:"bytes,opt,11,name=resourceFinder"`
+
 	// remoteUserBindingSelector is a label selector that will be used when
 	// the search algorithm will try to find the RemoteUserBinding that belongs
 	// to the Kubernetes user.
 	// +kubebuilder:validation:Optional
-	RemoteUserBindingSelector *metav1.LabelSelector `json:"remoteUserBindingSelector" protobuf:"bytes,opt,11,name=remoteUserBindingSelector"`
+	RemoteUserBindingSelector *metav1.LabelSelector `json:"remoteUserBindingSelector" protobuf:"bytes,opt,12,name=remoteUserBindingSelector"`
 
 	// bypassInterceptionSubjects field is a list of Kubernetes subjects
 	// (ServiceAccount or User) that can apply the resource but must not commit them.
 	// +kubebuilder:validation:Optional
-	BypassInterceptionSubjects []rbacv1.Subject `json:"bypassInterceptionSubjects,omitempty" protobuf:"bytes,opt,12,name=bypassInterceptionSubjects"`
+	BypassInterceptionSubjects []rbacv1.Subject `json:"bypassInterceptionSubjects,omitempty" protobuf:"bytes,opt,13,name=bypassInterceptionSubjects"`
 
 	// defaultUnauthorizedUserMode defines the behavior for an unauthorized
 	// user interacting with the scoped resources.
@@ -111,7 +118,7 @@ type RemoteSyncerSpec struct {
 	// - "UseDefaultUser" uses the .spec.defaultRemoteUserRef RemoteUser to push to git
 	// +kubebuilder:default:value="Block"
 	// +kubebuilder:validation:Enum=Block;UseDefaultUser
-	DefaultUnauthorizedUserMode DefaultUnauthorizedUserMode `json:"defaultUnauthorizedUserMode" protobuf:"bytes,opt,13,name=defaultUnauthorizedUserMode"`
+	DefaultUnauthorizedUserMode DefaultUnauthorizedUserMode `json:"defaultUnauthorizedUserMode" protobuf:"bytes,opt,14,name=defaultUnauthorizedUserMode"`
 
 	// defaultRemoteUserRef is a reference to a RemoteUser object.
 	// If specified, the RemoteUser that references the same remote git server
@@ -123,23 +130,23 @@ type RemoteSyncerSpec struct {
 	// The resource will be pushed to the target specified by the
 	// .spec.defaultRemoteTargetRef field.
 	// +kubebuilder:validation:Optional
-	DefaultRemoteUserRef *corev1.ObjectReference `json:"defaultRemoteUserRef,omitempty" protobuf:"bytes,opt,14,name=defaultRemoteUserRef"` // Ref to a RemoteUser object
+	DefaultRemoteUserRef *corev1.ObjectReference `json:"defaultRemoteUserRef,omitempty" protobuf:"bytes,opt,15,name=defaultRemoteUserRef"` // Ref to a RemoteUser object
 
 	// defaultRemoteTargetRef  is a reference to a RemoteTarget object.
 	// It will be used in the same condition as the defaultRemoteUserRef field.
 	// If the defaultRemoteUserRef field is defined, then the .spec.defaultRemoteTargetRef
 	// must be defined as well.
 	// +kubebuilder:validation:Optional
-	DefaultRemoteTargetRef *corev1.ObjectReference `json:"defaultRemoteTargetRef,omitempty" protobuf:"bytes,opt,15,name=defaultRemoteTargetRef"` // Ref to a RemoteUser object
+	DefaultRemoteTargetRef *corev1.ObjectReference `json:"defaultRemoteTargetRef,omitempty" protobuf:"bytes,opt,16,name=defaultRemoteTargetRef"` // Ref to a RemoteUser object
 
 	// insecureSkipTlsVerify skip TLS verification when set to true
 	// +kubebuilder:validation:Optional
-	InsecureSkipTlsVerify bool `json:"insecureSkipTlsVerify,omitempty" protobuf:"bytes,opt,16,name=insecureSkipTlsVerify"`
+	InsecureSkipTlsVerify bool `json:"insecureSkipTlsVerify,omitempty" protobuf:"bytes,opt,17,name=insecureSkipTlsVerify"`
 
 	// The caBundleSecretRef is a reference to a secret of type kubernetes.io/tls that stores the
 	// certificate of the remote git server stored in a Secret object.
 	// +kubebuilder:validation:Optional
-	CABundleSecretRef corev1.SecretReference `json:"caBundleSecretRef,omitempty" protobuf:"bytes,opt,17,name=caBundleSecretRef"`
+	CABundleSecretRef corev1.SecretReference `json:"caBundleSecretRef,omitempty" protobuf:"bytes,opt,18,name=caBundleSecretRef"`
 }
 
 type RemoteSyncerStatus struct {
