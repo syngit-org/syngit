@@ -39,10 +39,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/syngit-org/syngit/internal/controller"
-	webhooksyngitv1beta3 "github.com/syngit-org/syngit/internal/webhook/v1beta3"
+	webhooksyngitv1beta4 "github.com/syngit-org/syngit/internal/webhook/v1beta4"
 	syngitv1beta1 "github.com/syngit-org/syngit/pkg/api/v1beta1"
 	syngitv1beta2 "github.com/syngit-org/syngit/pkg/api/v1beta2"
 	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	syngitv1beta4 "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	features "github.com/syngit-org/syngit/pkg/feature"
 	// +kubebuilder:scaffold:imports
 )
@@ -58,6 +59,7 @@ func init() {
 	utilruntime.Must(syngitv1beta1.AddToScheme(scheme))
 	utilruntime.Must(syngitv1beta2.AddToScheme(scheme))
 	utilruntime.Must(syngitv1beta3.AddToScheme(scheme))
+	utilruntime.Must(syngitv1beta4.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -202,44 +204,44 @@ func main() {
 
 	// nolint:goconst
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
-		if err = webhooksyngitv1beta3.SetupRemoteUserWebhookWithManager(mgr); err != nil {
+		if err = webhooksyngitv1beta4.SetupRemoteUserWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUser")
 			os.Exit(1)
 		}
-		if err = webhooksyngitv1beta3.SetupRemoteSyncerWebhookWithManager(mgr); err != nil {
+		if err = webhooksyngitv1beta4.SetupRemoteSyncerWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteSyncer")
 			os.Exit(1)
 		}
-		if err = webhooksyngitv1beta3.SetupRemoteUserBindingWebhookWithManager(mgr); err != nil {
+		if err = webhooksyngitv1beta4.SetupRemoteUserBindingWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUserBinding")
 			os.Exit(1)
 		}
-		if err = webhooksyngitv1beta3.SetupRemoteTargetWebhookWithManager(mgr); err != nil {
+		if err = webhooksyngitv1beta4.SetupRemoteTargetWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteTarget")
 			os.Exit(1)
 		}
-		mgr.GetWebhookServer().Register("/syngit-v1beta3-remoteuser-association",
-			&webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserAssociationWebhookHandler{
+		mgr.GetWebhookServer().Register("/syngit-v1beta4-remoteuser-association",
+			&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteUserAssociationWebhookHandler{
 				Client:  mgr.GetClient(),
 				Decoder: admission.NewDecoder(mgr.GetScheme()),
 			}})
-		mgr.GetWebhookServer().Register("/syngit-v1beta3-remoteuser-permissions",
-			&webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserPermissionsWebhookHandler{
+		mgr.GetWebhookServer().Register("/syngit-v1beta4-remoteuser-permissions",
+			&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteUserPermissionsWebhookHandler{
 				Client:  mgr.GetClient(),
 				Decoder: admission.NewDecoder(mgr.GetScheme()),
 			}})
-		mgr.GetWebhookServer().Register("/syngit-v1beta3-remoteuserbinding-permissions",
-			&webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteUserBindingPermissionsWebhookHandler{
+		mgr.GetWebhookServer().Register("/syngit-v1beta4-remoteuserbinding-permissions",
+			&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteUserBindingPermissionsWebhookHandler{
 				Client:  mgr.GetClient(),
 				Decoder: admission.NewDecoder(mgr.GetScheme()),
 			}})
-		mgr.GetWebhookServer().Register("/syngit-v1beta3-remotesyncer-rules-permissions",
-			&webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteSyncerWebhookHandler{
+		mgr.GetWebhookServer().Register("/syngit-v1beta4-remotesyncer-rules-permissions",
+			&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteSyncerWebhookHandler{
 				Client:  mgr.GetClient(),
 				Decoder: admission.NewDecoder(mgr.GetScheme()),
 			}})
-		mgr.GetWebhookServer().Register("/syngit-v1beta3-remotesyncer-target-pattern",
-			&webhook.Admission{Handler: &webhooksyngitv1beta3.RemoteSyncerTargetPatternWebhookHandler{
+		mgr.GetWebhookServer().Register("/syngit-v1beta4-remotesyncer-target-pattern",
+			&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteSyncerTargetPatternWebhookHandler{
 				Client:  mgr.GetClient(),
 				Decoder: admission.NewDecoder(mgr.GetScheme()),
 			}})

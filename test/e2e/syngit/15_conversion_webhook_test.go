@@ -19,8 +19,8 @@ package e2e_syngit
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	syngitv1beta2 "github.com/syngit-org/syngit/pkg/api/v1beta2"
 	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	syngitv1beta4 "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	. "github.com/syngit-org/syngit/test/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -39,12 +39,12 @@ var _ = Describe("15 conversion webhook test", func() {
 	It("should convert from the previous apiversion to the current one", func() {
 		By("creating the RemoteUser for Luffy")
 		luffySecretName := string(Luffy) + "-creds"
-		remoteUserLuffy := &syngitv1beta2.RemoteUser{
+		remoteUserLuffy := &syngitv1beta3.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteUserLuffyName,
 				Namespace: namespace,
 			},
-			Spec: syngitv1beta2.RemoteUserSpec{
+			Spec: syngitv1beta3.RemoteUserSpec{
 				Email:             "sample@email.com",
 				GitBaseDomainFQDN: gitP1Fqdn,
 				SecretRef: corev1.SecretReference{
@@ -62,20 +62,20 @@ var _ = Describe("15 conversion webhook test", func() {
 			Name:      remoteUserLuffyName,
 			Namespace: namespace,
 		}
-		ruLuffy := &syngitv1beta3.RemoteUser{}
+		ruLuffy := &syngitv1beta4.RemoteUser{}
 		Eventually(func() bool {
 			err := sClient.As(Luffy).Get(nnRuLuffy, ruLuffy)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
 		By("creating the RemoteUserBinding for Luffy")
-		remoteUserBindingLuffy := &syngitv1beta2.RemoteUserBinding{
+		remoteUserBindingLuffy := &syngitv1beta3.RemoteUserBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteUserBindingLuffyName,
 				Namespace: namespace,
 			},
-			Spec: syngitv1beta2.RemoteUserBindingSpec{
-				RemoteRefs: []corev1.ObjectReference{
+			Spec: syngitv1beta3.RemoteUserBindingSpec{
+				RemoteUserRefs: []corev1.ObjectReference{
 					{
 						Name: "fake-remoteuser",
 					},
@@ -92,28 +92,31 @@ var _ = Describe("15 conversion webhook test", func() {
 			Name:      remoteUserBindingLuffyName,
 			Namespace: namespace,
 		}
-		rubLuffy := &syngitv1beta3.RemoteUserBinding{}
+		rubLuffy := &syngitv1beta4.RemoteUserBinding{}
 		Eventually(func() bool {
 			err := sClient.As(Luffy).Get(nnRubLuffy, rubLuffy)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
 		By("creating the RemoteSyncer")
-		remotesyncer := &syngitv1beta2.RemoteSyncer{
+		remotesyncer := &syngitv1beta3.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteSyncerName,
 				Namespace: namespace,
+				Annotations: map[string]string{
+					syngitv1beta3.RtAnnotationKeyOneOrManyBranches: "main",
+				},
 			},
-			Spec: syngitv1beta2.RemoteSyncerSpec{
+			Spec: syngitv1beta3.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
 				DefaultBlockAppliedMessage:  defaultDeniedMessage,
 				DefaultBranch:               "main",
-				DefaultUnauthorizedUserMode: syngitv1beta2.Block,
+				DefaultUnauthorizedUserMode: syngitv1beta3.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				ProcessMode:                 syngitv1beta2.CommitOnly,
-				PushMode:                    syngitv1beta2.SameBranch,
+				Strategy:                    syngitv1beta3.CommitOnly,
+				TargetStrategy:              syngitv1beta3.OneTarget,
 				RemoteRepository:            "https://fake-repo.com/my_repo.git",
-				ScopedResources: syngitv1beta2.ScopedResources{
+				ScopedResources: syngitv1beta3.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
 							admissionv1.Create,
@@ -138,7 +141,7 @@ var _ = Describe("15 conversion webhook test", func() {
 			Name:      remoteSyncerName,
 			Namespace: namespace,
 		}
-		rsyLuffy := &syngitv1beta3.RemoteSyncer{}
+		rsyLuffy := &syngitv1beta4.RemoteSyncer{}
 		Eventually(func() bool {
 			err := sClient.As(Luffy).Get(nnRsyLuffy, rsyLuffy)
 			return err == nil

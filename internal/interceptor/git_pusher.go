@@ -18,7 +18,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	admissionv1 "k8s.io/api/admission/v1"
 
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	features "github.com/syngit-org/syngit/pkg/feature"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )

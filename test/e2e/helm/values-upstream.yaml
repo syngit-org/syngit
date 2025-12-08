@@ -1,0 +1,8 @@
+providers:
+  github:
+    enabled: true
+  gitlab:
+    enabled: true
+certmanager:
+  dependency:
+    enabled: true

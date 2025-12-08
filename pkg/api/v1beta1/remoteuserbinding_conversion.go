@@ -17,12 +17,12 @@ limitations under the License.
 package v1beta1
 
 import (
-	v1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	v1beta4 "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
 func (src *RemoteUserBinding) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*v1beta3.RemoteUserBinding)
+	dst := dstRaw.(*v1beta4.RemoteUserBinding)
 
 	// Common conversion
 	dst.ObjectMeta = src.ObjectMeta
@@ -34,7 +34,7 @@ func (src *RemoteUserBinding) ConvertTo(dstRaw conversion.Hub) error {
 }
 
 func (dst *RemoteUserBinding) ConvertFrom(srcRaw conversion.Hub) error {
-	src := srcRaw.(*v1beta3.RemoteUserBinding)
+	src := srcRaw.(*v1beta4.RemoteUserBinding)
 
 	// Common conversion
 	dst.ObjectMeta = src.ObjectMeta

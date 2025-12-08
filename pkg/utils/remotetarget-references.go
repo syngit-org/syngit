@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 )
 
 func RemoteTargetNameConstructor(

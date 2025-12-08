@@ -19,12 +19,12 @@ package v1beta1
 import (
 	"strconv"
 
-	v1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	v1beta4 "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
 func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*v1beta3.RemoteUser)
+	dst := dstRaw.(*v1beta4.RemoteUser)
 
 	// Common conversion
 	dst.ObjectMeta = src.ObjectMeta
@@ -36,23 +36,22 @@ func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
 
 	dst.Status.Conditions = src.Status.Conditions
 	dst.Status.ConnexionStatus.Details = src.Status.ConnexionStatus.Details
-	dst.Status.ConnexionStatus.Status = v1beta3.RemoteUserConnexionStatusReason(src.Status.ConnexionStatus.Status)
+	dst.Status.ConnexionStatus.Status = v1beta4.RemoteUserConnexionStatusReason(src.Status.ConnexionStatus.Status)
 	dst.Status.GitUser = src.Status.GitUser
-	dst.Status.LastAuthTime = src.Status.LastAuthTime
-	dst.Status.SecretBoundStatus = v1beta3.SecretBoundStatus(src.Status.SecretBoundStatus)
+	dst.Status.SecretBoundStatus = v1beta4.SecretBoundStatus(src.Status.SecretBoundStatus)
 
 	// Annotation transfer
 	if dst.Annotations == nil {
 		dst.Annotations = map[string]string{}
 	}
 	associatedRemoteUserBinding := strconv.FormatBool(src.Spec.AssociatedRemoteUserBinding)
-	dst.Annotations[v1beta3.RubAnnotationKeyManaged] = associatedRemoteUserBinding
+	dst.Annotations[v1beta4.RubAnnotationKeyManaged] = associatedRemoteUserBinding
 
 	return nil
 }
 
 func (dst *RemoteUser) ConvertFrom(srcRaw conversion.Hub) error {
-	src := srcRaw.(*v1beta3.RemoteUser)
+	src := srcRaw.(*v1beta4.RemoteUser)
 
 	// Common conversion
 	dst.ObjectMeta = src.ObjectMeta
@@ -66,11 +65,10 @@ func (dst *RemoteUser) ConvertFrom(srcRaw conversion.Hub) error {
 	dst.Status.ConnexionStatus.Details = src.Status.ConnexionStatus.Details
 	dst.Status.ConnexionStatus.Status = RemoteUserConnexionStatusReason(src.Status.ConnexionStatus.Status)
 	dst.Status.GitUser = src.Status.GitUser
-	dst.Status.LastAuthTime = src.Status.LastAuthTime
 	dst.Status.SecretBoundStatus = SecretBoundStatus(src.Status.SecretBoundStatus)
 
 	// Renaming
-	associatedRemoteUserBinding, err := strconv.ParseBool(src.Annotations[v1beta3.RubAnnotationKeyManaged])
+	associatedRemoteUserBinding, err := strconv.ParseBool(src.Annotations[v1beta4.RubAnnotationKeyManaged])
 	if err != nil {
 		dst.Spec.AssociatedRemoteUserBinding = false
 	} else {

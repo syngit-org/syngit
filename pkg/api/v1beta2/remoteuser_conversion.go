@@ -17,12 +17,12 @@ limitations under the License.
 package v1beta2
 
 import (
-	v1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	v1beta4 "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
 func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
-	dst := dstRaw.(*v1beta3.RemoteUser)
+	dst := dstRaw.(*v1beta4.RemoteUser)
 
 	// Common conversion
 	dst.ObjectMeta = src.ObjectMeta
@@ -34,23 +34,22 @@ func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
 
 	dst.Status.Conditions = src.Status.Conditions
 	dst.Status.ConnexionStatus.Details = src.Status.ConnexionStatus.Details
-	dst.Status.ConnexionStatus.Status = v1beta3.RemoteUserConnexionStatusReason(src.Status.ConnexionStatus.Status)
+	dst.Status.ConnexionStatus.Status = v1beta4.RemoteUserConnexionStatusReason(src.Status.ConnexionStatus.Status)
 	dst.Status.GitUser = src.Status.GitUser
-	dst.Status.LastAuthTime = src.Status.LastAuthTime
-	dst.Status.SecretBoundStatus = v1beta3.SecretBoundStatus(src.Status.SecretBoundStatus)
+	dst.Status.SecretBoundStatus = v1beta4.SecretBoundStatus(src.Status.SecretBoundStatus)
 
 	// Annotation transfer
 	if dst.Annotations == nil {
 		dst.Annotations = map[string]string{}
 	}
-	dst.Annotations[v1beta3.RubAnnotationKeyManaged] = src.Annotations[RubAnnotation]
+	dst.Annotations[v1beta4.RubAnnotationKeyManaged] = src.Annotations[RubAnnotation]
 	delete(dst.Annotations, RubAnnotation)
 
 	return nil
 }
 
 func (dst *RemoteUser) ConvertFrom(srcRaw conversion.Hub) error {
-	src := srcRaw.(*v1beta3.RemoteUser)
+	src := srcRaw.(*v1beta4.RemoteUser)
 
 	// Common conversion
 	dst.ObjectMeta = src.ObjectMeta
@@ -64,15 +63,14 @@ func (dst *RemoteUser) ConvertFrom(srcRaw conversion.Hub) error {
 	dst.Status.ConnexionStatus.Details = src.Status.ConnexionStatus.Details
 	dst.Status.ConnexionStatus.Status = RemoteUserConnexionStatusReason(src.Status.ConnexionStatus.Status)
 	dst.Status.GitUser = src.Status.GitUser
-	dst.Status.LastAuthTime = src.Status.LastAuthTime
 	dst.Status.SecretBoundStatus = SecretBoundStatus(src.Status.SecretBoundStatus)
 
 	// Annotation transfer
 	if dst.Annotations == nil {
 		dst.Annotations = map[string]string{}
 	}
-	dst.Annotations[RubAnnotation] = src.Annotations[v1beta3.RubAnnotationKeyManaged]
-	delete(dst.Annotations, v1beta3.RubAnnotationKeyManaged)
+	dst.Annotations[RubAnnotation] = src.Annotations[v1beta4.RubAnnotationKeyManaged]
+	delete(dst.Annotations, v1beta4.RubAnnotationKeyManaged)
 
 	return nil
 }

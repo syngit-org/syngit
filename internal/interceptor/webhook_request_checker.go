@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
-	patterns "github.com/syngit-org/syngit/internal/patterns/v1beta3"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	patterns "github.com/syngit-org/syngit/internal/patterns/v1beta4"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	"github.com/syngit-org/syngit/pkg/utils"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -865,7 +865,7 @@ func (wrc *WebhookRequestChecker) updateStatusState(kind string, details wrcDeta
 		lastPushedObjectState := &syngit.LastPushedObjectState{
 			LastPushedObjectTime:            v1.Now(),
 			LastPushedObject:                *gvrn,
-			LastPushedObjectGitPath:         repoPaths[0],
+			LastPushedObjectGitPaths:        repoPaths,
 			LastPushedObjectGitRepos:        repos,
 			LastPushedObjectGitCommitHashes: commitHashes,
 			LastPushedGitUser:               details.gitUser.gitUser,

@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	samplePath = "test/e2e/build/samples"
+	samplePath = "test/e2e/samples"
 )
 
 var syngitChart utils.LocalChart
@@ -49,7 +49,7 @@ var _ = BeforeEach(func() {
 	syngitChart = utils.LocalChart{
 		ChartPath: "charts",
 		BaseChart: utils.BaseChart{
-			ValuesPath:       "test/e2e/helm/values.yaml",
+			ValuesPath:       "test/e2e/helm/values-upstream.yaml",
 			ChartName:        previousVersion, // Use previous version for initial install
 			ReleaseName:      "syngit",
 			ReleaseNamespace: "syngit",
@@ -79,7 +79,7 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 		ExpectWithOffset(2, err).NotTo(HaveOccurred())
 		Wait15()
 
-		By("getting the latest API version")
+		By("getting the previous latest API version")
 		version, err := utils.GetPrevLatestAPIVersion()
 		ExpectWithOffset(2, err).NotTo(HaveOccurred())
 
@@ -110,6 +110,7 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 		// Update chart version before upgrade
 		syngitChart.ChartName = latestVersion
 		syngitChart.ChartVersion = latestVersion
+		syngitChart.ValuesPath = "test/e2e/helm/values.yaml"
 
 		err = utils.UpgradeChart(syngitChart, actionConfig, settings)
 		ExpectWithOffset(2, err).NotTo(HaveOccurred())

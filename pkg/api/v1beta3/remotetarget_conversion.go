@@ -16,4 +16,37 @@ limitations under the License.
 
 package v1beta3
 
-func (*RemoteTarget) Hub() {}
+import (
+	"github.com/syngit-org/syngit/pkg/api/v1beta4"
+	"sigs.k8s.io/controller-runtime/pkg/conversion"
+)
+
+func (src *RemoteTarget) ConvertTo(dstRaw conversion.Hub) error {
+	dst := dstRaw.(*v1beta4.RemoteTarget)
+
+	// Common conversion
+	dst.ObjectMeta = src.ObjectMeta
+
+	dst.Spec.UpstreamRepository = src.Spec.UpstreamRepository
+	dst.Spec.UpstreamBranch = src.Spec.UpstreamBranch
+	dst.Spec.TargetRepository = src.Spec.TargetRepository
+	dst.Spec.TargetBranch = src.Spec.TargetBranch
+	dst.Spec.MergeStrategy = v1beta4.MergeStrategy(src.Spec.MergeStrategy)
+
+	return nil
+}
+
+func (dst *RemoteTarget) ConvertFrom(srcRaw conversion.Hub) error {
+	src := srcRaw.(*v1beta4.RemoteTarget)
+
+	// Common conversion
+	dst.ObjectMeta = src.ObjectMeta
+
+	dst.Spec.UpstreamRepository = src.Spec.UpstreamRepository
+	dst.Spec.UpstreamBranch = src.Spec.UpstreamBranch
+	dst.Spec.TargetRepository = src.Spec.TargetRepository
+	dst.Spec.TargetBranch = src.Spec.TargetBranch
+	dst.Spec.MergeStrategy = MergeStrategy(src.Spec.MergeStrategy)
+
+	return nil
+}

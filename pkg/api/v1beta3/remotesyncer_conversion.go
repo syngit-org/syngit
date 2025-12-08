@@ -16,4 +16,61 @@ limitations under the License.
 
 package v1beta3
 
-func (*RemoteSyncer) Hub() {}
+import (
+	"github.com/syngit-org/syngit/pkg/api/v1beta4"
+	"sigs.k8s.io/controller-runtime/pkg/conversion"
+)
+
+func (src *RemoteSyncer) ConvertTo(dstRaw conversion.Hub) error {
+	dst := dstRaw.(*v1beta4.RemoteSyncer)
+
+	// Common conversion
+	dst.ObjectMeta = src.ObjectMeta
+
+	dst.Spec.RemoteRepository = src.Spec.RemoteRepository
+	dst.Spec.DefaultBranch = src.Spec.DefaultBranch
+	dst.Spec.ScopedResources = v1beta4.ScopedResources(src.Spec.ScopedResources)
+	dst.Spec.Strategy = v1beta4.Strategy(src.Spec.Strategy)
+	dst.Spec.TargetStrategy = v1beta4.TargetStrategy(src.Spec.TargetStrategy)
+	dst.Spec.RemoteTargetSelector = src.Spec.RemoteTargetSelector
+	dst.Spec.DefaultBlockAppliedMessage = src.Spec.DefaultBlockAppliedMessage
+	dst.Spec.ExcludedFields = src.Spec.ExcludedFields
+	dst.Spec.ExcludedFieldsConfigMapRef = src.Spec.ExcludedFieldsConfigMapRef
+	dst.Spec.RootPath = src.Spec.RootPath
+	dst.Spec.RemoteUserBindingSelector = src.Spec.RemoteUserBindingSelector
+	dst.Spec.BypassInterceptionSubjects = src.Spec.BypassInterceptionSubjects
+	dst.Spec.DefaultUnauthorizedUserMode = v1beta4.DefaultUnauthorizedUserMode(src.Spec.DefaultUnauthorizedUserMode)
+	dst.Spec.DefaultRemoteUserRef = src.Spec.DefaultRemoteUserRef
+	dst.Spec.DefaultRemoteTargetRef = src.Spec.DefaultRemoteTargetRef
+	dst.Spec.InsecureSkipTlsVerify = src.Spec.InsecureSkipTlsVerify
+	dst.Spec.CABundleSecretRef = src.Spec.CABundleSecretRef
+
+	return nil
+}
+
+func (dst *RemoteSyncer) ConvertFrom(srcRaw conversion.Hub) error {
+	src := srcRaw.(*v1beta4.RemoteSyncer)
+
+	// Common conversion
+	dst.ObjectMeta = src.ObjectMeta
+
+	dst.Spec.RemoteRepository = src.Spec.RemoteRepository
+	dst.Spec.DefaultBranch = src.Spec.DefaultBranch
+	dst.Spec.ScopedResources = ScopedResources(src.Spec.ScopedResources)
+	dst.Spec.Strategy = Strategy(src.Spec.Strategy)
+	dst.Spec.TargetStrategy = TargetStrategy(src.Spec.TargetStrategy)
+	dst.Spec.RemoteTargetSelector = src.Spec.RemoteTargetSelector
+	dst.Spec.DefaultBlockAppliedMessage = src.Spec.DefaultBlockAppliedMessage
+	dst.Spec.ExcludedFields = src.Spec.ExcludedFields
+	dst.Spec.ExcludedFieldsConfigMapRef = src.Spec.ExcludedFieldsConfigMapRef
+	dst.Spec.RootPath = src.Spec.RootPath
+	dst.Spec.RemoteUserBindingSelector = src.Spec.RemoteUserBindingSelector
+	dst.Spec.BypassInterceptionSubjects = src.Spec.BypassInterceptionSubjects
+	dst.Spec.DefaultUnauthorizedUserMode = DefaultUnauthorizedUserMode(src.Spec.DefaultUnauthorizedUserMode)
+	dst.Spec.DefaultRemoteUserRef = src.Spec.DefaultRemoteUserRef
+	dst.Spec.DefaultRemoteTargetRef = src.Spec.DefaultRemoteTargetRef
+	dst.Spec.InsecureSkipTlsVerify = src.Spec.InsecureSkipTlsVerify
+	dst.Spec.CABundleSecretRef = src.Spec.CABundleSecretRef
+
+	return nil
+}

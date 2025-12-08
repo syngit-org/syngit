@@ -19,7 +19,8 @@ spec:
     singular: remoteuser
   scope: Namespaced
   versions:
-  - name: v1beta2
+  - deprecated: true
+    name: v1beta3
     schema:
       openAPIV3Schema:
         description: RemoteUser is the Schema for the remoteusers API
@@ -148,7 +149,7 @@ spec:
     storage: false
     subresources:
       status: {}
-  - name: v1beta3
+  - name: v1beta4
     schema:
       openAPIV3Schema:
         description: RemoteUser is the Schema for the remoteusers API
@@ -173,13 +174,17 @@ spec:
           spec:
             properties:
               email:
+                description: email is used to do git commit.
                 type: string
               gitBaseDomainFQDN:
+                description: |-
+                  gitBaseDomainFQDN is the fully qualified domain name of the git server.
+                  For example: "github.com", "gitlab.com", "my-own-git-server.io", etc...
                 type: string
               secretRef:
                 description: |-
-                  SecretReference represents a Secret Reference. It has enough information to retrieve secret
-                  in any namespace
+                  secretRef is the reference to the secret that stores the Personal Access Token to the git account.
+                  The Secret must be of 'kubernetes.io/basic-auth' type.
                 properties:
                   name:
                     description: name is unique within a namespace to reference a
@@ -199,6 +204,9 @@ spec:
           status:
             properties:
               conditions:
+                description: |-
+                  conditions represent the current state of the RemoteUser resource.
+                  Each condition has a unique type and reflects the status of a specific aspect of the resource.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -258,6 +266,10 @@ spec:
                 - type
                 x-kubernetes-list-type: map
               connexionStatus:
+                description: |-
+                  connexionStatus is used by the syngit providers when testing the connexion.
+                  It defines the status of the connexion and the associated details.
+                  It can be either: "Authenticated" or "NotAuthenticated"
                 properties:
                   details:
                     type: string
@@ -265,11 +277,16 @@ spec:
                     type: string
                 type: object
               gitUser:
-                type: string
-              lastAuthTime:
-                format: date-time
+                description: gitUser is the username of the user on the git server.
                 type: string
               secretBoundStatus:
+                description: |-
+                  secretBoundStatus represents the status of the binding with the secret containing the Personal Access Token.
+                  Can be one of these values:
+                  - "Secret bound" when the secret is correctly bound
+                  - "Secret found" when the secret is found and being processing by the controller
+                  - "Secret not found" when the secret is not found
+                  - "Secret type is not set to BasicAuth" when the secret is of wrong type
                 type: string
             type: object
         type: object
