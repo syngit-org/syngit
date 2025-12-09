@@ -178,13 +178,12 @@ type RemoteSyncerStatus struct {
 
 // +kubebuilder:resource:path=remotesyncers,shortName=rsy;rsys,categories=syngit
 
+// +kubebuilder:object:root=true
 // +kubebuilder:printcolumn:name="Last pushed resource time",type=string,JSONPath=`.status.lastPushedObjectState.lastPushedObjectTime`,priority=0
 // +kubebuilder:printcolumn:name="Last pushed resource name",type=string,JSONPath=`..status.lastPushedObjectState.lastPushedObject.name`,priority=0
 // +kubebuilder:printcolumn:name="Last bypassed resource time",type=string,JSONPath=`.status.lastBypassedObjectState.lastBypassObjectTime`,priority=1
 // +kubebuilder:printcolumn:name="Last bypassed resource name",type=string,JSONPath=`.status.lastPushedObjectState.lastBypassObject.name`,priority=1
 // +kubebuilder:printcolumn:name="Age",type=string,JSONPath=`.metadata.creationTimestamp`,priority=0
-
-// +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 

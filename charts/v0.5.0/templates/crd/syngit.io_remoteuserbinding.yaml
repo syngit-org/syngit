@@ -289,7 +289,18 @@ spec:
     storage: false
     subresources:
       status: {}
-  - name: v1beta4
+  - additionalPrinterColumns:
+    - jsonPath: .status.userKubernetesID
+      name: Kubernetes User ID
+      type: string
+    - jsonPath: .status.remoteUserState
+      name: Remote Users State
+      priority: 1
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: string
+    name: v1beta4
     schema:
       openAPIV3Schema:
         description: RemoteUserBinding is the Schema for the remoteuserbindings API

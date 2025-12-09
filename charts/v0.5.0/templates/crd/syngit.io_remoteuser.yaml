@@ -164,7 +164,21 @@ spec:
     storage: false
     subresources:
       status: {}
-  - name: v1beta4
+  - additionalPrinterColumns:
+    - jsonPath: .spec.email
+      name: Email
+      type: string
+    - jsonPath: .spec.gitBaseDomainFQDN
+      name: Git Server
+      priority: 1
+      type: string
+    - jsonPath: .status.secretBoundStatus
+      name: Credential status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: string
+    name: v1beta4
     schema:
       openAPIV3Schema:
         description: RemoteUser is the Schema for the remoteusers API

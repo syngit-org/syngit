@@ -686,7 +686,25 @@ spec:
     storage: false
     subresources:
       status: {}
-  - name: v1beta4
+  - additionalPrinterColumns:
+    - jsonPath: .status.lastPushedObjectState.lastPushedObjectTime
+      name: Last pushed resource time
+      type: string
+    - jsonPath: ..status.lastPushedObjectState.lastPushedObject.name
+      name: Last pushed resource name
+      type: string
+    - jsonPath: .status.lastBypassedObjectState.lastBypassObjectTime
+      name: Last bypassed resource time
+      priority: 1
+      type: string
+    - jsonPath: .status.lastPushedObjectState.lastBypassObject.name
+      name: Last bypassed resource name
+      priority: 1
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: string
+    name: v1beta4
     schema:
       openAPIV3Schema:
         description: RemoteSyncer is the Schema for the remotesyncers API
