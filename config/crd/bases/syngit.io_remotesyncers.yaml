@@ -1029,11 +1029,12 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
               resourceFinder:
+                default: true
                 description: |-
                   resourceFinder locates the resource amongst the files of the repository.
                   When the resource is intercepted, the corresponding yaml manifest replaces
                   the one(s) currently existing in the repository.
-                type: string
+                type: boolean
               rootPath:
                 description: |-
                   rootPath specifies the absolute root path in the remote git repository
@@ -1196,6 +1197,7 @@ spec:
             - defaultBranch
             - defaultUnauthorizedUserMode
             - remoteRepository
+            - resourceFinder
             - scopedResources
             - strategy
             - targetStrategy

@@ -207,7 +207,11 @@ func getTree(repoFqdn string, repoOwner string, repoName string, sha string) ([]
 
 // searchForObjectInAllManifests checks if a YAML file in the tree
 // contains the specified `.metadata.name` with the given value.
-func searchForObjectInAllManifests(repo Repo, tree []Tree, obj runtime.Object) ([]File, error) {
+func searchForObjectInAllManifests(
+	repo Repo,
+	tree []Tree,
+	obj runtime.Object,
+	shouldContentMatch bool) ([]File, error) {
 	files := []File{}
 	for _, entry := range tree {
 		if entry.Type == "blob" { // Only process files
@@ -218,10 +222,12 @@ func searchForObjectInAllManifests(repo Repo, tree []Tree, obj runtime.Object) (
 			}
 
 			if containsYamlMetadataName(content, obj) {
-				files = append(files, File{Path: entry.Path, Content: content})
+				if !shouldContentMatch || (shouldContentMatch && containsYamlObjectSpec(content, obj)) {
+					files = append(files, File{Path: entry.Path, Content: content})
+				}
 			}
 		} else {
-			file, err := searchForObjectInAllManifests(repo, entry.Entries, obj)
+			file, err := searchForObjectInAllManifests(repo, entry.Entries, obj, shouldContentMatch)
 			if err != nil {
 				continue
 			}
@@ -239,15 +245,55 @@ func searchForObjectInAllManifests(repo Repo, tree []Tree, obj runtime.Object) (
 	return files, nil
 }
 
-// containsYAMLMetadataName parses the content of a YAML file and checks if `.metadata.name` matches the given value.
+// containsYAMLMetadataName parses the content of a YAML file
+// and checks if `.metadata.name` matches the given value.
+// It handles both single and multi-document YAML files (separated by ---).
 func containsYamlMetadataName(content []byte, obj runtime.Object) bool {
 	metadata, err := getObjectMetadata(obj)
 	if err != nil {
 		return false
 	}
 
+	// Split content by document separator to handle multi-document YAML
+	documents := splitYamlDocuments(content)
+
+	// Check each document
+	for _, doc := range documents {
+		if checkDocumentMetadataMatch(doc, obj, metadata) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// splitYamlDocuments splits multi-document YAML content by the --- separator
+func splitYamlDocuments(content []byte) [][]byte {
+	contentStr := string(content)
+	// Split by YAML document separator
+	parts := strings.Split(contentStr, "\n---\n")
+
+	var documents [][]byte
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		// Skip empty documents
+		if trimmed != "" && trimmed != "---" {
+			documents = append(documents, []byte(trimmed))
+		}
+	}
+
+	// If no documents found after splitting, return the original content
+	if len(documents) == 0 {
+		documents = append(documents, content)
+	}
+
+	return documents
+}
+
+// checkDocumentMetadataMatch checks if a single YAML document matches the object's metadata
+func checkDocumentMetadataMatch(content []byte, obj runtime.Object, metadata metav1.Object) bool {
 	var parsed map[string]interface{}
-	err = yaml.Unmarshal(content, &parsed)
+	err := yaml.Unmarshal(content, &parsed)
 	if err != nil {
 		return false
 	}
@@ -276,6 +322,97 @@ func containsYamlMetadataName(content []byte, obj runtime.Object) bool {
 		(apiVersion == constructedApiVersion || (strings.HasPrefix(constructedApiVersion, "/") &&
 			!strings.Contains(apiVersion, "/"))) &&
 		kind == obj.GetObjectKind().GroupVersionKind().Kind
+}
+
+// containsYamlObjectSpec parses the content of a YAML file and
+// checks if the spec and/or data fields match the given object.
+// It handles both single and multi-document YAML files (separated by ---).
+func containsYamlObjectSpec(content []byte, obj runtime.Object) bool {
+	// Split content by document separator to handle multi-document YAML
+	documents := splitYamlDocuments(content)
+
+	// Marshal the object to YAML to extract its spec/data
+	objYaml, err := yaml.Marshal(obj)
+	if err != nil {
+		return false
+	}
+
+	var objParsed map[string]interface{}
+	err = yaml.Unmarshal(objYaml, &objParsed)
+	if err != nil {
+		return false
+	}
+
+	// Check each document
+	for _, doc := range documents {
+		if checkDocumentSpecMatch(doc, objParsed) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// checkDocumentSpecMatch checks if a single YAML document's spec/data matches the object
+func checkDocumentSpecMatch(content []byte, objParsed map[string]interface{}) bool {
+	var parsed map[string]interface{}
+	err := yaml.Unmarshal(content, &parsed)
+	if err != nil {
+		return false
+	}
+
+	// Check if spec field exists and matches
+	yamlSpec, yamlHasSpec := isFieldDefinedInYaml(parsed, "spec")
+	objSpec, objHasSpec := isFieldDefinedInYaml(objParsed, "spec")
+
+	if yamlHasSpec && objHasSpec {
+		yamlSpecJSON, err := json.Marshal(yamlSpec)
+		if err != nil {
+			return false
+		}
+
+		objSpecJSON, err := json.Marshal(objSpec)
+		if err != nil {
+			return false
+		}
+
+		if string(yamlSpecJSON) != string(objSpecJSON) {
+			return false
+		}
+	} else if yamlHasSpec != objHasSpec {
+		// One has spec and the other doesn't
+		return false
+	}
+
+	// Check if data field exists and matches (for ConfigMaps/Secrets)
+	yamlData, yamlHasData := isFieldDefinedInYaml(parsed, "data")
+	objData, objHasData := isFieldDefinedInYaml(objParsed, "data")
+
+	if yamlHasData && objHasData {
+		yamlDataJSON, err := json.Marshal(yamlData)
+		if err != nil {
+			return false
+		}
+
+		objDataJSON, err := json.Marshal(objData)
+		if err != nil {
+			return false
+		}
+
+		if string(yamlDataJSON) != string(objDataJSON) {
+			return false
+		}
+	} else if yamlHasData != objHasData {
+		// One has data and the other doesn't
+		return false
+	}
+
+	// If neither spec nor data exist in both, return false
+	if !yamlHasSpec && !yamlHasData {
+		return false
+	}
+
+	return true
 }
 
 func isFieldDefinedInYaml(parsed map[string]interface{}, path string) (interface{}, bool) {

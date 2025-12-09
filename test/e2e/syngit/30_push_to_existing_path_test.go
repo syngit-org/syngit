@@ -126,6 +126,9 @@ var _ = Describe("30 Push to an existing resource", func() {
 		err := CommitObjectOnSpecifiedPath(repo, cm, "custom-path/custom.yaml")
 		Expect(err).ToNot(HaveOccurred())
 
+		By("changing the configmap data")
+		cm.Data["another"] = "test"
+
 		By("creating the test configmap on the cluster")
 		Eventually(func() bool {
 			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
@@ -235,14 +238,14 @@ metadata:
 		err := CommitYamlOnSpecifiedPath(repo, []byte(yaml), "custom-path/custom.yaml")
 		Expect(err).ToNot(HaveOccurred())
 
-		By("creating the test configmap on the cluster")
+		By("creating the test configmap on the cluster with modified data")
 		cm := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "ConfigMap",
 				APIVersion: "v1",
 			},
 			ObjectMeta: metav1.ObjectMeta{Name: cmName2, Namespace: namespace},
-			Data:       map[string]string{"test": "oui"},
+			Data:       map[string]string{"test": "non"},
 		}
 		Eventually(func() bool {
 			_, err := sClient.KAs(Luffy).CoreV1().ConfigMaps(namespace).Create(ctx,
@@ -251,6 +254,13 @@ metadata:
 			)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
+
+		By("checking if the configmap is present on the repo under the right path")
+		Wait3()
+		files, err := SearchForObjectInRepo(repo, cm)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(files).To(HaveLen(1))
+		Expect(files[0].Path).To(Equal("custom.yaml"))
 
 	})
 
