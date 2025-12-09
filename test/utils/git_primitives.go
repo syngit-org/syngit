@@ -41,7 +41,7 @@ func AreObjectsUploaded(repo Repo, objects []runtime.Object) bool {
 }
 
 func GetObjectInRepo(repo Repo, tree []Tree, obj runtime.Object) ([]File, error) {
-	return searchForObjectInAllManifests(repo, tree, obj)
+	return searchForObjectInAllManifests(repo, tree, obj, false)
 }
 
 func IsObjectInRepo(repo Repo, obj runtime.Object) (bool, error) {
@@ -49,7 +49,7 @@ func IsObjectInRepo(repo Repo, obj runtime.Object) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	files, err := searchForObjectInAllManifests(repo, tree, obj)
+	files, err := searchForObjectInAllManifests(repo, tree, obj, false)
 	return len(files) > 0, err
 }
 
@@ -58,7 +58,7 @@ func SearchForObjectInRepo(repo Repo, obj runtime.Object) ([]File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return searchForObjectInAllManifests(repo, tree, obj)
+	return searchForObjectInAllManifests(repo, tree, obj, true)
 }
 
 func IsFieldDefined(repo Repo, obj runtime.Object, yamlPath string) (bool, error) {
@@ -68,7 +68,7 @@ func IsFieldDefined(repo Repo, obj runtime.Object, yamlPath string) (bool, error
 	if err != nil {
 		return false, err
 	}
-	files, err := searchForObjectInAllManifests(repo, tree, obj)
+	files, err := searchForObjectInAllManifests(repo, tree, obj, false)
 	if err != nil {
 		return false, err
 	}

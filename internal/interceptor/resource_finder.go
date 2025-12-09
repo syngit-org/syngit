@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	git "github.com/go-git/go-git/v5"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	yaml "k8s.io/apimachinery/pkg/util/yaml"
@@ -55,7 +57,11 @@ func (rf *ResourceFinder) getPathsContent(wt *git.Worktree, basePath string) err
 
 	for _, f := range files {
 		currentFileName = f.Name()
-		path = basePath + "/" + currentFileName
+		if basePath == "/" || basePath == "" {
+			path = currentFileName
+		} else {
+			path = basePath + "/" + currentFileName
+		}
 
 		if f.IsDir() {
 			err = rf.getPathsContent(wt, path)
@@ -113,19 +119,31 @@ func (rf *ResourceFinder) checkInsertResource(wt *git.Worktree, path string) err
 	if err != nil {
 		return err
 	}
+	if string(out) != string(content) {
+		// Remove the file first to ensure clean state
+		_ = wt.Filesystem.Remove(path)
 
-	file, err := wt.Filesystem.Create(path)
-	if err != nil {
-		return fmt.Errorf("failed to create the %s file in the worktree: %w", path, err)
-	}
+		file, err := wt.Filesystem.Create(path)
+		if err != nil {
+			return fmt.Errorf("failed to create the %s file in the worktree: %w", path, err)
+		}
 
-	_, err = file.Write(out)
-	if err != nil {
-		return fmt.Errorf("failed to write the %s file in the worktree: %w", path, err)
-	}
-	err = file.Close()
-	if err != nil {
-		return fmt.Errorf("failed to close the %s file in the worktree: %w", path, err)
+		_, err = file.Write(out)
+		if err != nil {
+			_ = file.Close()
+			return fmt.Errorf("failed to write the %s file in the worktree: %w", path, err)
+		}
+		err = file.Close()
+		if err != nil {
+			return fmt.Errorf("failed to close the %s file in the worktree: %w", path, err)
+		}
+
+		// Clean the path to remove any leading slashes and normalize it
+		cleanPath := filepath.Clean(path)
+		if after, ok := strings.CutPrefix(cleanPath, "/"); ok {
+			cleanPath = after
+		}
+		rf.paths = append(rf.paths, cleanPath)
 	}
 
 	return nil
@@ -176,11 +194,19 @@ func (rf *ResourceFinder) replaceResourceIfFound(content []byte) ([]byte, error)
 		n, _ := md["name"].(string)
 		ns, _ := md["namespace"].(string)
 
+		// Convert Kind (singular) to Resource (plural) for comparison
+		gvk := schema.GroupVersionKind{
+			Group:   rf.SearchedGVK.Group,
+			Version: rf.SearchedGVK.Version,
+			Kind:    k,
+		}
+		resourceFromKind, _ := meta.UnsafeGuessKindToResource(gvk)
+
 		if apiVersion == targetGVK &&
-			strings.ToLower(k) == rf.SearchedGVK.Resource &&
+			resourceFromKind.Resource == rf.SearchedGVK.Resource &&
 			n == rf.SearchedName &&
 			(rf.SearchedNamespace == "" || ns == rf.SearchedNamespace) {
-			docs[i] = bytes.TrimSpace(content)
+			docs[i] = bytes.TrimSpace([]byte(rf.Content))
 			break
 		}
 	}

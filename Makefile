@@ -83,7 +83,7 @@ run-fast: manifests generate fmt vet ## Run a controller from your host. Install
 	@if ! kubectl get crd remoteusers.syngit.io &> /dev/null; then \
 		make install-crds && make setup-webhooks-for-run; \
 	fi
-	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(LOCALHOST_BRIDGE) DEV_WEBHOOK_PORT=9443 DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && go run cmd/main.go
+	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(LOCALHOST_BRIDGE) DEV_WEBHOOK_PORT=9443 DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && go run cmd/main.go --feature-gates=ResourceFinder=true
 
 .PHONY: run
 run: manifests generate fmt vet install-crds setup-webhooks-for-run ## Install CRDs, webhooks & run a controller from your host. All resources are deleted when killed.
@@ -93,7 +93,7 @@ run: manifests generate fmt vet install-crds setup-webhooks-for-run ## Install C
 	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(LOCALHOST_BRIDGE) DEV_WEBHOOK_PORT=9443 DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && \
 	{ \
 		trap 'echo "Cleanup resources"; make cleanup-run; exit' SIGINT; \
-		go run cmd/main.go; \
+		go run cmd/main.go --feature-gates=ResourceFinder=true; \
 	}
 
 .PHONY: cleanup-run
