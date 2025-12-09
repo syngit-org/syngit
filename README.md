@@ -21,12 +21,10 @@ Syngit is a Kubernetes operator that allows you to push resources on a git repos
 
 ## Quick start
 
-### Prerequisites
-- Access to a Kubernetes v1.11.3+ cluster.
-- ⚠️ Cert Manager version ~1.17.x installed on the cluster.
-- Helm version v3.0.0+.
-
 ### Installation
+
+> [!IMPORTANT]
+> cert-manager must be installed on the cluster.
 
 1. Add the helm repo
 ```sh
@@ -58,7 +56,7 @@ stringData:
 ```
 
 ```yaml
-apiVersion: syngit.io/v1beta3
+apiVersion: syngit.io/v1beta4
 kind: RemoteUser
 metadata:
   name: remoteuser-sample
@@ -79,7 +77,7 @@ The RemoteSyncer object contains the whole logic part of the operator.
 In this example, the RemoteSyncer will intercept all the *configmaps* of the *default* namespace. It will push them to *https://github.com/my_repo_path.git* in the branch *main* under the path `my_configmaps/`. Because the `strategy` is set to `CommitApply`, the changes will be pushed and then applied to the cluster. `CommitOnly` will only push the resource on the git server without applying it on the cluster.
 
 ```yaml
-apiVersion: syngit.io/v1beta3
+apiVersion: syngit.io/v1beta4
 kind: RemoteSyncer
 metadata:
   name: remotesyncer-sample
