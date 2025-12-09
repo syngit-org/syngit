@@ -74,11 +74,10 @@ type RemoteUserBindingStatus struct {
 
 // +kubebuilder:resource:path=remoteuserbindings,shortName=rub;rubs,categories=syngit
 
+// +kubebuilder:object:root=true
 // +kubebuilder:printcolumn:name="Kubernetes User ID",type=string,JSONPath=`.status.userKubernetesID`,priority=0
 // +kubebuilder:printcolumn:name="Remote Users State",type=string,JSONPath=`.status.remoteUserState`,priority=1
 // +kubebuilder:printcolumn:name="Age",type=string,JSONPath=`.metadata.creationTimestamp`,priority=0
-
-// +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 

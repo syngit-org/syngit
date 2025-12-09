@@ -71,12 +71,11 @@ type RemoteUserStatus struct {
 
 // +kubebuilder:resource:path=remoteusers,shortName=ru;rus,categories=syngit
 
+// +kubebuilder:object:root=true
 // +kubebuilder:printcolumn:name="Email",type=string,JSONPath=`.spec.email`,priority=0
 // +kubebuilder:printcolumn:name="Git Server",type=string,JSONPath=`.spec.gitBaseDomainFQDN`,priority=1
 // +kubebuilder:printcolumn:name="Credential status",type=string,JSONPath=`.status.secretBoundStatus`,priority=0
 // +kubebuilder:printcolumn:name="Age",type=string,JSONPath=`.metadata.creationTimestamp`,priority=0
-
-// +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 
