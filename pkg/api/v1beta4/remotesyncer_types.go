@@ -96,8 +96,8 @@ type RemoteSyncerSpec struct {
 	// resourceFinder locates the resource amongst the files of the repository.
 	// When the resource is intercepted, the corresponding yaml manifest replaces
 	// the one(s) currently existing in the repository.
-	// +kubebuilder:default:value=true
 	// +kubebuilder:validation:Required
+	// +kubebuilder:default:value=true
 	ResourceFinder bool `json:"resourceFinder,omitempty" protobuf:"bytes,opt,11,name=resourceFinder"`
 
 	// remoteUserBindingSelector is a label selector that will be used when
