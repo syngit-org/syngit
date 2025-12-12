@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	yaml "k8s.io/apimachinery/pkg/util/yaml"
-	syaml "sigs.k8s.io/yaml"
 )
 
 type ResourceFinder struct {
@@ -115,10 +114,7 @@ func (rf *ResourceFinder) checkInsertResource(wt *git.Worktree, path string) err
 		return fmt.Errorf("failed to close the %s file in the worktree: %w", path, err)
 	}
 
-	out, err := rf.replaceResourceIfFound(content)
-	if err != nil {
-		return err
-	}
+	out := rf.replaceResourceIfFound(content)
 	if string(out) != string(content) {
 		// Remove the file first to ensure clean state
 		_ = wt.Filesystem.Remove(path)
@@ -149,42 +145,54 @@ func (rf *ResourceFinder) checkInsertResource(wt *git.Worktree, path string) err
 	return nil
 }
 
-func (rf *ResourceFinder) replaceResourceIfFound(content []byte) ([]byte, error) {
+func (rf *ResourceFinder) replaceResourceIfFound(content []byte) []byte {
 	targetGVK := fmt.Sprintf("%s/%s", rf.SearchedGVK.Group, rf.SearchedGVK.Version)
 	if rf.SearchedGVK.Group == "" {
 		targetGVK = rf.SearchedGVK.Version
 	}
 
-	var docs [][]byte
+	// Split content into raw document strings, preserving original formatting
+	rawDocs := bytes.Split(content, []byte("\n---\n"))
+	if len(rawDocs) == 0 {
+		return content
+	}
 
-	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(content), 4096)
+	// Track which documents are valid and their parsed metadata
+	type docInfo struct {
+		rawBytes   []byte
+		apiVersion string
+		kind       string
+		name       string
+		namespace  string
+	}
+	var docs = []docInfo{}
 
-	for {
-		var raw map[string]interface{}
-		if err := decoder.Decode(&raw); err != nil {
-			if err == io.EOF {
-				break
-			}
-			return []byte{}, fmt.Errorf("can't decode content: %w", err)
-		}
-		if len(raw) == 0 {
-			// skip empty docs
+	for i, rawDoc := range rawDocs {
+		// Trim leading/trailing whitespace but preserve the original doc
+		trimmed := bytes.TrimSpace(rawDoc)
+		if len(trimmed) == 0 {
 			continue
 		}
 
-		// Simpler: convert map back to YAML
-		y, err := syaml.Marshal(raw)
-		if err != nil {
-			return []byte{}, fmt.Errorf("marshal back failed: %w", err)
+		// For first doc, handle potential leading "---"
+		if i == 0 {
+			if after, ok := bytes.CutPrefix(trimmed, []byte("---")); ok {
+				trimmed = bytes.TrimSpace(after)
+			}
 		}
-		docs = append(docs, y)
-	}
 
-	// Walk docs and check metadata
-	for i, doc := range docs {
+		// Parse just enough to check if it matches
 		var raw map[string]interface{}
-		if err := yaml.Unmarshal(doc, &raw); err != nil {
-			return []byte{}, fmt.Errorf("unmarshal failed: %w", err)
+		if err := yaml.Unmarshal(trimmed, &raw); err != nil {
+			// If we can't parse it, keep the original bytes
+			docs = append(docs, docInfo{rawBytes: rawDoc})
+			continue
+		}
+
+		if len(raw) == 0 {
+			// Empty document, keep original
+			docs = append(docs, docInfo{rawBytes: rawDoc})
+			continue
 		}
 
 		apiVersion, _ := raw["apiVersion"].(string)
@@ -194,34 +202,57 @@ func (rf *ResourceFinder) replaceResourceIfFound(content []byte) ([]byte, error)
 		n, _ := md["name"].(string)
 		ns, _ := md["namespace"].(string)
 
+		docs = append(docs, docInfo{
+			rawBytes:   rawDoc,
+			apiVersion: apiVersion,
+			kind:       k,
+			name:       n,
+			namespace:  ns,
+		})
+	}
+
+	documentFound := false
+	// Walk docs and check metadata
+	for i, doc := range docs {
+		if doc.apiVersion == "" && doc.kind == "" {
+			// Skip unparseable or empty docs
+			continue
+		}
+
 		// Convert Kind (singular) to Resource (plural) for comparison
 		gvk := schema.GroupVersionKind{
-			Group:   rf.SearchedGVK.Group,
+			Group:   doc.apiVersion,
 			Version: rf.SearchedGVK.Version,
-			Kind:    k,
+			Kind:    doc.kind,
 		}
 		resourceFromKind, _ := meta.UnsafeGuessKindToResource(gvk)
 
-		if apiVersion == targetGVK &&
+		if doc.apiVersion == targetGVK &&
 			resourceFromKind.Resource == rf.SearchedGVK.Resource &&
-			n == rf.SearchedName &&
-			(rf.SearchedNamespace == "" || ns == rf.SearchedNamespace) {
-			docs[i] = bytes.TrimSpace([]byte(rf.Content))
+			doc.name == rf.SearchedName &&
+			(rf.SearchedNamespace == "" || doc.namespace == rf.SearchedNamespace) {
+			documentFound = true
+			// Replace only the matched document
+			docs[i].rawBytes = []byte(rf.Content)
 			break
 		}
 	}
 
-	// Reassemble docs with proper separators
+	if !documentFound {
+		return content
+	}
+
+	// Reassemble docs with proper separators, preserving original formatting
 	var out strings.Builder
-	for i, d := range docs {
+	for i, doc := range docs {
 		if i > 0 {
 			out.WriteString("---\n")
 		}
-		out.Write(d)
-		if !strings.HasSuffix(string(d), "\n") {
+		out.Write(bytes.TrimSpace(doc.rawBytes))
+		if !bytes.HasSuffix(bytes.TrimSpace(doc.rawBytes), []byte("\n")) {
 			out.WriteString("\n")
 		}
 	}
 
-	return []byte(out.String()), nil
+	return []byte(out.String())
 }
