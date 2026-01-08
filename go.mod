@@ -7,7 +7,7 @@ require (
 	github.com/go-git/go-git/v5 v5.16.4
 	github.com/gorilla/mux v1.8.1
 	github.com/joho/godotenv v1.5.1
-	github.com/onsi/ginkgo/v2 v2.27.3
+	github.com/onsi/ginkgo/v2 v2.27.4
 	github.com/onsi/gomega v1.38.3
 	helm.sh/helm/v3 v3.19.4
 	k8s.io/api v0.35.0
