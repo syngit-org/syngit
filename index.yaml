@@ -2,6 +2,26 @@ apiVersion: v1
 entries:
   syngit:
   - apiVersion: v2
+    appVersion: v0.5.2
+    created: "2026-01-15T09:06:00.17768986Z"
+    dependencies:
+    - condition: certmanager.dependency.enabled
+      name: cert-manager
+      repository: https://charts.jetstack.io
+      version: ~v1.19
+    description: An operator to push resources to git
+    digest: 194d42409afa1f3d7c3f0d16693c3ac600a74d688baa40e401c94b7c06c41408
+    home: https://github.com/syngit-org/syngit
+    icon: https://raw.githubusercontent.com/syngit-org/syngit/main/img/mini-icon.png
+    maintainers:
+    - email: dassieu.damien@gmail.com
+      name: Damien
+    name: syngit
+    type: application
+    urls:
+    - https://github.com/syngit-org/syngit/releases/download/v0.5.2/syngit-v0.5.2.tgz
+    version: v0.5.2
+  - apiVersion: v2
     appVersion: v0.5.1
     created: "2025-12-12T18:16:09.590872548Z"
     dependencies:
@@ -406,4 +426,4 @@ entries:
     urls:
     - https://github.com/syngit-org/syngit/releases/download/syngit-0.0.1/syngit-0.0.1.tgz
     version: 0.0.1
-generated: "2025-12-12T18:16:09.584138885Z"
+generated: "2026-01-15T09:06:00.17104519Z"
