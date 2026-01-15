@@ -119,19 +119,21 @@ func (rf *ResourceFinder) checkInsertResource(wt *git.Worktree, path string) err
 		// Remove the file first to ensure clean state
 		_ = wt.Filesystem.Remove(path)
 
-		file, err := wt.Filesystem.Create(path)
-		if err != nil {
-			return fmt.Errorf("failed to create the %s file in the worktree: %w", path, err)
-		}
+		if len(out) > 0 {
+			file, err := wt.Filesystem.Create(path)
+			if err != nil {
+				return fmt.Errorf("failed to create the %s file in the worktree: %w", path, err)
+			}
 
-		_, err = file.Write(out)
-		if err != nil {
-			_ = file.Close()
-			return fmt.Errorf("failed to write the %s file in the worktree: %w", path, err)
-		}
-		err = file.Close()
-		if err != nil {
-			return fmt.Errorf("failed to close the %s file in the worktree: %w", path, err)
+			_, err = file.Write(out)
+			if err != nil {
+				_ = file.Close()
+				return fmt.Errorf("failed to write the %s file in the worktree: %w", path, err)
+			}
+			err = file.Close()
+			if err != nil {
+				return fmt.Errorf("failed to close the %s file in the worktree: %w", path, err)
+			}
 		}
 
 		// Clean the path to remove any leading slashes and normalize it
@@ -249,7 +251,7 @@ func (rf *ResourceFinder) replaceResourceIfFound(content []byte) []byte {
 			out.WriteString("---\n")
 		}
 		out.Write(bytes.TrimSpace(doc.rawBytes))
-		if !bytes.HasSuffix(bytes.TrimSpace(doc.rawBytes), []byte("\n")) {
+		if len(docs[i].rawBytes) > 0 && !bytes.HasSuffix(bytes.TrimSpace(doc.rawBytes), []byte("\n")) {
 			out.WriteString("\n")
 		}
 	}
