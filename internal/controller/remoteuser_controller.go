@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,7 +41,7 @@ import (
 type RemoteUserReconciler struct {
 	client.Client
 	Scheme    *runtime.Scheme
-	Recorder  record.EventRecorder
+	Recorder  events.EventRecorder
 	Namespace string
 }
 
@@ -163,7 +163,7 @@ func (r *RemoteUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	// Recorder to manage events
-	recorder := mgr.GetEventRecorderFor("remoteuser-controller")
+	recorder := mgr.GetEventRecorder("remoteuser-controller")
 	r.Recorder = recorder
 
 	managerNamespace := os.Getenv("MANAGER_NAMESPACE")

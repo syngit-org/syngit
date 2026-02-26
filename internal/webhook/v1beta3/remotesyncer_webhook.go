@@ -23,12 +23,10 @@ import (
 	"slices"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
@@ -40,7 +38,7 @@ var remotesyncerlog = logf.Log.WithName("remotesyncer-resource")
 
 // SetupRemoteSyncerWebhookWithManager registers the webhook for RemoteSyncer in the manager.
 func SetupRemoteSyncerWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).For(&syngitv1beta3.RemoteSyncer{}).
+	return ctrl.NewWebhookManagedBy(mgr, &syngitv1beta3.RemoteSyncer{}).
 		WithValidator(&RemoteSyncerCustomValidator{}).
 		Complete()
 }
@@ -48,8 +46,6 @@ func SetupRemoteSyncerWebhookWithManager(mgr ctrl.Manager) error {
 type RemoteSyncerCustomValidator struct {
 	// TODO(user): Add more fields as needed for validation
 }
-
-var _ webhook.CustomValidator = &RemoteSyncerCustomValidator{}
 
 // Validate validates the RemoteSyncerSpec
 func validateRemoteSyncerSpec(r *syngitv1beta3.RemoteSyncerSpec) field.ErrorList {
@@ -139,33 +135,21 @@ func validateRemoteSyncer(remoteSyncer *syngitv1beta3.RemoteSyncer) error {
 }
 
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type RemoteSyncer.
-func (v *RemoteSyncerCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	remotesyncer, ok := obj.(*syngitv1beta3.RemoteSyncer)
-	if !ok {
-		return nil, fmt.Errorf("expected a RemoteSyncer object but got %T", obj)
-	}
+func (v *RemoteSyncerCustomValidator) ValidateCreate(ctx context.Context, remotesyncer *syngitv1beta3.RemoteSyncer) (admission.Warnings, error) {
 	remotesyncerlog.Info("Validation for RemoteSyncer upon creation", "name", remotesyncer.GetName())
 
 	return nil, validateRemoteSyncer(remotesyncer)
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type RemoteSyncer.
-func (v *RemoteSyncerCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
-	remotesyncer, ok := newObj.(*syngitv1beta3.RemoteSyncer)
-	if !ok {
-		return nil, fmt.Errorf("expected a RemoteSyncer object for the newObj but got %T", newObj)
-	}
-	remotesyncerlog.Info("Validation for RemoteSyncer upon update", "name", remotesyncer.GetName())
+func (v *RemoteSyncerCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newRemotesyncer *syngitv1beta3.RemoteSyncer) (admission.Warnings, error) {
+	remotesyncerlog.Info("Validation for RemoteSyncer upon update", "name", newRemotesyncer.GetName())
 
-	return nil, validateRemoteSyncer(remotesyncer)
+	return nil, validateRemoteSyncer(newRemotesyncer)
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type RemoteSyncer.
-func (v *RemoteSyncerCustomValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	remotesyncer, ok := obj.(*syngitv1beta3.RemoteSyncer)
-	if !ok {
-		return nil, fmt.Errorf("expected a RemoteSyncer object but got %T", obj)
-	}
+func (v *RemoteSyncerCustomValidator) ValidateDelete(ctx context.Context, remotesyncer *syngitv1beta3.RemoteSyncer) (admission.Warnings, error) {
 	remotesyncerlog.Info("Validation for RemoteSyncer upon deletion", "name", remotesyncer.GetName())
 
 	return nil, nil

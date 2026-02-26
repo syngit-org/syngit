@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,7 +38,7 @@ import (
 type RemoteUserBindingReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
+	Recorder events.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=syngit.io,resources=remoteuserbindings,verbs=get;list;watch;create;update;patch;delete
@@ -78,13 +78,13 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		// Get the concerned RemoteUser
 		if err := r.Get(ctx, retrievedRemoteUser, &remoteUser); err != nil {
 			gitUserHost.State = syngit.NotBound
-			r.Recorder.Event(&remoteUserBinding, "Warning", "NotBound", gitUserHost.RemoteUserUsed+" not bound")
+			r.Recorder.Eventf(&remoteUserBinding, nil, "Warning", "NotBound", gitUserHost.RemoteUserUsed+" not bound", "")
 			isGloballyBound = false
 		} else {
 			gitUserHost.GitFQDN = remoteUser.Spec.GitBaseDomainFQDN
 			gitUserHost.SecretRef = remoteUser.Spec.SecretRef
 			gitUserHost.State = syngit.Bound
-			r.Recorder.Event(&remoteUserBinding, "Normal", "Bound", gitUserHost.RemoteUserUsed+" bound")
+			r.Recorder.Eventf(&remoteUserBinding, nil, "Normal", "Bound", gitUserHost.RemoteUserUsed+" bound", "")
 		}
 
 		gitUserHosts = append(gitUserHosts, gitUserHost)
@@ -95,11 +95,11 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if !isGloballyBound {
 		remoteUserBinding.Status.RemoteUserState = syngit.PartiallyBound
 		const partiallyBoundMessage = "Some of the remote users are not bound"
-		r.Recorder.Event(&remoteUserBinding, "Warning", "PartiallyBound", partiallyBoundMessage)
+		r.Recorder.Eventf(&remoteUserBinding, nil, "Warning", "PartiallyBound", partiallyBoundMessage, "")
 	} else {
 		remoteUserBinding.Status.RemoteUserState = syngit.Bound
 		const boundMessage = "Every remote users are bound"
-		r.Recorder.Event(&remoteUserBinding, "Normal", "Bound", boundMessage)
+		r.Recorder.Eventf(&remoteUserBinding, nil, "Normal", "Bound", boundMessage, "")
 	}
 
 	remoteUserBinding.Status.UserKubernetesID = subject.Name
@@ -151,7 +151,7 @@ func (r *RemoteUserBindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}); err != nil {
 		return err
 	}
-	recorder := mgr.GetEventRecorderFor("remoteuserbinding-controller")
+	recorder := mgr.GetEventRecorder("remoteuserbinding-controller")
 	r.Recorder = recorder
 
 	return ctrl.NewControllerManagedBy(mgr).

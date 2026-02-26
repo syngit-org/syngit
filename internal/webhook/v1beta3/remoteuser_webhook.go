@@ -18,12 +18,9 @@ package v1beta3
 
 import (
 	"context"
-	"fmt"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
@@ -35,7 +32,7 @@ var remoteuserlog = logf.Log.WithName("remoteuser-resource")
 
 // SetupRemoteUserWebhookWithManager registers the webhook for RemoteUser in the manager.
 func SetupRemoteUserWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).For(&syngitv1beta3.RemoteUser{}).
+	return ctrl.NewWebhookManagedBy(mgr, &syngitv1beta3.RemoteUser{}).
 		WithValidator(&RemoteUserCustomValidator{}).
 		Complete()
 }
@@ -44,36 +41,22 @@ type RemoteUserCustomValidator struct {
 	// TODO(user): Add more fields as needed for validation
 }
 
-var _ webhook.CustomValidator = &RemoteUserCustomValidator{}
-
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type RemoteUser.
-func (v *RemoteUserCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	remoteuser, ok := obj.(*syngitv1beta3.RemoteUser)
-	if !ok {
-		return nil, fmt.Errorf("expected a RemoteUser object but got %T", obj)
-	}
+func (v *RemoteUserCustomValidator) ValidateCreate(ctx context.Context, remoteuser *syngitv1beta3.RemoteUser) (admission.Warnings, error) {
 	remoteuserlog.Info("Validation for RemoteUser upon creation", "name", remoteuser.GetName())
 
 	return nil, nil
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type RemoteUser.
-func (v *RemoteUserCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
-	remoteuser, ok := newObj.(*syngitv1beta3.RemoteUser)
-	if !ok {
-		return nil, fmt.Errorf("expected a RemoteUser object for the newObj but got %T", newObj)
-	}
-	remoteuserlog.Info("Validation for RemoteUser upon update", "name", remoteuser.GetName())
+func (v *RemoteUserCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newRemoteuser *syngitv1beta3.RemoteUser) (admission.Warnings, error) {
+	remoteuserlog.Info("Validation for RemoteUser upon update", "name", newRemoteuser.GetName())
 
 	return nil, nil
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type RemoteUser.
-func (v *RemoteUserCustomValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	remoteuser, ok := obj.(*syngitv1beta3.RemoteUser)
-	if !ok {
-		return nil, fmt.Errorf("expected a RemoteUser object but got %T", obj)
-	}
+func (v *RemoteUserCustomValidator) ValidateDelete(ctx context.Context, remoteuser *syngitv1beta3.RemoteUser) (admission.Warnings, error) {
 	remoteuserlog.Info("Validation for RemoteUser upon deletion", "name", remoteuser.GetName())
 
 	return nil, nil

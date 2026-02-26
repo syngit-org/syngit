@@ -166,7 +166,7 @@ func main() {
 	if err = (&controller.RemoteUserReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("remoteuser-controller"),
+		Recorder: mgr.GetEventRecorder("remoteuser-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RemoteUser")
 		os.Exit(1)
@@ -175,7 +175,7 @@ func main() {
 	if err = (&controller.RemoteUserBindingReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("remoteuserbinding-controller"),
+		Recorder: mgr.GetEventRecorder("remoteuserbinding-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RemoteUserBinding")
 		os.Exit(1)
@@ -184,7 +184,7 @@ func main() {
 	if err = (&controller.RemoteSyncerReconciler{
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("remotesyncer-controller"),
+		Recorder: mgr.GetEventRecorder("remotesyncer-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "RemoteSyncer")
 		os.Exit(1)
