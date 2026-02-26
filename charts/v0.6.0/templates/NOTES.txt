@@ -1,0 +1,7 @@
+syngit {{ .Chart.AppVersion }} has been deployed successfully!
+
+Information on the usage of the operator can be found here:
+https://github.com/syngit-org/syngit/wiki/📖-Usage
+
+More information about Syngit on the wiki:
+https://github.com/syngit-org/syngit/wiki

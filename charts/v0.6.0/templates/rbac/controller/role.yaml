@@ -1,0 +1,137 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-manager-role
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+rules:
+# Any resources can be pushed to the git repo.
+# The scope depends but the controller
+#  needs to be able to get,list,watch any of them
+- apiGroups:
+  - '*'
+  resources:
+  - '*'
+  verbs:
+  - get
+  - list
+  - watch
+# Create and patch events related to kgio objects in any namespace
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingwebhookconfigurations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - syngit.io
+  resources:
+  - remoteusers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - syngit.io
+  resources:
+  - remoteusers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - syngit.io
+  resources:
+  - remoteuserbindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - syngit.io
+  resources:
+  - remoteuserbindings/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - syngit.io
+  resources:
+  - remoteuserbindings/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - syngit.io
+  resources:
+  - remotesyncers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - syngit.io
+  resources:
+  - remotesyncers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - syngit.io
+  resources:
+  - remotesyncers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - syngit.io
+  resources:
+  - remotetargets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - syngit.io
+  resources:
+  - remotetargets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
