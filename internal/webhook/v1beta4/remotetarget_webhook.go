@@ -18,15 +18,12 @@ package v1beta4
 
 import (
 	"context"
-	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	syngitv1beta4 "github.com/syngit-org/syngit/pkg/api/v1beta4"
@@ -39,7 +36,7 @@ var remotetargetlog = logf.Log.WithName("remotetarget-resource")
 
 // SetupRemoteTargetWebhookWithManager registers the webhook for RemoteTarget in the manager.
 func SetupRemoteTargetWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).For(&syngitv1beta4.RemoteTarget{}).
+	return ctrl.NewWebhookManagedBy(mgr, &syngitv1beta4.RemoteTarget{}).
 		WithValidator(&RemoteTargetCustomValidator{}).
 		Complete()
 }
@@ -49,8 +46,6 @@ func SetupRemoteTargetWebhookWithManager(mgr ctrl.Manager) error {
 type RemoteTargetCustomValidator struct {
 	// TODO(user): Add more fields as needed for validation
 }
-
-var _ webhook.CustomValidator = &RemoteTargetCustomValidator{}
 
 func validateRemoteTargetSpec(r *syngitv1beta4.RemoteTargetSpec) field.ErrorList {
 	var errors field.ErrorList
@@ -96,33 +91,21 @@ func validateRemoteTarget(remoteTarget *syngitv1beta4.RemoteTarget) error {
 }
 
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type RemoteTarget.
-func (v *RemoteTargetCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	remotetarget, ok := obj.(*syngitv1beta4.RemoteTarget)
-	if !ok {
-		return nil, fmt.Errorf("expected a RemoteTarget object but got %T", obj)
-	}
+func (v *RemoteTargetCustomValidator) ValidateCreate(ctx context.Context, remotetarget *syngitv1beta4.RemoteTarget) (admission.Warnings, error) {
 	remotetargetlog.Info("Validation for RemoteTarget upon creation", "name", remotetarget.GetName())
 
 	return nil, validateRemoteTarget(remotetarget)
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type RemoteTarget.
-func (v *RemoteTargetCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
-	remotetarget, ok := newObj.(*syngitv1beta4.RemoteTarget)
-	if !ok {
-		return nil, fmt.Errorf("expected a RemoteTarget object for the newObj but got %T", newObj)
-	}
-	remotetargetlog.Info("Validation for RemoteTarget upon update", "name", remotetarget.GetName())
+func (v *RemoteTargetCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newRemotetarget *syngitv1beta4.RemoteTarget) (admission.Warnings, error) {
+	remotetargetlog.Info("Validation for RemoteTarget upon update", "name", newRemotetarget.GetName())
 
-	return nil, validateRemoteTarget(remotetarget)
+	return nil, validateRemoteTarget(newRemotetarget)
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type RemoteTarget.
-func (v *RemoteTargetCustomValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	remotetarget, ok := obj.(*syngitv1beta4.RemoteTarget)
-	if !ok {
-		return nil, fmt.Errorf("expected a RemoteTarget object but got %T", obj)
-	}
+func (v *RemoteTargetCustomValidator) ValidateDelete(ctx context.Context, remotetarget *syngitv1beta4.RemoteTarget) (admission.Warnings, error) {
 	remotetargetlog.Info("Validation for RemoteTarget upon deletion", "name", remotetarget.GetName())
 
 	return nil, nil

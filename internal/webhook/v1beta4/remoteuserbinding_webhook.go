@@ -18,15 +18,12 @@ package v1beta4
 
 import (
 	"context"
-	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	syngitv1beta4 "github.com/syngit-org/syngit/pkg/api/v1beta4"
@@ -38,7 +35,7 @@ var remoteuserbindinglog = logf.Log.WithName("remoteuserbinding-resource")
 
 // SetupRemoteUserBindingWebhookWithManager registers the webhook for RemoteUserBinding in the manager.
 func SetupRemoteUserBindingWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).For(&syngitv1beta4.RemoteUserBinding{}).
+	return ctrl.NewWebhookManagedBy(mgr, &syngitv1beta4.RemoteUserBinding{}).
 		WithValidator(&RemoteUserBindingCustomValidator{}).
 		Complete()
 }
@@ -47,8 +44,6 @@ func SetupRemoteUserBindingWebhookWithManager(mgr ctrl.Manager) error {
 
 type RemoteUserBindingCustomValidator struct {
 }
-
-var _ webhook.CustomValidator = &RemoteUserBindingCustomValidator{}
 
 // Validate validates the RemoteSyncerSpec
 func validateRemoteUserBindingSpec(r *syngitv1beta4.RemoteUserBindingSpec) field.ErrorList {
@@ -85,33 +80,21 @@ func validateRemoteUserBinding(remoteUserBinding *syngitv1beta4.RemoteUserBindin
 }
 
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type RemoteUserBinding.
-func (v *RemoteUserBindingCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	remoteuserbinding, ok := obj.(*syngitv1beta4.RemoteUserBinding)
-	if !ok {
-		return nil, fmt.Errorf("expected a RemoteUserBinding object but got %T", obj)
-	}
+func (v *RemoteUserBindingCustomValidator) ValidateCreate(ctx context.Context, remoteuserbinding *syngitv1beta4.RemoteUserBinding) (admission.Warnings, error) {
 	remoteuserbindinglog.Info("Validation for RemoteUserBinding upon creation", "name", remoteuserbinding.GetName())
 
 	return nil, validateRemoteUserBinding(remoteuserbinding)
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type RemoteUserBinding.
-func (v *RemoteUserBindingCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
-	remoteuserbinding, ok := newObj.(*syngitv1beta4.RemoteUserBinding)
-	if !ok {
-		return nil, fmt.Errorf("expected a RemoteUserBinding object for the newObj but got %T", newObj)
-	}
-	remoteuserbindinglog.Info("Validation for RemoteUserBinding upon update", "name", remoteuserbinding.GetName())
+func (v *RemoteUserBindingCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newRemoteuserbinding *syngitv1beta4.RemoteUserBinding) (admission.Warnings, error) {
+	remoteuserbindinglog.Info("Validation for RemoteUserBinding upon update", "name", newRemoteuserbinding.GetName())
 
-	return nil, validateRemoteUserBinding(remoteuserbinding)
+	return nil, validateRemoteUserBinding(newRemoteuserbinding)
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type RemoteUserBinding.
-func (v *RemoteUserBindingCustomValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	remoteuserbinding, ok := obj.(*syngitv1beta4.RemoteUserBinding)
-	if !ok {
-		return nil, fmt.Errorf("expected a RemoteUserBinding object but got %T", obj)
-	}
+func (v *RemoteUserBindingCustomValidator) ValidateDelete(ctx context.Context, remoteuserbinding *syngitv1beta4.RemoteUserBinding) (admission.Warnings, error) {
 	remoteuserbindinglog.Info("Validation for RemoteUserBinding upon deletion", "name", remoteuserbinding.GetName())
 
 	return nil, nil

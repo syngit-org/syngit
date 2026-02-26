@@ -29,7 +29,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -56,7 +56,7 @@ type RemoteSyncerReconciler struct {
 	devWebhookHost     string
 	devWebhookCert     string
 	devWebhookPort     string
-	Recorder           record.EventRecorder
+	Recorder           events.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=syngit.io,resources=remotesyncers,verbs=get;list;watch;create;update;patch;delete
@@ -106,13 +106,13 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		const certPath = "/tmp/k8s-webhook-server/serving-certs/tls.crt"
 		if caCert, certError = os.ReadFile(certPath); certError != nil {
 			log.Log.Error(certError, fmt.Sprintf("failed to read the cert file %s", certPath))
-			r.Recorder.Event(&remoteSyncer, "Warning", "WebhookCertFail", "Operator internal error : the certificate file failed to be read")
+			r.Recorder.Eventf(&remoteSyncer, nil, "Warning", "WebhookCertFail", "Operator internal error : the certificate file failed to be read", "")
 			return reconcile.Result{}, certError
 		}
 	} else {
 		if caCert, certError = os.ReadFile(r.devWebhookCert); certError != nil {
 			log.Log.Error(certError, fmt.Sprintf("failed to read the cert file %s", r.devWebhookCert))
-			r.Recorder.Event(&remoteSyncer, "Warning", "WebhookCertFail", "Operator internal error : the certificate file failed to be read")
+			r.Recorder.Eventf(&remoteSyncer, nil, "Warning", "WebhookCertFail", "Operator internal error : the certificate file failed to be read", "")
 			return reconcile.Result{}, certError
 		}
 	}
@@ -203,7 +203,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		err = r.Update(ctx, found)
 		if err != nil {
-			r.Recorder.Event(&remoteSyncer, "Warning", "WebhookNotUpdated", "The webhook exists but has not been updated")
+			r.Recorder.Eventf(&remoteSyncer, nil, "Warning", "WebhookNotUpdated", "The webhook exists but has not been updated", "")
 
 			condition.Reason = "WebhookNotUpdated"
 			condition.Message = "The webhook exists but has not been updated"
@@ -215,7 +215,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		// Create a new webhook if not found -> if it is the first RSy to be created
 		err := r.Create(ctx, webhookConf)
 		if err != nil {
-			r.Recorder.Event(&remoteSyncer, "Warning", "WebhookNotCreated", "The webhook does not exists and has not been created")
+			r.Recorder.Eventf(&remoteSyncer, nil, "Warning", "WebhookNotCreated", "The webhook does not exists and has not been created", "")
 
 			condition.Reason = "WebhookNotCreated"
 			condition.Message = "The webhook does not exists and has not been created"
@@ -300,7 +300,7 @@ func (r *RemoteSyncerReconciler) webhookNamePredicate(name string) predicate.Pre
 // SetupWithManager sets up the controller with the Manager.
 func (r *RemoteSyncerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
-	recorder := mgr.GetEventRecorderFor("remotesyncer-controller")
+	recorder := mgr.GetEventRecorder("remotesyncer-controller")
 	r.Recorder = recorder
 
 	r.devMode = os.Getenv("DEV_MODE") == "true"
