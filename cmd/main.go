@@ -40,8 +40,6 @@ import (
 
 	"github.com/syngit-org/syngit/internal/controller"
 	webhooksyngitv1beta4 "github.com/syngit-org/syngit/internal/webhook/v1beta4"
-	syngitv1beta1 "github.com/syngit-org/syngit/pkg/api/v1beta1"
-	syngitv1beta2 "github.com/syngit-org/syngit/pkg/api/v1beta2"
 	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	syngitv1beta4 "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	features "github.com/syngit-org/syngit/pkg/feature"
@@ -56,8 +54,6 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(syngitv1beta1.AddToScheme(scheme))
-	utilruntime.Must(syngitv1beta2.AddToScheme(scheme))
 	utilruntime.Must(syngitv1beta3.AddToScheme(scheme))
 	utilruntime.Must(syngitv1beta4.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
