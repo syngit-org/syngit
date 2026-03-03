@@ -10,4 +10,4 @@ providers:
     enabled: true
 certmanager:
   dependency:
-    enabled: true
+    enabled: false

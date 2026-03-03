@@ -62,8 +62,8 @@ var _ = BeforeSuite(func() {
 	By("installing prometheus operator")
 	Expect(utils.InstallPrometheusOperator()).To(Succeed())
 
-	By("installing the cert-manager")
-	Expect(utils.InstallCertManagerCRDs()).To(Succeed())
+	By("installing cert-manager")
+	Expect(utils.InstallCertManager()).To(Succeed())
 
 	By("build the image")
 	cmd := exec.Command("make", "docker-build")

@@ -2,25 +2,25 @@ package utils
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"time"
 
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/cli"
-	"helm.sh/helm/v3/pkg/cli/values"
-	"helm.sh/helm/v3/pkg/downloader"
-	"helm.sh/helm/v3/pkg/getter"
+	"helm.sh/helm/v4/pkg/action"
+	"helm.sh/helm/v4/pkg/chart/loader"
+	"helm.sh/helm/v4/pkg/cli"
+	"helm.sh/helm/v4/pkg/cli/values"
+	"helm.sh/helm/v4/pkg/downloader"
+	"helm.sh/helm/v4/pkg/getter"
+	"helm.sh/helm/v4/pkg/kube"
 	"k8s.io/client-go/rest"
 )
 
 func NewDefaultHelmActionConfig(chart Chart) (*action.Configuration, *cli.EnvSettings, error) {
 	settings := cli.New()
 	actionConfig := new(action.Configuration)
-	err := actionConfig.Init(settings.RESTClientGetter(), chart.GetReleaseNamespace(), "secrets", log.Printf)
+	err := actionConfig.Init(settings.RESTClientGetter(), chart.GetReleaseNamespace(), "secrets")
 	return actionConfig, settings, err
 }
 
@@ -40,7 +40,7 @@ func NewEnvtestHelmActionConfig(cfg *rest.Config, namespace string) (*action.Con
 	settings.RepositoryConfig = "/tmp/helmrepo"
 
 	actionConfig := new(action.Configuration)
-	if err := actionConfig.Init(settings.RESTClientGetter(), namespace, "secrets", log.Panicf); err != nil {
+	if err := actionConfig.Init(settings.RESTClientGetter(), namespace, "secrets"); err != nil {
 		return nil, settings, err
 	}
 	return actionConfig, settings, nil
@@ -126,6 +126,7 @@ func updateDependencies(chartPath string, settings *cli.EnvSettings) error {
 		Getters:          providers,
 		RepositoryConfig: settings.RepositoryConfig,
 		RepositoryCache:  settings.RepositoryCache,
+		ContentCache:     settings.RepositoryCache,
 		Debug:            false,
 	}
 
@@ -143,7 +144,7 @@ func InstallChart(chart Chart, actionConfig *action.Configuration, settings *cli
 	install.Namespace = chart.GetReleaseNamespace()
 	install.CreateNamespace = true
 	install.Timeout = time.Minute * 10
-	install.Wait = true
+	install.WaitStrategy = kube.StatusWatcherStrategy
 	install.WaitForJobs = true
 
 	remote, ok := chart.(RemoteChart)
@@ -186,6 +187,8 @@ func InstallChart(chart Chart, actionConfig *action.Configuration, settings *cli
 func UninstallChart(chart Chart, actionConfig *action.Configuration, settings *cli.EnvSettings) error {
 	uninstall := action.NewUninstall(actionConfig)
 	uninstall.KeepHistory = false
+	uninstall.WaitStrategy = kube.LegacyStrategy
+	uninstall.Timeout = time.Minute * 2
 
 	_, err := uninstall.Run(chart.GetReleaseName())
 	if err != nil {
@@ -199,7 +202,7 @@ func UpgradeChart(chart Chart, actionConfig *action.Configuration, settings *cli
 	upgrade := action.NewUpgrade(actionConfig)
 	upgrade.Namespace = chart.GetReleaseNamespace()
 	upgrade.Timeout = time.Minute * 10
-	upgrade.Wait = true
+	upgrade.WaitStrategy = kube.StatusWatcherStrategy
 	upgrade.WaitForJobs = true
 
 	remote, ok := chart.(RemoteChart)
