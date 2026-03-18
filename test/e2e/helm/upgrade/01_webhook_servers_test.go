@@ -19,6 +19,7 @@ package e2e_build
 import (
 	"fmt"
 	"os/exec"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -93,13 +94,14 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 		config, err := utils.GetKubeConfig()
 		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-		err = utils.ApplyFromYAML(
-			config,
-			fmt.Sprintf("%s/syngit_%s_remotesyncer.yaml", samplePath, version),
-			testNamespace,
-			remoteSyncerGVR,
-		)
-		ExpectWithOffset(2, err).NotTo(HaveOccurred())
+		Eventually(func() error {
+			return utils.ApplyFromYAML(
+				config,
+				fmt.Sprintf("%s/syngit_%s_remotesyncer.yaml", samplePath, version),
+				testNamespace,
+				remoteSyncerGVR,
+			)
+		}, 2*time.Minute, 5*time.Second).Should(Succeed())
 
 		Wait5()
 
@@ -149,7 +151,8 @@ var _ = AfterEach(func() {
 	By("uninstalling the syngit chart")
 	actionConfig, settings, err := utils.NewDefaultHelmActionConfig(syngitChart)
 	ExpectWithOffset(2, err).NotTo(HaveOccurred())
-	err = utils.UninstallChart(syngitChart, actionConfig, settings)
-	ExpectWithOffset(2, err).NotTo(HaveOccurred())
-
+	// Ignore uninstall errors: Helm v4 WaitForDelete may time out if the
+	// controller recreates cluster-scoped resources during teardown.
+	// AfterSuite handles full cleanup by deleting the namespace.
+	_ = utils.UninstallChart(syngitChart, actionConfig, settings)
 })

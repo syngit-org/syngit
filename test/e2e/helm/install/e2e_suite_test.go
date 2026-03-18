@@ -62,8 +62,8 @@ var _ = BeforeSuite(func() {
 	By("installing prometheus operator")
 	Expect(utils.InstallPrometheusOperator()).To(Succeed())
 
-	By("installing the cert-manager CRDs")
-	Expect(utils.InstallCertManagerCRDs()).To(Succeed())
+	By("installing cert-manager")
+	Expect(utils.InstallCertManager()).To(Succeed())
 
 	By("load the image in the KinD cluster")
 	cmd := exec.Command("make", "kind-load-image")
@@ -77,8 +77,8 @@ var _ = AfterSuite(func() {
 	By("uninstalling the Prometheus manager bundle")
 	utils.UninstallPrometheusOperator()
 
-	By("uninstalling the cert-manager CRDs bundle")
-	utils.UninstallCertManagerCRDs()
+	By("uninstalling cert-manager")
+	utils.UninstallCertManager()
 
 	By("removing test namespace")
 	err := k8sClient.CoreV1().Namespaces().Delete(context.Background(), testNamespace, metav1.DeleteOptions{})

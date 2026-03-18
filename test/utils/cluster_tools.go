@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck
 )
@@ -91,4 +92,42 @@ func InstallCertManagerCRDs() error {
 	}
 
 	return err
+}
+
+// InstallCertManager installs the full cert-manager and waits for the webhook to be ready.
+func InstallCertManager() error {
+	url := fmt.Sprintf(certmanagerURLTmpl, certmanagerVersion)
+	cmd := exec.Command("kubectl", "apply", "-f", url)
+	if _, err := Run(cmd); err != nil {
+		return err
+	}
+
+	// Wait for all cert-manager deployments to be available
+	for _, deploy := range []string{"cert-manager", "cert-manager-webhook", "cert-manager-cainjector"} {
+		cmd = exec.Command("kubectl", "wait", "--for=condition=Available",
+			fmt.Sprintf("deployment/%s", deploy), "-n", "cert-manager", "--timeout=120s")
+		if _, err := Run(cmd); err != nil {
+			return err
+		}
+	}
+
+	// Verify the webhook is fully operational (CA bundle injected) by dry-run creating an Issuer
+	for i := 0; i < 24; i++ {
+		cmd = exec.Command("kubectl", "apply", "--dry-run=server", "-f", "-")
+		cmd.Stdin = strings.NewReader(`apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: test-webhook-ready
+  namespace: default
+spec:
+  selfSigned: {}
+`)
+		if _, err := Run(cmd); err == nil {
+			return nil
+		}
+		fmt.Fprintf(GinkgoWriter, "cert-manager webhook not ready yet, retrying in 5s...\n") // nolint:errcheck
+		time.Sleep(5 * time.Second)
+	}
+
+	return fmt.Errorf("cert-manager webhook did not become ready within 120s")
 }
