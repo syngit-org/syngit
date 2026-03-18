@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	patterns "github.com/syngit-org/syngit/internal/patterns/v1beta4"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	"github.com/syngit-org/syngit/pkg/utils"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -268,32 +267,8 @@ func (wrc *WebhookRequestChecker) setUserTarget(details *wrcDetails) (bool, erro
 
 	if remoteUserBinding != nil {
 
-		// Trigger user specific pattern
-		// If annotation is set:
-		// Create the user specific remote target -> will create with the one-user-one-branch pattern by default.
-		// The external providers need to overwrite the target-repo & target-branch if the pattern is set to one-user-one-fork.
-		remoteTargetPattern := &patterns.UserSpecificPattern{
-			PatternSpecification: patterns.PatternSpecification{
-				Client:         wrc.k8sClient,
-				NamespacedName: types.NamespacedName{Name: wrc.remoteSyncer.Name, Namespace: wrc.remoteSyncer.Namespace},
-			},
-			Username:     incomingUser.Username,
-			RemoteSyncer: wrc.remoteSyncer,
-		}
-		err := patterns.Trigger(remoteTargetPattern, ctx)
-		if err != nil {
-			details.messageAddition = err.Error()
-			return false, err
-		}
-		if wrc.remoteSyncer.Annotations[syngit.RtAnnotationKeyUserSpecific] != "" {
-			// The user specific pattern add a new association to the RemoteUserBinding.
-			// Therefore, we must either get again the new RemoteUserBinding OR
-			// add the user specific RemoteTarget to the current object.
-			userSpecificRemoteTarget := remoteTargetPattern.GetRemoteTarget()
-			remoteUserBinding.Spec.RemoteTargetRefs = append(remoteUserBinding.Spec.RemoteTargetRefs, corev1.ObjectReference{
-				Name: userSpecificRemoteTarget.Name,
-			})
-		}
+		// User-specific RemoteTargets are now pre-created by the UserSpecificPolicyReconciler.
+		// The RUB already contains all the necessary RemoteTarget refs.
 
 		remoteTargetRefNames := []string{}
 		for _, remoteTargetRef := range remoteUserBinding.Spec.RemoteTargetRefs {

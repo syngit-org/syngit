@@ -43,33 +43,6 @@ func (rsfe ResourceScopeForbiddenError) ShouldContains(errorString string) bool 
 // REMOTE USER PATTERN ASSOCIATION WEBHOOK
 
 /*
-	This error must be used when the RemoteUser that
-	suppose to be associated with a RemoteUserBinding
-	using the pattern is already associated with another one.
-*/
-
-type RemoteUserAlreadyBoundError struct {
-	ExistingRemoteUserBindingName string
-}
-
-func (ruabe RemoteUserAlreadyBoundError) Error() string {
-	return fmt.Sprintf("the RemoteUser is already bound in the RemoteUserBinding %s",
-		ruabe.ExistingRemoteUserBindingName,
-	)
-}
-
-func (ruabe RemoteUserAlreadyBoundError) ShouldContains(errorString string) bool {
-	for _, str := range []string{
-		"the RemoteUser is already bound in the RemoteUserBinding ",
-	} {
-		if !strings.Contains(errorString, str) {
-			return false
-		}
-	}
-	return true
-}
-
-/*
 	This interface must be used by the errors that
 	are raised during the interception process.
 

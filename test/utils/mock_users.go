@@ -86,21 +86,24 @@ func (tu *SyngitTestUsersClientset) Initialize(cfg *rest.Config) error {
 }
 
 func (tu *SyngitTestUsersClientset) kImpersonate(username TestUser) (*k8s.Clientset, error) {
-	tu.config.Impersonate = rest.ImpersonationConfig{
-		UserName: string(username),
-		Groups:   []string{"system:authenticated"}, // Ensure user is authenticated
-	}
+	tu.initConfig(username)
 
 	clientset, err := k8s.NewForConfig(tu.config)
-
 	return clientset, err
 }
 
 func (tu *SyngitTestUsersClientset) impersonate(username TestUser) (client.Client, error) {
+	tu.initConfig(username)
+	return client.New(tu.config, client.Options{Scheme: scheme.Scheme})
+}
+
+func (tu *SyngitTestUsersClientset) initConfig(username TestUser) {
+	groups := []string{"system:authenticated"}
+	if username == Admin {
+		groups = append(groups, "system:masters")
+	}
 	tu.config.Impersonate = rest.ImpersonationConfig{
 		UserName: string(username),
-		Groups:   []string{"system:authenticated"}, // Ensure user is authenticated
+		Groups:   groups, // Ensure user is authenticated
 	}
-
-	return client.New(tu.config, client.Options{Scheme: scheme.Scheme})
 }
