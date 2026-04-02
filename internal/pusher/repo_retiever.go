@@ -1,4 +1,4 @@
-package interceptor
+package pusher
 
 import (
 	"bytes"
@@ -32,23 +32,23 @@ func (rp RepoRetriever) getRepository(repo string, branch string) (*git.Reposito
 		URL:           repo,
 		ReferenceName: plumbing.ReferenceName(branch),
 		Auth: &http.BasicAuth{
-			Username: rp.gitPusher.gitUser,
-			Password: rp.gitPusher.gitToken,
+			Username: rp.gitPusher.GitUser,
+			Password: rp.gitPusher.GitToken,
 		},
 		SingleBranch:    true,
-		InsecureSkipTLS: rp.gitPusher.remoteSyncer.Spec.InsecureSkipTlsVerify,
+		InsecureSkipTLS: rp.gitPusher.RemoteSyncer.Spec.InsecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput),
 	}
-	if rp.gitPusher.caBundle != nil {
-		cloneOptions.CABundle = rp.gitPusher.caBundle
+	if rp.gitPusher.CABundle != nil {
+		cloneOptions.CABundle = rp.gitPusher.CABundle
 	}
 	repository, err := git.Clone(memory.NewStorage(), memfs.New(), cloneOptions)
 	if err != nil {
 		variables := fmt.Sprintf("\nRepository: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
 			repo,
 			plumbing.ReferenceName(branch),
-			rp.gitPusher.gitUser,
-			rp.gitPusher.gitEmail,
+			rp.gitPusher.GitUser,
+			rp.gitPusher.GitEmail,
 		)
 		errMsg := fmt.Sprintf("failed to clone repository: %s\nVerbose output: %s\nVariables: %s\n", err.Error(), verboseOutput.String(), variables)
 		return nil, errors.New(errMsg)
@@ -58,11 +58,11 @@ func (rp RepoRetriever) getRepository(repo string, branch string) (*git.Reposito
 }
 
 func (rp RepoRetriever) GetUpstreamRepository() (*git.Repository, error) {
-	return rp.getRepository(rp.gitPusher.remoteTarget.Spec.UpstreamRepository, rp.gitPusher.remoteTarget.Spec.UpstreamBranch)
+	return rp.getRepository(rp.gitPusher.RemoteTarget.Spec.UpstreamRepository, rp.gitPusher.RemoteTarget.Spec.UpstreamBranch)
 }
 
 func (rp RepoRetriever) GetTargetRepository() (*git.Repository, error) {
-	return rp.getRepository(rp.gitPusher.remoteTarget.Spec.TargetRepository, rp.gitPusher.remoteTarget.Spec.UpstreamBranch)
+	return rp.getRepository(rp.gitPusher.RemoteTarget.Spec.TargetRepository, rp.gitPusher.RemoteTarget.Spec.UpstreamBranch)
 }
 
 type WorktreeRetriever struct {
@@ -117,9 +117,9 @@ func (wr WorktreeRetriever) GetWorkTree(gp GitPusher) (*git.Worktree, bool, erro
 
 func (wr WorktreeRetriever) upstreamBasedHardReset(gp GitPusher) (*git.Worktree, error) {
 
-	targetBranch := gp.remoteTarget.Spec.TargetBranch
+	targetBranch := gp.RemoteTarget.Spec.TargetBranch
 	targetBranchRef := plumbing.NewBranchReferenceName(targetBranch)
-	upstreamRemoteRef := plumbing.ReferenceName(fmt.Sprintf("refs/remotes/%s/%s", upstreamRemote, gp.remoteSyncer.Spec.DefaultBranch))
+	upstreamRemoteRef := plumbing.ReferenceName(fmt.Sprintf("refs/remotes/%s/%s", upstreamRemote, gp.RemoteSyncer.Spec.DefaultBranch))
 
 	remErr := wr.fetchUpstream(gp)
 	if remErr != nil {
@@ -164,8 +164,8 @@ func (wr WorktreeRetriever) upstreamBasedHardReset(gp GitPusher) (*git.Worktree,
 
 func (wr WorktreeRetriever) upstreamBasedPullFastForward(gp GitPusher) (*git.Worktree, error) {
 
-	upstreamBranch := gp.remoteTarget.Spec.UpstreamBranch
-	targetBranch := gp.remoteTarget.Spec.TargetBranch
+	upstreamBranch := gp.RemoteTarget.Spec.UpstreamBranch
+	targetBranch := gp.RemoteTarget.Spec.TargetBranch
 
 	remErr := wr.fetchUpstream(gp)
 	if remErr != nil {
@@ -189,14 +189,14 @@ func (wr WorktreeRetriever) upstreamBasedPullFastForward(gp GitPusher) (*git.Wor
 		ReferenceName: plumbing.NewBranchReferenceName(upstreamBranch),
 		SingleBranch:  true,
 		Auth: &http.BasicAuth{
-			Username: gp.gitUser,
-			Password: gp.gitToken,
+			Username: gp.GitUser,
+			Password: gp.GitToken,
 		},
-		InsecureSkipTLS: gp.remoteSyncer.Spec.InsecureSkipTlsVerify,
+		InsecureSkipTLS: gp.RemoteSyncer.Spec.InsecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput),
 	}
-	if gp.caBundle != nil {
-		upstreamBasedPullOptions.CABundle = gp.caBundle
+	if gp.CABundle != nil {
+		upstreamBasedPullOptions.CABundle = gp.CABundle
 	}
 	err = targetWorktree.Pull(upstreamBasedPullOptions)
 	if err != nil && err != git.NoErrAlreadyUpToDate {
@@ -204,8 +204,8 @@ func (wr WorktreeRetriever) upstreamBasedPullFastForward(gp GitPusher) (*git.Wor
 			upstreamRemote,
 			plumbing.HEAD,
 			targetBranch,
-			gp.gitUser,
-			gp.gitEmail,
+			gp.GitUser,
+			gp.GitEmail,
 		)
 		errMsg := fmt.Sprintf("failed to pull remote: %s\nVerbose output: %s\nVariables: %s\n", err.Error(), verboseOutput.String(), variables)
 		return nil, errors.New(errMsg)
@@ -217,14 +217,14 @@ func (wr WorktreeRetriever) upstreamBasedPullFastForward(gp GitPusher) (*git.Wor
 		ReferenceName: plumbing.NewBranchReferenceName(targetBranch),
 		SingleBranch:  true,
 		Auth: &http.BasicAuth{
-			Username: gp.gitUser,
-			Password: gp.gitToken,
+			Username: gp.GitUser,
+			Password: gp.GitToken,
 		},
-		InsecureSkipTLS: gp.remoteSyncer.Spec.InsecureSkipTlsVerify,
+		InsecureSkipTLS: gp.RemoteSyncer.Spec.InsecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput),
 	}
-	if gp.caBundle != nil {
-		originBasedPullOptions.CABundle = gp.caBundle
+	if gp.CABundle != nil {
+		originBasedPullOptions.CABundle = gp.CABundle
 	}
 	err = targetWorktree.Pull(originBasedPullOptions)
 	if err != nil && err != git.NoErrAlreadyUpToDate && !strings.Contains(err.Error(), "reference not found") {
@@ -232,8 +232,8 @@ func (wr WorktreeRetriever) upstreamBasedPullFastForward(gp GitPusher) (*git.Wor
 			upstreamRemote,
 			plumbing.HEAD,
 			targetBranch,
-			gp.gitUser,
-			gp.gitEmail,
+			gp.GitUser,
+			gp.GitEmail,
 		)
 		errMsg := fmt.Sprintf("failed to pull target remote: %s\nVerbose output: %s\nVariables: %s\n", err.Error(), verboseOutput.String(), variables)
 		return nil, errors.New(errMsg)
@@ -333,7 +333,7 @@ func (wr WorktreeRetriever) checkoutToBranch(worktree *git.Worktree, targetBranc
 
 func (wr WorktreeRetriever) fetchUpstream(gp GitPusher) error {
 
-	upstreamURL := gp.remoteSyncer.Spec.RemoteRepository
+	upstreamURL := gp.RemoteSyncer.Spec.RemoteRepository
 
 	if _, remErr := wr.targetRepository.Remote(upstreamRemote); remErr == git.ErrRemoteNotFound {
 		_, err := wr.targetRepository.CreateRemote(&config.RemoteConfig{
@@ -352,26 +352,26 @@ func (wr WorktreeRetriever) fetchUpstream(gp GitPusher) error {
 		RemoteName: upstreamRemote,
 		RemoteURL:  upstreamURL,
 		Auth: &http.BasicAuth{
-			Username: gp.gitUser,
-			Password: gp.gitToken,
+			Username: gp.GitUser,
+			Password: gp.GitToken,
 		},
 		RefSpecs: []config.RefSpec{
 			config.RefSpec("+refs/heads/*:refs/remotes/origin/*"),
 			config.RefSpec("+refs/heads/*:refs/remotes/upstream/*"),
 		},
-		InsecureSkipTLS: gp.remoteSyncer.Spec.InsecureSkipTlsVerify,
+		InsecureSkipTLS: gp.RemoteSyncer.Spec.InsecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput),
 	}
-	if gp.caBundle != nil {
-		fetchOptions.CABundle = gp.caBundle
+	if gp.CABundle != nil {
+		fetchOptions.CABundle = gp.CABundle
 	}
 
 	err := wr.targetRepository.Fetch(fetchOptions)
 	if err != nil && err != git.NoErrAlreadyUpToDate {
 		variables := fmt.Sprintf("\nRepository: %s\nUsername: %s\nEmail: %s\n",
 			upstreamURL,
-			gp.gitUser,
-			gp.gitEmail,
+			gp.GitUser,
+			gp.GitEmail,
 		)
 		errMsg := fmt.Sprintf("failed to fetch remote: %s\nVerbose output: %s\nVariables: %s\n", err.Error(), verboseOutput.String(), variables)
 		return errors.New(errMsg)

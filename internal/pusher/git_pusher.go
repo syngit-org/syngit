@@ -1,4 +1,4 @@
-package interceptor
+package pusher
 
 import (
 	"bytes"
@@ -24,28 +24,28 @@ import (
 )
 
 type GitPusher struct {
-	remoteSyncer    syngit.RemoteSyncer
-	remoteTarget    syngit.RemoteTarget
-	interceptedYAML string
-	interceptedGVR  schema.GroupVersionResource
-	interceptedName string
-	gitUser         string
-	gitEmail        string
-	gitToken        string
-	operation       admissionv1.Operation
-	caBundle        []byte
+	RemoteSyncer    syngit.RemoteSyncer
+	RemoteTarget    syngit.RemoteTarget
+	InterceptedYAML string
+	InterceptedGVR  schema.GroupVersionResource
+	InterceptedName string
+	GitUser         string
+	GitEmail        string
+	GitToken        string
+	Operation       admissionv1.Operation
+	CABundle        []byte
 }
 
 type GitPushResponse struct {
-	paths      []string // The git paths where the resource has been pushed
-	commitHash string   // The commit hash of the commit
-	url        string   // The url of the repository
+	Paths      []string // The git paths where the resource has been pushed
+	CommitHash string   // The commit hash of the commit
+	URL        string   // The url of the repository
 }
 
 var forcePush bool
 
 func (gp *GitPusher) Push() (GitPushResponse, error) {
-	gpResponse := &GitPushResponse{paths: []string{}, commitHash: "", url: gp.remoteTarget.Spec.TargetRepository}
+	gpResponse := &GitPushResponse{Paths: []string{}, CommitHash: "", URL: gp.RemoteTarget.Spec.TargetRepository}
 
 	var w *git.Worktree
 
@@ -61,7 +61,7 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 	upstreamRepo := targetRepo
 
 	// If a merge strategy is set, then the target & upstream are different
-	if gp.remoteTarget.Spec.MergeStrategy != "" {
+	if gp.RemoteTarget.Spec.MergeStrategy != "" {
 		// Different target and upstream
 		upstreamRepo, getRepoErr = repoRetriever.GetUpstreamRepository()
 		if getRepoErr != nil {
@@ -73,7 +73,7 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 	wr := WorktreeRetriever{
 		upstreamRepository: upstreamRepo,
 		targetRepository:   targetRepo,
-		strategy:           gp.remoteTarget.Spec.MergeStrategy,
+		strategy:           gp.RemoteTarget.Spec.MergeStrategy,
 	}
 	var err error
 	w, forcePush, err = wr.GetWorkTree(*gp)
@@ -87,12 +87,12 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 	var pathsShouldExist = map[string]bool{}
 
 	if features.LoadedFeatureGates.Enabled(features.ResourceFinder) &&
-		gp.remoteSyncer.Spec.ResourceFinder {
+		gp.RemoteSyncer.Spec.ResourceFinder {
 		resourceFinder := ResourceFinder{
-			SearchedGVK:       gp.interceptedGVR,
-			SearchedName:      gp.interceptedName,
-			SearchedNamespace: gp.remoteSyncer.Namespace,
-			Content:           gp.interceptedYAML,
+			SearchedGVK:       gp.InterceptedGVR,
+			SearchedName:      gp.InterceptedName,
+			SearchedNamespace: gp.RemoteSyncer.Namespace,
+			Content:           gp.InterceptedYAML,
 		}
 		results, err = resourceFinder.BuildWorktree(w)
 		if err != nil {
@@ -100,13 +100,13 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 		}
 
 		for _, path := range results.Paths {
-			gpResponse.paths = append(gpResponse.paths, path)
+			gpResponse.Paths = append(gpResponse.Paths, path)
 			pathsShouldExist[path] = true
 		}
 	}
 
 	if !features.LoadedFeatureGates.Enabled(features.ResourceFinder) ||
-		!gp.remoteSyncer.Spec.ResourceFinder ||
+		!gp.RemoteSyncer.Spec.ResourceFinder ||
 		!results.Found {
 		path, err := gp.pathConstructor(w)
 		if err != nil {
@@ -114,12 +114,12 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 		}
 
 		fullFilePath, err := gp.writeFile(path, w)
-		gpResponse.paths = append(gpResponse.paths, fullFilePath)
+		gpResponse.Paths = append(gpResponse.Paths, fullFilePath)
 		if err != nil {
 			return *gpResponse, err
 		}
 
-		if gp.interceptedYAML == "" {
+		if gp.InterceptedYAML == "" {
 			pathsShouldExist[fullFilePath] = false
 		} else {
 			pathsShouldExist[fullFilePath] = true
@@ -128,7 +128,7 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 
 	// STEP 4 : Commit the changes
 	commitHash, err := gp.commitChanges(w, pathsShouldExist, targetRepo)
-	gpResponse.commitHash = commitHash
+	gpResponse.CommitHash = commitHash
 	if err != nil {
 		return *gpResponse, err
 	}
@@ -143,13 +143,13 @@ func (gp *GitPusher) Push() (GitPushResponse, error) {
 }
 
 func (gp *GitPusher) pathConstructor(w *git.Worktree) (string, error) {
-	gvr := gp.interceptedGVR
+	gvr := gp.InterceptedGVR
 
 	tempPath := ""
-	if gp.remoteSyncer.Spec.RootPath != "" {
-		tempPath += gp.remoteSyncer.Spec.RootPath + "/"
+	if gp.RemoteSyncer.Spec.RootPath != "" {
+		tempPath += gp.RemoteSyncer.Spec.RootPath + "/"
 	}
-	tempPath += gp.remoteSyncer.Namespace + "/" + gvr.Group + "/" + gvr.Version + "/" + gvr.Resource + "/"
+	tempPath += gp.RemoteSyncer.Namespace + "/" + gvr.Group + "/" + gvr.Version + "/" + gvr.Resource + "/"
 
 	path, err := gp.validatePath(tempPath)
 	if err != nil {
@@ -201,14 +201,14 @@ func (gp *GitPusher) containsInvalidCharacters(path string) bool {
 func (gp *GitPusher) getFileDirName(path string, filename string) (string, string) {
 	pathArr := strings.Split(path, "/")
 	if filename == "" {
-		return path + "/", gp.interceptedName + ".yaml"
+		return path + "/", gp.InterceptedName + ".yaml"
 	}
 	if strings.Contains(pathArr[len(pathArr)-1], ".yaml") || strings.Contains(pathArr[len(pathArr)-1], ".yml") {
 		filename := pathArr[len(pathArr)-1]
 		pathArr := pathArr[:len(pathArr)-1]
 		return strings.Join(pathArr, "/"), filename
 	}
-	return strings.Join(pathArr, "/"), gp.interceptedName + ".yaml"
+	return strings.Join(pathArr, "/"), gp.InterceptedName + ".yaml"
 }
 
 func (gp *GitPusher) writeFile(path string, w *git.Worktree) (string, error) {
@@ -222,15 +222,15 @@ func (gp *GitPusher) writeFile(path string, w *git.Worktree) (string, error) {
 		return fullFilePath, errors.New(errMsg)
 	}
 	if fileInfo.IsDir() {
-		dir, fileName = gp.getFileDirName(fullFilePath, gp.interceptedName+".yaml")
+		dir, fileName = gp.getFileDirName(fullFilePath, gp.InterceptedName+".yaml")
 		fullFilePath = filepath.Join(dir, fileName)
 	} else {
 		dir, fileName = gp.getFileDirName(fullFilePath, "")
 		fullFilePath = filepath.Join(dir, fileName)
 	}
-	content := []byte(gp.interceptedYAML)
+	content := []byte(gp.InterceptedYAML)
 
-	if gp.interceptedYAML == "" { // The file has been deleted
+	if gp.InterceptedYAML == "" { // The file has been deleted
 		return fullFilePath, nil
 	}
 
@@ -253,11 +253,11 @@ func (gp *GitPusher) writeFile(path string, w *git.Worktree) (string, error) {
 func (gp *GitPusher) commitMessageConstructor(current string, isAddition bool) (string, error) {
 	commitMessage := ""
 	resourceMessage := fmt.Sprintf("%s.%s/%s: %s/%s",
-		gp.interceptedGVR.Resource,
-		gp.interceptedGVR.Group,
-		gp.interceptedGVR.Version,
-		gp.remoteSyncer.Namespace,
-		gp.interceptedName,
+		gp.InterceptedGVR.Resource,
+		gp.InterceptedGVR.Group,
+		gp.InterceptedGVR.Version,
+		gp.RemoteSyncer.Namespace,
+		gp.InterceptedName,
 	)
 	const additionPrefix = "1+"
 	const addition = "+"
@@ -331,8 +331,8 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathsShouldExist map[string]
 	// Commit the changes
 	commit, err := w.Commit(commitMessage, &git.CommitOptions{
 		Author: &object.Signature{
-			Name:  gp.gitUser,
-			Email: gp.gitEmail,
+			Name:  gp.GitUser,
+			Email: gp.GitEmail,
 			When:  time.Now(),
 		},
 	})
@@ -348,7 +348,7 @@ func (gp *GitPusher) commitChanges(w *git.Worktree, pathsShouldExist map[string]
 			}
 			return commit.Hash.String(), nil
 		}
-		errMsg := fmt.Sprintf("failed to commit changes (%s/%s): %s", gp.remoteTarget.Spec.TargetRepository, gp.remoteTarget.Spec.TargetBranch, err.Error())
+		errMsg := fmt.Sprintf("failed to commit changes (%s/%s): %s", gp.RemoteTarget.Spec.TargetRepository, gp.RemoteTarget.Spec.TargetBranch, err.Error())
 		return "", errors.New(errMsg)
 	}
 
@@ -368,13 +368,13 @@ func (gp *GitPusher) isErrorSkipable(err error) bool {
 }
 
 func (gp *GitPusher) pushChanges(repo *git.Repository) error {
-	targetBranch := gp.remoteTarget.Spec.TargetBranch
+	targetBranch := gp.RemoteTarget.Spec.TargetBranch
 
 	variables := fmt.Sprintf("\nRepository: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
-		gp.remoteSyncer.Spec.RemoteRepository,
+		gp.RemoteSyncer.Spec.RemoteRepository,
 		plumbing.ReferenceName(targetBranch),
-		gp.gitUser,
-		gp.gitEmail,
+		gp.GitUser,
+		gp.GitEmail,
 	)
 	var verboseOutput bytes.Buffer
 	pushOptions := &git.PushOptions{
@@ -382,15 +382,15 @@ func (gp *GitPusher) pushChanges(repo *git.Repository) error {
 			config.RefSpec(fmt.Sprintf("refs/heads/%s:refs/heads/%s", targetBranch, targetBranch)),
 		},
 		Auth: &http.BasicAuth{
-			Username: gp.gitUser,
-			Password: gp.gitToken,
+			Username: gp.GitUser,
+			Password: gp.GitToken,
 		},
-		InsecureSkipTLS: gp.remoteSyncer.Spec.InsecureSkipTlsVerify,
+		InsecureSkipTLS: gp.RemoteSyncer.Spec.InsecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput), // Capture verbose output
 		Force:           forcePush,
 	}
-	if gp.caBundle != nil {
-		pushOptions.CABundle = gp.caBundle
+	if gp.CABundle != nil {
+		pushOptions.CABundle = gp.CABundle
 	}
 	err := repo.Push(pushOptions)
 	if err != nil {

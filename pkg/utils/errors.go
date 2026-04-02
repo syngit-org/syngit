@@ -338,6 +338,7 @@ const (
 	SecretNotFound         CrendentialSearchErrorReason = "no Secret found for the current user to log on the git repository with the RemoteUser: %s"                                                                   //nolint:lll
 	MoreThanOneSecretFound CrendentialSearchErrorReason = "more than one Secret found for the current user with the RemoteUser: %s"                                                                                     //nolint:lll
 	TokenNotFound          CrendentialSearchErrorReason = "no token found in the secret for the RemoteUser: %s; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth" //nolint:lll
+	ConnectionError        CrendentialSearchErrorReason = "connection error"
 )
 
 type CrendentialSearchError struct {

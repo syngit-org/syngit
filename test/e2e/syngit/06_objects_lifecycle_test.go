@@ -18,6 +18,7 @@ package e2e_syngit
 
 import (
 	"fmt"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -146,10 +147,10 @@ var _ = Describe("06 Test objects lifecycle", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that RemoteUserBinding does not exists")
-		err := sClient.As(Luffy).Get(nnRub, getRub)
-
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("not found"))
+		Eventually(func() bool {
+			err := sClient.As(Luffy).Get(nnRub, getRub)
+			return err != nil && strings.Contains(err.Error(), "not found")
+		}, timeout, interval).Should(BeTrue())
 	})
 
 	It("should properly manage the RemoteSyncer associated webhooks", func() {

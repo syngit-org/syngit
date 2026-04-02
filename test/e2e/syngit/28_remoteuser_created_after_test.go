@@ -108,8 +108,22 @@ var _ = Describe("28 RemoteUser created after RemoteSyncer & RemoteTargets", fun
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
+		By("waiting for all RemoteTargets to be associated to the RUB")
+		Eventually(func() bool {
+			rubList := &syngit.RemoteUserBindingList{}
+			err := sClient.As(Luffy).List(namespace, rubList)
+			if err != nil {
+				return false
+			}
+			for _, rub := range rubList.Items {
+				if rub.Labels[syngit.ManagedByLabelKey] == syngit.ManagedByLabelValue {
+					return len(rub.Spec.RemoteTargetRefs) >= 3
+				}
+			}
+			return false
+		}, timeout, interval).Should(BeTrue())
+
 		By("creating a test configmap")
-		Wait3()
 		cm := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "ConfigMap",
