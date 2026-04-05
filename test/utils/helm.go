@@ -1,17 +1,14 @@
 package utils
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"time"
 
 	"helm.sh/helm/v4/pkg/action"
 	"helm.sh/helm/v4/pkg/chart/loader"
 	"helm.sh/helm/v4/pkg/cli"
 	"helm.sh/helm/v4/pkg/cli/values"
-	"helm.sh/helm/v4/pkg/downloader"
 	"helm.sh/helm/v4/pkg/getter"
 	"helm.sh/helm/v4/pkg/kube"
 	"k8s.io/client-go/rest"
@@ -113,31 +110,6 @@ func (c RemoteChart) GetChartPath(settings *cli.EnvSettings) (string, error) {
 	return chartPath, nil
 }
 
-func updateDependencies(chartPath string, settings *cli.EnvSettings) error {
-	// Create getter providers for downloading charts
-	providers := getter.All(settings)
-
-	// Create a manager for dependency operations
-	man := &downloader.Manager{
-		Out:              os.Stdout,
-		ChartPath:        chartPath,
-		Keyring:          "", // Optional: path to keyring for verification
-		SkipUpdate:       false,
-		Getters:          providers,
-		RepositoryConfig: settings.RepositoryConfig,
-		RepositoryCache:  settings.RepositoryCache,
-		ContentCache:     settings.RepositoryCache,
-		Debug:            false,
-	}
-
-	// Update dependencies
-	if err := man.Update(); err != nil {
-		return fmt.Errorf("failed to update dependencies: %v", err)
-	}
-
-	return nil
-}
-
 func InstallChart(chart Chart, actionConfig *action.Configuration, settings *cli.EnvSettings) error {
 	install := action.NewInstall(actionConfig)
 	install.ReleaseName = chart.GetReleaseName()
@@ -149,16 +121,11 @@ func InstallChart(chart Chart, actionConfig *action.Configuration, settings *cli
 
 	remote, ok := chart.(RemoteChart)
 	if ok {
+		install.RepoURL = remote.RepoURL
 		remote.InstallAction = install
 		chart = remote
 	}
 	chartPath, err := chart.GetChartPath(settings)
-	if err != nil {
-		return err
-	}
-
-	// Update dependencies
-	err = updateDependencies(chartPath, settings)
 	if err != nil {
 		return err
 	}
@@ -207,6 +174,7 @@ func UpgradeChart(chart Chart, actionConfig *action.Configuration, settings *cli
 
 	remote, ok := chart.(RemoteChart)
 	if ok {
+		upgrade.RepoURL = remote.RepoURL
 		remote.UpgradeAction = upgrade
 		chart = remote
 	}
@@ -234,58 +202,4 @@ func UpgradeChart(chart Chart, actionConfig *action.Configuration, settings *cli
 	}
 
 	return nil
-}
-
-// GetLatestChartVersion returns the latest version from the charts directory
-func GetLatestChartVersion(chartsDir string) (string, error) {
-	// Read all directories in charts/
-	entries, err := os.ReadDir(chartsDir)
-	if err != nil {
-		return "", err
-	}
-
-	// Filter directories and get their names
-	var versions []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			versions = append(versions, entry.Name())
-		}
-	}
-
-	// Sort versions
-	sort.Slice(versions, func(i, j int) bool {
-		return versions[i] < versions[j]
-	})
-
-	// Return the latest version or empty if no versions found
-	if len(versions) == 0 {
-		return "", fmt.Errorf("no chart versions found in %s", chartsDir)
-	}
-
-	return versions[len(versions)-1], nil
-}
-
-// GetPreviousChartVersion returns the version before the latest from the charts directory
-func GetPreviousChartVersion(chartsDir string) (string, error) {
-	entries, err := os.ReadDir(chartsDir)
-	if err != nil {
-		return "", err
-	}
-
-	var versions []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			versions = append(versions, entry.Name())
-		}
-	}
-
-	if len(versions) < 2 {
-		return "", fmt.Errorf("not enough versions found in %s (need at least 2)", chartsDir)
-	}
-
-	// Sort versions
-	sort.Strings(versions)
-
-	// Return the second-to-last version
-	return versions[len(versions)-2], nil
 }

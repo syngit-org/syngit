@@ -28,23 +28,10 @@ jobs:
         uses: azure/setup-helm@b7246b12e77f7134dc2d460a3d5bad15bbe29390 #v4.1.0
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-
-      - name: Build chart dependencies
-        run: |
-          for chart in charts/*; do
-            if [ -f "$chart/Chart.yaml" ]; then
-              helm dependency update "$chart"
-            fi
-          done
-
-      - name: Add Helm repositories
-        run: |
-          helm repo add jetstack https://charts.jetstack.io
-          helm repo update
           
       - name: Package chart
         run: |
-          helm package charts/${{ github.ref_name }}
+          helm package charts/syngit
 
       - name: Release
         uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 #v2.4.1
