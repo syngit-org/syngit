@@ -43,33 +43,6 @@ func (rsfe ResourceScopeForbiddenError) ShouldContains(errorString string) bool 
 // REMOTE USER PATTERN ASSOCIATION WEBHOOK
 
 /*
-	This error must be used when the RemoteUser that
-	suppose to be associated with a RemoteUserBinding
-	using the pattern is already associated with another one.
-*/
-
-type RemoteUserAlreadyBoundError struct {
-	ExistingRemoteUserBindingName string
-}
-
-func (ruabe RemoteUserAlreadyBoundError) Error() string {
-	return fmt.Sprintf("the RemoteUser is already bound in the RemoteUserBinding %s",
-		ruabe.ExistingRemoteUserBindingName,
-	)
-}
-
-func (ruabe RemoteUserAlreadyBoundError) ShouldContains(errorString string) bool {
-	for _, str := range []string{
-		"the RemoteUser is already bound in the RemoteUserBinding ",
-	} {
-		if !strings.Contains(errorString, str) {
-			return false
-		}
-	}
-	return true
-}
-
-/*
 	This interface must be used by the errors that
 	are raised during the interception process.
 
@@ -365,6 +338,7 @@ const (
 	SecretNotFound         CrendentialSearchErrorReason = "no Secret found for the current user to log on the git repository with the RemoteUser: %s"                                                                   //nolint:lll
 	MoreThanOneSecretFound CrendentialSearchErrorReason = "more than one Secret found for the current user with the RemoteUser: %s"                                                                                     //nolint:lll
 	TokenNotFound          CrendentialSearchErrorReason = "no token found in the secret for the RemoteUser: %s; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth" //nolint:lll
+	ConnectionError        CrendentialSearchErrorReason = "connection error"
 )
 
 type CrendentialSearchError struct {

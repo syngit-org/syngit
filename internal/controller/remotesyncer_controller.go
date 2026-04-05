@@ -303,7 +303,7 @@ func (r *RemoteSyncerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	recorder := mgr.GetEventRecorder("remotesyncer-controller")
 	r.Recorder = recorder
 
-	r.devMode = os.Getenv("DEV_MODE") == "true"
+	r.devMode = os.Getenv("DEV_MODE") == "true" // nolint:goconst
 	r.devWebhookHost = os.Getenv("DEV_WEBHOOK_HOST")
 	r.devWebhookPort = os.Getenv("DEV_WEBHOOK_PORT")
 	r.devWebhookCert = os.Getenv("DEV_WEBHOOK_CERT")

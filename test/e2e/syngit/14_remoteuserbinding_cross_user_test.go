@@ -20,7 +20,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
-	"github.com/syngit-org/syngit/pkg/utils"
 	. "github.com/syngit-org/syngit/test/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -80,21 +79,21 @@ var _ = Describe("14 RemoteUser RBAC cross user test", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		By("modifying removing Chopper rub annotation using Luffy")
+		By("modifying Chopper ru annotation using Luffy")
 		Wait3()
-		remoteUserChopperWithNoAssociatedRub := remoteUserChopper.DeepCopy()
-		remoteUserChopperWithNoAssociatedRub.Annotations = map[string]string{
+		remoteUserChopperWithNoAssociatedRu := remoteUserChopper.DeepCopy()
+		remoteUserChopperWithNoAssociatedRu.Annotations = map[string]string{
 			syngit.RubAnnotationKeyManaged: "false",
 		}
 		Eventually(func() bool {
-			err := sClient.As(Luffy).CreateOrUpdate(remoteUserChopperWithNoAssociatedRub)
-			return err != nil && utils.ErrorTypeChecker(&utils.RemoteUserAlreadyBoundError{}, err.Error())
+			err := sClient.As(Luffy).CreateOrUpdate(remoteUserChopperWithNoAssociatedRu)
+			return err != nil
 		}, timeout, interval).Should(BeTrue())
 
 		By("modifying removing Chopper rub annotation using Chopper")
 		Wait3()
 		Eventually(func() bool {
-			err := sClient.As(Chopper).CreateOrUpdate(remoteUserChopperWithNoAssociatedRub)
+			err := sClient.As(Chopper).CreateOrUpdate(remoteUserChopperWithNoAssociatedRu)
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 

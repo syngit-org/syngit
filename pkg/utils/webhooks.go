@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 
+	v1 "k8s.io/api/admission/v1"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -24,8 +25,7 @@ func OperationToVerb(operation admissionv1.OperationType) ([]string, error) {
 }
 
 func GetObjectFromWebhookRequest(decoder admission.Decoder, obj runtime.Object, req admission.Request) error {
-
-	if string(req.Operation) != "DELETE" {
+	if req.Operation != v1.Delete {
 		err := decoder.Decode(req, obj)
 		if err != nil {
 			return err

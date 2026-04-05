@@ -29,12 +29,13 @@ type WebhookInterceptsAll struct {
 // PathHandler represents an instance of a path handler with a specific namespace and name
 type DynamicWebhookHandler struct {
 	remoteSyncer syngit.RemoteSyncer
-	k8sClient    client.Client
 }
 
 func (s *WebhookInterceptsAll) Start() {
 	ctx := context.Background()
 	_ = log.FromContext(ctx)
+
+	ctx = context.WithValue(ctx, k8sClientCtxKey{}, s.K8sClient)
 
 	s.pathHandlers = make(map[string]*DynamicWebhookHandler)
 
@@ -55,13 +56,13 @@ func (s *WebhookInterceptsAll) Start() {
 			handler, ok := s.pathHandlers[path]
 			s.RUnlock()
 
-			// If a handler is found, invoke it
 			if ok {
-				handler.Handle(w, r)
+				// If a handler is found, invoke it
+				handler.Handle(ctx, w, r)
 				return
 
-				// If not, then it is not cached -> search in k8s api
 			} else {
+				// If not, then it is not cached -> search in k8s api
 				ctx := context.Background()
 				namespacedName := &types.NamespacedName{
 					Namespace: namespace,
@@ -78,7 +79,7 @@ func (s *WebhookInterceptsAll) Start() {
 
 				// If found in k8s api, add it to the cached map and handle the request
 				handler := s.Register(*found, path)
-				handler.Handle(w, r)
+				handler.Handle(ctx, w, r)
 			}
 
 		}).Methods(http.MethodPost) // Limit to POST requests if it's a webhook
@@ -97,7 +98,6 @@ func (s *WebhookInterceptsAll) Register(interceptor syngit.RemoteSyncer, path st
 	// Create a new path handler with the specified namespace and name
 	handler := &DynamicWebhookHandler{
 		remoteSyncer: *interceptor.DeepCopy(),
-		k8sClient:    s.K8sClient,
 	}
 
 	// Register the path handler with the server
@@ -106,8 +106,10 @@ func (s *WebhookInterceptsAll) Register(interceptor syngit.RemoteSyncer, path st
 	return handler
 }
 
+type k8sClientCtxKey struct{}
+
 // Handle processes the incoming dynamic webhook request
-func (dwc *DynamicWebhookHandler) Handle(w http.ResponseWriter, r *http.Request) {
+func (dwc *DynamicWebhookHandler) Handle(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var admissionReviewReq admissionv1.AdmissionReview
 	err := decoder.Decode(&admissionReviewReq)
@@ -116,14 +118,7 @@ func (dwc *DynamicWebhookHandler) Handle(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	wrc := &WebhookRequestChecker{
-		admReview:        admissionReviewReq,
-		remoteSyncer:     dwc.remoteSyncer,
-		k8sClient:        dwc.k8sClient,
-		managerNamespace: os.Getenv("MANAGER_NAMESPACE"),
-	}
-
-	admResponse := wrc.ProcessSteps()
+	admResponse := RunInterceptionPipeline(ctx, admissionReviewReq.Request, dwc.remoteSyncer, os.Getenv("MANAGER_NAMESPACE"))
 
 	resp, err := json.Marshal(admResponse)
 	if err != nil {

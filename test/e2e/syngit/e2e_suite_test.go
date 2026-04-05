@@ -56,7 +56,6 @@ import (
 
 const (
 	timeout  = time.Second * 60
-	duration = time.Second * 10
 	interval = time.Millisecond * 250
 )
 
@@ -222,8 +221,8 @@ func setupManager() {
 	Expect(errWebhook).NotTo(HaveOccurred())
 	errWebhook = webhooksyngitv1beta4.SetupRemoteTargetWebhookWithManager(k8sManager)
 	Expect(errWebhook).NotTo(HaveOccurred())
-	k8sManager.GetWebhookServer().Register("/syngit-v1beta4-remoteuser-association",
-		&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteUserAssociationWebhookHandler{
+	k8sManager.GetWebhookServer().Register("/syngit-v1beta4-remoteuser-managed",
+		&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteUserManagedWebhookHandler{
 			Client:  k8sManager.GetClient(),
 			Decoder: admission.NewDecoder(k8sManager.GetScheme()),
 		}})
@@ -239,11 +238,6 @@ func setupManager() {
 		}})
 	k8sManager.GetWebhookServer().Register("/syngit-v1beta4-remotesyncer-rules-permissions",
 		&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteSyncerWebhookHandler{
-			Client:  k8sManager.GetClient(),
-			Decoder: admission.NewDecoder(k8sManager.GetScheme()),
-		}})
-	k8sManager.GetWebhookServer().Register("/syngit-v1beta4-remotesyncer-target-pattern",
-		&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteSyncerTargetPatternWebhookHandler{
 			Client:  k8sManager.GetClient(),
 			Decoder: admission.NewDecoder(k8sManager.GetScheme()),
 		}})
@@ -265,6 +259,21 @@ func setupManager() {
 	}).SetupWithManager(k8sManager)
 	Expect(errController).ToNot(HaveOccurred())
 	errController = (&controllerssyngit.RemoteTargetReconciler{
+		Client: k8sManager.GetClient(),
+		Scheme: k8sManager.GetScheme(),
+	}).SetupWithManager(k8sManager)
+	Expect(errController).ToNot(HaveOccurred())
+	errController = (&controllerssyngit.AssociationPolicyReconciler{
+		Client: k8sManager.GetClient(),
+		Scheme: k8sManager.GetScheme(),
+	}).SetupWithManager(k8sManager)
+	Expect(errController).ToNot(HaveOccurred())
+	errController = (&controllerssyngit.BranchTargetPolicyReconciler{
+		Client: k8sManager.GetClient(),
+		Scheme: k8sManager.GetScheme(),
+	}).SetupWithManager(k8sManager)
+	Expect(errController).ToNot(HaveOccurred())
+	errController = (&controllerssyngit.UserSpecificPolicyReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 	}).SetupWithManager(k8sManager)

@@ -198,6 +198,33 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err = (&controller.AssociationPolicyReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorder("association-policy-controller"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "AssociationPolicy")
+		os.Exit(1)
+	}
+
+	if err = (&controller.BranchTargetPolicyReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorder("branchtarget-policy-controller"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "BranchTargetPolicy")
+		os.Exit(1)
+	}
+
+	if err = (&controller.UserSpecificPolicyReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorder("userspecific-policy-controller"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "UserSpecificPolicy")
+		os.Exit(1)
+	}
+
 	// nolint:goconst
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
 		if err = webhooksyngitv1beta4.SetupRemoteUserWebhookWithManager(mgr); err != nil {
@@ -216,11 +243,6 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteTarget")
 			os.Exit(1)
 		}
-		mgr.GetWebhookServer().Register("/syngit-v1beta4-remoteuser-association",
-			&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteUserAssociationWebhookHandler{
-				Client:  mgr.GetClient(),
-				Decoder: admission.NewDecoder(mgr.GetScheme()),
-			}})
 		mgr.GetWebhookServer().Register("/syngit-v1beta4-remoteuser-permissions",
 			&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteUserPermissionsWebhookHandler{
 				Client:  mgr.GetClient(),
@@ -236,8 +258,8 @@ func main() {
 				Client:  mgr.GetClient(),
 				Decoder: admission.NewDecoder(mgr.GetScheme()),
 			}})
-		mgr.GetWebhookServer().Register("/syngit-v1beta4-remotesyncer-target-pattern",
-			&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteSyncerTargetPatternWebhookHandler{
+		mgr.GetWebhookServer().Register("/syngit-v1beta4-remoteuser-managed",
+			&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteUserManagedWebhookHandler{
 				Client:  mgr.GetClient(),
 				Decoder: admission.NewDecoder(mgr.GetScheme()),
 			}})

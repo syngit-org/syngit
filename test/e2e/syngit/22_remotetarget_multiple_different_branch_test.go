@@ -113,8 +113,23 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
+		By("waiting for all RemoteTargets to be associated to the RUB")
+		Eventually(func() bool {
+			rubList := &syngit.RemoteUserBindingList{}
+			err := sClient.As(Luffy).List(namespace, rubList)
+			if err != nil {
+				return false
+			}
+			for _, rub := range rubList.Items {
+				if rub.Labels[syngit.ManagedByLabelKey] == syngit.ManagedByLabelValue {
+					// Expect 4 targets: luffy-jbg-sb + branch1 + branch2 + branch3
+					return len(rub.Spec.RemoteTargetRefs) >= 4
+				}
+			}
+			return false
+		}, timeout, interval).Should(BeTrue())
+
 		By("creating a test configmap")
-		Wait3()
 		cm := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "ConfigMap",
@@ -234,8 +249,23 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
+		By("waiting for all RemoteTargets to be associated to the RUB")
+		Eventually(func() bool {
+			rubList := &syngit.RemoteUserBindingList{}
+			err := sClient.As(Luffy).List(namespace, rubList)
+			if err != nil {
+				return false
+			}
+			for _, rub := range rubList.Items {
+				if rub.Labels[syngit.ManagedByLabelKey] == syngit.ManagedByLabelValue {
+					// Expect 4 targets: luffy-jbg-sb + branch1 + branch2 + branch3
+					return len(rub.Spec.RemoteTargetRefs) >= 4
+				}
+			}
+			return false
+		}, timeout, interval).Should(BeTrue())
+
 		By("creating a test configmap")
-		Wait3()
 		cm := &corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "ConfigMap",
@@ -253,7 +283,6 @@ var _ = Describe("22 RemoteTarget multiple different branch", func() {
 		}, timeout, interval).Should(BeTrue())
 
 		By("checking that the configmap is not present on the branches")
-		Wait3()
 		repo := &Repo{
 			Fqdn:   gitP1Fqdn,
 			Owner:  giteaBaseNs,
