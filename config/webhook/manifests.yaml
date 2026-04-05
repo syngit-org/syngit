@@ -1,5 +1,33 @@
 ---
 apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /syngit-v1beta4-remoteuser-managed
+  failurePolicy: Fail
+  name: mremoteusers-managed.v1beta4.syngit.io
+  reinvocationPolicy: Never
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta4
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - remoteusers
+  sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: validating-webhook-configuration
@@ -126,34 +154,6 @@ webhooks:
     resources:
     - remoteuserbindings
   sideEffects: None
----
-apiVersion: admissionregistration.k8s.io/v1
-kind: MutatingWebhookConfiguration
-metadata:
-  name: mutating-webhook-configuration
-webhooks:
-- admissionReviewVersions:
-  - v1
-  clientConfig:
-    service:
-      name: webhook-service
-      namespace: system
-      path: /syngit-v1beta4-remoteuser-managed
-  failurePolicy: Fail
-  name: mremoteusers-managed.v1beta4.syngit.io
-  reinvocationPolicy: Never
-  rules:
-  - apiGroups:
-    - syngit.io
-    apiVersions:
-    - v1beta4
-    operations:
-    - CREATE
-    - UPDATE
-    - DELETE
-    resources:
-    - remoteusers
-  sideEffects: None
 - admissionReviewVersions:
   - v1
   clientConfig:
@@ -162,8 +162,7 @@ webhooks:
       namespace: system
       path: /syngit-v1beta4-remoteuser-permissions
   failurePolicy: Fail
-  name: mremoteusers-permissions.v1beta4.syngit.io
-  reinvocationPolicy: Never
+  name: vremoteusers-permissions.v1beta4.syngit.io
   rules:
   - apiGroups:
     - syngit.io

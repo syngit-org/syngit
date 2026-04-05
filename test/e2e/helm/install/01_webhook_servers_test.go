@@ -42,18 +42,14 @@ var configMapGVR = schema.GroupVersionResource{
 }
 
 var _ = BeforeEach(func() {
-	By("getting the latest chart version")
-	latestVersion, err := utils.GetLatestChartVersion("charts")
-	ExpectWithOffset(2, err).NotTo(HaveOccurred())
-
 	syngitChart = utils.LocalChart{
 		ChartPath: "charts",
 		BaseChart: utils.BaseChart{
 			ValuesPath:       "test/e2e/helm/values.yaml",
-			ChartName:        latestVersion,
+			ChartName:        "syngit",
 			ReleaseName:      "syngit",
 			ReleaseNamespace: "syngit",
-			ChartVersion:     latestVersion,
+			ChartVersion:     "syngit",
 		},
 	}
 

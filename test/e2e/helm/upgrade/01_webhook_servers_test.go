@@ -29,10 +29,13 @@ import (
 )
 
 const (
-	samplePath = "test/e2e/samples"
+	samplePath        = "test/e2e/samples"
+	upstreamRepoURL   = "https://syngit-org.github.io/syngit"
+	upstreamChartName = "syngit"
 )
 
-var syngitChart utils.LocalChart
+var upstreamChart utils.RemoteChart
+var localChart utils.LocalChart
 
 var remoteSyncerGVR schema.GroupVersionResource
 
@@ -43,18 +46,24 @@ var configMapGVR = schema.GroupVersionResource{
 }
 
 var _ = BeforeEach(func() {
-	By("getting the previous chart version for initial install")
-	previousVersion, err := utils.GetPreviousChartVersion("charts")
-	ExpectWithOffset(2, err).NotTo(HaveOccurred())
-
-	syngitChart = utils.LocalChart{
-		ChartPath: "charts",
+	upstreamChart = utils.RemoteChart{
+		RepoURL: upstreamRepoURL,
 		BaseChart: utils.BaseChart{
 			ValuesPath:       "test/e2e/helm/values-upstream.yaml",
-			ChartName:        previousVersion, // Use previous version for initial install
+			ChartName:        upstreamChartName,
 			ReleaseName:      "syngit",
 			ReleaseNamespace: "syngit",
-			ChartVersion:     previousVersion, // Use previous version for initial install
+		},
+	}
+
+	localChart = utils.LocalChart{
+		ChartPath: "charts",
+		BaseChart: utils.BaseChart{
+			ValuesPath:       "test/e2e/helm/values.yaml",
+			ChartName:        "syngit",
+			ReleaseName:      "syngit",
+			ReleaseNamespace: "syngit",
+			ChartVersion:     "syngit",
 		},
 	}
 
@@ -73,10 +82,10 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 
 	It("should run successfully", func() {
 
-		By("installing the syngit chart")
-		actionConfig, settings, err := utils.NewDefaultHelmActionConfig(syngitChart)
+		By("installing the upstream syngit chart")
+		actionConfig, settings, err := utils.NewDefaultHelmActionConfig(upstreamChart)
 		ExpectWithOffset(2, err).NotTo(HaveOccurred())
-		err = utils.InstallChart(syngitChart, actionConfig, settings)
+		err = utils.InstallChart(upstreamChart, actionConfig, settings)
 		ExpectWithOffset(2, err).NotTo(HaveOccurred())
 		Wait15()
 
@@ -105,16 +114,8 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 
 		Wait5()
 
-		By("upgrading to the latest chart version")
-		latestVersion, err := utils.GetLatestChartVersion("charts")
-		ExpectWithOffset(2, err).NotTo(HaveOccurred())
-
-		// Update chart version before upgrade
-		syngitChart.ChartName = latestVersion
-		syngitChart.ChartVersion = latestVersion
-		syngitChart.ValuesPath = "test/e2e/helm/values.yaml"
-
-		err = utils.UpgradeChart(syngitChart, actionConfig, settings)
+		By("upgrading to the local chart version")
+		err = utils.UpgradeChart(localChart, actionConfig, settings)
 		ExpectWithOffset(2, err).NotTo(HaveOccurred())
 
 		By("creating a ConfigMap")
@@ -149,10 +150,10 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 var _ = AfterEach(func() {
 
 	By("uninstalling the syngit chart")
-	actionConfig, settings, err := utils.NewDefaultHelmActionConfig(syngitChart)
+	actionConfig, settings, err := utils.NewDefaultHelmActionConfig(localChart)
 	ExpectWithOffset(2, err).NotTo(HaveOccurred())
 	// Ignore uninstall errors: Helm v4 WaitForDelete may time out if the
 	// controller recreates cluster-scoped resources during teardown.
 	// AfterSuite handles full cleanup by deleting the namespace.
-	_ = utils.UninstallChart(syngitChart, actionConfig, settings)
+	_ = utils.UninstallChart(localChart, actionConfig, settings)
 })

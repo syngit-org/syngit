@@ -1,8 +1,0 @@
-{{- if eq .Values.configuration.github true }}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: github.com
-data:
-  authenticationEndpoint: https://api.github.com/user
-{{- end }}

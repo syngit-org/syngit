@@ -1,8 +1,0 @@
-{{- if eq .Values.configuration.gitlab true }}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: gitlab.com
-data:
-  authenticationEndpoint: https://gitlab.com/api/v4/user
-{{- end }}
