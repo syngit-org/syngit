@@ -117,7 +117,7 @@ type GitPushParameters struct {
 	// modification should be pushed associated to
 	// the information of the kubernetes user that
 	// has applied or delete the intercepted object.
-	UserInfoRemoteTargets map[GitUserInfo][]syngit.RemoteTarget
+	UserInfoRemoteTargets map[syngit.GitUserInfo][]syngit.RemoteTarget
 
 	// The RemoteSyncer that has intercetped the object.
 	RemoteSyncer syngit.RemoteSyncer
@@ -141,19 +141,17 @@ func RunGitPushPipeline(params GitPushParameters) ([]pusher.GitPushResponse, err
 
 	for userInfo, remoteTargets := range params.UserInfoRemoteTargets {
 		for _, remoteTarget := range remoteTargets {
-			gitPusher := &pusher.GitPusher{
+			params := &syngit.GitPipelineParams{
 				RemoteSyncer:    *params.RemoteSyncer.DeepCopy(),
 				RemoteTarget:    *remoteTarget.DeepCopy(),
 				InterceptedYAML: params.YAMLManifest,
 				InterceptedGVR:  params.ObjectMetadata.GVR,
 				InterceptedName: params.ObjectMetadata.Name,
-				GitUser:         userInfo.user,
-				GitEmail:        userInfo.email,
-				GitToken:        userInfo.token,
+				GitUserInfo:     userInfo,
 				Operation:       params.Operation,
 				CABundle:        params.CABundle,
 			}
-			res, err := gitPusher.Push()
+			res, err := pusher.RunGitPipeline(*params)
 			if err != nil {
 				return nil, err
 			}

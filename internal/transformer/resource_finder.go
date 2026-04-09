@@ -1,4 +1,4 @@
-package pusher
+package transformer
 
 import (
 	"bytes"
@@ -7,48 +7,43 @@ import (
 	"path/filepath"
 	"strings"
 
-	git "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	yaml "k8s.io/apimachinery/pkg/util/yaml"
 )
 
 type ResourceFinder struct {
-	SearchedGVK       schema.GroupVersionResource
-	SearchedName      string
-	SearchedNamespace string
-	Content           string
-	paths             []string
+	searchedGVK       schema.GroupVersionResource
+	searchedName      string
+	searchedNamespace string
+	content           string
 }
 
-type ResourceFinderResults struct {
-	Found bool
-	Paths []string
-}
+func (rf ResourceFinder) Transform(params syngit.GitPipelineParams, worktree *git.Worktree) (*git.Worktree, syngit.ModifiedPaths, error) {
+	rf.searchedGVK = params.InterceptedGVR
+	rf.searchedName = params.InterceptedName
+	rf.searchedNamespace = params.RemoteSyncer.Namespace
+	rf.content = params.InterceptedYAML
 
-func (rf *ResourceFinder) BuildWorktree(wt *git.Worktree) (ResourceFinderResults, error) {
-	rfr := ResourceFinderResults{Found: false, Paths: []string{}}
-	rf.paths = []string{}
+	if params.RemoteSyncer.Spec.ResourceFinder {
+		modifiedPaths, err := rf.getPathsContent(worktree, worktree.Filesystem.Root())
+		if err != nil {
+			return worktree, modifiedPaths, err
+		}
 
-	err := rf.getPathsContent(wt, wt.Filesystem.Root())
-	if err != nil {
-		return rfr, err
+		return worktree, modifiedPaths, nil
 	}
-
-	if len(rf.paths) > 0 {
-		rfr.Found = true
-		rfr.Paths = rf.paths
-	}
-
-	return rfr, nil
+	return nil, syngit.NewModifiedPaths(), nil
 }
 
-func (rf *ResourceFinder) getPathsContent(wt *git.Worktree, basePath string) error {
+func (rf ResourceFinder) getPathsContent(worktree *git.Worktree, basePath string) (syngit.ModifiedPaths, error) {
+	modifiedPaths := syngit.NewModifiedPaths()
 
-	files, err := wt.Filesystem.ReadDir(basePath)
+	files, err := worktree.Filesystem.ReadDir(basePath)
 	if err != nil {
-		return fmt.Errorf("failed to read directory %s: %w", basePath, err)
+		return syngit.NewModifiedPaths(), fmt.Errorf("failed to read directory %s: %w", basePath, err)
 	}
 
 	var path string
@@ -63,55 +58,42 @@ func (rf *ResourceFinder) getPathsContent(wt *git.Worktree, basePath string) err
 		}
 
 		if f.IsDir() {
-			err = rf.getPathsContent(wt, path)
+			paths, err := rf.getPathsContent(worktree, path)
 			if err != nil {
-				return err
+				return syngit.NewModifiedPaths(), err
 			}
+			modifiedPaths.AppendModifiedPaths(paths)
 		} else {
 			if strings.HasSuffix(currentFileName, ".yaml") || strings.HasSuffix(currentFileName, ".yml") {
 
-				err = rf.checkInsertResource(wt, path)
+				paths, err := rf.checkInsertResource(worktree, path)
 				if err != nil {
-					return err
+					return syngit.NewModifiedPaths(), err
 				}
-
+				modifiedPaths.AppendModifiedPaths(paths)
 			}
 		}
-
 	}
 
-	return nil
+	return modifiedPaths, nil
 }
 
-type TypeMeta struct {
-	APIVersion string `yaml:"apiVersion"`
-	Kind       string `yaml:"kind"`
-}
+func (rf ResourceFinder) checkInsertResource(wt *git.Worktree, path string) (syngit.ModifiedPaths, error) {
+	modifiedPaths := syngit.NewModifiedPaths()
 
-type ObjectMeta struct {
-	Name      string `yaml:"name"`
-	Namespace string `yaml:"namespace"`
-}
-
-type GenericK8sObject struct {
-	TypeMeta   `yaml:",inline"`
-	ObjectMeta `yaml:"metadata"`
-}
-
-func (rf *ResourceFinder) checkInsertResource(wt *git.Worktree, path string) error {
 	f, err := wt.Filesystem.Open(path)
 	if err != nil {
-		return fmt.Errorf("failed to open the %s file in the worktree: %w", path, err)
+		return modifiedPaths, fmt.Errorf("failed to open the %s file in the worktree: %w", path, err)
 	}
 
 	content, err := io.ReadAll(f)
 	if err != nil {
-		return fmt.Errorf("failed to read the %s file in the worktree: %w", path, err)
+		return modifiedPaths, fmt.Errorf("failed to read the %s file in the worktree: %w", path, err)
 	}
 
 	err = f.Close()
 	if err != nil {
-		return fmt.Errorf("failed to close the %s file in the worktree: %w", path, err)
+		return modifiedPaths, fmt.Errorf("failed to close the %s file in the worktree: %w", path, err)
 	}
 
 	out := rf.replaceResourceIfFound(content)
@@ -122,17 +104,17 @@ func (rf *ResourceFinder) checkInsertResource(wt *git.Worktree, path string) err
 		if len(out) > 0 {
 			file, err := wt.Filesystem.Create(path)
 			if err != nil {
-				return fmt.Errorf("failed to create the %s file in the worktree: %w", path, err)
+				return modifiedPaths, fmt.Errorf("failed to create the %s file in the worktree: %w", path, err)
 			}
 
 			_, err = file.Write(out)
 			if err != nil {
 				_ = file.Close()
-				return fmt.Errorf("failed to write the %s file in the worktree: %w", path, err)
+				return modifiedPaths, fmt.Errorf("failed to write the %s file in the worktree: %w", path, err)
 			}
 			err = file.Close()
 			if err != nil {
-				return fmt.Errorf("failed to close the %s file in the worktree: %w", path, err)
+				return modifiedPaths, fmt.Errorf("failed to close the %s file in the worktree: %w", path, err)
 			}
 		}
 
@@ -141,16 +123,17 @@ func (rf *ResourceFinder) checkInsertResource(wt *git.Worktree, path string) err
 		if after, ok := strings.CutPrefix(cleanPath, "/"); ok {
 			cleanPath = after
 		}
-		rf.paths = append(rf.paths, cleanPath)
+
+		modifiedPaths.AppendAddedPath(cleanPath)
 	}
 
-	return nil
+	return modifiedPaths, nil
 }
 
-func (rf *ResourceFinder) replaceResourceIfFound(content []byte) []byte {
-	targetGVK := fmt.Sprintf("%s/%s", rf.SearchedGVK.Group, rf.SearchedGVK.Version)
-	if rf.SearchedGVK.Group == "" {
-		targetGVK = rf.SearchedGVK.Version
+func (rf ResourceFinder) replaceResourceIfFound(content []byte) []byte {
+	targetGVK := fmt.Sprintf("%s/%s", rf.searchedGVK.Group, rf.searchedGVK.Version)
+	if rf.searchedGVK.Group == "" {
+		targetGVK = rf.searchedGVK.Version
 	}
 
 	// Split content into raw document strings, preserving original formatting
@@ -224,18 +207,18 @@ func (rf *ResourceFinder) replaceResourceIfFound(content []byte) []byte {
 		// Convert Kind (singular) to Resource (plural) for comparison
 		gvk := schema.GroupVersionKind{
 			Group:   doc.apiVersion,
-			Version: rf.SearchedGVK.Version,
+			Version: rf.searchedGVK.Version,
 			Kind:    doc.kind,
 		}
 		resourceFromKind, _ := meta.UnsafeGuessKindToResource(gvk)
 
 		if doc.apiVersion == targetGVK &&
-			resourceFromKind.Resource == rf.SearchedGVK.Resource &&
-			doc.name == rf.SearchedName &&
-			(rf.SearchedNamespace == "" || doc.namespace == rf.SearchedNamespace) {
+			resourceFromKind.Resource == rf.searchedGVK.Resource &&
+			doc.name == rf.searchedName &&
+			(rf.searchedNamespace == "" || doc.namespace == rf.searchedNamespace) {
 			documentFound = true
 			// Replace only the matched document
-			docs[i].rawBytes = []byte(rf.Content)
+			docs[i].rawBytes = []byte(rf.content)
 			break
 		}
 	}

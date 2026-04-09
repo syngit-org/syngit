@@ -15,12 +15,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type GitUserInfo struct {
-	user  string
-	email string
-	token string
-}
-
 // Find the RemoteTargets associated to the user.
 // If no RemoteTargets found, then fallback to the
 // RemoteSyncer's default RemoteTarget.
@@ -31,9 +25,9 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 	user authenticationv1.UserInfo,
 	remoteSyncerRemoteRepoUrl *url.URL,
 	remoteSyncer syngit.RemoteSyncer,
-) (map[GitUserInfo][]syngit.RemoteTarget, error) {
+) (map[syngit.GitUserInfo][]syngit.RemoteTarget, error) {
 	// Set empty map of GitUserInfo/RemoteTargets
-	userTargetsMap := map[GitUserInfo][]syngit.RemoteTarget{}
+	userTargetsMap := map[syngit.GitUserInfo][]syngit.RemoteTarget{}
 
 	remoteUserBinding, err := GetRemoteUserBindingByUsername(
 		ctx,
@@ -253,12 +247,12 @@ func GetGitUserInfoByRemoteUserBinding(
 	remoteSyncer syngit.RemoteSyncer,
 	rub syngit.RemoteUserBinding,
 	fqdn string,
-) (*GitUserInfo, error) {
+) (*syngit.GitUserInfo, error) {
 	remoteUserCount := 0
 
 	k8sClient := K8sClientFromContext(ctx)
 
-	var gitUser *GitUserInfo
+	var gitUser *syngit.GitUserInfo
 
 	namespace := remoteSyncer.Namespace
 	for _, ref := range rub.Spec.RemoteUserRefs {
@@ -297,7 +291,7 @@ func GetGitUserInfoByRemoteUser(
 	ctx context.Context,
 	remoteUser syngit.RemoteUser,
 	namespace string,
-) (*GitUserInfo, error) {
+) (*syngit.GitUserInfo, error) {
 	k8sClient := K8sClientFromContext(ctx)
 
 	secretNamespacedName := &types.NamespacedName{
@@ -317,10 +311,10 @@ func GetGitUserInfoByRemoteUser(
 
 	token := string(secret.Data["password"])
 
-	gitUser := &GitUserInfo{
-		user:  string(secret.Data["username"]),
-		email: remoteUser.Spec.Email,
-		token: token,
+	gitUser := &syngit.GitUserInfo{
+		User:  string(secret.Data["username"]),
+		Email: remoteUser.Spec.Email,
+		Token: token,
 	}
 
 	if token == "" {
