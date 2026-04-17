@@ -131,3 +131,7 @@ spec:
 
 	return fmt.Errorf("cert-manager webhook did not become ready within 120s")
 }
+
+func warnError(err error) {
+	fmt.Fprintf(GinkgoWriter, "warning: %v\n", err) //nolint
+}

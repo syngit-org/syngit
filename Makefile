@@ -4,7 +4,7 @@ IMG ?= local/syngit-controller:dev
 DEV_CLUSTER ?= syngit-dev-cluster
 KIND_KUBECONFIG_PATH ?= /tmp/syngit-dev-cluster-kubeconfig
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.34.1
+ENVTEST_K8S_VERSION = 1.35.0
 CRD_OPTIONS ?= "crd"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -118,10 +118,10 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-##@ Test
+##@ Tests
 
 .PHONY: test
-test: test-controller test-build-deploy test-behavior test-chart-install test-chart-upgrade ## Run all the tests.
+test: test-controller test-build-deploy test-e2e test-chart-install test-chart-upgrade ## Run all the tests.
 
 .PHONY: test-controller
 test-controller: manifests generate fmt vet envtest setup-webhooks-for-run ## Run tests embeded in the controller package & webhook package.
@@ -137,21 +137,25 @@ DEPREACTED_API_VERSIONS = $(shell go list ./... | grep -oP 'v\d+\w+\d+' | sort -
 # COVERPKG is a list of packages to be covered by the tests (internal/, pkg/ & cmd/).
 COVERPKG = $(shell go list ./... | grep -v 'test' | grep -v -E "$(DEPREACTED_API_VERSIONS)" | paste -sd "," -)
 
-.PHONY: test-behavior
-test-behavior: ginkgo cleanup-tests ## Install the test env (gitea). Run the behavior tests against a Kind k8s instance that is spun up. Cleanup when finished.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" $(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt ./test/e2e/syngit
+.PHONY: e2e
+e2e: ginkgo envtest ## Run every spec in test/e2e/syngit/tests. Writes coverage.txt.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt ./test/e2e/syngit/tests
 
-.PHONY: fast-behavior
-fast-behavior: ginkgo ## Install the test env if not already installed. Run the behavior tests against a Kind k8s instance that is spun up. Does not cleanup when finished (meant to be run often).
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" $(GINKGO) -timeout 25m -v -ginkgo.v -cover -coverpkg=$(COVERPKG) -setup fast ./test/e2e/syngit
+.PHONY: e2e-focus
+e2e-focus: ginkgo envtest ## Run only the specs matching FOCUS='regex'. Example: make e2e-focus FOCUS='02 CommitOnly'
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt --focus='$(FOCUS)' ./test/e2e/syngit/tests
 
-.PHONY: test-selected
-test-selected: ## Install the test env if not already installed. Run only one selected test against a Kind k8s instance that is spun up. Does not cleanup when finished (meant to be run often).
-	@bash -c ' \
-		TEST_NUMBER=$(TEST_NUMBER) ./hack/tests/run_one_test.sh $(TEST_NUMBER); \
-		trap "./hack/tests/reset_test.sh" EXIT; \
-		KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./test/e2e/syngit -v -ginkgo.v -cover -coverpkg=$(COVERPKG) -setup fast; \
-	'
+.PHONY: e2e-file
+e2e-file: ginkgo envtest ## Run only the specs in a single file. Example: make e2e-file FILE=02_commitonly_cm
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt --focus-file='$(FILE)' ./test/e2e/syngit/tests
+
+.PHONY: e2e-debug
+e2e-debug: ginkgo envtest ## Like e2e-focus but fail-fast with a full stack trace on failure.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt --fail-fast --trace --focus='$(FOCUS)' ./test/e2e/syngit/tests
 
 .PHONY: cleanup-tests
 cleanup-tests: ## Uninstall all the charts needed for the tests.
@@ -337,24 +341,6 @@ kind-delete-cluster: ## Delete the dev KinD cluster.
 .PHONY: kind-load-image
 kind-load-image: ## Load the image in KinD.
 	kind load docker-image ${IMG} --name ${DEV_CLUSTER}
-
-##@ e2e Custom deployments
-
-.PHONY: setup-gitea
-setup-gitea: ## Setup the 2 gitea platforms in the cluster
-	./test/utils/gitea/launch-gitea-setup.sh
-
-.PHONY: reset-gitea
-reset-gitea: ## Setup the 2 gitea platforms in the cluster
-	./test/utils/gitea/reset-gitea-repos.sh
-
-.PHONY: cleanup-gitea
-cleanup-gitea: ## Cleanup the 2 gitea platforms from the cluster.
-	rm -rf /tmp/gitea-certs
-	helm uninstall gitea -n jupyter
-	kubectl delete ns jupyter
-	helm uninstall gitea -n saturn
-	kubectl delete ns saturn
 
 ##@ Dependencies
 
