@@ -32,7 +32,8 @@ import (
 )
 
 const (
-	testNamespace = "test"
+	controllerNamespace = "syngit"
+	testNamespace       = "test"
 )
 
 var k8sClient *kubernetes.Clientset
@@ -50,13 +51,22 @@ var _ = BeforeSuite(func() {
 	k8sClient, err = utils.GetKubernetesClient()
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
+	By("creating controller namespace")
+	controllerNS := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: controllerNamespace,
+		},
+	}
+	_, err = k8sClient.CoreV1().Namespaces().Create(context.Background(), controllerNS, metav1.CreateOptions{})
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+
 	By("creating test namespace")
-	ns := &corev1.Namespace{
+	testNS := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: testNamespace,
 		},
 	}
-	_, err = k8sClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
+	_, err = k8sClient.CoreV1().Namespaces().Create(context.Background(), testNS, metav1.CreateOptions{})
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	By("installing prometheus operator")

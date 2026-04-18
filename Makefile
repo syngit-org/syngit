@@ -35,14 +35,11 @@ DEV_LOCAL_PATH ?= config/local
 # DYNAMIC_WEBHOOK_NAME is the name of the webhook that handle the interception logic of RemoteSyncers
 DYNAMIC_WEBHOOK_NAME ?= syngit-dynamic-remotesyncer-webhook
 
-KIND_CLUSTER_EXISTS ?= $(shell kind get clusters -q | grep ${DEV_CLUSTER} | wc -l)
-ifeq ($(KIND_CLUSTER_EXISTS), 0)
-$(shell kind create cluster --name ${DEV_CLUSTER})
-KIND_CLUSTER_EXISTS ?= 1
-endif
-
-$(shell kind export kubeconfig --kubeconfig ${KIND_KUBECONFIG_PATH} --name ${DEV_CLUSTER})
 export KUBECONFIG=${KIND_KUBECONFIG_PATH}
+
+ifndef ignore-not-found
+  ignore-not-found = true
+endif
 
 .PHONY: all
 all: build
@@ -62,12 +59,12 @@ all: build
 
 .PHONY: help
 help: ## Display this help.
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nAll the tests are running in an auto-generated kind cluster: '${DEV_CLUSTER}'.\n\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 .PHONY: pre-commit-check
-pre-commit-check: cleanup-tests manifests generate test lint ## Run all the tests and linters.
+pre-commit-check: manifests generate test test-build-deploy test-chart-install test-chart-upgrade kind-delete-cluster lint ## Run all the tests and linters.
 
-##@ Dev environment
+##@ Run controller in the shell
 
 # LOCALHOST_BRIDGE is a IP:PORT combination. The static & dynamic webhooks will be served on this host.
 LOCALHOST_BRIDGE ?= $(shell docker network inspect bridge --format='{{(index .IPAM.Config 0).Gateway}}') # 172.17.0.1 is the default docker0 bridge IP.for linux user
@@ -79,26 +76,49 @@ TEMP_CERT_DIR ?= "/tmp/k8s-webhook-server/serving-certs"
 DEV_WEBHOOK_CERT ?= $(TEMP_CERT_DIR)/tls.crt
 
 .PHONY: run-fast
-run-fast: manifests generate fmt vet ## Run a controller from your host. Install CRDs & webhooks if does not exists. No resources are deleted when killed (meant to be run often).
+run-fast: kind-create-cluster manifests generate fmt vet ## Run a controller from your host. Install CRDs & webhooks if does not exists. No resources are deleted when killed (meant to be run often).
 	@if ! kubectl get crd remoteusers.syngit.io &> /dev/null; then \
 		make install-crds && make setup-webhooks-for-run; \
 	fi
 	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(LOCALHOST_BRIDGE) DEV_WEBHOOK_PORT=9443 DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && go run cmd/main.go --feature-gates=ResourceFinder=true
 
 .PHONY: run
-run: manifests generate fmt vet install-crds setup-webhooks-for-run ## Install CRDs, webhooks & run a controller from your host. All resources are deleted when killed.
+run: kind-create-cluster manifests generate fmt vet install-crds setup-webhooks-for-run ## Install CRDs, webhooks & run a controller from your host. All resources are deleted when killed.
 	@if ! kubectl get crd remoteusers.syngit.io &> /dev/null; then \
 		make install-crds && make setup-webhooks-for-run; \
 	fi
 	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(LOCALHOST_BRIDGE) DEV_WEBHOOK_PORT=9443 DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && \
 	{ \
-		trap 'echo "Cleanup resources"; make cleanup-run; exit' SIGINT; \
+		trap 'echo "Cleanup resources"; make run-reset; exit' SIGINT; \
 		go run cmd/main.go --feature-gates=ResourceFinder=true; \
 	}
 
-.PHONY: cleanup-run
-cleanup-run: uninstall-crds cleanup-webhooks-for-run ## Cleanup the resources created by run-fast.
-	kubectl delete validatingwebhookconfigurations.admissionregistration.k8s.io $(DYNAMIC_WEBHOOK_NAME) --ignore-not-found=$(ignore-not-found)
+.PHONY: run-reset
+run-reset: cleanup-webhooks-for-run uninstall-crds ## Uninstall CRDs, reset webhook injection and remove webhooks.
+	$(KUBECTL) delete validatingwebhookconfigurations.admissionregistration.k8s.io $(DYNAMIC_WEBHOOK_NAME) --ignore-not-found=$(ignore-not-found)
+
+##@ Deploy controller in the cluster
+
+.PHONY: install-crds
+install-crds: kind-create-cluster manifests kustomize ## Install CRDs.
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
+
+.PHONY: uninstall-crds
+uninstall-crds: manifests kustomize ## Uninstall CRDs.
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+
+.PHONY: deploy
+deploy: kind-create-cluster manifests kustomize ## Deploy the syngit pod.
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+	make setup-webhooks-for-deploy
+
+.PHONY: undeploy
+undeploy: kustomize cleanup-webhooks-for-deploy ## Undeploy the syngit pod.
+	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+
+.PHONY: deploy-all
+deploy-all: kind-create-cluster docker-build kind-load-image deploy # Create the dev cluster, build the image, load it in the cluster and deploy syngit.
 
 ##@ Development
 
@@ -118,63 +138,6 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-##@ Tests
-
-.PHONY: test
-test: test-controller test-build-deploy test-e2e test-chart-install test-chart-upgrade ## Run all the tests.
-
-.PHONY: test-controller
-test-controller: manifests generate fmt vet envtest setup-webhooks-for-run ## Run tests embeded in the controller package & webhook package.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e | grep -v /v1alpha | grep -v /v1beta1) -coverprofile cover.out ||	make cleanup-tests
-	make cleanup-tests
-
-.PHONY: test-build-deploy
-test-build-deploy: ## Run tests to build the Docker image and deploy all the manifests.
-	go test ./test/e2e/build -v -ginkgo.v
-
-# DEPRECATED_API_VERSIONS is a list of API versions that should not be tested since they are supposed to be converted to the last one.
-DEPREACTED_API_VERSIONS = $(shell go list ./... | grep -oP 'v\d+\w+\d+' | sort -uV | awk 'NR == 1 {latest = $$0} NR > 1 {print prev} {prev = $$0}' | grep -v '^$$' | paste -sd "|" -)
-# COVERPKG is a list of packages to be covered by the tests (internal/, pkg/ & cmd/).
-COVERPKG = $(shell go list ./... | grep -v 'test' | grep -v -E "$(DEPREACTED_API_VERSIONS)" | paste -sd "," -)
-
-.PHONY: e2e
-e2e: ginkgo envtest ## Run every spec in test/e2e/syngit/tests. Writes coverage.txt.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt ./test/e2e/syngit/tests
-
-.PHONY: e2e-focus
-e2e-focus: ginkgo envtest ## Run only the specs matching FOCUS='regex'. Example: make e2e-focus FOCUS='02 CommitOnly'
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt --focus='$(FOCUS)' ./test/e2e/syngit/tests
-
-.PHONY: e2e-file
-e2e-file: ginkgo envtest ## Run only the specs in a single file. Example: make e2e-file FILE=02_commitonly_cm
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt --focus-file='$(FILE)' ./test/e2e/syngit/tests
-
-.PHONY: e2e-debug
-e2e-debug: ginkgo envtest ## Like e2e-focus but fail-fast with a full stack trace on failure.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt --fail-fast --trace --focus='$(FOCUS)' ./test/e2e/syngit/tests
-
-.PHONY: cleanup-tests
-cleanup-tests: ## Uninstall all the charts needed for the tests.
-	helm uninstall -n syngit syngit --ignore-not-found=$(ignore-not-found)
-	helm uninstall -n saturn gitea --ignore-not-found=$(ignore-not-found)
-	helm uninstall -n jupyter gitea --ignore-not-found=$(ignore-not-found)
-	./hack/webhooks/cleanup-injector.sh $(TEMP_CERT_DIR)
-	./hack/tests/reset_test.sh
-
-.PHONY: test-chart-install
-test-chart-install: ## Run tests to install the chart.
-	kubectl delete ns test --ignore-not-found=$(ignore-not-found)
-	go test ./test/e2e/helm/install -v -ginkgo.v
-
-.PHONY: test-chart-upgrade
-test-chart-upgrade: ## Run tests to upgrade the chart.
-	kubectl delete ns test --ignore-not-found=$(ignore-not-found)
-	go test ./test/e2e/helm/upgrade -v -ginkgo.v
-
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter & yamllint
 	$(GOLANGCI_LINT) run
@@ -182,6 +145,59 @@ lint: golangci-lint ## Run golangci-lint linter & yamllint
 .PHONY: lint-fix
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 	$(GOLANGCI_LINT) run --fix
+
+##@ Tests
+
+.PHONY: test
+test: kind-delete-cluster test-controller test-e2e kind-delete-cluster ## Run all the tests.
+
+.PHONY: test-controller
+test-controller: manifests generate fmt vet envtest kind-create-cluster setup-webhooks-for-run ## Run tests embeded in the controller package & webhook package.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e | grep -v /v1alpha | grep -v /v1beta1) -coverprofile cover.out
+	make cleanup-webhooks-for-run
+
+.PHONY: test-build-deploy
+test-build-deploy: kind-create-cluster ## Run tests to build the Docker image and deploy all the manifests.
+	go test ./test/e2e/build -v -ginkgo.v
+
+# DEPRECATED_API_VERSIONS is a list of API versions that should not be tested since they are supposed to be converted to the last one.
+DEPREACTED_API_VERSIONS = $(shell go list ./... | grep -oP 'v\d+\w+\d+' | sort -uV | awk 'NR == 1 {latest = $$0} NR > 1 {print prev} {prev = $$0}' | grep -v '^$$' | paste -sd "|" -)
+# COVERPKG is a list of packages to be covered by the tests (internal/, pkg/ & cmd/).
+COVERPKG = $(shell go list ./... | grep -v 'test' | grep -v -E "$(DEPREACTED_API_VERSIONS)" | paste -sd "," -)
+
+.PHONY: test-e2e
+test-e2e: ginkgo envtest ## Run every spec in test/e2e/syngit/tests. Writes coverage.txt.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt ./test/e2e/syngit/tests
+
+.PHONY: test-e2e-focus
+test-e2e-focus: ginkgo envtest ## Run only the specs matching FOCUS='regex'. Example: make test-e2e-focus FOCUS='02 CommitOnly'
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt --focus='$(FOCUS)' ./test/e2e/syngit/tests
+
+.PHONY: test-e2e-file
+test-e2e-file: ginkgo envtest ## Run only the specs in a single file. Example: make test-e2e-file FILE=02_commitonly_cm
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt --focus-file='$(FILE)' ./test/e2e/syngit/tests
+
+.PHONY: test-e2e-debug
+test-e2e-debug: ginkgo envtest ## Like e2e-focus but fail-fast with a full stack trace on failure.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
+		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt --fail-fast --trace --focus='$(FOCUS)' ./test/e2e/syngit/tests
+
+.PHONY: test-chart-install
+test-chart-install: ## Run tests to install the chart.
+	make kind-delete-cluster
+	make kind-create-cluster
+	go test ./test/e2e/helm/install -v -ginkgo.v
+	helm uninstall -n syngit syngit --ignore-not-found=$(ignore-not-found)
+
+.PHONY: test-chart-upgrade
+test-chart-upgrade: kind-delete-cluster kind-create-cluster ## Run tests to upgrade the chart.
+	make kind-delete-cluster
+	make kind-create-cluster
+	go test ./test/e2e/helm/upgrade -v -ginkgo.v
+	helm uninstall -n syngit syngit --ignore-not-found=$(ignore-not-found)
 
 ##@ Build
 
@@ -195,10 +211,6 @@ build: manifests generate fmt vet ## Build manager binary.
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
 	$(CONTAINER_TOOL) build -t ${IMG} .
-
-.PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	$(CONTAINER_TOOL) push ${IMG}
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
@@ -217,8 +229,8 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 	- $(CONTAINER_TOOL) buildx rm project-v3-builder
 	rm Dockerfile.cross
 
-.PHONY: build-installer
-build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
+.PHONY: generate-dist-manifests
+generate-dist-manifests: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
 	@if [ -d "config/crd" ]; then \
 		$(KUSTOMIZE) build config/crd > dist/install.yaml; \
@@ -227,34 +239,7 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default >> dist/install.yaml
 
-##@ Deployment
-
-ifndef ignore-not-found
-  ignore-not-found = true
-endif
-
-.PHONY: install-crds
-install-crds: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
-
-.PHONY: uninstall-crds
-uninstall-crds: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
-
-.PHONY: deploy
-deploy: manifests kustomize ## Deploy syngit to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
-	make setup-webhooks-for-deploy
-
-.PHONY: undeploy
-undeploy: kustomize cleanup-webhooks-for-deploy ## Undeploy syngit from the K8s cluster specified in ~/.kube/config. Can be use after deploy or deploy-all.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
-
-.PHONY: deploy-all
-deploy-all: kind-create-cluster docker-build kind-load-image cleanup-tests deploy # Create the dev cluster, build the image, load it in the cluster and deploy syngit.
-
-##@ Webhook injection
+##@ Webhook injection (not meant to be used by the user)
 
 .PHONY: setup-webhooks-for-run
 setup-webhooks-for-run: manifests kustomize ## Setup webhooks using auto-generated certs & docker bridge host (make run).
@@ -264,7 +249,7 @@ setup-webhooks-for-run: manifests kustomize ## Setup webhooks using auto-generat
 
 .PHONY: cleanup-webhooks-for-run
 cleanup-webhooks-for-run: manifests kustomize ## Cleanup webhooks using auto-generated certs & docker bridge host (make run).
-	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/run | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/run | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f - || true
 	./hack/webhooks/cleanup-injector.sh $(TEMP_CERT_DIR) || true
 
 .PHONY: setup-webhooks-for-deploy
@@ -275,30 +260,30 @@ setup-webhooks-for-deploy: manifests kustomize ## Setup webhooks using auto-gene
 
 .PHONY: cleanup-webhooks-for-deploy
 cleanup-webhooks-for-deploy: manifests kustomize ## Cleanup webhooks using auto-generated certs (make deploy).
-	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/deploy | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/deploy | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f - || true
 	./hack/webhooks/cleanup-injector.sh $(TEMP_CERT_DIR) || true
 	mv $(DEV_LOCAL_PATH)/deploy/webhook/secret.yaml.bak $(DEV_LOCAL_PATH)/deploy/webhook/secret.yaml || true
 
-.PHONY: force-cleanup
-force-cleanup: ## Force cleanup of the resources (for dev purpose)
-	$(KUBECTL) delete crd remotesyncers.syngit.io --ignore-not-found=$(ignore-not-found)
-	$(KUBECTL) delete crd remoteusers.syngit.io --ignore-not-found=$(ignore-not-found)
-	$(KUBECTL) delete crd remoteuserbindings.syngit.io --ignore-not-found=$(ignore-not-found)
-	$(KUBECTL) delete validatingwebhookconfigurations.admissionregistration.k8s.io $(DYNAMIC_WEBHOOK_NAME) --ignore-not-found=$(ignore-not-found)
+.PHONY: cleanup-force
+cleanup-force: ## Force cleanup of the resources (for dev purpose)
+	$(KUBECTL) delete crd remotesyncers.syngit.io --ignore-not-found=$(ignore-not-found) || true
+	$(KUBECTL) delete crd remoteusers.syngit.io --ignore-not-found=$(ignore-not-found) || true
+	$(KUBECTL) delete crd remoteuserbindings.syngit.io --ignore-not-found=$(ignore-not-found) || true
+	$(KUBECTL) delete validatingwebhookconfigurations.admissionregistration.k8s.io $(DYNAMIC_WEBHOOK_NAME) --ignore-not-found=$(ignore-not-found) || true
 	./hack/webhooks/cleanup-injector.sh $(TEMP_CERT_DIR) || true
 
 ##@ KinD & Helm
 
-# BEFORE_LATEST_CHART is the chart version before the latest one listed in the charts/ folder.
-BEFORE_LATEST_CHART ?= $(shell ls -v charts | tail -3 | head -1)
 # LATEST_CHART is the latest chart version listed in the charts/ folder.
 LATEST_CHART ?= $(shell find charts -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -V | tail -n 1)
-# CERT_MANAGER_CHART_VERSION is the cert-manager chart version defined in the latest chart listed in the charts/ folder.
-CERT_MANAGER_CHART_VERSION ?= $(shell helm dependency update charts/$(LATEST_CHART) &> /dev/null && sleep 1 && grep -A 2 'name: cert-manager' "charts/${LATEST_CHART}/Chart.lock" | grep 'version:' | sed -E 's/.*version:\s*(v[0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+
+CERT_MANAGER_CHART_VERSION ?= v1.20.2
 
 .PHONY: chart-install
-chart-install: ## Install the latest chart version listed in the charts/ folder with 3 replicas.
+chart-install: kind-create-cluster docker-build kind-load-image ## Install the latest chart version listed in the charts/ folder with 3 replicas.
 	kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_CHART_VERSION)/cert-manager.crds.yaml"
+	kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_CHART_VERSION)/cert-manager.yaml"
+	sleep 30
 	helm install syngit charts/$(LATEST_CHART) -n syngit --create-namespace \
 		--set controller.image.prefix=local \
 		--set controller.image.name=syngit-controller \
@@ -306,8 +291,10 @@ chart-install: ## Install the latest chart version listed in the charts/ folder 
 		--set certmanager.dependency.enabled="true"
 
 .PHONY: chart-install-providers
-chart-install-providers: ## Install the latest chart version listed in the charts/ folder with 3 replicas.
+chart-install-providers: kind-create-cluster docker-build kind-load-image ## Install the latest chart version listed in the charts/ folder with 3 replicas.
 	kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_CHART_VERSION)/cert-manager.crds.yaml"
+	kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_CHART_VERSION)/cert-manager.yaml"
+	sleep 30
 	helm install syngit charts/$(LATEST_CHART) -n syngit --create-namespace \
 		--timeout 15m \
 		--set controller.image.prefix=local \
@@ -318,8 +305,7 @@ chart-install-providers: ## Install the latest chart version listed in the chart
 		--set certmanager.dependency.enabled="true"
 
 .PHONY: chart-upgrade
-chart-upgrade: ## Upgrade to the latest chart version listed in the charts/ folder.
-	helm dependency update charts/$(LATEST_CHART)
+chart-upgrade: docker-build kind-load-image ## Upgrade to the latest chart version listed in the charts/ folder.
 	helm upgrade syngit charts/$(LATEST_CHART) -n syngit \
 		--set controller.image.prefix=local \
 		--set controller.image.name=syngit-controller \
@@ -332,11 +318,15 @@ chart-uninstall: ## Uninstall the chart.
 .PHONY: kind-create-cluster
 kind-create-cluster: ## Create the dev KinD cluster.
 	kind create cluster --name ${DEV_CLUSTER} || true
-	kind export kubeconfig --kubeconfig ${KIND_KUBECONFIG_PATH} --name syngit-dev-cluster
+	kind export kubeconfig --kubeconfig ${KIND_KUBECONFIG_PATH} --name syngit-dev-cluster # For all internal usage
+	kind export kubeconfig --kubeconfig ~/.kube/config --name ${DEV_CLUSTER} # For the user
 
 .PHONY: kind-delete-cluster
 kind-delete-cluster: ## Delete the dev KinD cluster.
-	kind delete cluster --name ${DEV_CLUSTER}
+	kind delete cluster --name ${DEV_CLUSTER} || true
+	kubectl config --kubeconfig ~/.kube/config delete-context kind-${DEV_CLUSTER} || true
+	kubectl config --kubeconfig ~/.kube/config delete-cluster kind-${DEV_CLUSTER} || true
+	kubectl config --kubeconfig ~/.kube/config delete-user kind-${DEV_CLUSTER} || true
 
 .PHONY: kind-load-image
 kind-load-image: ## Load the image in KinD.

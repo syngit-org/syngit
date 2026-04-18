@@ -69,7 +69,7 @@ var _ = BeforeSuite(func() {
 	var controllerPodName string
 	var err error
 
-	By("building the manager(Operator) image")
+	By("building the manager (Operator) image")
 	cmd = exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectimage))
 	_, err = utils.Run(cmd)
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
