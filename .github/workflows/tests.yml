@@ -43,8 +43,8 @@ jobs:
     - name: Run tests
       run: make test-build-deploy
 
-  tests-behavior:
-    name: Behavior tests
+  tests-e2e:
+    name: Tests end-to-end
     permissions: {}
     runs-on: ubuntu-latest
 
@@ -52,21 +52,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4.2.2
 
-    - name: Install kubectl
-      uses: azure/setup-kubectl@3e0aec4d80787158d308d7b364cb1b702e7feb7f #v4.0.0
-      with:
-        version: 'latest'
-
-    - name: Set up KinD
-      uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3 #v1.12.0
-      with:
-        version: v0.23.0
-        cluster_name: syngit-dev-cluster
-
     - name: Set up Go
       uses: actions/setup-go@v5.2.0
       with:
-        go-version: '1.22'
+        go-version: '1.26'
 
     - name: Install dependencies
       run: |
@@ -79,7 +68,7 @@ jobs:
         ./bin/setup-envtest-latest use --bin-dir ./bin
 
     - name: Run tests
-      run: make test-behavior
+      run: make e2e
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@1e68e06f1dbfde0e4cefc87efeba9e4643565303 #v5.1.2
