@@ -1,6 +1,7 @@
-package v1beta4
+package interceptor
 
 import (
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -13,8 +14,8 @@ type GitUserInfo struct {
 }
 
 type GitPipelineParams struct {
-	RemoteSyncer    RemoteSyncer
-	RemoteTarget    RemoteTarget
+	RemoteSyncer    syngit.RemoteSyncer
+	RemoteTarget    syngit.RemoteTarget
 	InterceptedYAML string
 	InterceptedGVR  schema.GroupVersionResource
 	InterceptedName string

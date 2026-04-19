@@ -19,7 +19,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
-	syngitutils "github.com/syngit-org/syngit/pkg/utils"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	. "github.com/syngit-org/syngit/test/e2e/syngit/helpers"
 	utils "github.com/syngit-org/syngit/test/e2e/syngit/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -109,7 +109,7 @@ var _ = Describe("17 RemoteUserBinding selector in RemoteSyncer", func() {
 		Eventually(func() bool {
 			_, err := fx.Users.KAs(utils.Developer).CoreV1().ConfigMaps(fx.Namespace).
 				Create(ctx, cm, metav1.CreateOptions{})
-			return err != nil && syngitutils.ErrorTypeChecker(&syngitutils.RemoteUserBindingNotFoundError{}, err.Error())
+			return err != nil && syngiterrors.Is(err, syngiterrors.ErrRemoteUserBindingNotFound)
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
 		By("the ConfigMap is not on cluster")

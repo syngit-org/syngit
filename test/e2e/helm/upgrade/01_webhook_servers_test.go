@@ -23,7 +23,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	syngitutils "github.com/syngit-org/syngit/pkg/utils"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	"github.com/syngit-org/syngit/test/utils"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -127,7 +127,7 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 			configMapGVR,
 		)
 		ExpectWithOffset(2, err).To(HaveOccurred())
-		Expect(syngitutils.ErrorTypeChecker(&syngitutils.RemoteUserBindingNotFoundError{}, err.Error())).To(BeTrue())
+		Expect(syngiterrors.Is(err, syngiterrors.ErrRemoteUserBindingNotFound)).To(BeTrue())
 
 		By("creating a RemoteSyncer")
 		cmd := exec.Command("kubectl", "apply", "-n", testNamespace, "-f",
@@ -141,7 +141,7 @@ var _ = Describe("01 Test webhook servers", Ordered, func() {
 			fmt.Sprintf("%s/sample_configmap.yaml", samplePath))
 		_, err = utils.Run(cmd)
 		ExpectWithOffset(2, err).To(HaveOccurred())
-		Expect(syngitutils.ErrorTypeChecker(&syngitutils.RemoteUserBindingNotFoundError{}, err.Error())).To(BeTrue())
+		Expect(syngiterrors.Is(err, syngiterrors.ErrRemoteUserBindingNotFound)).To(BeTrue())
 
 	})
 

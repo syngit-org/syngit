@@ -17,7 +17,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
-	syngitutils "github.com/syngit-org/syngit/pkg/utils"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	utils "github.com/syngit-org/syngit/test/e2e/syngit/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -47,7 +47,7 @@ var _ = Describe("19 RemoteTarget same repo & branch between target and upstream
 		}
 		Eventually(func() bool {
 			err := fx.Users.CreateOrUpdate(ctx, utils.Developer, rt)
-			return err != nil && syngitutils.ErrorTypeChecker(&syngitutils.SameUpstreamDifferentMergeStrategyError{}, err.Error()) // nolint:lll
+			return err != nil && syngiterrors.Is(err, syngiterrors.ErrWrongRemoteSyncerConfig) // nolint:lll
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 	})
 
@@ -67,7 +67,7 @@ var _ = Describe("19 RemoteTarget same repo & branch between target and upstream
 		}
 		Eventually(func() bool {
 			err := fx.Users.CreateOrUpdate(ctx, utils.Developer, rt)
-			return err != nil && syngitutils.ErrorTypeChecker(&syngitutils.DifferentUpstreamEmptyMergeStrategyError{}, err.Error()) // nolint:lll
+			return err != nil && syngiterrors.Is(err, syngiterrors.ErrWrongRemoteSyncerConfig) // nolint:lll
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 	})
 })

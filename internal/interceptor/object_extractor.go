@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	"github.com/syngit-org/syngit/pkg/utils"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -111,8 +112,7 @@ func GetExcludedFieldsFromConfigMap(
 	// Unmarshal the YAML string into the Go array
 	err = yaml.Unmarshal([]byte(yamlString), &excludedFields)
 	if err != nil {
-		yamlErr := utils.WrongYamlFormatError{Yaml: yamlString}
-		return nil, yamlErr
+		return nil, syngiterrors.NewWrongYAMLFormat("failed to convert the excludedFields from the ConfigMap")
 	}
 
 	return excludedFields, nil

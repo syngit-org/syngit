@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	utils "github.com/syngit-org/syngit/pkg/utils"
 	authv1 "k8s.io/api/authorization/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -58,8 +59,10 @@ func (ruwh *RemoteUserPermissionsWebhookHandler) Handle(ctx context.Context, req
 	}
 
 	if !sar.Status.Allowed {
-		denied := utils.DenyGetSecretError{User: user, SecretRef: ru.Spec.SecretRef}
-		return admission.Denied(denied.Error())
+		return admission.Denied(syngiterrors.NewCredentialsNotFound(
+			fmt.Sprintf("the user %s is not allowed to get the secret for its own remote user", user),
+			ru.Spec.SecretRef.Name,
+		).Error())
 	}
 
 	return admission.Allowed(fmt.Sprintf("The user %s is allowed to get the secret: %s", user, ru.Spec.SecretRef.Name))

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	admissionv1 "k8s.io/api/admission/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -11,8 +12,8 @@ import (
 )
 
 const (
-	defaultFailureMessage = "The changes have not been pushed to the remote git repository:"
-	defaultSuccessMessage = "The changes were correctly been pushed on the remote git repository."
+	defaultFailureMessage = "the changes have not been pushed to the remote git repository: "
+	defaultSuccessMessage = "the changes were correctly been pushed on the remote git repository."
 )
 
 func AdmissionReviewBuilder(
@@ -35,6 +36,7 @@ func AdmissionReviewBuilder(
 		status = "Success"
 		message = successMessage
 	} else {
+		addionalMessage = syngiterrors.NewInterceptorPipeline(addionalMessage).Error()
 		condition := &v1.Condition{
 			LastTransitionTime: v1.Now(),
 			Type:               "Synced",
@@ -48,7 +50,7 @@ func AdmissionReviewBuilder(
 
 	// Set the final message
 	if addionalMessage != "" {
-		message += " " + addionalMessage
+		message += addionalMessage
 	}
 
 	// Construct the admisson review request

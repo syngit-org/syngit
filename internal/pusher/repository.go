@@ -11,10 +11,11 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	"github.com/syngit-org/syngit/pkg/interceptor"
 )
 
 type GetRepositoryParams struct {
-	GitUserInfo  syngit.GitUserInfo
+	GitUserInfo  interceptor.GitUserInfo
 	RemoteSyncer syngit.RemoteSyncer
 	CABundle     []byte
 	Repository   string
@@ -55,7 +56,7 @@ func getRepository(params GetRepositoryParams) (*git.Repository, error) {
 	return repository, nil
 }
 
-func GetUpstreamRepository(params syngit.GitPipelineParams) (*git.Repository, error) {
+func GetUpstreamRepository(params interceptor.GitPipelineParams) (*git.Repository, error) {
 	return getRepository(GetRepositoryParams{
 		RemoteSyncer: params.RemoteSyncer,
 		CABundle:     params.CABundle,
@@ -65,7 +66,7 @@ func GetUpstreamRepository(params syngit.GitPipelineParams) (*git.Repository, er
 	})
 }
 
-func GetTargetRepository(params syngit.GitPipelineParams) (*git.Repository, error) {
+func GetTargetRepository(params interceptor.GitPipelineParams) (*git.Repository, error) {
 	return getRepository(GetRepositoryParams{
 		RemoteSyncer: params.RemoteSyncer,
 		CABundle:     params.CABundle,

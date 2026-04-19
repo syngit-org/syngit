@@ -17,7 +17,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
-	syngitutils "github.com/syngit-org/syngit/pkg/utils"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	utils "github.com/syngit-org/syngit/test/e2e/syngit/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,7 +44,7 @@ var _ = Describe("10 RemoteUser secret permissions checker", func() {
 		}
 		Eventually(func() bool {
 			err := fx.Users.CreateOrUpdate(ctx, utils.Restricted, ru)
-			return err != nil && syngitutils.ErrorTypeChecker(&syngitutils.DenyGetSecretError{}, err.Error())
+			return err != nil && syngiterrors.Is(err, syngiterrors.ErrCredentialsNotFound)
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 	})
 
