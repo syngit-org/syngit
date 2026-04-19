@@ -52,3 +52,9 @@ func (mp *ModifiedPaths) AppendModifiedPaths(paths ModifiedPaths) {
 	mp.Delete = append(mp.Delete, paths.Delete...)
 	mp.Add = append(mp.Add, paths.Add...)
 }
+
+type GitPushResponse struct {
+	Paths      []string // The git paths where the resource has been pushed
+	CommitHash string   // The commit hash of the commit
+	URL        string   // The url of the repository
+}

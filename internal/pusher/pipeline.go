@@ -8,7 +8,7 @@ import (
 	"github.com/syngit-org/syngit/pkg/interceptor"
 )
 
-func RunGitPipeline(params interceptor.GitPipelineParams) (GitPushResponse, error) {
+func RunGitPipeline(params interceptor.GitPipelineParams) (interceptor.GitPushResponse, error) {
 	emptyPaths := make([]string, 0)
 
 	// Get the targeted repository
