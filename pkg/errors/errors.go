@@ -422,6 +422,10 @@ func NewInterceptorPipeline(details string) *interceptorPipeline {
 	return &interceptorPipeline{Details: details}
 }
 
+func BuildInterceptorPipelineErr(details string) string {
+	return NewInterceptorPipeline(details).Error()
+}
+
 type interceptorPipeline struct {
 	Details string
 }

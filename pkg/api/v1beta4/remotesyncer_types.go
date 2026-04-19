@@ -293,6 +293,14 @@ type JsonGVRN struct {
 	Name     string `json:"name"`
 }
 
+type ObservedState string
+
+const (
+	LastBypassedObjectStateKey ObservedState = "LastBypassedObjectState"
+	LastObservedObjectStateKey ObservedState = "LastObservedObjectState"
+	LastPushedObjectStateKey   ObservedState = "LastPushedObjectState"
+)
+
 type LastBypassedObjectState struct {
 	// +optional
 	LastBypassedObjectTime metav1.Time `json:"lastBypassObjectTime,omitempty"`

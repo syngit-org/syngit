@@ -4,25 +4,26 @@ import (
 	"context"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
-	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
+	"github.com/syngit-org/syngit/pkg/interceptor"
 	admissionv1 "k8s.io/api/admission/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
 	defaultFailureMessage = "the changes have not been pushed to the remote git repository: "
-	defaultSuccessMessage = "the changes were correctly been pushed on the remote git repository."
+	defaultSuccessMessage = "the changes were correctly been pushed on the remote git repository"
 )
 
 func AdmissionReviewBuilder(
 	ctx context.Context,
 	addionalMessage string,
-	admissionRequestUID types.UID,
+	admissionRequest *admissionv1.AdmissionRequest,
 	requestAllowed, processErrored bool,
 	remoteSyncer syngit.RemoteSyncer,
 ) admissionv1.AdmissionReview {
+	statusUpdater := NewRemoteSyncerStatusUpdater(admissionRequest, remoteSyncer)
+	conditionUpdater := NewRemoteSyncerConditionUpdater(remoteSyncer)
 
 	successMessage := defaultSuccessMessage
 	if remoteSyncer.Spec.DefaultBlockAppliedMessage != "" {
@@ -32,20 +33,13 @@ func AdmissionReviewBuilder(
 	// Set the status and the message depending of the status of the webhook
 	status := "Failure"
 	message := defaultFailureMessage
+
 	if !processErrored {
 		status = "Success"
 		message = successMessage
+		conditionUpdater.UpdateRemoteSyncerConditions(ctx, BuildSuccessCondition(""))
 	} else {
-		addionalMessage = syngiterrors.NewInterceptorPipeline(addionalMessage).Error()
-		condition := &v1.Condition{
-			LastTransitionTime: v1.Now(),
-			Type:               "Synced",
-			Reason:             "WebhookHandlerError",
-			Status:             "False",
-			Message:            addionalMessage,
-		}
-		updater := NewRemoteSyncerConditionUpdater(remoteSyncer)
-		updater.UpdateRemoteSyncerConditions(ctx, *condition)
+		conditionUpdater.UpdateRemoteSyncerConditions(ctx, BuildErrorCondition(addionalMessage))
 	}
 
 	// Set the final message
@@ -53,10 +47,14 @@ func AdmissionReviewBuilder(
 		message += addionalMessage
 	}
 
+	statusUpdater.UpdateRemoteSyncerState(
+		ctx, []interceptor.GitPushResponse{}, syngit.LastObservedObjectStateKey, message,
+	)
+
 	// Construct the admisson review request
 	admissionReviewResp := admissionv1.AdmissionReview{
 		Response: &admissionv1.AdmissionResponse{
-			UID:     admissionRequestUID,
+			UID:     admissionRequest.UID,
 			Allowed: requestAllowed,
 			Result: &v1.Status{
 				Status:  status,

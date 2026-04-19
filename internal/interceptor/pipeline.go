@@ -7,42 +7,41 @@ import (
 
 	"github.com/syngit-org/syngit/internal/pusher"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	se "github.com/syngit-org/syngit/pkg/errors"
 	"github.com/syngit-org/syngit/pkg/interceptor"
 	admissionv1 "k8s.io/api/admission/v1"
 )
 
 func RunInterceptionPipeline(
 	ctx context.Context,
-	admissionRequest *admissionv1.AdmissionRequest,
+	admReq *admissionv1.AdmissionRequest,
 	remoteSyncer syngit.RemoteSyncer,
 	managerNamespace string,
 ) admissionv1.AdmissionReview {
-	userInfo := admissionRequest.UserInfo
-	reqUID := admissionRequest.UID
+	userInfo := admReq.UserInfo
 
 	upstreamRemoteSyncerRepoURL, err := url.Parse(remoteSyncer.Spec.RemoteRepository)
 	if err != nil {
 		return AdmissionReviewBuilder(
-			ctx, "cannot parse the RemoteSyncer's upstream URL",
-			reqUID, false, true, remoteSyncer,
+			ctx, se.BuildInterceptorPipelineErr("cannot parse the RemoteSyncer's upstream URL"),
+			admReq, false, true, remoteSyncer,
 		)
 	}
 
 	// Check if is bypass user (SA of argo, flux, etc..)
 	isBypassUser, err := IsBypassSubject(userInfo, remoteSyncer)
 	if err != nil {
-		return AdmissionReviewBuilder(ctx, "", reqUID, false, true, remoteSyncer)
+		return AdmissionReviewBuilder(ctx, err.Error(), admReq, false, true, remoteSyncer)
 	}
 	if isBypassUser {
 		return AdmissionReviewBuilder(
-			ctx, "subject bypass the interception",
-			admissionRequest.UID, true, false,
-			remoteSyncer,
+			ctx, se.BuildInterceptorPipelineErr("subject bypasses the interception"),
+			admReq, true, false, remoteSyncer,
 		)
 	}
 
 	// Get the intercepted object metadata
-	objectMetadata := ExtractObjectMetadataFromAdmissionRequest(admissionRequest)
+	objectMetadata := ExtractObjectMetadataFromAdmissionRequest(admReq)
 
 	// Set the targets using the user credentials
 	userRemoteTargets, err := GetUserInfoRemoteTargetsAssociation(
@@ -52,36 +51,35 @@ func RunInterceptionPipeline(
 		remoteSyncer,
 	)
 	if err != nil {
-		return AdmissionReviewBuilder(ctx, err.Error(), reqUID, false, true, remoteSyncer)
+		return AdmissionReviewBuilder(ctx, err.Error(), admReq, false, true, remoteSyncer)
 	}
 
-	operation := admissionRequest.Operation
+	operation := admReq.Operation
 	manifest := ""
 
 	// Convert the request to get the yaml of the object
 	if operation != admissionv1.Delete {
 		manifest, err = ConvertObjectJSONToYAMLString(
 			ctx,
-			admissionRequest.Object.Raw,
+			admReq.Object.Raw,
 			managerNamespace,
 			remoteSyncer,
 		)
 		if err != nil {
-			return AdmissionReviewBuilder(ctx, err.Error(), reqUID, false, true, remoteSyncer)
+			return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, remoteSyncer)
 		}
 	}
 
 	// Check for deletion
-	if len(admissionRequest.Object.Raw) != 0 {
-		manifestMap, err := ConvertObjectJSONToYAMLMap(admissionRequest.Object.Raw)
+	if len(admReq.Object.Raw) != 0 {
+		manifestMap, err := ConvertObjectJSONToYAMLMap(admReq.Object.Raw)
 		if err != nil {
-			return AdmissionReviewBuilder(ctx, err.Error(), admissionRequest.UID, false, true, remoteSyncer)
+			return AdmissionReviewBuilder(ctx, err.Error(), admReq, false, true, remoteSyncer)
 		}
 		if ContainsDeletionTimestamp(manifestMap) {
 			return AdmissionReviewBuilder(
-				ctx,
-				"object is being deleted and the interception already happened",
-				reqUID, true, false, remoteSyncer,
+				ctx, se.BuildInterceptorPipelineErr("object is being deleted and the interception already happened"),
+				admReq, true, false, remoteSyncer,
 			)
 		}
 	}
@@ -89,7 +87,7 @@ func RunInterceptionPipeline(
 	// TLS constructor
 	caBundle, err := CABundleBuilder(ctx, remoteSyncer, upstreamRemoteSyncerRepoURL)
 	if err != nil {
-		return AdmissionReviewBuilder(ctx, err.Error(), reqUID, false, true, remoteSyncer)
+		return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, remoteSyncer)
 	}
 
 	// Git push
@@ -102,15 +100,23 @@ func RunInterceptionPipeline(
 		CABundle:              caBundle,
 	})
 	if err != nil {
-		return AdmissionReviewBuilder(ctx, err.Error(), reqUID, false, true, remoteSyncer)
+		return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, remoteSyncer)
 	}
+
+	statusUpdater := NewRemoteSyncerStatusUpdater(admReq, remoteSyncer)
+	statusUpdater.UpdateRemoteSyncerState(
+		ctx, responses, syngit.LastPushedObjectStateKey, "",
+	)
 
 	// Check if the webhook is allowed
 	if !IsWebhookAllowed(remoteSyncer, false) {
-		return AdmissionReviewBuilder(ctx, "the resource is not allowed to be committed & pushed", reqUID, false, false, remoteSyncer)
+		return AdmissionReviewBuilder(
+			ctx, se.BuildInterceptorPipelineErr("the remote syncer is in CommitOnly mode"),
+			admReq, false, false, remoteSyncer,
+		)
 	}
 
-	return AdmissionReviewBuilder(ctx, BuildWebhookSuccessMessage(responses), reqUID, true, false, remoteSyncer)
+	return AdmissionReviewBuilder(ctx, BuildWebhookSuccessMessage(responses), admReq, true, false, remoteSyncer)
 }
 
 type GitPushParameters struct {
@@ -137,8 +143,8 @@ type GitPushParameters struct {
 	CABundle []byte
 }
 
-func RunGitPushPipeline(params GitPushParameters) ([]pusher.GitPushResponse, error) {
-	responses := make([]pusher.GitPushResponse, 0, len(params.UserInfoRemoteTargets))
+func RunGitPushPipeline(params GitPushParameters) ([]interceptor.GitPushResponse, error) {
+	responses := make([]interceptor.GitPushResponse, 0, len(params.UserInfoRemoteTargets))
 
 	for userInfo, remoteTargets := range params.UserInfoRemoteTargets {
 		for _, remoteTarget := range remoteTargets {
@@ -182,7 +188,7 @@ func IsWebhookAllowed(
 
 // Build the webhook success message based on the locations
 // where the resource has been pushed.
-func BuildWebhookSuccessMessage(responses []pusher.GitPushResponse) string {
+func BuildWebhookSuccessMessage(responses []interceptor.GitPushResponse) string {
 	message := "The resource has been push to:\n"
 	for _, res := range responses {
 		message += fmt.Sprintf("- repo: %s\n  paths:", res.URL)

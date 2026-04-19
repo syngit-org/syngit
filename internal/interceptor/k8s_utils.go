@@ -5,7 +5,9 @@ import (
 	"time"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	"github.com/syngit-org/syngit/pkg/interceptor"
 	"github.com/syngit-org/syngit/pkg/utils"
+	admissionv1 "k8s.io/api/admission/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -14,12 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
-
-type TargetRepo struct {
-	RepoUrl    string
-	RepoPaths  []string
-	CommitHash string
-}
 
 type RemoteSyncerStatusUpdater struct {
 	remoteSyncer syngit.RemoteSyncer
@@ -31,18 +27,77 @@ type RemoteSyncerStatusUpdater struct {
 }
 
 func NewRemoteSyncerStatusUpdater(
+	admissionRequest *admissionv1.AdmissionRequest,
 	remoteSyncer syngit.RemoteSyncer,
-	group, version, resource, resourceName string,
-	userInfo authenticationv1.UserInfo,
 ) RemoteSyncerStatusUpdater {
 	return RemoteSyncerStatusUpdater{
 		remoteSyncer: remoteSyncer,
-		group:        group,
-		version:      version,
-		resource:     resource,
-		resourceName: resourceName,
-		userInfo:     userInfo,
+		group:        admissionRequest.Resource.Group,
+		version:      admissionRequest.Resource.Version,
+		resource:     admissionRequest.Resource.Resource,
+		resourceName: admissionRequest.Name,
+		userInfo:     admissionRequest.UserInfo,
 	}
+}
+
+func (updater RemoteSyncerStatusUpdater) UpdateRemoteSyncerState(
+	ctx context.Context,
+	targetRepos []interceptor.GitPushResponse,
+	kind syngit.ObservedState,
+	lastPushDetails string,
+) {
+	gvrn := &syngit.JsonGVRN{
+		Group:    updater.group,
+		Version:  updater.version,
+		Resource: updater.resource,
+		Name:     updater.resourceName,
+	}
+
+	repos := make([]string, 0, len(targetRepos))
+	for _, info := range targetRepos {
+		repos = append(repos, info.URL)
+	}
+	commitHashes := make([]string, 0, len(targetRepos))
+	for _, info := range targetRepos {
+		commitHashes = append(commitHashes, info.CommitHash)
+	}
+
+	repoPaths := []string{""}
+	if len(targetRepos) > 0 {
+		for _, paths := range targetRepos {
+			repoPaths = append(repoPaths, paths.Paths...)
+		}
+	}
+
+	switch kind {
+	case syngit.LastBypassedObjectStateKey:
+		lastBypassedObjectState := &syngit.LastBypassedObjectState{
+			LastBypassedObjectTime:     v1.Now(),
+			LastBypassedObjectUserInfo: updater.userInfo,
+			LastBypassedObject:         *gvrn,
+		}
+		updater.remoteSyncer.Status.LastBypassedObjectState = *lastBypassedObjectState
+	case syngit.LastObservedObjectStateKey:
+		lastObservedObjectState := &syngit.LastObservedObjectState{
+			LastObservedObjectTime:     v1.Now(),
+			LastObservedObjectUsername: updater.userInfo.Username,
+			LastObservedObject:         *gvrn,
+		}
+		updater.remoteSyncer.Status.LastObservedObjectState = *lastObservedObjectState
+	case syngit.LastPushedObjectStateKey:
+		lastPushedObjectState := &syngit.LastPushedObjectState{
+			LastPushedObjectTime:            v1.Now(),
+			LastPushedObject:                *gvrn,
+			LastPushedObjectGitPaths:        repoPaths,
+			LastPushedObjectGitRepos:        repos,
+			LastPushedObjectGitCommitHashes: commitHashes,
+			LastPushedGitUser:               updater.userInfo.Username,
+			LastPushedObjectStatus:          lastPushDetails,
+		}
+		updater.remoteSyncer.Status.LastPushedObjectState = *lastPushedObjectState
+	}
+
+	updateRemoteSyncerStatus(ctx, updater.remoteSyncer)
 }
 
 type RemoteSyncerConditionUpdater struct {
@@ -57,67 +112,29 @@ func NewRemoteSyncerConditionUpdater(
 	}
 }
 
+func BuildErrorCondition(details string) v1.Condition {
+	return v1.Condition{
+		LastTransitionTime: v1.Now(),
+		Type:               "Synced",
+		Reason:             "WebhookHandlerError",
+		Status:             "False",
+		Message:            details,
+	}
+}
+
+func BuildSuccessCondition(details string) v1.Condition {
+	return v1.Condition{
+		LastTransitionTime: v1.Now(),
+		Type:               "Synced",
+		Status:             "True",
+		Reason:             "WebhhokHandlerSucceeded",
+		Message:            details,
+	}
+}
+
 func (updater RemoteSyncerConditionUpdater) UpdateRemoteSyncerConditions(ctx context.Context, condition v1.Condition) {
 	conditions := utils.TypeBasedConditionUpdater(updater.remoteSyncer.Status.DeepCopy().Conditions, condition)
 	updater.remoteSyncer.Status.Conditions = conditions
-
-	updateRemoteSyncerStatus(ctx, updater.remoteSyncer)
-}
-
-func (updater RemoteSyncerStatusUpdater) UpdateRemoteSyncerState(
-	ctx context.Context,
-	targetRepos []TargetRepo,
-	kind,
-	lastPushedGitUser, lastPushDetails string,
-) {
-	gvrn := &syngit.JsonGVRN{
-		Group:    updater.group,
-		Version:  updater.version,
-		Resource: updater.resource,
-		Name:     updater.resourceName,
-	}
-
-	repos := make([]string, 0, len(targetRepos))
-	for _, info := range targetRepos {
-		repos = append(repos, info.RepoUrl)
-	}
-	commitHashes := make([]string, 0, len(targetRepos))
-	for _, info := range targetRepos {
-		commitHashes = append(commitHashes, info.CommitHash)
-	}
-
-	repoPaths := []string{""}
-	if len(targetRepos) > 0 {
-		repoPaths = targetRepos[0].RepoPaths
-	}
-
-	switch kind {
-	case "LastBypassedObjectState":
-		lastBypassedObjectState := &syngit.LastBypassedObjectState{
-			LastBypassedObjectTime:     v1.Now(),
-			LastBypassedObjectUserInfo: updater.userInfo,
-			LastBypassedObject:         *gvrn,
-		}
-		updater.remoteSyncer.Status.LastBypassedObjectState = *lastBypassedObjectState
-	case "LastObservedObjectState":
-		lastObservedObjectState := &syngit.LastObservedObjectState{
-			LastObservedObjectTime:     v1.Now(),
-			LastObservedObjectUsername: updater.userInfo.Username,
-			LastObservedObject:         *gvrn,
-		}
-		updater.remoteSyncer.Status.LastObservedObjectState = *lastObservedObjectState
-	case "LastPushedObjectState":
-		lastPushedObjectState := &syngit.LastPushedObjectState{
-			LastPushedObjectTime:            v1.Now(),
-			LastPushedObject:                *gvrn,
-			LastPushedObjectGitPaths:        repoPaths,
-			LastPushedObjectGitRepos:        repos,
-			LastPushedObjectGitCommitHashes: commitHashes,
-			LastPushedGitUser:               lastPushedGitUser,
-			LastPushedObjectStatus:          lastPushDetails,
-		}
-		updater.remoteSyncer.Status.LastPushedObjectState = *lastPushedObjectState
-	}
 
 	updateRemoteSyncerStatus(ctx, updater.remoteSyncer)
 }
