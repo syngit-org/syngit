@@ -110,7 +110,7 @@ func (dt DefaultTransformer) writeFile(params interceptor.GitPipelineParams, pat
 
 	fileInfo, err := w.Filesystem.Stat(fullFilePath)
 	if err != nil {
-		return fullFilePath, fmt.Errorf("failed to stat file %s: %v", err)
+		return fullFilePath, fmt.Errorf("failed to stat file %s: %v", fullFilePath, err)
 	}
 
 	fileName := ""
@@ -128,12 +128,12 @@ func (dt DefaultTransformer) writeFile(params interceptor.GitPipelineParams, pat
 
 	file, err := w.Filesystem.Create(fullFilePath)
 	if err != nil {
-		return fullFilePath, fmt.Errorf("failed to create file: %v", err)
+		return fullFilePath, fmt.Errorf("failed to create file %s: %v", fullFilePath, err)
 	}
 
 	_, err = file.Write(content)
 	if err != nil {
-		return fullFilePath, fmt.Errorf("failed to write to file: %v", err)
+		return fullFilePath, fmt.Errorf("failed to write to file %s: %v", fullFilePath, err)
 	}
 	err = file.Close()
 

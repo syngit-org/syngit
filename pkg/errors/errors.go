@@ -97,7 +97,7 @@ var ErrRemoteUserBindingNotFound = &remoteUserBindingNotFound{}
 
 // This error should be used when the RemoteTarget config is wrong
 // or does not match the criteria.
-func NewWrongRemoteTargetConfig(remoteSyncer syngit.RemoteSyncer, remoteUser syngit.RemoteUser) *wrongRemoteTargetConfig {
+func NewWrongRemoteTargetConfig(remoteSyncer syngit.RemoteSyncer, remoteUser syngit.RemoteUser) *wrongRemoteTargetConfig { // nolint:lll
 	return &wrongRemoteTargetConfig{RemoteSyncer: remoteSyncer, RemoteUser: remoteUser}
 }
 
@@ -107,7 +107,7 @@ type wrongRemoteTargetConfig struct {
 }
 
 func (e *wrongRemoteTargetConfig) Error() string {
-	return fmt.Sprintf("wrong remote target config: the fqdn of the default RemoteUser does not match the associated RemoteSyncer (%s) fqdn (%s)",
+	return fmt.Sprintf("wrong remote target config: the fqdn of the default RemoteUser does not match the associated RemoteSyncer (%s) fqdn (%s)", // nolint:lll
 		e.RemoteSyncer.Name,
 		e.RemoteUser.Name,
 	)

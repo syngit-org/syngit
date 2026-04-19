@@ -19,7 +19,7 @@ func CABundleBuilder(
 ) ([]byte, error) {
 	// Step 1: Search for the global CA Bundle of the server located in the syngit namespace
 	caBundle, err := FindGlobalCABundle(ctx, strings.Split(remoteSyncerRemoteRepoUrl.Host, ":")[0])
-	if err != nil && errors.Is(err, CaSecretWrongTypeErrorMessage) {
+	if err != nil && errors.Is(err, ErrCaSecretWrongType) {
 		return nil, err
 	}
 
@@ -40,7 +40,7 @@ func CABundleBuilder(
 	return caBundle, nil
 }
 
-var CaSecretWrongTypeErrorMessage = errors.New("the CA bundle secret must be of type \"kubernetes.io/ts\"")
+var ErrCaSecretWrongType = errors.New("the CA bundle secret must be of type \"kubernetes.io/ts\"") // nolint:lll
 
 func FindGlobalCABundle(ctx context.Context, host string) ([]byte, error) {
 	return FindCABundle(ctx, os.Getenv("MANAGER_NAMESPACE"), host+"-ca-cert")
@@ -61,7 +61,7 @@ func FindCABundle(ctx context.Context, namespace string, name string) ([]byte, e
 		return nil, err
 	}
 	if caBundleSecret.Type != "kubernetes.io/tls" {
-		return nil, CaSecretWrongTypeErrorMessage
+		return nil, ErrCaSecretWrongType
 	}
 	return caBundleSecret.Data["tls.crt"], nil
 }
