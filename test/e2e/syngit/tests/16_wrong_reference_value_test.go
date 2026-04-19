@@ -19,7 +19,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
-	syngitutils "github.com/syngit-org/syngit/pkg/utils"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	utils "github.com/syngit-org/syngit/test/e2e/syngit/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -117,7 +117,7 @@ var _ = Describe("16 Wrong reference or value test", func() {
 		Eventually(func() bool {
 			_, err := fx.Users.KAs(utils.Developer).CoreV1().ConfigMaps(fx.Namespace).
 				Create(ctx, cm, metav1.CreateOptions{})
-			return err != nil && syngitutils.ErrorTypeChecker(&syngitutils.RemoteUserBindingNotFoundError{}, err.Error())
+			return err != nil && syngiterrors.Is(err, syngiterrors.ErrRemoteUserBindingNotFound)
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
 		By("switching the RemoteSyncer to UseDefaultUser with fake default references")
@@ -129,7 +129,7 @@ var _ = Describe("16 Wrong reference or value test", func() {
 		Eventually(func() bool {
 			_, err := fx.Users.KAs(utils.Developer).CoreV1().ConfigMaps(fx.Namespace).
 				Create(ctx, cm, metav1.CreateOptions{})
-			return err != nil && syngitutils.ErrorTypeChecker(&syngitutils.DefaultRemoteUserNotFoundError{}, err.Error())
+			return err != nil && syngiterrors.Is(err, syngiterrors.ErrRemoteUserNotFound)
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
 		By("creating a RemoteUser (with a valid secret) for Restricted to use as default user")
@@ -145,7 +145,7 @@ var _ = Describe("16 Wrong reference or value test", func() {
 		Eventually(func() bool {
 			_, err := fx.Users.KAs(utils.Developer).CoreV1().ConfigMaps(fx.Namespace).
 				Create(ctx, cm, metav1.CreateOptions{})
-			return err != nil && syngitutils.ErrorTypeChecker(&syngitutils.DefaultRemoteTargetNotFoundError{}, err.Error())
+			return err != nil && syngiterrors.Is(err, syngiterrors.ErrRemoteTargetNotFound)
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
 		By("no ConfigMap should have reached the cluster")

@@ -17,7 +17,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
-	syngitutils "github.com/syngit-org/syngit/pkg/utils"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	utils "github.com/syngit-org/syngit/test/e2e/syngit/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -66,7 +66,7 @@ var _ = Describe("08 Webhook RBAC checker", func() {
 		}
 		err := fx.Users.CreateOrUpdate(ctx, utils.Restricted, rs)
 		Expect(err).To(HaveOccurred())
-		Expect(syngitutils.ErrorTypeChecker(&syngitutils.ResourceScopeForbiddenError{}, err.Error())).To(BeTrue())
+		Expect(syngiterrors.Is(err, syngiterrors.ErrResourceScopeForbidden)).To(BeTrue())
 	})
 
 	It("allows creating a RemoteSyncer whose scope matches Restricted's RBAC", func() {
@@ -108,7 +108,7 @@ var _ = Describe("08 Webhook RBAC checker", func() {
 		}
 		err := fx.Users.CreateOrUpdate(ctx, utils.Restricted, rsBad)
 		Expect(err).To(HaveOccurred())
-		Expect(syngitutils.ErrorTypeChecker(&syngitutils.ResourceScopeForbiddenError{}, err.Error())).To(BeTrue())
+		Expect(syngiterrors.Is(err, syngiterrors.ErrResourceScopeForbidden)).To(BeTrue())
 		Expect(err.Error()).To(ContainSubstring("DELETE"))
 
 		By("Restricted creates a RemoteSyncer with scope matching its RBAC (create secrets only)")

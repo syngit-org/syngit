@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-git/go-git/v5"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	"github.com/syngit-org/syngit/pkg/interceptor"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	yaml "k8s.io/apimachinery/pkg/util/yaml"
@@ -21,7 +21,7 @@ type ResourceFinder struct {
 	content           string
 }
 
-func (rf ResourceFinder) Transform(params syngit.GitPipelineParams, worktree *git.Worktree) (*git.Worktree, syngit.ModifiedPaths, error) {
+func (rf ResourceFinder) Transform(params interceptor.GitPipelineParams, worktree *git.Worktree) (*git.Worktree, interceptor.ModifiedPaths, error) {
 	rf.searchedGVK = params.InterceptedGVR
 	rf.searchedName = params.InterceptedName
 	rf.searchedNamespace = params.RemoteSyncer.Namespace
@@ -35,15 +35,15 @@ func (rf ResourceFinder) Transform(params syngit.GitPipelineParams, worktree *gi
 
 		return worktree, modifiedPaths, nil
 	}
-	return nil, syngit.NewModifiedPaths(), nil
+	return nil, interceptor.NewModifiedPaths(), nil
 }
 
-func (rf ResourceFinder) getPathsContent(worktree *git.Worktree, basePath string) (syngit.ModifiedPaths, error) {
-	modifiedPaths := syngit.NewModifiedPaths()
+func (rf ResourceFinder) getPathsContent(worktree *git.Worktree, basePath string) (interceptor.ModifiedPaths, error) {
+	modifiedPaths := interceptor.NewModifiedPaths()
 
 	files, err := worktree.Filesystem.ReadDir(basePath)
 	if err != nil {
-		return syngit.NewModifiedPaths(), fmt.Errorf("failed to read directory %s: %w", basePath, err)
+		return interceptor.NewModifiedPaths(), fmt.Errorf("failed to read directory %s: %w", basePath, err)
 	}
 
 	var path string
@@ -60,7 +60,7 @@ func (rf ResourceFinder) getPathsContent(worktree *git.Worktree, basePath string
 		if f.IsDir() {
 			paths, err := rf.getPathsContent(worktree, path)
 			if err != nil {
-				return syngit.NewModifiedPaths(), err
+				return interceptor.NewModifiedPaths(), err
 			}
 			modifiedPaths.AppendModifiedPaths(paths)
 		} else {
@@ -68,7 +68,7 @@ func (rf ResourceFinder) getPathsContent(worktree *git.Worktree, basePath string
 
 				paths, err := rf.checkInsertResource(worktree, path)
 				if err != nil {
-					return syngit.NewModifiedPaths(), err
+					return interceptor.NewModifiedPaths(), err
 				}
 				modifiedPaths.AppendModifiedPaths(paths)
 			}
@@ -78,8 +78,8 @@ func (rf ResourceFinder) getPathsContent(worktree *git.Worktree, basePath string
 	return modifiedPaths, nil
 }
 
-func (rf ResourceFinder) checkInsertResource(wt *git.Worktree, path string) (syngit.ModifiedPaths, error) {
-	modifiedPaths := syngit.NewModifiedPaths()
+func (rf ResourceFinder) checkInsertResource(wt *git.Worktree, path string) (interceptor.ModifiedPaths, error) {
+	modifiedPaths := interceptor.NewModifiedPaths()
 
 	f, err := wt.Filesystem.Open(path)
 	if err != nil {

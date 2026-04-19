@@ -18,7 +18,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
-	syngitutils "github.com/syngit-org/syngit/pkg/utils"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	. "github.com/syngit-org/syngit/test/e2e/syngit/helpers"
 	utils "github.com/syngit-org/syngit/test/e2e/syngit/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -114,7 +114,7 @@ var _ = Describe("22 RemoteTarget multiple different branches", func() {
 		Eventually(func() bool {
 			_, err := fx.Users.KAs(utils.Developer).CoreV1().ConfigMaps(fx.Namespace).
 				Create(ctx, cm, metav1.CreateOptions{})
-			return err != nil && syngitutils.ErrorTypeChecker(&syngitutils.MultipleTargetError{}, err.Error())
+			return err != nil && syngiterrors.Is(err, syngiterrors.ErrTooMuchRemoteTarget)
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 	})
 })

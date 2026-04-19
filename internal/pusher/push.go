@@ -10,10 +10,10 @@ import (
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	"github.com/syngit-org/syngit/pkg/interceptor"
 )
 
-func Push(params syngit.GitPipelineParams, targetRepository *git.Repository, needForcePush bool) error {
+func Push(params interceptor.GitPipelineParams, targetRepository *git.Repository, needForcePush bool) error {
 	targetBranch := params.RemoteTarget.Spec.TargetBranch
 
 	variables := fmt.Sprintf("\nRepository: %s\nReference: %s\nUsername: %s\nEmail: %s\n",

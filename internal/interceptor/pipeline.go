@@ -7,6 +7,7 @@ import (
 
 	"github.com/syngit-org/syngit/internal/pusher"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	"github.com/syngit-org/syngit/pkg/interceptor"
 	admissionv1 "k8s.io/api/admission/v1"
 )
 
@@ -117,7 +118,7 @@ type GitPushParameters struct {
 	// modification should be pushed associated to
 	// the information of the kubernetes user that
 	// has applied or delete the intercepted object.
-	UserInfoRemoteTargets map[syngit.GitUserInfo][]syngit.RemoteTarget
+	UserInfoRemoteTargets map[interceptor.GitUserInfo][]syngit.RemoteTarget
 
 	// The RemoteSyncer that has intercetped the object.
 	RemoteSyncer syngit.RemoteSyncer
@@ -141,7 +142,7 @@ func RunGitPushPipeline(params GitPushParameters) ([]pusher.GitPushResponse, err
 
 	for userInfo, remoteTargets := range params.UserInfoRemoteTargets {
 		for _, remoteTarget := range remoteTargets {
-			params := &syngit.GitPipelineParams{
+			params := &interceptor.GitPipelineParams{
 				RemoteSyncer:    *params.RemoteSyncer.DeepCopy(),
 				RemoteTarget:    *remoteTarget.DeepCopy(),
 				InterceptedYAML: params.YAMLManifest,

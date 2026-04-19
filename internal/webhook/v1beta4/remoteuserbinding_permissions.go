@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	utils "github.com/syngit-org/syngit/pkg/utils"
 	authv1 "k8s.io/api/authorization/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -59,8 +60,7 @@ func (rubwh RemoteUserBindingPermissionsWebhookHandler) Handle(ctx context.Conte
 		}
 
 		if !sar.Status.Allowed {
-			denied := utils.DenyGetRemoteUserError{User: user, RemoteUserRef: ru}
-			return admission.Denied(denied.Error())
+			return admission.Denied(syngiterrors.NewRemoteUserDenied(user, ru).Error())
 		}
 
 	}

@@ -4,10 +4,11 @@ import (
 	"fmt"
 
 	"github.com/syngit-org/syngit/internal/transformer"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
+	"github.com/syngit-org/syngit/pkg/interceptor"
 )
 
-func RunGitPipeline(params syngit.GitPipelineParams) (GitPushResponse, error) {
+func RunGitPipeline(params interceptor.GitPipelineParams) (GitPushResponse, error) {
 	emptyPaths := make([]string, 0)
 
 	// Get the targeted repository
@@ -32,20 +33,23 @@ func RunGitPipeline(params syngit.GitPipelineParams) (GitPushResponse, error) {
 	// Pull the worktree
 	worktree, needForcePush, err := GetWorkTree(params, targetRepository, upstreamRepository)
 	if err != nil {
-		return ResponseBuilder(emptyPaths, "", params.RemoteTarget.Spec.TargetRepository), fmt.Errorf("failed to get worktree: %v", err)
+		return ResponseBuilder(emptyPaths, "", params.RemoteTarget.Spec.TargetRepository),
+			syngiterrors.NewGitPipeline(fmt.Sprintf("failed to get worktree: %v", err))
 	}
 
 	// Pass over the transformers to generate the final worktree
-	var modifiedPaths syngit.ModifiedPaths
+	var modifiedPaths interceptor.ModifiedPaths
 	worktree, modifiedPaths, err = transformer.GenerateFinalWorktree(params, worktree)
 	if err != nil {
-		return ResponseBuilder(emptyPaths, "", params.RemoteTarget.Spec.TargetRepository), fmt.Errorf("failed to generate the worktree: %v", err)
+		return ResponseBuilder(emptyPaths, "", params.RemoteTarget.Spec.TargetRepository),
+			syngiterrors.NewGitPipeline(fmt.Sprintf("failed to generate the worktree: %v", err))
 	}
 
 	// Commit
 	commitHash, err := Commit(params, worktree, modifiedPaths, targetRepository)
 	if err != nil {
-		return ResponseBuilder(GetPathsFromModifiedPaths(modifiedPaths), "", params.RemoteTarget.Spec.TargetRepository), fmt.Errorf("failed to generate the commit: %v", err)
+		return ResponseBuilder(GetPathsFromModifiedPaths(modifiedPaths), "", params.RemoteTarget.Spec.TargetRepository),
+			syngiterrors.NewGitPipeline(fmt.Sprintf("failed to generate the commit: %v", err))
 	}
 
 	// Push

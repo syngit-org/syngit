@@ -2,18 +2,19 @@ package transformer
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/go-git/go-git/v5"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	"github.com/syngit-org/syngit/pkg/interceptor"
 )
 
 type DefaultTransformer struct{}
 
-func (dt DefaultTransformer) Transform(params syngit.GitPipelineParams, worktree *git.Worktree) (*git.Worktree, syngit.ModifiedPaths, error) {
-	modifiedPaths := syngit.NewModifiedPaths()
+func (dt DefaultTransformer) Transform(params interceptor.GitPipelineParams, worktree *git.Worktree) (*git.Worktree, interceptor.ModifiedPaths, error) {
+	modifiedPaths := interceptor.NewModifiedPaths()
 
 	path, err := dt.pathConstructor(params, worktree)
 	if err != nil {
@@ -34,7 +35,7 @@ func (dt DefaultTransformer) Transform(params syngit.GitPipelineParams, worktree
 	return worktree, modifiedPaths, nil
 }
 
-func (dt DefaultTransformer) pathConstructor(params syngit.GitPipelineParams, worktree *git.Worktree) (string, error) {
+func (dt DefaultTransformer) pathConstructor(params interceptor.GitPipelineParams, worktree *git.Worktree) (string, error) {
 	gvr := params.InterceptedGVR
 
 	tempPath := ""
@@ -103,14 +104,13 @@ func (dt DefaultTransformer) getFileDirName(resourceName, path, filename string)
 	return strings.Join(pathArr, "/"), resourceName + ".yaml"
 }
 
-func (dt DefaultTransformer) writeFile(params syngit.GitPipelineParams, path string, w *git.Worktree) (string, error) {
+func (dt DefaultTransformer) writeFile(params interceptor.GitPipelineParams, path string, w *git.Worktree) (string, error) {
 	fullFilePath := path
 	dir := ""
 
 	fileInfo, err := w.Filesystem.Stat(fullFilePath)
 	if err != nil {
-		errMsg := "failed to stat file " + fullFilePath + " : " + err.Error()
-		return fullFilePath, errors.New(errMsg)
+		return fullFilePath, fmt.Errorf("failed to stat file %s: %v", err)
 	}
 
 	fileName := ""
@@ -128,14 +128,12 @@ func (dt DefaultTransformer) writeFile(params syngit.GitPipelineParams, path str
 
 	file, err := w.Filesystem.Create(fullFilePath)
 	if err != nil {
-		errMsg := "failed to create file: " + err.Error()
-		return fullFilePath, errors.New(errMsg)
+		return fullFilePath, fmt.Errorf("failed to create file: %v", err)
 	}
 
 	_, err = file.Write(content)
 	if err != nil {
-		errMsg := "failed to write to file" + err.Error()
-		return fullFilePath, errors.New(errMsg)
+		return fullFilePath, fmt.Errorf("failed to write to file: %v", err)
 	}
 	err = file.Close()
 

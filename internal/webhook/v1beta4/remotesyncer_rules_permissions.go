@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	utils "github.com/syngit-org/syngit/pkg/utils"
 	v1 "k8s.io/api/authentication/v1"
 	authv1 "k8s.io/api/authorization/v1"
@@ -37,8 +38,7 @@ func (rswh *RemoteSyncerWebhookHandler) Handle(ctx context.Context, req admissio
 		if authorized {
 			return admission.Allowed(fmt.Sprintf("The user %s is allowed to scope all of the listed resources", user))
 		} else {
-			denied := utils.ResourceScopeForbiddenError{User: user, ForbiddenResources: forbiddenResources}
-			return admission.Denied(denied.Error())
+			return admission.Denied(syngiterrors.NewResourceScopeForbidden(user, forbiddenResources).Error())
 		}
 	}
 }

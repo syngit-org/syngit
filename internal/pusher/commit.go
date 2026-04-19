@@ -8,27 +8,25 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	"github.com/syngit-org/syngit/pkg/interceptor"
 )
 
-func GetPathsFromModifiedPaths(modifiedPaths syngit.ModifiedPaths) []string {
+func GetPathsFromModifiedPaths(modifiedPaths interceptor.ModifiedPaths) []string {
 	return append(modifiedPaths.Add, modifiedPaths.Delete...)
 }
 
-func Commit(params syngit.GitPipelineParams, worktree *git.Worktree, paths syngit.ModifiedPaths, targetRepository *git.Repository) (string, error) {
+func Commit(params interceptor.GitPipelineParams, worktree *git.Worktree, paths interceptor.ModifiedPaths, targetRepository *git.Repository) (string, error) {
 	for _, path := range paths.Add {
 		_, err := worktree.Add(path)
 		if err != nil {
-			errMsg := "failed to add file to staging area: " + err.Error()
-			return "", errors.New(errMsg)
+			return "", fmt.Errorf("failed to add file to staging area: %v", err)
 		}
 	}
 
 	for _, path := range paths.Delete {
 		_, err := worktree.Remove(path)
 		if err != nil && !strings.Contains(err.Error(), "entry not found") {
-			errMsg := "failed to delete file in staging area: " + err.Error()
-			return "", errors.New(errMsg)
+			return "", fmt.Errorf("failed to delete file in staging area: %v", err)
 		}
 	}
 
@@ -60,7 +58,7 @@ func Commit(params syngit.GitPipelineParams, worktree *git.Worktree, paths syngi
 	return commit.String(), nil
 }
 
-func buildCommitMessage(params syngit.GitPipelineParams, paths syngit.ModifiedPaths) string {
+func buildCommitMessage(params interceptor.GitPipelineParams, paths interceptor.ModifiedPaths) string {
 	resourceMessage := fmt.Sprintf("%s.%s/%s: %s/%s",
 		params.InterceptedGVR.Resource,
 		params.InterceptedGVR.Group,

@@ -18,7 +18,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
-	syngitutils "github.com/syngit-org/syngit/pkg/utils"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	. "github.com/syngit-org/syngit/test/e2e/syngit/helpers"
 	utils "github.com/syngit-org/syngit/test/e2e/syngit/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -115,7 +115,7 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 		Eventually(func() bool {
 			_, err := fx.Users.KAs(utils.Developer).CoreV1().ConfigMaps(fx.Namespace).
 				Create(ctx, cm3, metav1.CreateOptions{})
-			return err != nil && syngitutils.ErrorTypeChecker(&syngitutils.RemoteTargetNotFoundError{}, err.Error())
+			return err != nil && syngiterrors.Is(err, syngiterrors.ErrRemoteTargetNotFound)
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
 		for _, br := range []string{branch1, branch2, string(utils.Developer)} {
@@ -156,7 +156,7 @@ var _ = Describe("29 Add & remove patterns tests", func() {
 		Eventually(func() bool {
 			_, err := fx.Users.KAs(utils.Developer).CoreV1().ConfigMaps(fx.Namespace).
 				Create(ctx, cm2, metav1.CreateOptions{})
-			return err != nil && syngitutils.ErrorTypeChecker(&syngitutils.RemoteUserSearchError{}, err.Error())
+			return err != nil && syngiterrors.Is(err, syngiterrors.ErrRemoteUserNotFound)
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
 		ExpectNotOnBranch(fx, string(utils.Developer), cm2)

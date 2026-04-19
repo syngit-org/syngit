@@ -1,8 +1,10 @@
 package interceptor
 
 import (
+	"fmt"
+
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
-	"github.com/syngit-org/syngit/pkg/utils"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	authenticationv1 "k8s.io/api/authentication/v1"
 )
 
@@ -23,8 +25,9 @@ func IsBypassSubject(
 	}
 
 	if userCountLoop > 1 {
-		nonUniqueUserError := utils.NonUniqueUserError{UserCount: userCountLoop}
-		return isBypassSubject, nonUniqueUserError
+		return isBypassSubject, syngiterrors.NewTooMuchSubject(
+			fmt.Sprintf("the name of the user is not unique (%d); this version of the operator work with the name as unique identifier for users", userCountLoop),
+		)
 	}
 
 	return isBypassSubject, nil

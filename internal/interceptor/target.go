@@ -2,11 +2,13 @@ package interceptor
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"slices"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
-	"github.com/syngit-org/syngit/pkg/utils"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
+	"github.com/syngit-org/syngit/pkg/interceptor"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -25,9 +27,9 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 	user authenticationv1.UserInfo,
 	remoteSyncerRemoteRepoUrl *url.URL,
 	remoteSyncer syngit.RemoteSyncer,
-) (map[syngit.GitUserInfo][]syngit.RemoteTarget, error) {
+) (map[interceptor.GitUserInfo][]syngit.RemoteTarget, error) {
 	// Set empty map of GitUserInfo/RemoteTargets
-	userTargetsMap := map[syngit.GitUserInfo][]syngit.RemoteTarget{}
+	userTargetsMap := map[interceptor.GitUserInfo][]syngit.RemoteTarget{}
 
 	remoteUserBinding, err := GetRemoteUserBindingByUsername(
 		ctx,
@@ -57,8 +59,7 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		if remoteSyncer.Spec.RemoteTargetSelector != nil {
 			labelSelector, err := v1.LabelSelectorAsSelector(remoteSyncer.Spec.RemoteTargetSelector)
 			if err != nil {
-				parseLabelErr := utils.LabelSeletorParsingError{Kind: utils.RemoteTargetSelectorError, LabelError: err}
-				return userTargetsMap, parseLabelErr
+				return userTargetsMap, syngiterrors.NewWrongLabelParsing(fmt.Sprintf("error parsing the LabelSelector for the remoteTargetSelector: %v", err))
 			}
 			listOps.LabelSelector = labelSelector
 		}
@@ -111,13 +112,11 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 			totalTargets += len(targets)
 		}
 		if remoteSyncer.Spec.TargetStrategy == syngit.OneTarget && totalTargets > 1 {
-			multipleTargetError := utils.MultipleTargetError{RemoteTargetsCount: totalTargets}
-			return userTargetsMap, multipleTargetError
+			return userTargetsMap, syngiterrors.NewTooMuchRemoteTarget("multiple RemoteTargets found for OneTarget set as the TargetStrategy in the RemoteSyncer", totalTargets)
 		}
 
 		if len(userTargetsMap) == 0 {
-			notFoundError := utils.RemoteTargetNotFoundError{}
-			return userTargetsMap, notFoundError
+			return userTargetsMap, syngiterrors.NewRemoteTargetNotFound("no matching remote target found")
 		}
 
 	} else {
@@ -126,8 +125,7 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		// Check if there is a default user that we can use
 
 		if remoteSyncer.Spec.DefaultUnauthorizedUserMode != syngit.UseDefaultUser || remoteSyncer.Spec.DefaultRemoteUserRef == nil || remoteSyncer.Spec.DefaultRemoteUserRef.Name == "" {
-			notFoundError := utils.RemoteUserBindingNotFoundError{Username: user.Username}
-			return userTargetsMap, notFoundError
+			return userTargetsMap, syngiterrors.NewRemoteUserBindingNotFound(user.Username)
 		}
 
 		// Search for the default RemoteUser object
@@ -138,13 +136,11 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		remoteUser := &syngit.RemoteUser{}
 		err := k8sClient.Get(ctx, *userNamespacedName, remoteUser)
 		if err != nil {
-			notFoundError := utils.DefaultRemoteUserNotFoundError{DefaultUserName: remoteSyncer.Spec.DefaultRemoteUserRef.Name}
-			return userTargetsMap, notFoundError
+			return userTargetsMap, syngiterrors.NewRemoteUserNotFound("the default RemoteUser is not found")
 		}
 
 		if remoteUser.Spec.GitBaseDomainFQDN != remoteSyncerRemoteRepoUrl.Host {
-			mismatchErr := utils.DefaultRemoteTargetMismatchError{RemoteSyncer: remoteSyncer, RemoteUser: *remoteUser}
-			return userTargetsMap, mismatchErr
+			return userTargetsMap, syngiterrors.NewWrongRemoteTargetConfig(remoteSyncer, *remoteUser)
 		}
 		gitUserInfo, err := GetGitUserInfoByRemoteUser(ctx, *remoteUser, remoteSyncer.Namespace)
 		if err != nil {
@@ -159,18 +155,17 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		remoteTarget := &syngit.RemoteTarget{}
 		err = k8sClient.Get(ctx, *targetNamespacedName, remoteTarget)
 		if err != nil {
-			notFoundError := utils.DefaultRemoteTargetNotFoundError{DefaultTargetName: remoteSyncer.Spec.DefaultRemoteTargetRef.Name}
-			return userTargetsMap, notFoundError
+			return userTargetsMap, syngiterrors.NewRemoteTargetNotFound("default remote target does not exist: " + remoteSyncer.Spec.DefaultRemoteTargetRef.Name)
 		}
 
 		if remoteTarget.Spec.UpstreamRepository != remoteSyncer.Spec.RemoteRepository || remoteTarget.Spec.UpstreamBranch != remoteSyncer.Spec.DefaultBranch {
-			remoteTargetSearchError := utils.RemoteTargetSearchError{
-				UpstreamRepository: remoteSyncer.Spec.RemoteRepository,
-				UpstreamBranch:     remoteSyncer.Spec.DefaultBranch,
-				TargetRepository:   remoteTarget.Spec.UpstreamRepository,
-				TargetBranch:       remoteTarget.Spec.UpstreamBranch,
-			}
-			return userTargetsMap, remoteTargetSearchError
+			return userTargetsMap, syngiterrors.NewWrongRemoteSyncerConfig(fmt.Sprintf(
+				"the RemoteSyncer's repository or branch does not match the upstream repository or branch of the default RemoteTarget. RemoteSyncer repo: %s; RemoteSyncer branch: %s; RemoteTarget upstream repo: %s; RemoteTarget upstream branch: %s", //nolint:lll
+				remoteTarget.Spec.UpstreamRepository,
+				remoteTarget.Spec.UpstreamBranch,
+				remoteTarget.Spec.TargetRepository,
+				remoteTarget.Spec.TargetBranch,
+			))
 		}
 
 		userTargetsMap[*gitUserInfo] = append(userTargetsMap[*gitUserInfo], *remoteTarget)
@@ -196,8 +191,7 @@ func GetRemoteUserBindingByUsername(
 	if remoteSyncer.Spec.RemoteUserBindingSelector != nil {
 		labelSelector, labelErr := v1.LabelSelectorAsSelector(remoteSyncer.Spec.RemoteUserBindingSelector)
 		if labelErr != nil {
-			parseLabelError := utils.LabelSeletorParsingError{Kind: utils.RemoteUserBindingSelectorError, LabelError: labelErr}
-			return nil, parseLabelError
+			return nil, syngiterrors.NewWrongLabelParsing(fmt.Sprintf("error parsing the LabelSelector for the remoteUserBindingSelector: %v", labelErr))
 		}
 		listOps.LabelSelector = labelSelector
 	}
@@ -225,8 +219,10 @@ func GetRemoteUserBindingByUsername(
 	}
 
 	if userCountLoop > 1 {
-		multipleRubError := utils.MultipleRemoteUserBindingError{RemoteUserBindingsCount: userCountLoop}
-		return nil, multipleRubError
+		return nil, syngiterrors.NewTooMuchRemoteUserBinding(
+			"multiple RemoteUserBinding found OR the name of the user is not unique; this version of the operator work with the name as unique identifier for users",
+			userCountLoop,
+		)
 	}
 
 	if userCountLoop == 0 {
@@ -247,12 +243,12 @@ func GetGitUserInfoByRemoteUserBinding(
 	remoteSyncer syngit.RemoteSyncer,
 	rub syngit.RemoteUserBinding,
 	fqdn string,
-) (*syngit.GitUserInfo, error) {
+) (*interceptor.GitUserInfo, error) {
 	remoteUserCount := 0
 
 	k8sClient := K8sClientFromContext(ctx)
 
-	var gitUser *syngit.GitUserInfo
+	var gitUser *interceptor.GitUserInfo
 
 	namespace := remoteSyncer.Namespace
 	for _, ref := range rub.Spec.RemoteUserRefs {
@@ -276,12 +272,13 @@ func GetGitUserInfoByRemoteUserBinding(
 	}
 
 	if remoteUserCount == 0 {
-		remoteUserSearchError := utils.RemoteUserSearchError{Reason: utils.RemoteUserNotFound, Fqdn: fqdn}
-		return nil, remoteUserSearchError
+		return nil, syngiterrors.NewRemoteUserNotFound("no RemoteUser found for the current user for " + fqdn)
 	}
 	if remoteUserCount > 1 {
-		remoteUserSearchError := utils.RemoteUserSearchError{Reason: utils.MoreThanOneRemoteUserFound, Fqdn: fqdn}
-		return nil, remoteUserSearchError
+		return nil, syngiterrors.NewTooMuchRemoteUser(
+			"more than one RemoteUser found for the current user for"+fqdn,
+			remoteUserCount,
+		)
 	}
 
 	return gitUser, nil
@@ -291,7 +288,7 @@ func GetGitUserInfoByRemoteUser(
 	ctx context.Context,
 	remoteUser syngit.RemoteUser,
 	namespace string,
-) (*syngit.GitUserInfo, error) {
+) (*interceptor.GitUserInfo, error) {
 	k8sClient := K8sClientFromContext(ctx)
 
 	secretNamespacedName := &types.NamespacedName{
@@ -302,24 +299,24 @@ func GetGitUserInfoByRemoteUser(
 	err := k8sClient.Get(ctx, *secretNamespacedName, secret)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			searchError := utils.CrendentialSearchError{Reason: utils.SecretNotFound, RemoteUser: remoteUser}
-			return nil, searchError
+			return nil, syngiterrors.NewCredentialsNotFound("secret not found for remote user: "+remoteUser.Name, secretNamespacedName.Name)
 		}
-		searchError := utils.CrendentialSearchError{Reason: utils.ConnectionError, RemoteUser: remoteUser}
-		return nil, searchError
+		return nil, syngiterrors.NewCredentialsNotFound("connection error", secretNamespacedName.Name)
 	}
 
 	token := string(secret.Data["password"])
 
-	gitUser := &syngit.GitUserInfo{
+	gitUser := &interceptor.GitUserInfo{
 		User:  string(secret.Data["username"]),
 		Email: remoteUser.Spec.Email,
 		Token: token,
 	}
 
 	if token == "" {
-		searchError := utils.CrendentialSearchError{Reason: utils.TokenNotFound, RemoteUser: remoteUser}
-		return nil, searchError
+		return nil, syngiterrors.NewCredentialsNotFound(
+			"token not found; the token must be specified in the password field and the secret type must be kubernetes.io/basic-auth",
+			secretNamespacedName.Name,
+		)
 	}
 
 	return gitUser, nil

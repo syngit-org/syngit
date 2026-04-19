@@ -11,6 +11,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	"github.com/syngit-org/syngit/pkg/interceptor"
 )
 
 const (
@@ -19,7 +20,7 @@ const (
 )
 
 func GetWorkTree(
-	params syngit.GitPipelineParams,
+	params interceptor.GitPipelineParams,
 	targetRepository, upstreamRepository *git.Repository,
 ) (*git.Worktree, bool, error) {
 	// Same repo & branch between target and upstream
@@ -61,7 +62,7 @@ func GetWorkTree(
 }
 
 func upstreamBasedHardReset(
-	params syngit.GitPipelineParams,
+	params interceptor.GitPipelineParams,
 	targetRepository *git.Repository,
 ) (*git.Worktree, error) {
 	targetBranch := params.RemoteTarget.Spec.TargetBranch
@@ -110,7 +111,7 @@ func upstreamBasedHardReset(
 }
 
 func upstreamBasedPullFastForward(
-	params syngit.GitPipelineParams,
+	params interceptor.GitPipelineParams,
 	targetRepository *git.Repository,
 ) (*git.Worktree, error) {
 	upstreamBranch := params.RemoteTarget.Spec.UpstreamBranch
@@ -284,7 +285,7 @@ func checkoutToBranch(targetRepository *git.Repository, worktree *git.Worktree, 
 	return nil
 }
 
-func fetchUpstream(params syngit.GitPipelineParams, targetRepository *git.Repository) error {
+func fetchUpstream(params interceptor.GitPipelineParams, targetRepository *git.Repository) error {
 
 	upstreamURL := params.RemoteSyncer.Spec.RemoteRepository
 
