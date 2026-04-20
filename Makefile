@@ -151,6 +151,11 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 .PHONY: test
 test: kind-delete-cluster test-controller test-e2e kind-delete-cluster ## Run all the tests.
 
+.PHONY: test-unit
+test-unit: fmt vet ## Run pure unit tests (no kind cluster, no envtest). Writes coverage-unit.txt.
+	go test -race -covermode=atomic -coverpkg=$(COVERPKG) -coverprofile=coverage-unit.txt \
+		./internal/interceptor/... ./internal/pusher/... ./internal/transformer/... ./pkg/errors/... ./pkg/feature/... ./pkg/utils/...
+
 .PHONY: test-controller
 test-controller: manifests generate fmt vet envtest kind-create-cluster setup-webhooks-for-run ## Run tests embeded in the controller package & webhook package.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e | grep -v /v1alpha | grep -v /v1beta1) -coverprofile cover.out

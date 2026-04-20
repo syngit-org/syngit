@@ -195,7 +195,7 @@ func (e *remoteUserNotFound) ShouldContains(err error) bool {
 }
 
 func (e *remoteUserNotFound) Unwrap() error {
-	return ErrRemoteTargetNotFound
+	return ErrRemoteUserNotFound
 }
 
 // The RemoteUser is not found based on the criteria.

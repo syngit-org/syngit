@@ -67,7 +67,7 @@ func (f FeatureGates) Set(value string) error {
 
 // String returns a string representation of loaded features
 func (f FeatureGates) String() string {
-	var loaded = []string{} // nolint:prealloc
+	loaded := make([]string, 0, len(f))
 	for feature, boolValue := range f {
 		value := strconv.FormatBool(boolValue)
 		loaded = append(loaded, fmt.Sprintf("%s=%s", feature, value))
