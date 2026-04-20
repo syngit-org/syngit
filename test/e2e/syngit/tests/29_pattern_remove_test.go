@@ -23,6 +23,7 @@ import (
 	utils "github.com/syngit-org/syngit/test/e2e/syngit/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -80,7 +81,15 @@ var _ = Describe("29 Add & remove policies tests", func() {
 		By("removing explicit-branches so only the user-specific target remains")
 		rs.Annotations[syngit.RtAnnotationKeyOneOrManyBranches] = ""
 		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer, rs)).To(Succeed())
-		fx.WaitForDynamicWebhook("remotesyncer-test29")
+		Eventually(func() bool {
+			getRemoteSyncer := &syngit.RemoteSyncer{}
+			err := fx.Users.CtrlAs(utils.Developer).Get(fx.Ctx,
+				types.NamespacedName{Name: rs.Name, Namespace: rs.Namespace}, getRemoteSyncer)
+			if err != nil {
+				return false
+			}
+			return getRemoteSyncer.Annotations[syngit.RtAnnotationKeyOneOrManyBranches] == rs.Annotations[syngit.RtAnnotationKeyOneOrManyBranches] // nolint:lll
+		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
 		By("waiting for the branch targets to be cleaned up from the managed RUB")
 		Eventually(func() bool {
@@ -105,7 +114,15 @@ var _ = Describe("29 Add & remove policies tests", func() {
 		By("removing the user-specific annotation too - push should fail")
 		rs.Annotations[syngit.RtAnnotationKeyUserSpecific] = ""
 		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer, rs)).To(Succeed())
-		fx.WaitForDynamicWebhook("remotesyncer-test29")
+		Eventually(func() bool {
+			getRemoteSyncer := &syngit.RemoteSyncer{}
+			err := fx.Users.CtrlAs(utils.Developer).Get(fx.Ctx,
+				types.NamespacedName{Name: rs.Name, Namespace: rs.Namespace}, getRemoteSyncer)
+			if err != nil {
+				return false
+			}
+			return getRemoteSyncer.Annotations[syngit.RtAnnotationKeyUserSpecific] == rs.Annotations[syngit.RtAnnotationKeyUserSpecific] // nolint:lll
+		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
 		cm3 := &corev1.ConfigMap{
 			TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
@@ -146,7 +163,15 @@ var _ = Describe("29 Add & remove policies tests", func() {
 		By("flipping the managed annotation to false on the RemoteUser")
 		ruDev.Annotations[syngit.RubAnnotationKeyManaged] = "false"
 		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer, ruDev)).To(Succeed())
-		fx.WaitForDynamicWebhook("remotesyncer-test29-user")
+		Eventually(func() bool {
+			getRemoteSyncer := &syngit.RemoteSyncer{}
+			err := fx.Users.CtrlAs(utils.Developer).Get(fx.Ctx,
+				types.NamespacedName{Name: rs.Name, Namespace: rs.Namespace}, getRemoteSyncer)
+			if err != nil {
+				return false
+			}
+			return getRemoteSyncer.Annotations[syngit.RubAnnotationKeyManaged] == rs.Annotations[syngit.RubAnnotationKeyManaged]
+		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
 		cm2 := &corev1.ConfigMap{
 			TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},

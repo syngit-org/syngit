@@ -121,9 +121,18 @@ var _ = Describe("16 Wrong reference or value test", func() {
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
 		By("switching the RemoteSyncer to UseDefaultUser with fake default references")
-		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer,
-			baseCMRS(fx, syngit.UseDefaultUser, "fake-defaultuser", "fake-defaulttarget"))).To(Succeed())
-		fx.WaitForDynamicWebhook("remotesyncer-test16")
+		rs := baseCMRS(fx, syngit.UseDefaultUser, "fake-defaultuser", "fake-defaulttarget")
+		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer, rs)).To(Succeed())
+		Eventually(func() bool {
+			getRemoteSyncer := &syngit.RemoteSyncer{}
+			err := fx.Users.CtrlAs(utils.Developer).Get(fx.Ctx,
+				types.NamespacedName{Name: rs.Name, Namespace: rs.Namespace}, getRemoteSyncer)
+			if err != nil {
+				return false
+			}
+			return getRemoteSyncer.Spec.DefaultRemoteUserRef.Name == rs.Spec.DefaultRemoteUserRef.Name &&
+				getRemoteSyncer.Spec.DefaultRemoteTargetRef.Name == rs.Spec.DefaultRemoteTargetRef.Name
+		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
 		By("creating the ConfigMap again -> DefaultRemoteUserNotFoundError")
 		Eventually(func() bool {
@@ -137,9 +146,18 @@ var _ = Describe("16 Wrong reference or value test", func() {
 		Expect(fx.Users.CreateOrUpdate(ctx, utils.Restricted, ruRestricted)).To(Succeed())
 
 		By("updating the RemoteSyncer to reference a valid default RU but still-fake default RT")
-		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer,
-			baseCMRS(fx, syngit.UseDefaultUser, "remoteuser-restricted", "fake-defaulttarget"))).To(Succeed())
-		fx.WaitForDynamicWebhook("remotesyncer-test16")
+		rs = baseCMRS(fx, syngit.UseDefaultUser, "remoteuser-restricted", "fake-defaulttarget")
+		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer, rs)).To(Succeed())
+		Eventually(func() bool {
+			getRemoteSyncer := &syngit.RemoteSyncer{}
+			err := fx.Users.CtrlAs(utils.Developer).Get(fx.Ctx,
+				types.NamespacedName{Name: rs.Name, Namespace: rs.Namespace}, getRemoteSyncer)
+			if err != nil {
+				return false
+			}
+			return getRemoteSyncer.Spec.DefaultRemoteUserRef.Name == rs.Spec.DefaultRemoteUserRef.Name &&
+				getRemoteSyncer.Spec.DefaultRemoteTargetRef.Name == rs.Spec.DefaultRemoteTargetRef.Name
+		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
 		By("creating the ConfigMap -> DefaultRemoteTargetNotFoundError")
 		Eventually(func() bool {

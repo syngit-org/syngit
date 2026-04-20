@@ -108,6 +108,15 @@ var _ = Describe("05 Use a default user", func() {
 		By("updating the RemoteSyncer to use Developer's valid RemoteUser as default")
 		rs.Spec.DefaultRemoteUserRef.Name = "remoteuser-developer"
 		Expect(fx.Users.CreateOrUpdate(ctx, utils.Admin, rs)).To(Succeed())
+		Eventually(func() bool {
+			getRemoteSyncer := &syngit.RemoteSyncer{}
+			err := fx.Users.CtrlAs(utils.Developer).Get(fx.Ctx,
+				types.NamespacedName{Name: rs.Name, Namespace: rs.Namespace}, getRemoteSyncer)
+			if err != nil {
+				return false
+			}
+			return getRemoteSyncer.Spec.DefaultRemoteUserRef.Name == rs.Spec.DefaultRemoteUserRef.Name
+		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
 		By("the push should succeed with the valid fallback user")
 		Eventually(func() error {
