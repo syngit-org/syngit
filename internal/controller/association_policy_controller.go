@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"time"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
@@ -34,8 +35,6 @@ type AssociationPolicyReconciler struct {
 	Recorder events.EventRecorder
 }
 
-const requeueAfter = 5 * time.Second
-
 // +kubebuilder:rbac:groups=syngit.io,resources=remoteusers,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=syngit.io,resources=remoteusers/finalizers,verbs=update
 // +kubebuilder:rbac:groups=syngit.io,resources=remoteuserbindings,verbs=get;list;watch;create;update;patch;delete
@@ -43,6 +42,7 @@ const requeueAfter = 5 * time.Second
 
 func (r *AssociationPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+	rdm := time.Duration(rand.New(rand.NewSource(1)).Intn(5)) * time.Second
 
 	var remoteUser syngit.RemoteUser
 	if err := r.Get(ctx, req.NamespacedName, &remoteUser); err != nil {
@@ -63,7 +63,7 @@ func (r *AssociationPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if !remoteUser.DeletionTimestamp.IsZero() {
 		if controllerutil.ContainsFinalizer(&remoteUser, associationPolicyFinalizer) {
 			if err := r.cleanupAssociation(ctx, &remoteUser, sanitizedUsername); err != nil {
-				return ctrl.Result{RequeueAfter: requeueAfter}, err
+				return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 			}
 			controllerutil.RemoveFinalizer(&remoteUser, associationPolicyFinalizer)
 			if err := r.Update(ctx, &remoteUser); err != nil {
@@ -76,7 +76,7 @@ func (r *AssociationPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	// If the managed annotation is not set, remove finalizer and clean up if needed
 	if !isEnabled {
 		if err := r.cleanupAssociation(ctx, &remoteUser, sanitizedUsername); err != nil {
-			return ctrl.Result{RequeueAfter: requeueAfter}, err
+			return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 		}
 		if controllerutil.RemoveFinalizer(&remoteUser, associationPolicyFinalizer) {
 			if err := r.Update(ctx, &remoteUser); err != nil {
@@ -106,12 +106,12 @@ func (r *AssociationPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	// Ensure the RemoteUser is in the RUB's remoteUserRefs
 	if err := r.ensureRemoteUserRef(ctx, rub, remoteUser.Name); err != nil {
-		return ctrl.Result{RequeueAfter: requeueAfter}, err
+		return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 	}
 
 	// Search for RemoteTargets with one-or-many-branches label and ensure they're in the RUB
 	if err := r.associateExistingRemoteTargets(ctx, rub); err != nil {
-		return ctrl.Result{RequeueAfter: requeueAfter}, err
+		return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 	}
 
 	return ctrl.Result{}, nil
