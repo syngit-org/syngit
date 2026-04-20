@@ -109,7 +109,7 @@ git host (for `GitBaseDomainFQDN` diversity, e.g. file 06) use
 | 26 | `26_hardreset_merge_test.go`               | `TryHardResetOrDie` with / without external merge               |
 | 27 | `27_fastforward_hardreset_merge_test.go`   | `TryFastForwardOrHardReset` fall-back                           |
 | 28 | `28_remoteuser_created_after_test.go`      | Managed RT back-fill when RU is created after the RemoteSyncer  |
-| 29 | `29_pattern_remove_test.go`                | Dynamic add/remove of branch & user-specific annotations        |
+| 29 | `29_policy_remove_test.go`                | Dynamic add/remove of branch & user-specific annotations        |
 | 30 | `30_push_to_existing_path_test.go`         | Existing-path & multi-document YAML reconciliation              |
 
 [envtest]: https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/envtest

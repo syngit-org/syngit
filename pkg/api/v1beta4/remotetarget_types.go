@@ -24,12 +24,12 @@ const (
 	RtManagedNamePrefix            = "rt"
 	RtManagedDefaultForkNamePrefix = "fork"
 
-	RtAnnotationKeyUserSpecific      = "syngit.io/remotetarget.pattern.user-specific"
-	RtAnnotationKeyOneOrManyBranches = "syngit.io/remotetarget.pattern.one-or-many-branches"
+	RtAnnotationKeyUserSpecific      = "syngit.io/remotetarget.policy.user-specific"
+	RtAnnotationKeyOneOrManyBranches = "syngit.io/remotetarget.policy.one-or-many-branches"
 
 	RtLabelKeyAllowInjection = "syngit.io/remotetarget.allow-injection"
 	RtLabelKeyBranch         = "syngit.io/remotetarget.branch"
-	RtLabelKeyPattern        = "syngit.io/remotetarget.pattern"
+	RtLabelKeyPolicy         = "syngit.io/remotetarget.policy"
 
 	RtLabelValueOneOrManyBranches = "one-or-many-branches"
 	RtLabelValueOneUserOneBranch  = "user-specific.one-user-one-branch"

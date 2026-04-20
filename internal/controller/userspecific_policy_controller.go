@@ -182,7 +182,7 @@ func (r *UserSpecificPolicyReconciler) buildUserSpecificTarget(namespace, upstre
 			Namespace: namespace,
 			Labels: map[string]string{
 				syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-				syngit.RtLabelKeyPattern: syngit.RtLabelValueOneUserOneBranch,
+				syngit.RtLabelKeyPolicy:  syngit.RtLabelValueOneUserOneBranch,
 				syngit.K8sUserLabelKey:   sanitizedUser,
 			},
 		},
@@ -241,7 +241,7 @@ func (r *UserSpecificPolicyReconciler) listUserSpecificTargets(ctx context.Conte
 		Namespace: namespace,
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-			syngit.RtLabelKeyPattern: syngit.RtLabelValueOneUserOneBranch,
+			syngit.RtLabelKeyPolicy:  syngit.RtLabelValueOneUserOneBranch,
 		}),
 	}
 	if err := r.List(ctx, rtList, listOps); err != nil {
