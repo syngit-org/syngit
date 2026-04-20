@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"math/rand"
+	"time"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	"github.com/syngit-org/syngit/pkg/utils"
@@ -39,6 +41,7 @@ type UserSpecificPolicyReconciler struct {
 
 func (r *UserSpecificPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+	rdm := time.Duration(rand.New(rand.NewSource(3)).Intn(5)) * time.Second
 
 	var remoteSyncer syngit.RemoteSyncer
 	if err := r.Get(ctx, req.NamespacedName, &remoteSyncer); err != nil {
@@ -56,7 +59,7 @@ func (r *UserSpecificPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 	// Handle deletion or annotation removal
 	if !remoteSyncer.DeletionTimestamp.IsZero() || userSpecificAnnotation == "" {
 		if err := r.cleanupUserSpecificTargets(ctx, &remoteSyncer); err != nil {
-			return ctrl.Result{RequeueAfter: requeueAfter}, err
+			return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 		}
 		if controllerutil.RemoveFinalizer(&remoteSyncer, userSpecificPolicyFinalizer) {
 			if err := r.Update(ctx, &remoteSyncer); err != nil {
@@ -71,7 +74,7 @@ func (r *UserSpecificPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 		if err := r.Update(ctx, &remoteSyncer); err != nil {
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{RequeueAfter: requeueAfter}, nil
+		return ctrl.Result{RequeueAfter: requeueAfter + rdm}, nil
 	}
 
 	upstreamRepo := remoteSyncer.Spec.RemoteRepository
@@ -113,7 +116,7 @@ func (r *UserSpecificPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 			// Already exists, ensure it's referenced in the RUB
 			rt := existingByUser[sanitizedUser]
 			if err := r.ensureRTRefInRUB(ctx, rub, rt.Name); err != nil {
-				return ctrl.Result{RequeueAfter: requeueAfter}, err
+				return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 			}
 			continue
 		}
@@ -131,7 +134,7 @@ func (r *UserSpecificPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 		// Ensure the reference is in the RUB
 		if err := r.ensureRTRefInRUB(ctx, rub, rt.Name); err != nil {
-			return ctrl.Result{RequeueAfter: requeueAfter}, err
+			return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 		}
 	}
 
@@ -151,7 +154,7 @@ func (r *UserSpecificPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 		// Remove RT reference from managed RUBs, then delete the RT
 		if err := utils.RemoveRemoteTargetRefFromManagedRUBs(ctx, r.Client, rt.Namespace, rt.Name); err != nil {
-			return ctrl.Result{RequeueAfter: requeueAfter}, err
+			return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 		}
 		if err := r.Delete(ctx, &rt); err != nil && !apierrors.IsNotFound(err) {
 			return ctrl.Result{}, err

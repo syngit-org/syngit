@@ -40,11 +40,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const (
-	WebhookServiceName = "syngit-webhook-service"
-	certificateName    = "syngit-webhook-cert"
-)
-
 // RemoteSyncerReconciler reconciles a RemoteSyncer object
 type RemoteSyncerReconciler struct {
 	client.Client
@@ -103,7 +98,6 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	var caCert []byte
 	var certError error
 	if !r.devMode {
-		const certPath = "/tmp/k8s-webhook-server/serving-certs/tls.crt"
 		if caCert, certError = os.ReadFile(certPath); certError != nil {
 			log.Log.Error(certError, fmt.Sprintf("failed to read the cert file %s", certPath))
 			r.Recorder.Eventf(&remoteSyncer, nil, "Warning", "WebhookCertFail", "Operator internal error : the certificate file failed to be read", "")

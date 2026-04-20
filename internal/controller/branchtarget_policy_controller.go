@@ -2,7 +2,9 @@ package controller
 
 import (
 	"context"
+	"math/rand"
 	"slices"
+	"time"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	"github.com/syngit-org/syngit/pkg/utils"
@@ -34,6 +36,7 @@ type BranchTargetPolicyReconciler struct {
 
 func (r *BranchTargetPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+	rdm := time.Duration(rand.New(rand.NewSource(2)).Intn(5)) * time.Second
 
 	var remoteSyncer syngit.RemoteSyncer
 	if err := r.Get(ctx, req.NamespacedName, &remoteSyncer); err != nil {
@@ -52,7 +55,7 @@ func (r *BranchTargetPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 	// Handle deletion or annotation removal
 	if !remoteSyncer.DeletionTimestamp.IsZero() || len(desiredBranches) == 0 {
 		if err := r.cleanupBranchTargets(ctx, &remoteSyncer); err != nil {
-			return ctrl.Result{RequeueAfter: requeueAfter}, err
+			return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 		}
 		if controllerutil.RemoveFinalizer(&remoteSyncer, branchTargetPolicyFinalizer) {
 			if err := r.Update(ctx, &remoteSyncer); err != nil {
@@ -67,7 +70,7 @@ func (r *BranchTargetPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 		if err := r.Update(ctx, &remoteSyncer); err != nil {
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{RequeueAfter: requeueAfter}, nil
+		return ctrl.Result{RequeueAfter: requeueAfter + rdm}, nil
 	}
 
 	upstreamRepo := remoteSyncer.Spec.RemoteRepository
@@ -117,7 +120,7 @@ func (r *BranchTargetPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 					return ctrl.Result{}, err
 				}
 				if err := utils.RemoveRemoteTargetRefFromManagedRUBs(ctx, r.Client, rt.Namespace, rt.Name); err != nil {
-					return ctrl.Result{RequeueAfter: requeueAfter}, err
+					return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 				}
 			}
 		}

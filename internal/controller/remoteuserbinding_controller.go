@@ -94,11 +94,9 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	if !isGloballyBound {
 		remoteUserBinding.Status.RemoteUserState = syngit.PartiallyBound
-		const partiallyBoundMessage = "Some of the remote users are not bound"
 		r.Recorder.Eventf(&remoteUserBinding, nil, "Warning", "PartiallyBound", partiallyBoundMessage, "")
 	} else {
 		remoteUserBinding.Status.RemoteUserState = syngit.Bound
-		const boundMessage = "Every remote users are bound"
 		r.Recorder.Eventf(&remoteUserBinding, nil, "Normal", "Bound", boundMessage, "")
 	}
 
