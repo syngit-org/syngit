@@ -220,11 +220,11 @@ const (
 	MultipleTarget TargetStrategy = "MultipleTarget"
 )
 
-type TargetPattern string
+type TargetPolicy string
 
 const (
-	OneUserOneBranch      TargetPattern = "OneUserOneBranch"
-	OneOrMultipleBranches TargetPattern = "OneOrMultipleBranches"
+	OneUserOneBranch      TargetPolicy = "OneUserOneBranch"
+	OneOrMultipleBranches TargetPolicy = "OneOrMultipleBranches"
 )
 
 type Strategy string

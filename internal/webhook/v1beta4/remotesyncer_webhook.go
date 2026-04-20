@@ -120,7 +120,7 @@ func validateRemoteSyncer(remoteSyncer *syngitv1beta4.RemoteSyncer) error {
 		allErrs = append(allErrs, err...)
 	}
 
-	// Validate the TargetPatterns
+	// Validate the TargetPolicies
 	rtAnnotationUserSpecific := remoteSyncer.Annotations[syngitv1beta4.RtAnnotationKeyUserSpecific]
 	if !slices.Contains([]syngitv1beta4.RemoteTargetUserSpecificValues{"", syngitv1beta4.RtAnnotationValueOneUserOneBranch, syngitv1beta4.RtAnnotationValueOneUserOneBranch}, syngitv1beta4.RemoteTargetUserSpecificValues(rtAnnotationUserSpecific)) {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("annotations").Child(syngitv1beta4.RtAnnotationKeyUserSpecific), rtAnnotationUserSpecific,

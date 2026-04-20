@@ -204,7 +204,7 @@ func (r *AssociationPolicyReconciler) associateExistingRemoteTargets(ctx context
 		Namespace: rub.Namespace,
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-			syngit.RtLabelKeyPattern: syngit.RtLabelValueOneOrManyBranches,
+			syngit.RtLabelKeyPolicy:  syngit.RtLabelValueOneOrManyBranches,
 		}),
 	}
 	if err := r.List(ctx, rtList, listOps); err != nil {
@@ -302,7 +302,7 @@ func (r *AssociationPolicyReconciler) findRemoteUsersForRemoteTarget(ctx context
 	}
 
 	// Only care about managed one-or-many-branches RemoteTargets
-	if rt.Labels[syngit.RtLabelKeyPattern] != syngit.RtLabelValueOneOrManyBranches {
+	if rt.Labels[syngit.RtLabelKeyPolicy] != syngit.RtLabelValueOneOrManyBranches {
 		return nil
 	}
 

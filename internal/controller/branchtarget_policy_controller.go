@@ -108,7 +108,7 @@ func (r *BranchTargetPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// Delete orphaned RemoteTargets (only if no other RemoteSyncer depends on them)
-	otherSyncers, err := r.getOtherSyncersWithBranchPattern(ctx, remoteSyncer.Namespace, remoteSyncer.Name)
+	otherSyncers, err := r.getOtherSyncersWithBranchPolicy(ctx, remoteSyncer.Namespace, remoteSyncer.Name)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -148,7 +148,7 @@ func (r *BranchTargetPolicyReconciler) buildRemoteTarget(namespace, upstreamRepo
 			Labels: map[string]string{
 				syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
 				syngit.RtLabelKeyBranch:  targetBranch,
-				syngit.RtLabelKeyPattern: syngit.RtLabelValueOneOrManyBranches,
+				syngit.RtLabelKeyPolicy:  syngit.RtLabelValueOneOrManyBranches,
 			},
 		},
 		Spec: syngit.RemoteTargetSpec{
@@ -168,7 +168,7 @@ func (r *BranchTargetPolicyReconciler) listManagedBranchTargets(ctx context.Cont
 		Namespace: namespace,
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-			syngit.RtLabelKeyPattern: syngit.RtLabelValueOneOrManyBranches,
+			syngit.RtLabelKeyPolicy:  syngit.RtLabelValueOneOrManyBranches,
 		}),
 	}
 	if err := r.List(ctx, rtList, listOps); err != nil {
@@ -188,8 +188,8 @@ func filterByUpstream(rts []syngit.RemoteTarget, upstreamRepo, upstreamBranch st
 	return filtered
 }
 
-// getOtherSyncersWithBranchPattern returns other RemoteSyncers in the namespace that have the OMB annotation.
-func (r *BranchTargetPolicyReconciler) getOtherSyncersWithBranchPattern(ctx context.Context, namespace, excludeName string) ([]syngit.RemoteSyncer, error) {
+// getOtherSyncersWithBranchPolicy returns other RemoteSyncers in the namespace that have the OMB annotation.
+func (r *BranchTargetPolicyReconciler) getOtherSyncersWithBranchPolicy(ctx context.Context, namespace, excludeName string) ([]syngit.RemoteSyncer, error) {
 	rsList := &syngit.RemoteSyncerList{}
 	if err := r.List(ctx, rsList, &client.ListOptions{Namespace: namespace}); err != nil {
 		return nil, err
@@ -229,7 +229,7 @@ func (r *BranchTargetPolicyReconciler) cleanupBranchTargets(ctx context.Context,
 
 	matchingRTs := filterByUpstream(existingRTs, upstreamRepo, upstreamBranch)
 
-	otherSyncers, err := r.getOtherSyncersWithBranchPattern(ctx, remoteSyncer.Namespace, remoteSyncer.Name)
+	otherSyncers, err := r.getOtherSyncersWithBranchPolicy(ctx, remoteSyncer.Namespace, remoteSyncer.Name)
 	if err != nil {
 		return err
 	}

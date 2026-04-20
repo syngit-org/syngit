@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("29 Add & remove patterns tests", func() {
+var _ = Describe("29 Add & remove policies tests", func() {
 
 	It("pushes to the right branches as RemoteSyncer annotations change", func() {
 		ctx := context.Background()
