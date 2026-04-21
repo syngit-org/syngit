@@ -1,6 +1,6 @@
 module github.com/syngit-org/syngit
 
-go 1.25.4
+go 1.26.2
 
 require (
 	github.com/go-git/go-billy/v5 v5.8.0
