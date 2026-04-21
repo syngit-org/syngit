@@ -74,6 +74,36 @@ jobs:
       uses: codecov/codecov-action@1e68e06f1dbfde0e4cefc87efeba9e4643565303 #v5.1.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+        flags: e2e
+
+  tests-unit:
+    name: Tests unit
+    permissions: {}
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4.2.2
+
+    - name: Set up Go
+      uses: actions/setup-go@v5.2.0
+      with:
+        go-version: '1.26'
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y make
+
+    - name: Run tests
+      run: make test-unit
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@1e68e06f1dbfde0e4cefc87efeba9e4643565303 #v5.1.2
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage-unit.txt
+        flags: unit
 
   build-image:
     name: Build Docker image

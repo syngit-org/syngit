@@ -79,7 +79,7 @@ func buildCommitMessage(params interceptor.GitPipelineParams, paths interceptor.
 		deletionMsg = fmt.Sprintf("%d-", deletePaths)
 	}
 
-	return fmt.Sprintf("%s%s %s", additionMsg, deletionMsg, resourceMessage)
+	return strings.TrimPrefix(fmt.Sprintf("%s%s %s", additionMsg, deletionMsg, resourceMessage), " ")
 }
 
 func isErrorSkipable(err error) bool {

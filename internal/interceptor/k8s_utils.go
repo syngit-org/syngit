@@ -127,7 +127,7 @@ func BuildSuccessCondition(details string) v1.Condition {
 		LastTransitionTime: v1.Now(),
 		Type:               "Synced",
 		Status:             "True",
-		Reason:             "WebhhokHandlerSucceeded",
+		Reason:             "WebhookHandlerSucceeded",
 		Message:            details,
 	}
 }
