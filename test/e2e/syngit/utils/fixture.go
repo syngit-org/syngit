@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2" // nolint:staticcheck
 	. "github.com/onsi/gomega"    // nolint:staticcheck
@@ -19,6 +20,15 @@ import (
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	syngitenvtest "github.com/syngit-org/syngit/pkg/envtest"
 )
+
+// admissionChainSettleDelay bounds the window between a ValidatingWebhook
+// being visible in etcd and the kube-apiserver's admission handler chain
+// being refreshed to route to it. There is no observable signal for that
+// refresh, so WaitForDynamicWebhook sleeps for this fixed duration after
+// the VWC entry appears. Without it, a Create that races the refresh slips
+// past the webhook entirely, the interception pipeline never runs, and
+// downstream assertions time out on a branch that was never pushed to.
+const admissionChainSettleDelay = 2 * time.Second
 
 // seq produces monotonically increasing suffixes so each spec gets
 // globally unique repo and namespace names within one suite run.
@@ -209,6 +219,10 @@ func (f *Fixture) CreateBranch(branchName, sourceBranch string) {
 // RemoteSyncer and attempting the first intercepted create/update/delete,
 // otherwise the first request may land before the webhook is wired up
 // and slip past interception.
+//
+// VWC visibility in etcd and the apiserver's admission-handler-chain
+// refresh are not atomic: a brief settlement sleep is added after the
+// entry appears, since the refresh is unobservable from a client.
 func (f *Fixture) WaitForDynamicWebhook(rsName string) {
 	GinkgoHelper()
 	expectedName := rsName + "." + f.Namespace + ".syngit.io"
@@ -227,6 +241,7 @@ func (f *Fixture) WaitForDynamicWebhook(rsName string) {
 		return false
 	}).WithTimeout(DefaultTimeout).WithPolling(DefaultInterval).Should(BeTrue(),
 		"dynamic webhook %q was never registered on %q", expectedName, DynamicWebhookName)
+	time.Sleep(admissionChainSettleDelay)
 }
 
 // WaitForDynamicWebhookToBeRemoved blocks until the controller has
