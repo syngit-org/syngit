@@ -1,4 +1,4 @@
-package transformer
+package mutator
 
 import (
 	"bytes"
@@ -14,31 +14,39 @@ import (
 	yaml "k8s.io/apimachinery/pkg/util/yaml"
 )
 
-type ResourceFinder struct {
+type ResourceFinder struct{}
+
+type resourceFinderImplem struct {
 	searchedGVK       schema.GroupVersionResource
 	searchedName      string
 	searchedNamespace string
-	content           string
+	content           []byte
 }
 
-func (rf ResourceFinder) Transform(params interceptor.GitPipelineParams, worktree *git.Worktree) (*git.Worktree, interceptor.ModifiedPaths, error) {
-	rf.searchedGVK = params.InterceptedGVR
-	rf.searchedName = params.InterceptedName
-	rf.searchedNamespace = params.RemoteSyncer.Namespace
-	rf.content = params.InterceptedYAML
-
-	if params.RemoteSyncer.Spec.ResourceFinder {
-		modifiedPaths, err := rf.getPathsContent(worktree, worktree.Filesystem.Root())
-		if err != nil {
-			return worktree, modifiedPaths, err
+func (rf ResourceFinder) Customize(params interceptor.GitPipelineParams, mutations Mutations, customWorktree *CustomWorktree) error {
+	for gvr, content := range mutations {
+		resourceFinder := resourceFinderImplem{
+			searchedName:      params.InterceptedName,
+			searchedNamespace: params.RemoteSyncer.Namespace,
+			searchedGVK:       gvr,
+			content:           content,
 		}
 
-		return worktree, modifiedPaths, nil
+		if params.RemoteSyncer.Spec.ResourceFinder {
+			modifiedPaths, err := resourceFinder.getPathsContent(customWorktree.Worktree, customWorktree.Worktree.Filesystem.Root())
+			if err != nil {
+				return err
+			}
+			customWorktree.ModifiedPaths = modifiedPaths
+
+			return nil
+		}
 	}
-	return nil, interceptor.NewModifiedPaths(), nil
+
+	return nil
 }
 
-func (rf ResourceFinder) getPathsContent(worktree *git.Worktree, basePath string) (interceptor.ModifiedPaths, error) {
+func (rf resourceFinderImplem) getPathsContent(worktree *git.Worktree, basePath string) (interceptor.ModifiedPaths, error) {
 	modifiedPaths := interceptor.NewModifiedPaths()
 
 	files, err := worktree.Filesystem.ReadDir(basePath)
@@ -78,7 +86,7 @@ func (rf ResourceFinder) getPathsContent(worktree *git.Worktree, basePath string
 	return modifiedPaths, nil
 }
 
-func (rf ResourceFinder) checkInsertResource(wt *git.Worktree, path string) (interceptor.ModifiedPaths, error) {
+func (rf resourceFinderImplem) checkInsertResource(wt *git.Worktree, path string) (interceptor.ModifiedPaths, error) {
 	modifiedPaths := interceptor.NewModifiedPaths()
 
 	f, err := wt.Filesystem.Open(path)
@@ -130,7 +138,7 @@ func (rf ResourceFinder) checkInsertResource(wt *git.Worktree, path string) (int
 	return modifiedPaths, nil
 }
 
-func (rf ResourceFinder) replaceResourceIfFound(content []byte) []byte {
+func (rf resourceFinderImplem) replaceResourceIfFound(content []byte) []byte {
 	targetGVK := fmt.Sprintf("%s/%s", rf.searchedGVK.Group, rf.searchedGVK.Version)
 	if rf.searchedGVK.Group == "" {
 		targetGVK = rf.searchedGVK.Version
@@ -151,6 +159,7 @@ func (rf ResourceFinder) replaceResourceIfFound(content []byte) []byte {
 		namespace  string
 	}
 	var docs = []docInfo{}
+	documentFound := false
 
 	for i, rawDoc := range rawDocs {
 		// Trim leading/trailing whitespace but preserve the original doc
@@ -196,10 +205,28 @@ func (rf ResourceFinder) replaceResourceIfFound(content []byte) []byte {
 		})
 	}
 
-	documentFound := false
 	// Walk docs and check metadata
 	for i, doc := range docs {
 		if doc.apiVersion == "" && doc.kind == "" {
+			// The yaml is not a Kubernetes manifest
+
+			if bytes.HasPrefix(doc.rawBytes, []byte(ResourceFinderCommentPrefix)) {
+				// It is managed by a Syngit provider.
+				firstLine, _, _ := bytes.Cut(doc.rawBytes, []byte("\n"))
+				value := string(bytes.TrimPrefix(firstLine, []byte(ResourceFinderCommentPrefix)))
+				ns, name, hasSep := strings.Cut(value, "/")
+				if !hasSep {
+					name = ns
+					ns = ""
+				}
+
+				if name == rf.searchedName && (rf.searchedNamespace == "" || ns == rf.searchedNamespace) {
+					docs[i].rawBytes = rf.content
+					documentFound = true
+					break
+				}
+			}
+
 			// Skip unparseable or empty docs
 			continue
 		}
@@ -218,7 +245,7 @@ func (rf ResourceFinder) replaceResourceIfFound(content []byte) []byte {
 			(rf.searchedNamespace == "" || doc.namespace == rf.searchedNamespace) {
 			documentFound = true
 			// Replace only the matched document
-			docs[i].rawBytes = []byte(rf.content)
+			docs[i].rawBytes = rf.content
 			break
 		}
 	}

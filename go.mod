@@ -119,6 +119,7 @@ require (
 	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
+	github.com/syngit-org/syngit-provider-helm v0.0.0-20260316223427-74765821ab78 // indirect
 	github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834 // indirect
 	github.com/tetratelabs/wazero v1.11.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect

@@ -12,12 +12,14 @@ type FeatureGates map[Feature]bool
 type Feature string
 
 const (
-	ResourceFinder Feature = "ResourceFinder"
+	ResourceFinder     Feature = "ResourceFinder"
+	HelmValuesMutation Feature = "HelmValuesMutation"
 )
 
 var (
 	LoadedFeatureGates = FeatureGates{
-		ResourceFinder: false, // Alpha: default off
+		ResourceFinder:     false, // Alpha: default off
+		HelmValuesMutation: false,
 	}
 )
 

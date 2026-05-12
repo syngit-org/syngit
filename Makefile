@@ -154,7 +154,7 @@ test: kind-delete-cluster test-controller test-e2e kind-delete-cluster ## Run al
 .PHONY: test-unit
 test-unit: fmt vet ## Run pure unit tests (no kind cluster, no envtest). Writes coverage-unit.txt.
 	go test -race -covermode=atomic -coverpkg=$(COVERPKG) -coverprofile=coverage-unit.txt \
-		./internal/interceptor/... ./internal/pusher/... ./internal/transformer/... ./pkg/errors/... ./pkg/feature/... ./pkg/utils/...
+		./internal/interceptor/... ./internal/pusher/... ./internal/mutator/... ./pkg/errors/... ./pkg/feature/... ./pkg/utils/...
 
 .PHONY: test-controller
 test-controller: manifests generate fmt vet envtest kind-create-cluster setup-webhooks-for-run ## Run tests embeded in the controller package & webhook package.

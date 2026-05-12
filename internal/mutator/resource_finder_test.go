@@ -1,4 +1,4 @@
-package transformer
+package mutator
 
 import (
 	"strings"
@@ -7,8 +7,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-func newDeploymentFinder(name, namespace, replacement string) ResourceFinder { // nolint:unparam
-	return ResourceFinder{
+func newDeploymentFinder(name, namespace, replacement string) resourceFinderImplem { // nolint:unparam
+	return resourceFinderImplem{
 		searchedGVK: schema.GroupVersionResource{
 			Group:    "apps",
 			Version:  "v1",
@@ -16,7 +16,7 @@ func newDeploymentFinder(name, namespace, replacement string) ResourceFinder { /
 		},
 		searchedName:      name,
 		searchedNamespace: namespace,
-		content:           replacement,
+		content:           []byte(replacement),
 	}
 }
 
@@ -130,8 +130,54 @@ metadata:
 		}
 	})
 
+	t.Run("helm values without resource-finder comment are preserved", func(t *testing.T) {
+		rf := newDeploymentFinder("demo", "default", "REPLACED")
+		in := []byte(`replicaCount: 3
+image:
+  repository: nginx
+  tag: latest
+service:
+  type: ClusterIP
+  port: 80
+`)
+		got := rf.replaceResourceIfFound(in)
+		if string(got) != string(in) {
+			t.Errorf("expected helm values without comment to be unchanged; got:\n%s", got)
+		}
+	})
+
+	t.Run("helm values with resource-finder comment matching is replaced", func(t *testing.T) {
+		rf := newDeploymentFinder("demo", "default", "REPLACED")
+		in := []byte(ResourceFinderCommentPrefix + `default/demo
+replicaCount: 3
+image:
+  repository: nginx
+  tag: latest
+`)
+		got := string(rf.replaceResourceIfFound(in))
+		if !strings.Contains(got, "REPLACED") {
+			t.Errorf("expected matching helm values doc to be replaced, got:\n%s", got)
+		}
+		if strings.Contains(got, "replicaCount: 3") {
+			t.Errorf("original helm values should have been replaced, got:\n%s", got)
+		}
+	})
+
+	t.Run("helm values with resource-finder comment not matching is preserved", func(t *testing.T) {
+		rf := newDeploymentFinder("demo", "default", "REPLACED")
+		in := []byte(ResourceFinderCommentPrefix + `default/other
+replicaCount: 3
+image:
+  repository: nginx
+`)
+		got := rf.replaceResourceIfFound(in)
+		if string(got) != string(in) {
+			t.Errorf("expected non-matching helm values to be unchanged; got:\n%s", got)
+		}
+	})
+
 	t.Run("core resource without group uses bare version as apiVersion", func(t *testing.T) {
-		rf := ResourceFinder{
+		rf := resourceFinderImplem{
 			searchedGVK: schema.GroupVersionResource{
 				Group:    "",
 				Version:  "v1",
@@ -139,7 +185,7 @@ metadata:
 			},
 			searchedName:      "demo",
 			searchedNamespace: "default",
-			content:           "REPLACED",
+			content:           []byte("REPLACED"),
 		}
 		in := []byte(`apiVersion: v1
 kind: ConfigMap

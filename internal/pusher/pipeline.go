@@ -3,7 +3,7 @@ package pusher
 import (
 	"fmt"
 
-	"github.com/syngit-org/syngit/internal/transformer"
+	"github.com/syngit-org/syngit/internal/mutator"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	"github.com/syngit-org/syngit/pkg/interceptor"
 )
@@ -39,7 +39,7 @@ func RunGitPipeline(params interceptor.GitPipelineParams) (interceptor.GitPushRe
 
 	// Pass over the transformers to generate the final worktree
 	var modifiedPaths interceptor.ModifiedPaths
-	worktree, modifiedPaths, err = transformer.GenerateFinalWorktree(params, worktree)
+	worktree, modifiedPaths, err = mutator.GenerateFinalWorktree(params, worktree)
 	if err != nil {
 		return ResponseBuilder(emptyPaths, "", params.RemoteTarget.Spec.TargetRepository),
 			syngiterrors.NewGitPipeline(fmt.Sprintf("failed to generate the worktree: %v", err))
