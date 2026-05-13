@@ -1,11 +1,11 @@
-package transformer
+package mutator
 
 import (
 	"testing"
 )
 
-func TestDefaultTransformer_validatePath(t *testing.T) {
-	dt := DefaultTransformer{}
+func TestDefaultWorktreeCustomizer_validatePath(t *testing.T) {
+	dt := DefaultWorktreeCustomizer{}
 
 	tests := []struct {
 		name    string
@@ -23,6 +23,7 @@ func TestDefaultTransformer_validatePath(t *testing.T) {
 		{"less-than is invalid", "a<b", "", true},
 		{"greater-than is invalid", "a>b", "", true},
 		{"pipe is invalid", "a|b", "", true},
+		{"path with empty group & version", "my-ns///yes", "my-ns/yes", false},
 	}
 
 	for _, tc := range tests {
@@ -44,8 +45,8 @@ func TestDefaultTransformer_validatePath(t *testing.T) {
 	}
 }
 
-func TestDefaultTransformer_containsInvalidCharacters(t *testing.T) {
-	dt := DefaultTransformer{}
+func TestDefaultWorktreeCustomizer_containsInvalidCharacters(t *testing.T) {
+	dt := DefaultWorktreeCustomizer{}
 
 	tests := []struct {
 		name  string
@@ -72,8 +73,8 @@ func TestDefaultTransformer_containsInvalidCharacters(t *testing.T) {
 	}
 }
 
-func TestDefaultTransformer_getFileDirName(t *testing.T) {
-	dt := DefaultTransformer{}
+func TestDefaultWorktreeCustomizer_getFileDirName(t *testing.T) {
+	dt := DefaultWorktreeCustomizer{}
 
 	tests := []struct {
 		name         string

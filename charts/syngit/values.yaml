@@ -11,10 +11,11 @@ controller:
   image:
     prefix: ghcr.io/syngit-org
     name: syngit
-    featureGates: ResourceFinder=true
     # imagePullSecrets:
     # imagePullPolicy:
 
+  featureGates: ResourceFinder=true
+  
   replicas: 1
 
   securityContext:

@@ -80,7 +80,7 @@ run-fast: kind-create-cluster manifests generate fmt vet ## Run a controller fro
 	@if ! kubectl get crd remoteusers.syngit.io &> /dev/null; then \
 		make install-crds && make setup-webhooks-for-run; \
 	fi
-	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(LOCALHOST_BRIDGE) DEV_WEBHOOK_PORT=9443 DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && go run cmd/main.go --feature-gates=ResourceFinder=true
+	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(LOCALHOST_BRIDGE) DEV_WEBHOOK_PORT=9443 DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && go run cmd/main.go --feature-gates=ResourceFinder=true,HelmValuesMutation=true
 
 .PHONY: run
 run: kind-create-cluster manifests generate fmt vet install-crds setup-webhooks-for-run ## Install CRDs, webhooks & run a controller from your host. All resources are deleted when killed.
@@ -90,12 +90,12 @@ run: kind-create-cluster manifests generate fmt vet install-crds setup-webhooks-
 	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(LOCALHOST_BRIDGE) DEV_WEBHOOK_PORT=9443 DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && \
 	{ \
 		trap 'echo "Cleanup resources"; make run-reset; exit' SIGINT; \
-		go run cmd/main.go --feature-gates=ResourceFinder=true; \
+		go run cmd/main.go --feature-gates=ResourceFinder=true,HelmValuesMutation=true; \
 	}
 
 .PHONY: run-reset
 run-reset: cleanup-webhooks-for-run uninstall-crds ## Uninstall CRDs, reset webhook injection and remove webhooks.
-	$(KUBECTL) delete validatingwebhookconfigurations.admissionregistration.k8s.io $(DYNAMIC_WEBHOOK_NAME) --ignore-not-found=$(ignore-not-found)
+	$(KUBECTL) delete validatingwebhookconfigurations.admissionregistration.k8s.io $(DYNAMIC_WEBHOOK_NAME) --ignore-not-found=$(ignore-not-found) || true
 
 ##@ Deploy controller in the cluster
 
@@ -105,7 +105,7 @@ install-crds: kind-create-cluster manifests kustomize ## Install CRDs.
 
 .PHONY: uninstall-crds
 uninstall-crds: manifests kustomize ## Uninstall CRDs.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f - || true
 
 .PHONY: deploy
 deploy: kind-create-cluster manifests kustomize ## Deploy the syngit pod.
@@ -154,7 +154,7 @@ test: kind-delete-cluster test-controller test-e2e kind-delete-cluster ## Run al
 .PHONY: test-unit
 test-unit: fmt vet ## Run pure unit tests (no kind cluster, no envtest). Writes coverage-unit.txt.
 	go test -race -covermode=atomic -coverpkg=$(COVERPKG) -coverprofile=coverage-unit.txt \
-		./internal/interceptor/... ./internal/pusher/... ./internal/transformer/... ./pkg/errors/... ./pkg/feature/... ./pkg/utils/...
+		./internal/interceptor/... ./internal/pusher/... ./internal/mutator/... ./pkg/errors/... ./pkg/feature/... ./pkg/utils/...
 
 .PHONY: test-controller
 test-controller: manifests generate fmt vet envtest kind-create-cluster setup-webhooks-for-run ## Run tests embeded in the controller package & webhook package.
@@ -254,7 +254,12 @@ setup-webhooks-for-run: manifests kustomize ## Setup webhooks using auto-generat
 
 .PHONY: cleanup-webhooks-for-run
 cleanup-webhooks-for-run: manifests kustomize ## Cleanup webhooks using auto-generated certs & docker bridge host (make run).
-	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/run | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f - || true
+	@status=0; { $(KUSTOMIZE) build $(DEV_LOCAL_PATH)/run | timeout 5 $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -; } || status=$$?; \
+	if [ $$status -eq 124 ]; then \
+		echo "Webhook/CRD delete timed out after 5s; forcing cluster cleanup..."; \
+		$(MAKE) kind-delete-cluster; \
+		$(MAKE) cleanup-force; \
+	fi
 	./hack/webhooks/cleanup-injector.sh $(TEMP_CERT_DIR) || true
 
 .PHONY: setup-webhooks-for-deploy

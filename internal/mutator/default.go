@@ -1,4 +1,4 @@
-package transformer
+package mutator
 
 import (
 	"errors"
@@ -9,35 +9,34 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/syngit-org/syngit/pkg/interceptor"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-type DefaultTransformer struct{}
+type DefaultWorktreeCustomizer struct{}
 
-func (dt DefaultTransformer) Transform(params interceptor.GitPipelineParams, worktree *git.Worktree) (*git.Worktree, interceptor.ModifiedPaths, error) {
-	modifiedPaths := interceptor.NewModifiedPaths()
+func (dt DefaultWorktreeCustomizer) Customize(params interceptor.GitPipelineParams, mutations Mutations, customWorktree *CustomWorktree) error {
+	for gvr, content := range mutations {
+		path, err := dt.pathConstructor(params, gvr, customWorktree.Worktree)
+		if err != nil {
+			return err
+		}
 
-	path, err := dt.pathConstructor(params, worktree)
-	if err != nil {
-		return worktree, modifiedPaths, err
+		fullFilePath, err := dt.writeFile(params, content, path, customWorktree.Worktree)
+		if err != nil {
+			return err
+		}
+
+		if params.InterceptedYAML == "" {
+			customWorktree.ClaimedPaths.AppendDeletedPath(fullFilePath)
+		} else {
+			customWorktree.ClaimedPaths.AppendAddedPath(fullFilePath)
+		}
 	}
 
-	fullFilePath, err := dt.writeFile(params, path, worktree)
-	if err != nil {
-		return worktree, modifiedPaths, err
-	}
-
-	if params.InterceptedYAML == "" {
-		modifiedPaths.AppendDeletedPath(fullFilePath)
-	} else {
-		modifiedPaths.AppendAddedPath(fullFilePath)
-	}
-
-	return worktree, modifiedPaths, nil
+	return nil
 }
 
-func (dt DefaultTransformer) pathConstructor(params interceptor.GitPipelineParams, worktree *git.Worktree) (string, error) {
-	gvr := params.InterceptedGVR
-
+func (dt DefaultWorktreeCustomizer) pathConstructor(params interceptor.GitPipelineParams, gvr schema.GroupVersionResource, worktree *git.Worktree) (string, error) {
 	tempPath := ""
 	if params.RemoteSyncer.Spec.RootPath != "" {
 		tempPath += params.RemoteSyncer.Spec.RootPath + "/"
@@ -68,7 +67,7 @@ func (dt DefaultTransformer) pathConstructor(params interceptor.GitPipelineParam
 	return path, nil
 }
 
-func (dt DefaultTransformer) validatePath(path string) (string, error) {
+func (dt DefaultWorktreeCustomizer) validatePath(path string) (string, error) {
 	// Validate and clean the path
 	cleanPath := filepath.Clean(path)
 	// !filepath.IsAbs(cleanPath) test absolute path ?
@@ -79,7 +78,7 @@ func (dt DefaultTransformer) validatePath(path string) (string, error) {
 	return cleanPath, nil
 }
 
-func (dt DefaultTransformer) containsInvalidCharacters(path string) bool {
+func (dt DefaultWorktreeCustomizer) containsInvalidCharacters(path string) bool {
 	invalidChars := []rune{':', '*', '?', '"', '<', '>', '|'}
 	for _, char := range path {
 		for _, invalidChar := range invalidChars {
@@ -91,7 +90,7 @@ func (dt DefaultTransformer) containsInvalidCharacters(path string) bool {
 	return false
 }
 
-func (dt DefaultTransformer) getFileDirName(resourceName, path, filename string) (string, string) {
+func (dt DefaultWorktreeCustomizer) getFileDirName(resourceName, path, filename string) (string, string) {
 	pathArr := strings.Split(path, "/")
 	if filename == "" {
 		return path + "/", resourceName + ".yaml"
@@ -104,7 +103,7 @@ func (dt DefaultTransformer) getFileDirName(resourceName, path, filename string)
 	return strings.Join(pathArr, "/"), resourceName + ".yaml"
 }
 
-func (dt DefaultTransformer) writeFile(params interceptor.GitPipelineParams, path string, w *git.Worktree) (string, error) {
+func (dt DefaultWorktreeCustomizer) writeFile(params interceptor.GitPipelineParams, content []byte, path string, w *git.Worktree) (string, error) {
 	fullFilePath := path
 	dir := ""
 
@@ -120,9 +119,7 @@ func (dt DefaultTransformer) writeFile(params interceptor.GitPipelineParams, pat
 	dir, fileName = dt.getFileDirName(params.InterceptedName, fullFilePath, fileName)
 	fullFilePath = filepath.Join(dir, fileName)
 
-	content := []byte(params.InterceptedYAML)
-
-	if params.InterceptedYAML == "" { // The file has been deleted
+	if content == nil { // The file has been deleted
 		return fullFilePath, nil
 	}
 

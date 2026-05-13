@@ -48,7 +48,7 @@
                     "value": "yes"
                 }
             ],
-            "default": "no"
+            "default": "yes"
         }
     ]
 }
