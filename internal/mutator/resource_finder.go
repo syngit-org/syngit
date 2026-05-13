@@ -141,7 +141,13 @@ func (rf resourceFinderImplem) checkInsertResource(wt *git.Worktree, path string
 
 	// Record the match even when content didn't change, so the caller knows
 	// ResourceFinder claimed this resource and the fallback should not fire.
-	claimedPaths.AppendAddedPath(cleanPath)
+
+	if string(rf.content) == "" {
+		// Empty comment so the path should be deleted.
+		claimedPaths.AppendDeletedPath(cleanPath)
+	} else {
+		claimedPaths.AppendAddedPath(cleanPath)
+	}
 
 	return claimedPaths, nil
 }

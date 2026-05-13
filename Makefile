@@ -95,7 +95,7 @@ run: kind-create-cluster manifests generate fmt vet install-crds setup-webhooks-
 
 .PHONY: run-reset
 run-reset: cleanup-webhooks-for-run uninstall-crds ## Uninstall CRDs, reset webhook injection and remove webhooks.
-	$(KUBECTL) delete validatingwebhookconfigurations.admissionregistration.k8s.io $(DYNAMIC_WEBHOOK_NAME) --ignore-not-found=$(ignore-not-found)
+	$(KUBECTL) delete validatingwebhookconfigurations.admissionregistration.k8s.io $(DYNAMIC_WEBHOOK_NAME) --ignore-not-found=$(ignore-not-found) || true
 
 ##@ Deploy controller in the cluster
 
@@ -105,7 +105,7 @@ install-crds: kind-create-cluster manifests kustomize ## Install CRDs.
 
 .PHONY: uninstall-crds
 uninstall-crds: manifests kustomize ## Uninstall CRDs.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f - || true
 
 .PHONY: deploy
 deploy: kind-create-cluster manifests kustomize ## Deploy the syngit pod.
