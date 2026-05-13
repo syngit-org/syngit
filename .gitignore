@@ -18,13 +18,13 @@ coverage-unit.txt
 
 # Go workspace file
 go.work
+.debug.env
 
 # Kubernetes Generated files - skip generated files, except for vendored files
 !vendor/**/zz_generated.*
 
 # Editor and IDE paraphernalia
 .idea
-.vscode
 *.swp
 *.swo
 *~
