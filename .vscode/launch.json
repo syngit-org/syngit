@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug syngit controller",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/cmd/main.go",
+            "args": [
+                "--feature-gates=ResourceFinder=true"
+            ],
+            "env": {
+                "MANAGER_NAMESPACE": "syngit",
+                "DYNAMIC_WEBHOOK_NAME": "syngit-dynamic-remotesyncer-webhook",
+                "DEV_MODE": "true",
+                "DEV_WEBHOOK_PORT": "9443",
+                "DEV_WEBHOOK_CERT": "/tmp/k8s-webhook-server/serving-certs/tls.crt"
+            },
+            "envFile": "${workspaceFolder}/.vscode/.debug.env",
+            "preLaunchTask": "syngit:debug-setup",
+            "postDebugTask": "syngit:debug-cleanup"
+        }
+    ]
+}

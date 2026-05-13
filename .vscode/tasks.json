@@ -1,0 +1,54 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "syngit:debug-setup",
+            "type": "shell",
+            "command": "make kind-create-cluster manifests generate fmt vet install-crds setup-webhooks-for-run && printf 'DEV_WEBHOOK_HOST=%s\\n' \"$(docker network inspect bridge --format='{{(index .IPAM.Config 0).Gateway}}')\" > .vscode/.debug.env",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "syngit:debug-cleanup",
+            "type": "process",
+            "command": "${workspaceFolder}/.vscode/debug-cleanup.sh",
+            "args": [
+                "${input:syngitCleanup}"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "syngitCleanup",
+            "type": "pickString",
+            "description": "Cleanup syngit resources (uninstall CRDs & webhooks)?",
+            "options": [
+                {
+                    "label": "No",
+                    "value": "no"
+                },
+                {
+                    "label": "Yes",
+                    "value": "yes"
+                }
+            ],
+            "default": "no"
+        }
+    ]
+}
