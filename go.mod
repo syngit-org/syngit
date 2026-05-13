@@ -9,7 +9,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.28.3
 	github.com/onsi/gomega v1.40.0
 	github.com/sosedoff/gitkit v0.4.0
-	github.com/syngit-org/syngit-provider-helm v0.0.0-20260513183845-7fa069fd30c3
+	github.com/syngit-org/syngit-provider-helm v0.1.0
 	helm.sh/helm/v4 v4.1.4
 	k8s.io/api v0.35.4
 	k8s.io/apimachinery v0.35.4
