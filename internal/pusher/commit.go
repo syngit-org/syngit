@@ -36,7 +36,7 @@ func Commit(params interceptor.GitPipelineParams, worktree *git.Worktree, paths 
 	commit, err := worktree.Commit(commitMessage, &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  params.GitUserInfo.User,
-			Email: params.GitUserInfo.Token,
+			Email: params.GitUserInfo.Email,
 			When:  time.Now(),
 		},
 	})
