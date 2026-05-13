@@ -24,31 +24,31 @@ type GitPipelineParams struct {
 	CABundle        []byte
 }
 
-type ModifiedPaths struct {
+type ClaimedPaths struct {
 	Add    []string
 	Delete []string
 }
 
-func NewModifiedPaths() ModifiedPaths {
-	return ModifiedPaths{
+func NewClaimedPaths() ClaimedPaths {
+	return ClaimedPaths{
 		Add:    []string{},
 		Delete: []string{},
 	}
 }
 
-func (mp ModifiedPaths) IsModified() bool {
+func (mp ClaimedPaths) ClaimExists() bool {
 	return len(mp.Add) > 0 || len(mp.Delete) > 0
 }
 
-func (mp *ModifiedPaths) AppendAddedPath(path string) {
+func (mp *ClaimedPaths) AppendAddedPath(path string) {
 	mp.Add = append(mp.Add, path)
 }
 
-func (mp *ModifiedPaths) AppendDeletedPath(path string) {
+func (mp *ClaimedPaths) AppendDeletedPath(path string) {
 	mp.Delete = append(mp.Delete, path)
 }
 
-func (mp *ModifiedPaths) AppendModifiedPaths(paths ModifiedPaths) {
+func (mp *ClaimedPaths) AppendClaimedPaths(paths ClaimedPaths) {
 	mp.Delete = append(mp.Delete, paths.Delete...)
 	mp.Add = append(mp.Add, paths.Add...)
 }

@@ -10,6 +10,8 @@ import (
 
 type HelmValuesMutation struct{}
 
+const DefaultChartValuesSubPath = "chart-values"
+
 func (mutate HelmValuesMutation) Mutate(params interceptor.GitPipelineParams, mutations *Mutations) error {
 	if params.InterceptedGVR.Group != "" ||
 		params.InterceptedGVR.Version != "v1" ||
@@ -17,28 +19,34 @@ func (mutate HelmValuesMutation) Mutate(params interceptor.GitPipelineParams, mu
 		return nil
 	}
 
-	content := []byte(params.InterceptedYAML)
-
-	secret := &corev1.Secret{}
-	if err := yaml.Unmarshal(content, secret); err != nil {
-		return err
-	}
-
-	if !provider.IsHelmSecret(secret) {
+	if !provider.IsHelmSecretByName(params.InterceptedName) {
 		return nil
 	}
 
-	values, err := provider.ExtractValues(secret)
-	if err != nil {
-		return err
+	rawValues := ""
+
+	if params.InterceptedYAML != "" {
+		secret := &corev1.Secret{}
+		if err := yaml.Unmarshal([]byte(params.InterceptedYAML), secret); err != nil {
+			return err
+		}
+
+		if !provider.IsHelmSecret(secret) {
+			return nil
+		}
+
+		values, err := provider.ExtractValues(secret)
+		if err != nil {
+			return err
+		}
+		rawValues = values.RawValues
 	}
-	_ = values
 
 	mutations.AddMutation(schema.GroupVersionResource{
 		Group:    "",
 		Version:  "",
-		Resource: "chart-values",
-	}, content)
+		Resource: DefaultChartValuesSubPath,
+	}, []byte(rawValues))
 
 	return nil
 }

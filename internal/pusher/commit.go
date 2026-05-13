@@ -11,11 +11,11 @@ import (
 	"github.com/syngit-org/syngit/pkg/interceptor"
 )
 
-func GetPathsFromModifiedPaths(modifiedPaths interceptor.ModifiedPaths) []string {
-	return append(modifiedPaths.Add, modifiedPaths.Delete...)
+func GetPathsFromClaimedPaths(claimedPaths interceptor.ClaimedPaths) []string {
+	return append(claimedPaths.Add, claimedPaths.Delete...)
 }
 
-func Commit(params interceptor.GitPipelineParams, worktree *git.Worktree, paths interceptor.ModifiedPaths, targetRepository *git.Repository) (string, error) {
+func Commit(params interceptor.GitPipelineParams, worktree *git.Worktree, paths interceptor.ClaimedPaths, targetRepository *git.Repository) (string, error) {
 	for _, path := range paths.Add {
 		_, err := worktree.Add(path)
 		if err != nil {
@@ -58,7 +58,7 @@ func Commit(params interceptor.GitPipelineParams, worktree *git.Worktree, paths 
 	return commit.String(), nil
 }
 
-func buildCommitMessage(params interceptor.GitPipelineParams, paths interceptor.ModifiedPaths) string {
+func buildCommitMessage(params interceptor.GitPipelineParams, paths interceptor.ClaimedPaths) string {
 	resourceMessage := fmt.Sprintf("%s.%s/%s: %s/%s",
 		params.InterceptedGVR.Resource,
 		params.InterceptedGVR.Group,

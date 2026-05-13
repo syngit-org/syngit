@@ -27,9 +27,9 @@ func (dt DefaultWorktreeCustomizer) Customize(params interceptor.GitPipelinePara
 		}
 
 		if params.InterceptedYAML == "" {
-			customWorktree.ModifiedPaths.AppendDeletedPath(fullFilePath)
+			customWorktree.ClaimedPaths.AppendDeletedPath(fullFilePath)
 		} else {
-			customWorktree.ModifiedPaths.AppendAddedPath(fullFilePath)
+			customWorktree.ClaimedPaths.AppendAddedPath(fullFilePath)
 		}
 	}
 

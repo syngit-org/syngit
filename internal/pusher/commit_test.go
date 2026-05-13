@@ -12,37 +12,37 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-func TestGetPathsFromModifiedPaths(t *testing.T) {
+func TestGetPathsFromClaimedPaths(t *testing.T) {
 	tests := []struct {
 		name  string
-		input interceptor.ModifiedPaths
+		input interceptor.ClaimedPaths
 		want  []string
 	}{
 		{
 			name:  "both adds and deletes appear, adds first",
-			input: interceptor.ModifiedPaths{Add: []string{"a", "b"}, Delete: []string{"x"}},
+			input: interceptor.ClaimedPaths{Add: []string{"a", "b"}, Delete: []string{"x"}},
 			want:  []string{"a", "b", "x"},
 		},
 		{
 			name:  "only adds",
-			input: interceptor.ModifiedPaths{Add: []string{"a"}},
+			input: interceptor.ClaimedPaths{Add: []string{"a"}},
 			want:  []string{"a"},
 		},
 		{
 			name:  "only deletes",
-			input: interceptor.ModifiedPaths{Delete: []string{"x"}},
+			input: interceptor.ClaimedPaths{Delete: []string{"x"}},
 			want:  []string{"x"},
 		},
 		{
 			name:  "both empty",
-			input: interceptor.ModifiedPaths{},
+			input: interceptor.ClaimedPaths{},
 			want:  []string{},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := GetPathsFromModifiedPaths(tc.input)
+			got := GetPathsFromClaimedPaths(tc.input)
 			if len(got) == 0 && len(tc.want) == 0 {
 				return
 			}
@@ -66,27 +66,27 @@ func TestBuildCommitMessage(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		paths interceptor.ModifiedPaths
+		paths interceptor.ClaimedPaths
 		want  string
 	}{
 		{
 			name:  "adds and deletes both counted",
-			paths: interceptor.ModifiedPaths{Add: []string{"a", "b"}, Delete: []string{"x"}},
+			paths: interceptor.ClaimedPaths{Add: []string{"a", "b"}, Delete: []string{"x"}},
 			want:  "2+1- deployments.apps/v1: default/demo",
 		},
 		{
 			name:  "adds only",
-			paths: interceptor.ModifiedPaths{Add: []string{"a"}},
+			paths: interceptor.ClaimedPaths{Add: []string{"a"}},
 			want:  "1+ deployments.apps/v1: default/demo",
 		},
 		{
 			name:  "deletes only",
-			paths: interceptor.ModifiedPaths{Delete: []string{"x"}},
+			paths: interceptor.ClaimedPaths{Delete: []string{"x"}},
 			want:  "1- deployments.apps/v1: default/demo",
 		},
 		{
 			name:  "no paths produces a space prefix",
-			paths: interceptor.ModifiedPaths{},
+			paths: interceptor.ClaimedPaths{},
 			want:  "deployments.apps/v1: default/demo",
 		},
 	}

@@ -3,6 +3,7 @@ controller:
     prefix: local
     name: syngit-controller
     tag: dev
+  featureGates: ResourceFinder=true,HelmValuesMutation=true
 providers:
   github:
     enabled: true

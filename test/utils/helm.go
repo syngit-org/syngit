@@ -32,7 +32,7 @@ func NewEnvtestHelmActionConfig(cfg *rest.Config, namespace string) (*action.Con
 	if err := os.WriteFile(tmpKube, kubeconfig, 0600); err != nil {
 		return nil, settings, err
 	}
-	settings.KubeConfig = string(kubeconfig)
+	settings.KubeConfig = tmpKube
 	settings.RepositoryCache = "/tmp/helmcache"
 	settings.RepositoryConfig = "/tmp/helmrepo"
 

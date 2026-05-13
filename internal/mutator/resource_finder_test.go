@@ -31,7 +31,7 @@ metadata:
 spec:
   replicas: 1
 `)
-		got := rf.replaceResourceIfFound(in)
+		got, _ := rf.replaceResourceIfFound(in)
 		if string(got) != string(in) {
 			t.Errorf("expected unchanged; got:\n%s", got)
 		}
@@ -47,11 +47,12 @@ metadata:
 spec:
   replicas: 1
 `)
-		got := string(rf.replaceResourceIfFound(in))
-		if !strings.Contains(got, "REPLACED") {
+		got, _ := rf.replaceResourceIfFound(in)
+		stringGot := string(got)
+		if !strings.Contains(stringGot, "REPLACED") {
 			t.Errorf("expected replacement content in output, got:\n%s", got)
 		}
-		if strings.Contains(got, "replicas: 1") {
+		if strings.Contains(stringGot, "replicas: 1") {
 			t.Errorf("original content should have been replaced, got:\n%s", got)
 		}
 	})
@@ -74,14 +75,15 @@ metadata:
 spec:
   replicas: 1
 `)
-		got := string(rf.replaceResourceIfFound(in))
-		if !strings.Contains(got, "keep-me") {
+		got, _ := rf.replaceResourceIfFound(in)
+		stringGot := string(got)
+		if !strings.Contains(stringGot, "keep-me") {
 			t.Errorf("non-matching doc should be preserved, got:\n%s", got)
 		}
-		if !strings.Contains(got, "REPLACED") {
+		if !strings.Contains(stringGot, "REPLACED") {
 			t.Errorf("matching doc should be replaced, got:\n%s", got)
 		}
-		if strings.Contains(got, "replicas: 1") {
+		if strings.Contains(stringGot, "replicas: 1") {
 			t.Errorf("replaced doc should no longer contain original body, got:\n%s", got)
 		}
 	})
@@ -96,8 +98,9 @@ metadata:
 spec:
   replicas: 1
 `)
-		got := string(rf.replaceResourceIfFound(in))
-		if !strings.Contains(got, "REPLACED") {
+		got, _ := rf.replaceResourceIfFound(in)
+		stringGot := string(got)
+		if !strings.Contains(stringGot, "REPLACED") {
 			t.Errorf("expected replacement when searched namespace is empty, got:\n%s", got)
 		}
 	})
@@ -118,14 +121,15 @@ metadata:
   name: keeper
   namespace: default
 `)
-		got := string(rf.replaceResourceIfFound(in))
-		if !strings.Contains(got, "REPLACED") {
+		got, _ := rf.replaceResourceIfFound(in)
+		stringGot := string(got)
+		if !strings.Contains(stringGot, "REPLACED") {
 			t.Errorf("matching doc should be replaced, got:\n%s", got)
 		}
-		if !strings.Contains(got, "this is : not : valid") {
+		if !strings.Contains(stringGot, "this is : not : valid") {
 			t.Errorf("unparseable doc should be preserved verbatim, got:\n%s", got)
 		}
-		if !strings.Contains(got, "keeper") {
+		if !strings.Contains(stringGot, "keeper") {
 			t.Errorf("third doc should be preserved, got:\n%s", got)
 		}
 	})
@@ -140,7 +144,7 @@ service:
   type: ClusterIP
   port: 80
 `)
-		got := rf.replaceResourceIfFound(in)
+		got, _ := rf.replaceResourceIfFound(in)
 		if string(got) != string(in) {
 			t.Errorf("expected helm values without comment to be unchanged; got:\n%s", got)
 		}
@@ -154,11 +158,12 @@ image:
   repository: nginx
   tag: latest
 `)
-		got := string(rf.replaceResourceIfFound(in))
-		if !strings.Contains(got, "REPLACED") {
+		got, _ := rf.replaceResourceIfFound(in)
+		stringGot := string(got)
+		if !strings.Contains(stringGot, "REPLACED") {
 			t.Errorf("expected matching helm values doc to be replaced, got:\n%s", got)
 		}
-		if strings.Contains(got, "replicaCount: 3") {
+		if strings.Contains(stringGot, "replicaCount: 3") {
 			t.Errorf("original helm values should have been replaced, got:\n%s", got)
 		}
 	})
@@ -170,7 +175,7 @@ replicaCount: 3
 image:
   repository: nginx
 `)
-		got := rf.replaceResourceIfFound(in)
+		got, _ := rf.replaceResourceIfFound(in)
 		if string(got) != string(in) {
 			t.Errorf("expected non-matching helm values to be unchanged; got:\n%s", got)
 		}
@@ -195,8 +200,9 @@ metadata:
 data:
   foo: bar
 `)
-		got := string(rf.replaceResourceIfFound(in))
-		if !strings.Contains(got, "REPLACED") {
+		got, _ := rf.replaceResourceIfFound(in)
+		stringGot := string(got)
+		if !strings.Contains(stringGot, "REPLACED") {
 			t.Errorf("expected core resource to be matched and replaced, got:\n%s", got)
 		}
 	})

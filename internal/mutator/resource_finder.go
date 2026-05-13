@@ -25,19 +25,22 @@ type resourceFinderImplem struct {
 
 func (rf ResourceFinder) Customize(params interceptor.GitPipelineParams, mutations Mutations, customWorktree *CustomWorktree) error {
 	for gvr, content := range mutations {
+		searchedName := params.InterceptedName
+		searchedNamespace := params.RemoteSyncer.Namespace
+
 		resourceFinder := resourceFinderImplem{
-			searchedName:      params.InterceptedName,
-			searchedNamespace: params.RemoteSyncer.Namespace,
+			searchedName:      searchedName,
+			searchedNamespace: searchedNamespace,
 			searchedGVK:       gvr,
 			content:           content,
 		}
 
 		if params.RemoteSyncer.Spec.ResourceFinder {
-			modifiedPaths, err := resourceFinder.getPathsContent(customWorktree.Worktree, customWorktree.Worktree.Filesystem.Root())
+			claimedPaths, err := resourceFinder.getPathsContent(customWorktree.Worktree, customWorktree.Worktree.Filesystem.Root())
 			if err != nil {
 				return err
 			}
-			customWorktree.ModifiedPaths = modifiedPaths
+			customWorktree.ClaimedPaths = claimedPaths
 
 			return nil
 		}
@@ -46,12 +49,12 @@ func (rf ResourceFinder) Customize(params interceptor.GitPipelineParams, mutatio
 	return nil
 }
 
-func (rf resourceFinderImplem) getPathsContent(worktree *git.Worktree, basePath string) (interceptor.ModifiedPaths, error) {
-	modifiedPaths := interceptor.NewModifiedPaths()
+func (rf resourceFinderImplem) getPathsContent(worktree *git.Worktree, basePath string) (interceptor.ClaimedPaths, error) {
+	claimedPaths := interceptor.NewClaimedPaths()
 
 	files, err := worktree.Filesystem.ReadDir(basePath)
 	if err != nil {
-		return interceptor.NewModifiedPaths(), fmt.Errorf("failed to read directory %s: %w", basePath, err)
+		return interceptor.NewClaimedPaths(), fmt.Errorf("failed to read directory %s: %w", basePath, err)
 	}
 
 	var path string
@@ -68,43 +71,52 @@ func (rf resourceFinderImplem) getPathsContent(worktree *git.Worktree, basePath 
 		if f.IsDir() {
 			paths, err := rf.getPathsContent(worktree, path)
 			if err != nil {
-				return interceptor.NewModifiedPaths(), err
+				return interceptor.NewClaimedPaths(), err
 			}
-			modifiedPaths.AppendModifiedPaths(paths)
+			claimedPaths.AppendClaimedPaths(paths)
 		} else {
 			if strings.HasSuffix(currentFileName, ".yaml") || strings.HasSuffix(currentFileName, ".yml") {
 
 				paths, err := rf.checkInsertResource(worktree, path)
 				if err != nil {
-					return interceptor.NewModifiedPaths(), err
+					return interceptor.NewClaimedPaths(), err
 				}
-				modifiedPaths.AppendModifiedPaths(paths)
+				claimedPaths.AppendClaimedPaths(paths)
 			}
 		}
 	}
 
-	return modifiedPaths, nil
+	return claimedPaths, nil
 }
 
-func (rf resourceFinderImplem) checkInsertResource(wt *git.Worktree, path string) (interceptor.ModifiedPaths, error) {
-	modifiedPaths := interceptor.NewModifiedPaths()
+func (rf resourceFinderImplem) checkInsertResource(wt *git.Worktree, path string) (interceptor.ClaimedPaths, error) {
+	claimedPaths := interceptor.NewClaimedPaths()
 
 	f, err := wt.Filesystem.Open(path)
 	if err != nil {
-		return modifiedPaths, fmt.Errorf("failed to open the %s file in the worktree: %w", path, err)
+		return claimedPaths, fmt.Errorf("failed to open the %s file in the worktree: %w", path, err)
 	}
 
 	content, err := io.ReadAll(f)
 	if err != nil {
-		return modifiedPaths, fmt.Errorf("failed to read the %s file in the worktree: %w", path, err)
+		return claimedPaths, fmt.Errorf("failed to read the %s file in the worktree: %w", path, err)
 	}
 
 	err = f.Close()
 	if err != nil {
-		return modifiedPaths, fmt.Errorf("failed to close the %s file in the worktree: %w", path, err)
+		return claimedPaths, fmt.Errorf("failed to close the %s file in the worktree: %w", path, err)
 	}
 
-	out := rf.replaceResourceIfFound(content)
+	out, found := rf.replaceResourceIfFound(content)
+	if !found {
+		return claimedPaths, nil
+	}
+
+	cleanPath := filepath.Clean(path)
+	if after, ok := strings.CutPrefix(cleanPath, "/"); ok {
+		cleanPath = after
+	}
+
 	if string(out) != string(content) {
 		// Remove the file first to ensure clean state
 		_ = wt.Filesystem.Remove(path)
@@ -112,33 +124,34 @@ func (rf resourceFinderImplem) checkInsertResource(wt *git.Worktree, path string
 		if len(out) > 0 {
 			file, err := wt.Filesystem.Create(path)
 			if err != nil {
-				return modifiedPaths, fmt.Errorf("failed to create the %s file in the worktree: %w", path, err)
+				return claimedPaths, fmt.Errorf("failed to create the %s file in the worktree: %w", path, err)
 			}
 
 			_, err = file.Write(out)
 			if err != nil {
 				_ = file.Close()
-				return modifiedPaths, fmt.Errorf("failed to write the %s file in the worktree: %w", path, err)
+				return claimedPaths, fmt.Errorf("failed to write the %s file in the worktree: %w", path, err)
 			}
 			err = file.Close()
 			if err != nil {
-				return modifiedPaths, fmt.Errorf("failed to close the %s file in the worktree: %w", path, err)
+				return claimedPaths, fmt.Errorf("failed to close the %s file in the worktree: %w", path, err)
 			}
 		}
-
-		// Clean the path to remove any leading slashes and normalize it
-		cleanPath := filepath.Clean(path)
-		if after, ok := strings.CutPrefix(cleanPath, "/"); ok {
-			cleanPath = after
-		}
-
-		modifiedPaths.AppendAddedPath(cleanPath)
 	}
 
-	return modifiedPaths, nil
+	// Record the match even when content didn't change, so the caller knows
+	// ResourceFinder claimed this resource and the fallback should not fire.
+	claimedPaths.AppendAddedPath(cleanPath)
+
+	return claimedPaths, nil
 }
 
-func (rf resourceFinderImplem) replaceResourceIfFound(content []byte) []byte {
+// replaceResourceIfFound scans content for a YAML document that matches the
+// configured search identity. It returns the (possibly rewritten) content and
+// a boolean indicating whether a match was found. When found=true the caller
+// should claim the file even if the returned content equals the input. A no-op
+// rewrite still counts as a match.
+func (rf resourceFinderImplem) replaceResourceIfFound(content []byte) ([]byte, bool) {
 	targetGVK := fmt.Sprintf("%s/%s", rf.searchedGVK.Group, rf.searchedGVK.Version)
 	if rf.searchedGVK.Group == "" {
 		targetGVK = rf.searchedGVK.Version
@@ -147,7 +160,7 @@ func (rf resourceFinderImplem) replaceResourceIfFound(content []byte) []byte {
 	// Split content into raw document strings, preserving original formatting
 	rawDocs := bytes.Split(content, []byte("\n---\n"))
 	if len(rawDocs) == 0 {
-		return content
+		return content, false
 	}
 
 	// Track which documents are valid and their parsed metadata
@@ -208,26 +221,25 @@ func (rf resourceFinderImplem) replaceResourceIfFound(content []byte) []byte {
 	// Walk docs and check metadata
 	for i, doc := range docs {
 		if doc.apiVersion == "" && doc.kind == "" {
-			// The yaml is not a Kubernetes manifest
-
-			if bytes.HasPrefix(doc.rawBytes, []byte(ResourceFinderCommentPrefix)) {
-				// It is managed by a Syngit provider.
-				firstLine, _, _ := bytes.Cut(doc.rawBytes, []byte("\n"))
-				value := string(bytes.TrimPrefix(firstLine, []byte(ResourceFinderCommentPrefix)))
-				ns, name, hasSep := strings.Cut(value, "/")
-				if !hasSep {
-					name = ns
-					ns = ""
-				}
-
-				if name == rf.searchedName && (rf.searchedNamespace == "" || ns == rf.searchedNamespace) {
-					docs[i].rawBytes = rf.content
-					documentFound = true
-					break
-				}
+			// Not a Kubernetes manifest. May still be managed by a Syngit
+			// provider if the first line carries the marker.
+			firstLine, _, _ := bytes.Cut(doc.rawBytes, []byte("\n"))
+			markerLine := bytes.TrimSpace(bytes.TrimPrefix(bytes.TrimSpace(firstLine), []byte("#")))
+			if !bytes.HasPrefix(markerLine, []byte(ResourceFinderCommentPrefix)) {
+				continue
+			}
+			value := string(bytes.TrimPrefix(markerLine, []byte(ResourceFinderCommentPrefix)))
+			ns, name, hasSep := strings.Cut(value, "/")
+			if !hasSep {
+				name = ns
+				ns = ""
 			}
 
-			// Skip unparseable or empty docs
+			if name == rf.searchedName && (rf.searchedNamespace == "" || ns == rf.searchedNamespace) {
+				docs[i].rawBytes = rf.content
+				documentFound = true
+				break
+			}
 			continue
 		}
 
@@ -251,7 +263,7 @@ func (rf resourceFinderImplem) replaceResourceIfFound(content []byte) []byte {
 	}
 
 	if !documentFound {
-		return content
+		return content, false
 	}
 
 	// Reassemble docs with proper separators, preserving original formatting
@@ -266,5 +278,5 @@ func (rf resourceFinderImplem) replaceResourceIfFound(content []byte) []byte {
 		}
 	}
 
-	return []byte(out.String())
+	return []byte(out.String()), true
 }

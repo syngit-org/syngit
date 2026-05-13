@@ -78,6 +78,11 @@ func (u *UserClient) cfgAs(user TestUser) *rest.Config {
 	return cfg
 }
 
+// CfgAs returns a fresh rest.Config impersonating user. Callers that need
+// to hand a config to a library that builds its own clients (e.g. Helm)
+// should use this rather than constructing one off the base config.
+func (u *UserClient) CfgAs(user TestUser) *rest.Config { return u.cfgAs(user) }
+
 // CtrlAs returns a controller-runtime client impersonating user.
 func (u *UserClient) CtrlAs(user TestUser) client.Client {
 	c, err := client.New(u.cfgAs(user), client.Options{Scheme: scheme.Scheme})

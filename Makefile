@@ -80,7 +80,7 @@ run-fast: kind-create-cluster manifests generate fmt vet ## Run a controller fro
 	@if ! kubectl get crd remoteusers.syngit.io &> /dev/null; then \
 		make install-crds && make setup-webhooks-for-run; \
 	fi
-	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(LOCALHOST_BRIDGE) DEV_WEBHOOK_PORT=9443 DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && go run cmd/main.go --feature-gates=ResourceFinder=true
+	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(LOCALHOST_BRIDGE) DEV_WEBHOOK_PORT=9443 DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && go run cmd/main.go --feature-gates=ResourceFinder=true,HelmValuesMutation=true
 
 .PHONY: run
 run: kind-create-cluster manifests generate fmt vet install-crds setup-webhooks-for-run ## Install CRDs, webhooks & run a controller from your host. All resources are deleted when killed.
@@ -90,7 +90,7 @@ run: kind-create-cluster manifests generate fmt vet install-crds setup-webhooks-
 	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(LOCALHOST_BRIDGE) DEV_WEBHOOK_PORT=9443 DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && \
 	{ \
 		trap 'echo "Cleanup resources"; make run-reset; exit' SIGINT; \
-		go run cmd/main.go --feature-gates=ResourceFinder=true; \
+		go run cmd/main.go --feature-gates=ResourceFinder=true,HelmValuesMutation=true; \
 	}
 
 .PHONY: run-reset
@@ -254,7 +254,12 @@ setup-webhooks-for-run: manifests kustomize ## Setup webhooks using auto-generat
 
 .PHONY: cleanup-webhooks-for-run
 cleanup-webhooks-for-run: manifests kustomize ## Cleanup webhooks using auto-generated certs & docker bridge host (make run).
-	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/run | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f - || true
+	@status=0; { $(KUSTOMIZE) build $(DEV_LOCAL_PATH)/run | timeout 5 $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -; } || status=$$?; \
+	if [ $$status -eq 124 ]; then \
+		echo "Webhook/CRD delete timed out after 5s; forcing cluster cleanup..."; \
+		$(MAKE) kind-delete-cluster; \
+		$(MAKE) cleanup-force; \
+	fi
 	./hack/webhooks/cleanup-injector.sh $(TEMP_CERT_DIR) || true
 
 .PHONY: setup-webhooks-for-deploy

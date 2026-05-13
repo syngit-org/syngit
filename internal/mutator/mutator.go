@@ -26,7 +26,7 @@ type WorktreeCustomizer interface {
 type CustomWorktree struct {
 	PipelineParams interceptor.GitPipelineParams
 	Worktree       *git.Worktree
-	ModifiedPaths  interceptor.ModifiedPaths
+	ClaimedPaths   interceptor.ClaimedPaths
 }
 
 // Fill the slice with the mutation providers available in the feature gates.
@@ -38,40 +38,44 @@ var wortreeModifiersGate = map[features.Feature]WorktreeCustomizer{
 	features.ResourceFinder: ResourceFinder{},
 }
 
-func GenerateFinalWorktree(params interceptor.GitPipelineParams, worktree *git.Worktree) (*git.Worktree, interceptor.ModifiedPaths, error) {
+func GenerateFinalWorktree(params interceptor.GitPipelineParams, worktree *git.Worktree) (*git.Worktree, interceptor.ClaimedPaths, error) {
 	mutations := &Mutations{}
 	for featureGate, mutator := range mutationsGate {
 		if features.LoadedFeatureGates.Enabled(featureGate) {
 			err := mutator.Mutate(params, mutations)
 			if err != nil {
-				return worktree, interceptor.NewModifiedPaths(), err
+				return worktree, interceptor.NewClaimedPaths(), err
 			}
 		}
+	}
+
+	// When no Mutator produced anything, seed mutations with the original
+	// resource so downstream WorktreeCustomizers (ResourceFinder, fallback)
+	// have something to act on.
+	if len(*mutations) == 0 {
+		mutations.AddMutation(params.InterceptedGVR, []byte(params.InterceptedYAML))
 	}
 
 	customWorktree := &CustomWorktree{
 		PipelineParams: params,
 		Worktree:       worktree,
-		ModifiedPaths:  interceptor.NewModifiedPaths(),
+		ClaimedPaths:   interceptor.NewClaimedPaths(),
 	}
 	for featureGate, modifier := range wortreeModifiersGate {
 		if features.LoadedFeatureGates.Enabled(featureGate) {
 			err := modifier.Customize(params, *mutations, customWorktree)
 			if err != nil {
-				return worktree, interceptor.NewModifiedPaths(), err
+				return worktree, interceptor.NewClaimedPaths(), err
 			}
 		}
 	}
 
-	if !customWorktree.ModifiedPaths.IsModified() {
-		defaultWorktreeCustomizer := DefaultWorktreeCustomizer{}
-		err := defaultWorktreeCustomizer.Customize(params, Mutations{
-			params.InterceptedGVR: []byte(params.InterceptedYAML),
-		}, customWorktree)
+	if !customWorktree.ClaimedPaths.ClaimExists() {
+		err := DefaultWorktreeCustomizer{}.Customize(params, *mutations, customWorktree)
 		if err != nil {
-			return worktree, interceptor.NewModifiedPaths(), err
+			return worktree, interceptor.NewClaimedPaths(), err
 		}
 	}
 
-	return worktree, customWorktree.ModifiedPaths, nil
+	return worktree, customWorktree.ClaimedPaths, nil
 }

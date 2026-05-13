@@ -52,6 +52,8 @@ func GetKubeconfigFromConfig(cfg *rest.Config) ([]byte, error) {
 				ClientCertificateData: cfg.CertData,
 				ClientKeyData:         cfg.KeyData,
 				Token:                 cfg.BearerToken,
+				Impersonate:           cfg.Impersonate.UserName,
+				ImpersonateGroups:     cfg.Impersonate.Groups,
 			},
 		},
 		Contexts: map[string]*clientcmdapi.Context{
