@@ -22,6 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -206,7 +207,10 @@ type RemoteSyncerList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&RemoteSyncer{}, &RemoteSyncerList{})
+	SchemeBuilder.Register(func(s *runtime.Scheme) error {
+		s.AddKnownTypes(GroupVersion, &RemoteSyncer{}, &RemoteSyncerList{})
+		return nil
+	})
 }
 
 /*

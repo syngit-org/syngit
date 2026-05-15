@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 const (
@@ -84,7 +85,10 @@ type RemoteUserBindingList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&RemoteUserBinding{}, &RemoteUserBindingList{})
+	SchemeBuilder.Register(func(s *runtime.Scheme) error {
+		s.AddKnownTypes(GroupVersion, &RemoteUserBinding{}, &RemoteUserBindingList{})
+		return nil
+	})
 }
 
 /*
