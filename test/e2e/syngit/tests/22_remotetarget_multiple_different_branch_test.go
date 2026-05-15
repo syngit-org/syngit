@@ -41,6 +41,7 @@ var _ = Describe("22 RemoteTarget multiple different branches", func() {
 
 		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer,
 			fx.NewRemoteUser(utils.Developer, "remoteuser-developer", true))).To(Succeed())
+		fx.WaitForRemoteUserReady("remoteuser-developer")
 
 		branches := []string{multiBranch1, multiBranch2, multiBranch3}
 		rs := BuildBranchRemoteSyncer(fx, "remotesyncer-test22-1",
@@ -95,6 +96,7 @@ var _ = Describe("22 RemoteTarget multiple different branches", func() {
 
 		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer,
 			fx.NewRemoteUser(utils.Developer, "remoteuser-developer", true))).To(Succeed())
+		fx.WaitForRemoteUserReady("remoteuser-developer")
 
 		branches := []string{multiBranch1, multiBranch2, multiBranch3}
 		rs := BuildBranchRemoteSyncer(fx, "remotesyncer-test22-2",

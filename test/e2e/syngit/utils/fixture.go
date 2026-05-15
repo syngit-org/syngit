@@ -244,6 +244,23 @@ func (f *Fixture) WaitForDynamicWebhook(rsName string) {
 	time.Sleep(admissionChainSettleDelay)
 }
 
+// WaitForRemoteUserReady blocks until the named RemoteUser reports
+// SecretBoundStatus == SecretBound. Call this after creating a RemoteUser
+// and before any resource (RemoteSyncer, RUB, etc.) whose reconciliation
+// depends on the user-specific RemoteTarget being available
+func (f *Fixture) WaitForRemoteUserReady(ruName string) {
+	GinkgoHelper()
+	Eventually(func() bool {
+		got := &syngit.RemoteUser{}
+		if err := f.Users.CtrlAs(Developer).Get(f.Ctx,
+			types.NamespacedName{Name: ruName, Namespace: f.Namespace}, got); err != nil {
+			return false
+		}
+		return got.Status.SecretBoundStatus == syngit.SecretBound
+	}).WithTimeout(DefaultTimeout).WithPolling(DefaultInterval).Should(BeTrue(),
+		"RemoteUser %q never reached SecretBound status", ruName)
+}
+
 // WaitForDynamicWebhookToBeRemoved blocks until the controller has
 // removed the webhook entry for rsName on the shared
 // ValidatingWebhookConfiguration. Call this after deleting a RemoteSyncer.
