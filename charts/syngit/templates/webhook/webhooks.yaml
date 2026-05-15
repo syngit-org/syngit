@@ -153,3 +153,41 @@ webhooks:
     resources:
     - remotetargets
   sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ .Release.Name }}-mutating-webhook-configuration
+  labels:
+    app.kubernetes.io/name: webhook
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: webhooks
+    app.kubernetes.io/created-by: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Release.Name }}
+  {{- if eq .Values.certmanager.webhook.enabled true }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/syngit-webhook-cert
+  {{- end }}
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: syngit-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: /syngit-v1beta4-remoteuser-managed
+  failurePolicy: Fail
+  name: mremoteusers-managed.v1beta4.syngit.io
+  reinvocationPolicy: Never
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta4
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - remoteusers
+  sideEffects: None

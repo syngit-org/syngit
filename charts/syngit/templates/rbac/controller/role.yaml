@@ -21,9 +21,9 @@ rules:
   - get
   - list
   - watch
-# Create and patch events related to kgio objects in any namespace
+# Create and patch events related to syngit objects in any namespace
 - apiGroups:
-  - ""
+  - events.k8s.io
   resources:
   - events
   verbs:
@@ -46,6 +46,7 @@ rules:
   resources:
   - remoteusers
   verbs:
+  - update
   - get
   - list
   - watch

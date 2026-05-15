@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -135,7 +136,22 @@ func main() {
 		// this setup is not recommended for production.
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	restConfig := ctrl.GetConfigOrDie()
+	if os.Getenv("DEV_MODE") == "true" {
+		managerNs := os.Getenv("MANAGER_NAMESPACE")
+		restConfig.Impersonate = rest.ImpersonationConfig{
+			UserName: "system:serviceaccount:" + managerNs + ":syngit-controller-manager",
+			Groups: []string{
+				"system:serviceaccounts",
+				"system:serviceaccounts:" + managerNs,
+				"system:authenticated",
+			},
+		}
+		setupLog.Info("DEV_MODE enabled: impersonating manager service account",
+			"user", restConfig.Impersonate.UserName)
+	}
+
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
 			BindAddress:   metricsAddr,

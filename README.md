@@ -107,6 +107,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: configmap-sample
+  namespace: default
 data:
   my-data: test1
 ```
