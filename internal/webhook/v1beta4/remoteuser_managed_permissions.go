@@ -5,12 +5,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"slices"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	utils "github.com/syngit-org/syngit/pkg/utils"
 	v1 "k8s.io/api/admission/v1"
-	authenticationv1 "k8s.io/api/authentication/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -40,7 +38,7 @@ func (ruwh *RemoteUserManagedWebhookHandler) Handle(ctx context.Context, req adm
 
 	if req.Operation == v1.Delete {
 		// Allow the syngit controller service account and cluster admins
-		if isUserAllowed(req.UserInfo, managerNs) {
+		if doesUserBypassWebhook(req.UserInfo, managerNs) {
 			return admission.Allowed("System user is allowed to delete any RemoteUser")
 		}
 
@@ -61,7 +59,7 @@ func (ruwh *RemoteUserManagedWebhookHandler) Handle(ctx context.Context, req adm
 
 	if req.Operation == v1.Update {
 		// Allow the syngit controller service account and cluster admins without re-stamping
-		if isUserAllowed(req.UserInfo, managerNs) {
+		if doesUserBypassWebhook(req.UserInfo, managerNs) {
 			return admission.Allowed("System user is allowed to update any RemoteUser")
 		}
 
@@ -105,8 +103,4 @@ func (ruwh *RemoteUserManagedWebhookHandler) Handle(ctx context.Context, req adm
 	}
 
 	return admission.Allowed("The RemoteUser is not managed")
-}
-
-func isUserAllowed(user authenticationv1.UserInfo, managerNs string) bool {
-	return slices.Contains(user.Groups, "system:masters") || user.Username == "system:serviceaccount:"+managerNs
 }

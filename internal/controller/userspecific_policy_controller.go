@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/events"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -56,43 +57,28 @@ func (r *UserSpecificPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	userSpecificAnnotation := remoteSyncer.Annotations[syngit.RtAnnotationKeyUserSpecific]
 
-	// Handle deletion or annotation removal
 	if !remoteSyncer.DeletionTimestamp.IsZero() || userSpecificAnnotation == "" {
-		if err := r.cleanupUserSpecificTargets(ctx, &remoteSyncer); err != nil {
-			return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
-		}
-		if controllerutil.RemoveFinalizer(&remoteSyncer, userSpecificPolicyFinalizer) {
-			if err := r.Update(ctx, &remoteSyncer); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-		return ctrl.Result{}, nil
+		return r.handleDeletion(ctx, req, &remoteSyncer, rdm)
 	}
 
-	// Ensure finalizer is present
-	if controllerutil.AddFinalizer(&remoteSyncer, userSpecificPolicyFinalizer) {
-		if err := r.Update(ctx, &remoteSyncer); err != nil {
-			return ctrl.Result{}, err
-		}
+	added, err := r.ensureFinalizer(ctx, req)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if added {
 		return ctrl.Result{RequeueAfter: requeueAfter + rdm}, nil
 	}
 
-	upstreamRepo := remoteSyncer.Spec.RemoteRepository
-	upstreamBranch := remoteSyncer.Spec.DefaultBranch
-
-	// List all managed RemoteUserBindings in the namespace
 	managedRUBs, err := r.listManagedRUBs(ctx, remoteSyncer.Namespace)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// List existing user-specific RemoteTargets for this syncer's upstream
-	existingRTs, err := r.listUserSpecificTargets(ctx, remoteSyncer.Namespace, upstreamRepo, upstreamBranch)
+	existingRTs, err := r.listUserSpecificTargets(ctx, remoteSyncer.Namespace, remoteSyncer.Spec.RemoteRepository, remoteSyncer.Spec.DefaultBranch)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// Build index of existing RTs by sanitized username
 	existingByUser := map[string]syngit.RemoteTarget{}
 	for _, rt := range existingRTs {
 		sanitizedUser := rt.Labels[syngit.K8sUserLabelKey]
@@ -101,7 +87,72 @@ func (r *UserSpecificPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 	}
 
-	// For each managed RUB, ensure a user-specific RemoteTarget exists
+	activeUsers, result, err := r.reconcileUserTargets(ctx, &remoteSyncer, managedRUBs, existingByUser, userSpecificAnnotation, rdm)
+	if err != nil {
+		return result, err
+	}
+
+	return r.pruneStaleTargets(ctx, &remoteSyncer, existingByUser, activeUsers, rdm)
+}
+
+// handleDeletion cleans up user-specific targets for a syncer being deleted
+// or that has had its user-specific annotation removed, then drops the finalizer.
+func (r *UserSpecificPolicyReconciler) handleDeletion(ctx context.Context, req ctrl.Request, remoteSyncer *syngit.RemoteSyncer, rdm time.Duration) (ctrl.Result, error) {
+	if err := r.cleanupUserSpecificTargets(ctx, remoteSyncer); err != nil {
+		return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
+	}
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		var rs syngit.RemoteSyncer
+		if err := r.Get(ctx, req.NamespacedName, &rs); err != nil {
+			return client.IgnoreNotFound(err)
+		}
+		if !controllerutil.RemoveFinalizer(&rs, userSpecificPolicyFinalizer) {
+			return nil
+		}
+		return r.Update(ctx, &rs)
+	}); err != nil {
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+// ensureFinalizer adds the user-specific finalizer to the RemoteSyncer if
+// missing. Returns true when the finalizer was just added, so the caller can
+// requeue before proceeding.
+func (r *UserSpecificPolicyReconciler) ensureFinalizer(ctx context.Context, req ctrl.Request) (bool, error) {
+	added := false
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		var rs syngit.RemoteSyncer
+		if err := r.Get(ctx, req.NamespacedName, &rs); err != nil {
+			return err
+		}
+		if !controllerutil.AddFinalizer(&rs, userSpecificPolicyFinalizer) {
+			added = false
+			return nil
+		}
+		if err := r.Update(ctx, &rs); err != nil {
+			return err
+		}
+		added = true
+		return nil
+	})
+	return added, err
+}
+
+// reconcileUserTargets ensures a user-specific RemoteTarget exists for each
+// managed RUB and is referenced from that RUB. Returns the set of users it
+// touched so the caller can prune stale targets.
+func (r *UserSpecificPolicyReconciler) reconcileUserTargets(
+	ctx context.Context,
+	remoteSyncer *syngit.RemoteSyncer,
+	managedRUBs []syngit.RemoteUserBinding,
+	existingByUser map[string]syngit.RemoteTarget,
+	userSpecificAnnotation string,
+	rdm time.Duration,
+) (map[string]bool, ctrl.Result, error) {
+	upstreamRepo := remoteSyncer.Spec.RemoteRepository
+	upstreamBranch := remoteSyncer.Spec.DefaultBranch
+
 	activeUsers := map[string]bool{}
 	for i := range managedRUBs {
 		rub := &managedRUBs[i]
@@ -112,33 +163,40 @@ func (r *UserSpecificPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 		activeUsers[sanitizedUser] = true
 		rawUsername := rub.Spec.Subject.Name
 
-		if _, exists := existingByUser[sanitizedUser]; exists {
-			// Already exists, ensure it's referenced in the RUB
-			rt := existingByUser[sanitizedUser]
+		if rt, exists := existingByUser[sanitizedUser]; exists {
 			if err := r.ensureRTRefInRUB(ctx, rub, rt.Name); err != nil {
-				return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
+				return activeUsers, ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 			}
 			continue
 		}
 
-		// Create user-specific RemoteTarget
 		rt, err := r.buildUserSpecificTarget(remoteSyncer.Namespace, upstreamRepo, upstreamBranch, rawUsername, sanitizedUser, userSpecificAnnotation)
 		if err != nil {
-			return ctrl.Result{}, err
+			return activeUsers, ctrl.Result{}, err
 		}
 
 		if createErr := r.Create(ctx, rt); createErr != nil {
 			if !apierrors.IsAlreadyExists(createErr) {
-				return ctrl.Result{}, createErr
+				return activeUsers, ctrl.Result{}, createErr
 			}
 		}
-		// Ensure the reference is in the RUB
 		if err := r.ensureRTRefInRUB(ctx, rub, rt.Name); err != nil {
-			return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
+			return activeUsers, ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 		}
 	}
+	return activeUsers, ctrl.Result{}, nil
+}
 
-	// Clean up user-specific RTs for users that no longer have a managed RUB
+// pruneStaleTargets deletes user-specific RemoteTargets for users that no
+// longer have a managed RUB, unless another user-specific syncer with the same
+// upstream still uses them.
+func (r *UserSpecificPolicyReconciler) pruneStaleTargets(
+	ctx context.Context,
+	remoteSyncer *syngit.RemoteSyncer,
+	existingByUser map[string]syngit.RemoteTarget,
+	activeUsers map[string]bool,
+	rdm time.Duration,
+) (ctrl.Result, error) {
 	otherSyncers, err := r.getOtherSyncersWithUserSpecific(ctx, remoteSyncer.Namespace, remoteSyncer.Name)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -148,11 +206,9 @@ func (r *UserSpecificPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 		if activeUsers[userLabel] {
 			continue
 		}
-		// Check if another syncer with same upstream still uses this RT
 		if r.isRTUsedByOtherSyncer(rt, otherSyncers) {
 			continue
 		}
-		// Remove RT reference from managed RUBs, then delete the RT
 		if err := utils.RemoveRemoteTargetRefFromManagedRUBs(ctx, r.Client, rt.Namespace, rt.Name); err != nil {
 			return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 		}
@@ -160,7 +216,6 @@ func (r *UserSpecificPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{}, err
 		}
 	}
-
 	return ctrl.Result{}, nil
 }
 

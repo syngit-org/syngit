@@ -76,14 +76,14 @@ TEMP_CERT_DIR ?= "/tmp/k8s-webhook-server/serving-certs"
 DEV_WEBHOOK_CERT ?= $(TEMP_CERT_DIR)/tls.crt
 
 .PHONY: run-fast
-run-fast: kind-create-cluster manifests generate fmt vet ## Run a controller from your host. Install CRDs & webhooks if does not exists. No resources are deleted when killed (meant to be run often).
+run-fast: kind-create-cluster manifests generate fmt vet setup-rbac-for-run ## Run a controller from your host. Install CRDs & webhooks if does not exists. No resources are deleted when killed (meant to be run often).
 	@if ! kubectl get crd remoteusers.syngit.io &> /dev/null; then \
 		make install-crds && make setup-webhooks-for-run; \
 	fi
 	export MANAGER_NAMESPACE=syngit DYNAMIC_WEBHOOK_NAME=$(DYNAMIC_WEBHOOK_NAME) DEV_MODE="true" DEV_WEBHOOK_HOST=$(LOCALHOST_BRIDGE) DEV_WEBHOOK_PORT=9443 DEV_WEBHOOK_CERT=$(DEV_WEBHOOK_CERT) && go run cmd/main.go --feature-gates=ResourceFinder=true,HelmValuesMutation=true
 
 .PHONY: run
-run: kind-create-cluster manifests generate fmt vet install-crds setup-webhooks-for-run ## Install CRDs, webhooks & run a controller from your host. All resources are deleted when killed.
+run: kind-create-cluster manifests generate fmt vet install-crds setup-webhooks-for-run setup-rbac-for-run ## Install CRDs, webhooks & run a controller from your host. All resources are deleted when killed.
 	@if ! kubectl get crd remoteusers.syngit.io &> /dev/null; then \
 		make install-crds && make setup-webhooks-for-run; \
 	fi
@@ -94,7 +94,7 @@ run: kind-create-cluster manifests generate fmt vet install-crds setup-webhooks-
 	}
 
 .PHONY: run-reset
-run-reset: cleanup-webhooks-for-run uninstall-crds ## Uninstall CRDs, reset webhook injection and remove webhooks.
+run-reset: cleanup-webhooks-for-run cleanup-rbac-for-run uninstall-crds ## Uninstall CRDs, reset webhook injection and remove webhooks.
 	$(KUBECTL) delete validatingwebhookconfigurations.admissionregistration.k8s.io $(DYNAMIC_WEBHOOK_NAME) --ignore-not-found=$(ignore-not-found) || true
 
 ##@ Deploy controller in the cluster
@@ -252,6 +252,11 @@ setup-webhooks-for-run: manifests kustomize ## Setup webhooks using auto-generat
 	./hack/webhooks/run/inject-for-run.sh $(LOCALHOST_BRIDGE)
 	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/run | $(KUBECTL) apply -f -
 
+.PHONY: setup-rbac-for-run
+setup-rbac-for-run: kustomize ## Apply manager SA + RBAC so the local controller can impersonate it (make run).
+	$(KUBECTL) get namespace syngit > /dev/null 2>&1 || $(KUBECTL) create namespace syngit
+	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/run-rbac | $(KUBECTL) apply -f -
+
 .PHONY: cleanup-webhooks-for-run
 cleanup-webhooks-for-run: manifests kustomize ## Cleanup webhooks using auto-generated certs & docker bridge host (make run).
 	@status=0; { $(KUSTOMIZE) build $(DEV_LOCAL_PATH)/run | timeout 5 $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -; } || status=$$?; \
@@ -261,6 +266,10 @@ cleanup-webhooks-for-run: manifests kustomize ## Cleanup webhooks using auto-gen
 		$(MAKE) cleanup-force; \
 	fi
 	./hack/webhooks/cleanup-injector.sh $(TEMP_CERT_DIR) || true
+
+.PHONY: cleanup-rbac-for-run
+cleanup-rbac-for-run: kustomize ## Cleanup manager SA + RBAC installed for the local controller (make run).
+	$(KUSTOMIZE) build $(DEV_LOCAL_PATH)/run-rbac | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f - || true
 
 .PHONY: setup-webhooks-for-deploy
 setup-webhooks-for-deploy: manifests kustomize ## Setup webhooks using auto-generated certs (make deploy).

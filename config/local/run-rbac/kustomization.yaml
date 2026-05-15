@@ -1,0 +1,5 @@
+namespace: syngit
+namePrefix: syngit-
+
+resources:
+- ../../rbac

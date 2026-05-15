@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
@@ -25,6 +26,11 @@ type RemoteSyncerWebhookHandler struct {
 func (rswh *RemoteSyncerWebhookHandler) Handle(ctx context.Context, req admission.Request) admission.Response {
 
 	user := req.DeepCopy().UserInfo
+
+	managerNs := os.Getenv("MANAGER_NAMESPACE")
+	if doesUserBypassWebhook(user, managerNs) {
+		return admission.Allowed("System user is allowed to scope any resources")
+	}
 
 	rs := &syngit.RemoteSyncer{}
 

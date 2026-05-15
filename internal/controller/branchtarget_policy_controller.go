@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/events"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -57,19 +58,41 @@ func (r *BranchTargetPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 		if err := r.cleanupBranchTargets(ctx, &remoteSyncer); err != nil {
 			return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 		}
-		if controllerutil.RemoveFinalizer(&remoteSyncer, branchTargetPolicyFinalizer) {
-			if err := r.Update(ctx, &remoteSyncer); err != nil {
-				return ctrl.Result{}, err
+		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			var rs syngit.RemoteSyncer
+			if err := r.Get(ctx, req.NamespacedName, &rs); err != nil {
+				return client.IgnoreNotFound(err)
 			}
+			if !controllerutil.RemoveFinalizer(&rs, branchTargetPolicyFinalizer) {
+				return nil
+			}
+			return r.Update(ctx, &rs)
+		}); err != nil {
+			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
 	}
 
 	// Ensure finalizer is present
-	if controllerutil.AddFinalizer(&remoteSyncer, branchTargetPolicyFinalizer) {
-		if err := r.Update(ctx, &remoteSyncer); err != nil {
-			return ctrl.Result{}, err
+	added := false
+	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		var rs syngit.RemoteSyncer
+		if err := r.Get(ctx, req.NamespacedName, &rs); err != nil {
+			return err
 		}
+		if !controllerutil.AddFinalizer(&rs, branchTargetPolicyFinalizer) {
+			added = false
+			return nil
+		}
+		if err := r.Update(ctx, &rs); err != nil {
+			return err
+		}
+		added = true
+		return nil
+	}); err != nil {
+		return ctrl.Result{}, err
+	}
+	if added {
 		return ctrl.Result{RequeueAfter: requeueAfter + rdm}, nil
 	}
 
