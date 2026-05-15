@@ -12,6 +12,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -60,6 +61,8 @@ var _ = Describe("29 Add & remove policies tests", func() {
 				client.InNamespace(fx.Namespace)); err != nil {
 				return false
 			}
+			fmt.Println("DEBUG")
+			fmt.Println(rubList)
 			for _, rub := range rubList.Items {
 				if rub.Labels[syngit.ManagedByLabelKey] == syngit.ManagedByLabelValue {
 					return len(rub.Spec.RemoteTargetRefs) >= 3
