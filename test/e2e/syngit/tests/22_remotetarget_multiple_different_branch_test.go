@@ -12,6 +12,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -60,6 +61,8 @@ var _ = Describe("22 RemoteTarget multiple different branches", func() {
 				client.InNamespace(fx.Namespace)); err != nil {
 				return false
 			}
+			fmt.Println("DEBUG")
+			fmt.Println(rubList)
 			for _, rub := range rubList.Items {
 				if rub.Labels[syngit.ManagedByLabelKey] == syngit.ManagedByLabelValue {
 					// Expect 4 targets: developer + branch1 + branch2 + branch3
