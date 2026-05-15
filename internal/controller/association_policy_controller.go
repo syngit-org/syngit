@@ -139,47 +139,63 @@ func (r *AssociationPolicyReconciler) findOrCreateManagedRUB(ctx context.Context
 		return freshRub, nil
 	}
 
-	// Create a new managed RUB
+	// No managed RUB seen via the cached List. Try to claim a name, starting
+	// from the deterministic base. On AlreadyExists, inspect the existing
+	// object: if it is the managed RUB for this user (i.e. a concurrent
+	// reconcile already created it, or the cached List lagged the apiserver),
+	// reuse it; otherwise advance to the next suffix so a user-owned RUB at
+	// the base name doesn't block us.
 	baseName := syngit.RubNamePrefix + "-" + sanitizedUsername
-	name, err := r.generateUniqueName(ctx, baseName, remoteUser.Namespace)
-	if err != nil {
-		return nil, err
-	}
+	const maxAttempts = 100
+	for i := 0; i < maxAttempts; i++ {
+		name := baseName
+		if i > 0 {
+			name = fmt.Sprintf("%s-%d", baseName, i)
+		}
 
-	rub := &syngit.RemoteUserBinding{
-		ObjectMeta: ctrl.ObjectMeta{
-			Name:      name,
-			Namespace: remoteUser.Namespace,
-			Labels: map[string]string{
-				syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
-				syngit.K8sUserLabelKey:   sanitizedUsername,
-			},
-		},
-		Spec: syngit.RemoteUserBindingSpec{
-			Subject: rbacv1.Subject{
-				Kind: "User",
-				Name: rawUsername,
-			},
-			RemoteUserRefs: []corev1.ObjectReference{
-				{
-					Name: remoteUser.Name,
+		rub := &syngit.RemoteUserBinding{
+			ObjectMeta: ctrl.ObjectMeta{
+				Name:      name,
+				Namespace: remoteUser.Namespace,
+				Labels: map[string]string{
+					syngit.ManagedByLabelKey: syngit.ManagedByLabelValue,
+					syngit.K8sUserLabelKey:   sanitizedUsername,
 				},
 			},
-		},
-	}
+			Spec: syngit.RemoteUserBindingSpec{
+				Subject: rbacv1.Subject{
+					Kind: "User",
+					Name: rawUsername,
+				},
+				RemoteUserRefs: []corev1.ObjectReference{
+					{Name: remoteUser.Name},
+				},
+			},
+		}
 
-	if err := r.Create(ctx, rub); err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			existing := &syngit.RemoteUserBinding{}
-			if getErr := r.Get(ctx, types.NamespacedName{Name: name, Namespace: remoteUser.Namespace}, existing); getErr != nil {
-				return nil, getErr
+		createErr := r.Create(ctx, rub)
+		if createErr == nil {
+			return rub, nil
+		}
+		if !apierrors.IsAlreadyExists(createErr) {
+			return nil, createErr
+		}
+
+		existing := &syngit.RemoteUserBinding{}
+		if getErr := r.Get(ctx, types.NamespacedName{Name: name, Namespace: remoteUser.Namespace}, existing); getErr != nil {
+			if apierrors.IsNotFound(getErr) {
+				continue
 			}
+			return nil, getErr
+		}
+
+		if existing.Labels[syngit.ManagedByLabelKey] == syngit.ManagedByLabelValue &&
+			existing.Labels[syngit.K8sUserLabelKey] == sanitizedUsername {
 			return existing, nil
 		}
-		return nil, err
 	}
 
-	return rub, nil
+	return nil, fmt.Errorf("could not allocate a name for managed RemoteUserBinding (base=%q)", baseName)
 }
 
 // ensureRemoteUserRef ensures the RemoteUser is in the RUB's remoteUserRefs. Returns true if modified.
@@ -273,25 +289,6 @@ func (r *AssociationPolicyReconciler) cleanupAssociation(ctx context.Context, re
 	}
 
 	return nil
-}
-
-// generateUniqueName generates a unique name by appending a numeric suffix if needed.
-func (r *AssociationPolicyReconciler) generateUniqueName(ctx context.Context, baseName, namespace string) (string, error) {
-	name := baseName
-	for i := 0; i < 100; i++ {
-		if i > 0 {
-			name = fmt.Sprintf("%s-%d", baseName, i)
-		}
-		existing := &syngit.RemoteUserBinding{}
-		err := r.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, existing)
-		if apierrors.IsNotFound(err) {
-			return name, nil
-		}
-		if err != nil {
-			return "", err
-		}
-	}
-	return "", fmt.Errorf("could not generate unique name for %s", baseName)
 }
 
 // findRemoteUsersForRemoteTarget maps RemoteTarget changes to RemoteUser reconcile requests.
