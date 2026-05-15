@@ -18,6 +18,7 @@ package v1beta3
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 const (
@@ -111,7 +112,10 @@ type RemoteTargetList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&RemoteTarget{}, &RemoteTargetList{})
+	SchemeBuilder.Register(func(s *runtime.Scheme) error {
+		s.AddKnownTypes(GroupVersion, &RemoteTarget{}, &RemoteTargetList{})
+		return nil
+	})
 }
 
 /*
