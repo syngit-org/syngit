@@ -41,6 +41,7 @@ var _ = Describe("29 Add & remove policies tests", func() {
 		By("creating the managed RemoteUser for Developer")
 		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer,
 			fx.NewRemoteUser(utils.Developer, "remoteuser-developer", true))).To(Succeed())
+		fx.WaitForRemoteUserReady("remoteuser-developer")
 
 		By("creating the RemoteSyncer with both user-specific and explicit-branches annotations")
 		rs := BuildBranchRemoteSyncer(fx, "remotesyncer-test29",
@@ -124,6 +125,21 @@ var _ = Describe("29 Add & remove policies tests", func() {
 			return getRemoteSyncer.Annotations[syngit.RtAnnotationKeyUserSpecific] == rs.Annotations[syngit.RtAnnotationKeyUserSpecific] // nolint:lll
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
+		By("waiting for the user-specific target to be cleaned up from the managed RUB")
+		Eventually(func() bool {
+			rubList := &syngit.RemoteUserBindingList{}
+			if err := fx.Users.CtrlAs(utils.Developer).List(ctx, rubList,
+				client.InNamespace(fx.Namespace)); err != nil {
+				return false
+			}
+			for _, rub := range rubList.Items {
+				if rub.Labels[syngit.ManagedByLabelKey] == syngit.ManagedByLabelValue {
+					return len(rub.Spec.RemoteTargetRefs) == 0
+				}
+			}
+			return true
+		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
+
 		cm3 := &corev1.ConfigMap{
 			TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
 			ObjectMeta: metav1.ObjectMeta{Name: "test-cm29-3", Namespace: fx.Namespace},
@@ -147,6 +163,7 @@ var _ = Describe("29 Add & remove policies tests", func() {
 		By("creating the managed RemoteUser for Developer")
 		ruDev := fx.NewRemoteUser(utils.Developer, "remoteuser-developer", true)
 		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer, ruDev)).To(Succeed())
+		fx.WaitForRemoteUserReady(ruDev.Name)
 
 		By("creating the RemoteSyncer with only the user-specific annotation")
 		rs := BuildBranchRemoteSyncer(fx, "remotesyncer-test29-user",
