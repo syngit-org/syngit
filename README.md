@@ -33,7 +33,7 @@ helm repo add syngit https://syngit-org.github.io/syngit
 
 2. Install the operator
 ```sh
-helm install syngit syngit/syngit -n syngit --create-namespace --set providers.github.enabled="true"
+helm install syngit syngit/syngit -n syngit --create-namespace
 ```
 
 syngit is now installed on the cluster! More information about the configuration can be found on the [wiki](https://github.com/syngit-org/syngit/wiki/Installation).
@@ -62,7 +62,6 @@ metadata:
   name: remoteuser-sample
   annotations:
     syngit.io/remoteuserbinding.managed: "true"
-    github.syngit.io/auth.test: "true"
 spec:
   gitBaseDomainFQDN: github.com
   email: your@email.com
@@ -82,14 +81,13 @@ kind: RemoteSyncer
 metadata:
   name: remotesyncer-sample
   annotations:
-    syngit.io/remotetarget.pattern.one-or-many-branches: main
+    syngit.io/remotetarget.policy.one-or-many-branches: main
 spec:
   remoteRepository: https://github.com/my_repo_path.git
   defaultBranch: main
   strategy: CommitApply
   targetStrategy: OneTarget
   defaultUnauthorizedUserMode: Block
-  rootPath: my_configmaps
   scopedResources:
     rules:
     - apiGroups: [""]
