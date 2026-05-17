@@ -113,12 +113,12 @@ deploy: kind-create-cluster manifests kustomize ## Deploy the syngit pod.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 	make setup-webhooks-for-deploy
 
+.PHONY: deploy-all
+deploy-all: kind-create-cluster docker-build kind-load-image deploy ## Create the dev cluster, build the image, load it in the cluster and deploy syngit.
+
 .PHONY: undeploy
 undeploy: kustomize cleanup-webhooks-for-deploy ## Undeploy the syngit pod.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
-
-.PHONY: deploy-all
-deploy-all: kind-create-cluster docker-build kind-load-image deploy # Create the dev cluster, build the image, load it in the cluster and deploy syngit.
 
 ##@ Development
 
