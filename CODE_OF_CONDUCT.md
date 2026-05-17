@@ -2,4 +2,4 @@
 
 We follow the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
 
-Please contact dassieu.damien@gmail.com in order to report violations of the Code of Conduct.
+Please contact dassieu.damien@gmail.com (or @damsien) in order to report violations of the Code of Conduct.

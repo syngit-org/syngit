@@ -4,7 +4,7 @@
         {
             "label": "syngit:debug-setup",
             "type": "shell",
-            "command": "make kind-create-cluster manifests generate fmt vet install-crds setup-webhooks-for-run setup-rbac-for-run && printf 'DEV_WEBHOOK_HOST=%s\\n' \"$(docker network inspect bridge --format='{{(index .IPAM.Config 0).Gateway}}')\" > .vscode/.debug.env",
+            "command": "make cleanup-webhooks-for-run kind-create-cluster manifests generate fmt vet install-crds setup-webhooks-for-run setup-rbac-for-run && printf 'DEV_WEBHOOK_HOST=%s\\n' \"$(docker network inspect bridge --format='{{(index .IPAM.Config 0).Gateway}}')\" > .vscode/.debug.env",
             "options": {
                 "cwd": "${workspaceFolder}"
             },
