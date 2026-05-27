@@ -37,7 +37,7 @@ type BranchTargetPolicyReconciler struct {
 
 func (r *BranchTargetPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	rdm := time.Duration(rand.New(rand.NewSource(2)).Intn(5)) * time.Second
+	rdm := time.Duration(rand.Intn(5)) * time.Second
 
 	var remoteSyncer syngit.RemoteSyncer
 	if err := r.Get(ctx, req.NamespacedName, &remoteSyncer); err != nil {

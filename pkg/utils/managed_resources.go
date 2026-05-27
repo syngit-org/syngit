@@ -8,28 +8,58 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// UpdateOrDeleteManagedRemoteUserBinding updates a managed RemoteUserBinding with
-// the given spec, or deletes it if both RemoteUserRefs and RemoteTargetRefs are empty.
-func UpdateOrDeleteManagedRemoteUserBinding(
+// MutateOrDeleteManagedRemoteUserBinding applies mutate to a freshly-read managed
+// RemoteUserBinding and persists the result, retrying on conflict. If after the
+// mutation both RemoteUserRefs and RemoteTargetRefs are empty, the RUB is deleted.
+//
+// The mutation runs against the latest object on every attempt, so concurrent
+// reconcilers that each add a different ref merge instead of clobbering each other.
+func MutateOrDeleteManagedRemoteUserBinding(
 	ctx context.Context,
 	k8sClient client.Client,
-	spec syngit.RemoteUserBindingSpec,
-	remoteUserBinding syngit.RemoteUserBinding,
+	name types.NamespacedName,
+	mutate func(*syngit.RemoteUserBinding) error,
 ) error {
-	rub := &syngit.RemoteUserBinding{}
-	if err := k8sClient.Get(ctx, types.NamespacedName{Name: remoteUserBinding.Name, Namespace: remoteUserBinding.Namespace}, rub); err != nil { // nolint:lll
-		return err
-	}
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		rub := &syngit.RemoteUserBinding{}
+		if err := k8sClient.Get(ctx, name, rub); err != nil {
+			return err
+		}
 
-	if len(spec.RemoteUserRefs) == 0 && len(spec.RemoteTargetRefs) == 0 {
-		return k8sClient.Delete(ctx, rub)
-	}
+		if err := mutate(rub); err != nil {
+			return err
+		}
 
-	rub.Spec = spec
-	return k8sClient.Update(ctx, rub)
+		if len(rub.Spec.RemoteUserRefs) == 0 && len(rub.Spec.RemoteTargetRefs) == 0 {
+			return k8sClient.Delete(ctx, rub)
+		}
+		return k8sClient.Update(ctx, rub)
+	})
+}
+
+// AddRemoteTargetRef appends a RemoteTarget reference to the RUB if not already present.
+func AddRemoteTargetRef(rub *syngit.RemoteUserBinding, rtName string) {
+	for _, ref := range rub.Spec.RemoteTargetRefs {
+		if ref.Name == rtName {
+			return
+		}
+	}
+	rub.Spec.RemoteTargetRefs = append(rub.Spec.RemoteTargetRefs, corev1.ObjectReference{Name: rtName})
+}
+
+// RemoveRemoteTargetRef removes a RemoteTarget reference from the RUB.
+func RemoveRemoteTargetRef(rub *syngit.RemoteUserBinding, rtName string) {
+	newRefs := make([]corev1.ObjectReference, 0, len(rub.Spec.RemoteTargetRefs))
+	for _, ref := range rub.Spec.RemoteTargetRefs {
+		if ref.Name != rtName {
+			newRefs = append(newRefs, ref)
+		}
+	}
+	rub.Spec.RemoteTargetRefs = newRefs
 }
 
 // CreateRemoteTargetAndAssociate creates a RemoteTarget if it doesn't already exist,
@@ -52,14 +82,14 @@ func CreateRemoteTargetAndAssociate(ctx context.Context, k8sClient client.Client
 		return err
 	}
 
-	for _, rub := range rubs.Items {
-		newRtRefs := append(rub.Spec.DeepCopy().RemoteTargetRefs, corev1.ObjectReference{
-			Name: remoteTarget.Name,
-		})
-
-		spec := rub.Spec
-		spec.RemoteTargetRefs = newRtRefs
-		if err := UpdateOrDeleteManagedRemoteUserBinding(ctx, k8sClient, spec, rub); err != nil {
+	for i := range rubs.Items {
+		rub := &rubs.Items[i]
+		if err := MutateOrDeleteManagedRemoteUserBinding(ctx, k8sClient,
+			types.NamespacedName{Name: rub.Name, Namespace: rub.Namespace},
+			func(r *syngit.RemoteUserBinding) error {
+				AddRemoteTargetRef(r, remoteTarget.Name)
+				return nil
+			}); err != nil {
 			return err
 		}
 	}
@@ -81,20 +111,14 @@ func RemoveRemoteTargetRefFromManagedRUBs(ctx context.Context, k8sClient client.
 		return err
 	}
 
-	for _, rub := range rubs.Items {
-		newRefs := make([]corev1.ObjectReference, 0, len(rub.Spec.RemoteTargetRefs))
-		for _, ref := range rub.Spec.RemoteTargetRefs {
-			if ref.Name != rtName {
-				newRefs = append(newRefs, ref)
-			}
-		}
-		if len(newRefs) == len(rub.Spec.RemoteTargetRefs) {
-			continue
-		}
-
-		spec := rub.Spec
-		spec.RemoteTargetRefs = newRefs
-		if err := UpdateOrDeleteManagedRemoteUserBinding(ctx, k8sClient, spec, rub); err != nil {
+	for i := range rubs.Items {
+		rub := &rubs.Items[i]
+		if err := MutateOrDeleteManagedRemoteUserBinding(ctx, k8sClient,
+			types.NamespacedName{Name: rub.Name, Namespace: rub.Namespace},
+			func(r *syngit.RemoteUserBinding) error {
+				RemoveRemoteTargetRef(r, rtName)
+				return nil
+			}); err != nil {
 			if apierrors.IsNotFound(err) {
 				continue
 			}

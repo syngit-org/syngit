@@ -7,7 +7,6 @@ import (
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	"github.com/syngit-org/syngit/pkg/utils"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -42,7 +41,7 @@ type UserSpecificPolicyReconciler struct {
 
 func (r *UserSpecificPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	rdm := time.Duration(rand.New(rand.NewSource(3)).Intn(5)) * time.Second
+	rdm := time.Duration(rand.Intn(5)) * time.Second
 
 	var remoteSyncer syngit.RemoteSyncer
 	if err := r.Get(ctx, req.NamespacedName, &remoteSyncer); err != nil {
@@ -261,17 +260,12 @@ func (r *UserSpecificPolicyReconciler) buildUserSpecificTarget(namespace, upstre
 
 // ensureRTRefInRUB ensures the RemoteTarget is referenced in the RUB and persists the change.
 func (r *UserSpecificPolicyReconciler) ensureRTRefInRUB(ctx context.Context, rub *syngit.RemoteUserBinding, rtName string) error {
-	for _, ref := range rub.Spec.RemoteTargetRefs {
-		if ref.Name == rtName {
+	return utils.MutateOrDeleteManagedRemoteUserBinding(ctx, r.Client,
+		types.NamespacedName{Name: rub.Name, Namespace: rub.Namespace},
+		func(fresh *syngit.RemoteUserBinding) error {
+			utils.AddRemoteTargetRef(fresh, rtName)
 			return nil
-		}
-	}
-	spec := *rub.Spec.DeepCopy()
-	spec.RemoteTargetRefs = append(spec.RemoteTargetRefs, corev1.ObjectReference{Name: rtName})
-	if err := utils.UpdateOrDeleteManagedRemoteUserBinding(ctx, r.Client, spec, *rub); err != nil {
-		return err
-	}
-	return nil
+		})
 }
 
 // listManagedRUBs returns all managed RemoteUserBindings in the namespace.
