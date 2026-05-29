@@ -31,8 +31,9 @@ const associationPolicyFinalizer = "syngit.io/association-policy"
 // that have the managed annotation set.
 type AssociationPolicyReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	Recorder events.EventRecorder
+	APIReader client.Reader
+	Scheme    *runtime.Scheme
+	Recorder  events.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=syngit.io,resources=remoteusers,verbs=get;list;watch;update;patch
@@ -42,7 +43,7 @@ type AssociationPolicyReconciler struct {
 
 func (r *AssociationPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	rdm := time.Duration(rand.New(rand.NewSource(1)).Intn(5)) * time.Second
+	rdm := time.Duration(rand.Intn(5)) * time.Second
 
 	var remoteUser syngit.RemoteUser
 	if err := r.Get(ctx, req.NamespacedName, &remoteUser); err != nil {
@@ -198,24 +199,23 @@ func (r *AssociationPolicyReconciler) findOrCreateManagedRUB(ctx context.Context
 	return nil, fmt.Errorf("could not allocate a name for managed RemoteUserBinding (base=%q)", baseName)
 }
 
-// ensureRemoteUserRef ensures the RemoteUser is in the RUB's remoteUserRefs. Returns true if modified.
+// ensureRemoteUserRef ensures the RemoteUser is in the RUB's remoteUserRefs.
 func (r *AssociationPolicyReconciler) ensureRemoteUserRef(ctx context.Context, rub *syngit.RemoteUserBinding, remoteUserName string) error {
-	for _, ref := range rub.Spec.RemoteUserRefs {
-		if ref.Name == remoteUserName {
+	return utils.MutateOrDeleteManagedRemoteUserBinding(ctx, r.Client,
+		types.NamespacedName{Name: rub.Name, Namespace: rub.Namespace},
+		func(fresh *syngit.RemoteUserBinding) error {
+			for _, ref := range fresh.Spec.RemoteUserRefs {
+				if ref.Name == remoteUserName {
+					return nil
+				}
+			}
+			fresh.Spec.RemoteUserRefs = append(fresh.Spec.RemoteUserRefs, corev1.ObjectReference{Name: remoteUserName})
 			return nil
-		}
-	}
-	if err := r.Get(ctx, types.NamespacedName{Name: rub.Name, Namespace: rub.Namespace}, rub); err != nil {
-		return err
-	}
-	rub.Spec.RemoteUserRefs = append(rub.Spec.RemoteUserRefs, corev1.ObjectReference{Name: remoteUserName})
-
-	return r.Update(ctx, rub)
+		})
 }
 
-// associateRemoteTargets finds all one-or-many-branches RemoteTargets and ensures they're in the RUB.
+// associateExistingRemoteTargets finds all one-or-many-branches RemoteTargets and ensures they're in the RUB.
 func (r *AssociationPolicyReconciler) associateExistingRemoteTargets(ctx context.Context, rub *syngit.RemoteUserBinding) error {
-	rtList := &syngit.RemoteTargetList{}
 	listOps := &client.ListOptions{
 		Namespace: rub.Namespace,
 		LabelSelector: labels.SelectorFromSet(labels.Set{
@@ -223,30 +223,19 @@ func (r *AssociationPolicyReconciler) associateExistingRemoteTargets(ctx context
 			syngit.RtLabelKeyPolicy:  syngit.RtLabelValueOneOrManyBranches,
 		}),
 	}
-	if err := r.List(ctx, rtList, listOps); err != nil {
-		return err
-	}
 
-	spec := *rub.Spec.DeepCopy()
-	modified := false
-	for _, rt := range rtList.Items {
-		found := false
-		for _, ref := range spec.RemoteTargetRefs {
-			if ref.Name == rt.Name {
-				found = true
-				break
+	return utils.MutateOrDeleteManagedRemoteUserBinding(ctx, r.Client,
+		types.NamespacedName{Name: rub.Name, Namespace: rub.Namespace},
+		func(fresh *syngit.RemoteUserBinding) error {
+			rtList := &syngit.RemoteTargetList{}
+			if err := r.APIReader.List(ctx, rtList, listOps); err != nil {
+				return err
 			}
-		}
-		if !found {
-			spec.RemoteTargetRefs = append(spec.RemoteTargetRefs, corev1.ObjectReference{Name: rt.Name})
-			modified = true
-		}
-	}
-
-	if !modified {
-		return nil
-	}
-	return utils.UpdateOrDeleteManagedRemoteUserBinding(ctx, r.Client, spec, *rub)
+			for _, rt := range rtList.Items {
+				utils.AddRemoteTargetRef(fresh, rt.Name)
+			}
+			return nil
+		})
 }
 
 // cleanupAssociation removes the RemoteUser from its managed RUB and deletes the RUB if empty.
@@ -267,20 +256,20 @@ func (r *AssociationPolicyReconciler) cleanupAssociation(ctx context.Context, re
 		return err
 	}
 
-	for _, rub := range rubList.Items {
-		newRefs := []corev1.ObjectReference{}
-		for _, ref := range rub.Spec.RemoteUserRefs {
-			if ref.Name != remoteUser.Name {
-				newRefs = append(newRefs, ref)
-			}
-		}
-		if len(newRefs) == len(rub.Spec.RemoteUserRefs) {
-			continue
-		}
-
-		spec := *rub.Spec.DeepCopy()
-		spec.RemoteUserRefs = newRefs
-		if err := utils.UpdateOrDeleteManagedRemoteUserBinding(ctx, r.Client, spec, rub); err != nil {
+	for i := range rubList.Items {
+		rub := &rubList.Items[i]
+		if err := utils.MutateOrDeleteManagedRemoteUserBinding(ctx, r.Client,
+			types.NamespacedName{Name: rub.Name, Namespace: rub.Namespace},
+			func(fresh *syngit.RemoteUserBinding) error {
+				newRefs := make([]corev1.ObjectReference, 0, len(fresh.Spec.RemoteUserRefs))
+				for _, ref := range fresh.Spec.RemoteUserRefs {
+					if ref.Name != remoteUser.Name {
+						newRefs = append(newRefs, ref)
+					}
+				}
+				fresh.Spec.RemoteUserRefs = newRefs
+				return nil
+			}); err != nil {
 			if apierrors.IsNotFound(err) {
 				continue
 			}

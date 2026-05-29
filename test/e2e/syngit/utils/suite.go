@@ -235,7 +235,7 @@ func (s *Suite) startManager() {
 		Client: s.Manager.GetClient(), Scheme: s.Manager.GetScheme(),
 	}).SetupWithManager(s.Manager)).To(Succeed())
 	Expect((&controllerssyngit.AssociationPolicyReconciler{
-		Client: s.Manager.GetClient(), Scheme: s.Manager.GetScheme(),
+		Client: s.Manager.GetClient(), APIReader: s.Manager.GetAPIReader(), Scheme: s.Manager.GetScheme(),
 	}).SetupWithManager(s.Manager)).To(Succeed())
 	Expect((&controllerssyngit.BranchTargetPolicyReconciler{
 		Client: s.Manager.GetClient(), Scheme: s.Manager.GetScheme(),

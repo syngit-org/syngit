@@ -102,6 +102,8 @@ var _ = Describe("29 Add & remove policies tests", func() {
 				client.InNamespace(fx.Namespace)); err != nil {
 				return false
 			}
+			fmt.Println("DEBUG")
+			fmt.Println("rub.Spec.RemoteTargetRefs")
 			for _, rub := range rubList.Items {
 				if rub.Labels[syngit.ManagedByLabelKey] == syngit.ManagedByLabelValue {
 					return len(rub.Spec.RemoteTargetRefs) == 1
@@ -184,13 +186,15 @@ var _ = Describe("29 Add & remove policies tests", func() {
 		ruDev.Annotations[syngit.RubAnnotationKeyManaged] = "false"
 		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer, ruDev)).To(Succeed())
 		Eventually(func() bool {
-			getRemoteSyncer := &syngit.RemoteSyncer{}
+			getRemoteUser := &syngit.RemoteUser{}
 			err := fx.Users.CtrlAs(utils.Developer).Get(fx.Ctx,
-				types.NamespacedName{Name: rs.Name, Namespace: rs.Namespace}, getRemoteSyncer)
+				types.NamespacedName{Name: ruDev.Name, Namespace: ruDev.Namespace}, getRemoteUser)
 			if err != nil {
 				return false
 			}
-			return getRemoteSyncer.Annotations[syngit.RubAnnotationKeyManaged] == rs.Annotations[syngit.RubAnnotationKeyManaged]
+			fmt.Println("DEBUG")
+			fmt.Println(getRemoteUser.Annotations[syngit.RubAnnotationKeyManaged])
+			return getRemoteUser.Annotations[syngit.RubAnnotationKeyManaged] == "false"
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
 		cm2 := &corev1.ConfigMap{
