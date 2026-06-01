@@ -23,30 +23,28 @@ type resourceFinderImplem struct {
 	content           []byte
 }
 
-func (rf ResourceFinder) Customize(params interceptor.GitPipelineParams, mutations Mutations, customWorktree *CustomWorktree) error {
-	for gvr, content := range mutations {
-		searchedName := params.InterceptedName
-		searchedNamespace := params.RemoteSyncer.Namespace
+// Searches for the corresponding resource in the repository and replace
+// its content with the artifact's. It marls the path as claimed if an
+// addition/modification/deletion happened.
+func (rf ResourceFinder) place(params interceptor.GitPipelineParams, artifacts ArtifactSet, worktree *git.Worktree) (interceptor.ClaimedPaths, error) {
+	claimed := interceptor.NewClaimedPaths()
 
+	for _, a := range artifacts.Items {
 		resourceFinder := resourceFinderImplem{
-			searchedName:      searchedName,
-			searchedNamespace: searchedNamespace,
-			searchedGVK:       gvr,
-			content:           content,
+			searchedName:      params.InterceptedName,
+			searchedNamespace: params.RemoteSyncer.Namespace,
+			searchedGVK:       a.GVR,
+			content:           a.Content,
 		}
 
-		if params.RemoteSyncer.Spec.ResourceFinder {
-			claimedPaths, err := resourceFinder.getPathsContent(customWorktree.Worktree, customWorktree.Worktree.Filesystem.Root())
-			if err != nil {
-				return err
-			}
-			customWorktree.ClaimedPaths = claimedPaths
-
-			return nil
+		found, err := resourceFinder.getPathsContent(worktree, worktree.Filesystem.Root())
+		if err != nil {
+			return interceptor.NewClaimedPaths(), err
 		}
+		claimed.AppendClaimedPaths(found)
 	}
 
-	return nil
+	return claimed, nil
 }
 
 func (rf resourceFinderImplem) getPathsContent(worktree *git.Worktree, basePath string) (interceptor.ClaimedPaths, error) {
