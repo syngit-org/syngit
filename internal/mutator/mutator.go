@@ -61,6 +61,7 @@ func (s *ArtifactSet) Add(a Artifact) { s.Items = append(s.Items, a) }
 // providerGate maps feature gates to the providers they enable.
 var providerGate = map[features.Feature]Provider{
 	features.HelmValuesMutation: HelmValuesMutation{},
+	features.FluxHelmRelease:    FluxHelmReleaseProvider{},
 }
 
 // GenerateFinalWorktree runs every enabled provider over the intercepted

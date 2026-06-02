@@ -49,6 +49,14 @@ rules:
   verbs:
   - create
 - apiGroups:
+  - helm.toolkit.fluxcd.io
+  resources:
+  - helmreleases
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - syngit.io
   resources:
   - remotesyncers
