@@ -173,8 +173,8 @@ func (s *Suite) startEnvtest() {
 func (s *Suite) startManager() {
 	Expect(os.Setenv("MANAGER_NAMESPACE", OperatorNamespace)).To(Succeed())
 	Expect(os.Setenv("DYNAMIC_WEBHOOK_NAME", DynamicWebhookName)).To(Succeed())
-	_ = features.LoadedFeatureGates.Set(fmt.Sprintf("%s=true,%s=true",
-		features.ResourceFinder, features.HelmValuesMutation))
+	_ = features.LoadedFeatureGates.Set(fmt.Sprintf("%s=true,%s=true,%s=true",
+		features.ResourceFinder, features.HelmValuesMutation, features.FluxHelmRelease))
 
 	By("creating the manager")
 	opts := &s.TestEnv.WebhookInstallOptions

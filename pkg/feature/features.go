@@ -14,12 +14,14 @@ type Feature string
 const (
 	ResourceFinder     Feature = "ResourceFinder"
 	HelmValuesMutation Feature = "HelmValuesMutation"
+	FluxHelmRelease    Feature = "FluxHelmRelease"
 )
 
 var (
 	LoadedFeatureGates = FeatureGates{
 		ResourceFinder:     false, // Alpha: default off
-		HelmValuesMutation: false,
+		HelmValuesMutation: false, // Alpha: default off
+		FluxHelmRelease:    false, // Alpha: default off
 	}
 )
 
