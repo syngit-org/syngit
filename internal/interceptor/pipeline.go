@@ -10,6 +10,7 @@ import (
 	se "github.com/syngit-org/syngit/pkg/errors"
 	"github.com/syngit-org/syngit/pkg/interceptor"
 	admissionv1 "k8s.io/api/admission/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func RunInterceptionPipeline(
@@ -91,13 +92,14 @@ func RunInterceptionPipeline(
 	}
 
 	// Git push
-	responses, err := RunGitPushPipeline(GitPushParameters{
+	responses, err := RunGitPushPipeline(ctx, GitPushParameters{
 		UserInfoRemoteTargets: userRemoteTargets,
 		RemoteSyncer:          remoteSyncer,
 		YAMLManifest:          manifest,
 		ObjectMetadata:        objectMetadata,
 		Operation:             operation,
 		CABundle:              caBundle,
+		Cluster:               K8sClientFromContext(ctx),
 	})
 	if err != nil {
 		return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, remoteSyncer)
@@ -141,10 +143,15 @@ type GitPushParameters struct {
 
 	// Bundle containing the CAs of the targeted git platform(s).
 	CABundle []byte
+
+	// Cluster reader handed to the mutation providers for live lookups. May be nil.
+	Cluster client.Reader
 }
 
-func RunGitPushPipeline(params GitPushParameters) ([]interceptor.GitPushResponse, error) {
+func RunGitPushPipeline(ctx context.Context, params GitPushParameters) ([]interceptor.GitPushResponse, error) {
 	responses := make([]interceptor.GitPushResponse, 0, len(params.UserInfoRemoteTargets))
+
+	cluster := params.Cluster
 
 	for userInfo, remoteTargets := range params.UserInfoRemoteTargets {
 		for _, remoteTarget := range remoteTargets {
@@ -158,7 +165,7 @@ func RunGitPushPipeline(params GitPushParameters) ([]interceptor.GitPushResponse
 				Operation:       params.Operation,
 				CABundle:        params.CABundle,
 			}
-			res, err := pusher.RunGitPipeline(*params)
+			res, err := pusher.RunGitPipeline(ctx, cluster, *params)
 			if err != nil {
 				return nil, err
 			}

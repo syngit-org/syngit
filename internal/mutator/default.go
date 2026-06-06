@@ -14,26 +14,31 @@ import (
 
 type DefaultWorktreeCustomizer struct{}
 
-func (dt DefaultWorktreeCustomizer) Customize(params interceptor.GitPipelineParams, mutations Mutations, customWorktree *CustomWorktree) error {
-	for gvr, content := range mutations {
-		path, err := dt.pathConstructor(params, gvr, customWorktree.Worktree)
+// Writes the artifact to the pre-determined path:
+// ([RootPath/]<namespace>/<group>/<version>/<resource>/<name>.yaml)
+// and returns the claimed paths.
+func (dt DefaultWorktreeCustomizer) place(params interceptor.GitPipelineParams, artifacts ArtifactSet, worktree *git.Worktree) (interceptor.ClaimedPaths, error) {
+	claimed := interceptor.NewClaimedPaths()
+
+	for _, a := range artifacts.Items {
+		path, err := dt.pathConstructor(params, a.GVR, worktree)
 		if err != nil {
-			return err
+			return interceptor.NewClaimedPaths(), err
 		}
 
-		fullFilePath, err := dt.writeFile(params, content, path, customWorktree.Worktree)
+		fullFilePath, err := dt.writeFile(params, a.Content, path, worktree)
 		if err != nil {
-			return err
+			return interceptor.NewClaimedPaths(), err
 		}
 
-		if params.InterceptedYAML == "" {
-			customWorktree.ClaimedPaths.AppendDeletedPath(fullFilePath)
+		if a.IsDeletion() {
+			claimed.AppendDeletedPath(fullFilePath)
 		} else {
-			customWorktree.ClaimedPaths.AppendAddedPath(fullFilePath)
+			claimed.AppendAddedPath(fullFilePath)
 		}
 	}
 
-	return nil
+	return claimed, nil
 }
 
 func (dt DefaultWorktreeCustomizer) pathConstructor(params interceptor.GitPipelineParams, gvr schema.GroupVersionResource, worktree *git.Worktree) (string, error) {

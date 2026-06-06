@@ -12,17 +12,21 @@ type HelmValuesMutation struct{}
 
 const DefaultChartValuesSubPath = "chart-values"
 
-func (mutate HelmValuesMutation) Mutate(params interceptor.GitPipelineParams, mutations *Mutations) error {
+// Handles matches Helm release Secrets by GVR and name.
+func (mutate HelmValuesMutation) Handles(params interceptor.GitPipelineParams) bool {
 	if params.InterceptedGVR.Group != "" ||
 		params.InterceptedGVR.Version != "v1" ||
 		params.InterceptedGVR.Resource != "secrets" {
-		return nil
+		return false
 	}
 
-	if !provider.IsHelmSecretByName(params.InterceptedName) {
-		return nil
-	}
+	return provider.IsHelmSecretByName(params.InterceptedName)
+}
 
+// Render extracts the chart values from the Helm release Secret and emits them
+// as a single path-less artifact under the chart-values sub-path.
+func (mutate HelmValuesMutation) Render(rc RenderContext, out *ArtifactSet) error {
+	params := rc.Params
 	rawValues := ""
 
 	if params.InterceptedYAML != "" {
@@ -42,11 +46,14 @@ func (mutate HelmValuesMutation) Mutate(params interceptor.GitPipelineParams, mu
 		rawValues = values.RawValues
 	}
 
-	mutations.AddMutation(schema.GroupVersionResource{
-		Group:    "",
-		Version:  "",
-		Resource: DefaultChartValuesSubPath,
-	}, []byte(rawValues))
+	out.Add(Artifact{
+		GVR: schema.GroupVersionResource{
+			Group:    "",
+			Version:  "",
+			Resource: DefaultChartValuesSubPath,
+		},
+		Content: []byte(rawValues),
+	})
 
 	return nil
 }

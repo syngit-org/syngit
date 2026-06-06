@@ -1,14 +1,16 @@
 package pusher
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/syngit-org/syngit/internal/mutator"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	"github.com/syngit-org/syngit/pkg/interceptor"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func RunGitPipeline(params interceptor.GitPipelineParams) (interceptor.GitPushResponse, error) {
+func RunGitPipeline(ctx context.Context, cluster client.Reader, params interceptor.GitPipelineParams) (interceptor.GitPushResponse, error) {
 	emptyPaths := make([]string, 0)
 
 	// Get the targeted repository
@@ -39,7 +41,7 @@ func RunGitPipeline(params interceptor.GitPipelineParams) (interceptor.GitPushRe
 
 	// Pass over the transformers to generate the final worktree
 	var modifiedPaths interceptor.ClaimedPaths
-	worktree, modifiedPaths, err = mutator.GenerateFinalWorktree(params, worktree)
+	worktree, modifiedPaths, err = mutator.GenerateFinalWorktree(ctx, cluster, params, worktree)
 	if err != nil {
 		return ResponseBuilder(emptyPaths, "", params.RemoteTarget.Spec.TargetRepository),
 			syngiterrors.NewGitPipeline(fmt.Sprintf("failed to generate the worktree: %v", err))
