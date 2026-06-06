@@ -1,15 +1,12 @@
 package interceptor
 
 import (
-	"context"
 	"testing"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	admissionv1 "k8s.io/api/admission/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestNewRemoteSyncerStatusUpdater(t *testing.T) {
@@ -88,15 +85,5 @@ func TestBuildSuccessCondition(t *testing.T) {
 	}
 	if c.LastTransitionTime.IsZero() {
 		t.Errorf("LastTransitionTime should be set")
-	}
-}
-
-func TestK8sClientFromContext(t *testing.T) {
-	fakeClient := fake.NewClientBuilder().Build()
-	ctx := context.WithValue(context.Background(), k8sClientCtxKey{}, client.Client(fakeClient))
-
-	got := K8sClientFromContext(ctx)
-	if got != fakeClient {
-		t.Errorf("K8sClientFromContext returned a different client than injected")
 	}
 }

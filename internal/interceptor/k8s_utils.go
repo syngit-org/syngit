@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -144,7 +143,7 @@ func updateRemoteSyncerStatus(
 	remoteSyncer syngit.RemoteSyncer,
 ) {
 	_ = log.FromContext(ctx)
-	k8sClient := K8sClientFromContext(ctx)
+	k8sClient := utils.K8sClientFromContext(ctx)
 
 	namespacedName := types.NamespacedName{
 		Namespace: remoteSyncer.Namespace,
@@ -168,8 +167,4 @@ func updateRemoteSyncerStatus(
 	if err != nil {
 		log.Log.Error(err, "can't update the conditions of the remote syncer "+remoteSyncer.Namespace+"/"+remoteSyncer.Name)
 	}
-}
-
-func K8sClientFromContext(ctx context.Context) client.Client {
-	return ctx.Value(k8sClientCtxKey{}).(client.Client)
 }

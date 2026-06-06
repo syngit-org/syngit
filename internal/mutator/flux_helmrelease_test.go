@@ -15,28 +15,15 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	"github.com/syngit-org/syngit/pkg/interceptor"
+	"github.com/syngit-org/syngit/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/yaml"
 )
-
-const helmReleaseYAML = `apiVersion: helm.toolkit.fluxcd.io/v2
-kind: HelmRelease
-metadata:
-  name: podinfo
-  namespace: default
-spec:
-  chart:
-    spec:
-      chart: podinfo
-      sourceRef:
-        kind: HelmRepository
-        name: podinfo
-        namespace: flux-system
-`
 
 func newMemWorktree(t *testing.T) *git.Worktree {
 	t.Helper()
@@ -63,6 +50,15 @@ func seedWorktreeFile(t *testing.T, wt *git.Worktree, path, content string) {
 	if err := f.Close(); err != nil {
 		t.Fatalf("close %s: %v", path, err)
 	}
+}
+
+// fakeClientCtx returns a context carrying a fake k8s client, as the webhook
+// handler does at runtime. The provider's excluded-fields cleaning reads the
+// client from the context (utils.K8sClientFromContext), which panics otherwise.
+func fakeClientCtx(t *testing.T) context.Context {
+	t.Helper()
+	c := fake.NewClientBuilder().Build()
+	return context.WithValue(context.Background(), utils.K8sClientCtxKey{}, client.Client(c))
 }
 
 // helmReleaseSecretYAML builds the YAML of a Helm release Secret
@@ -124,7 +120,18 @@ func helmReleaseSecretYAML(t *testing.T) string {
 
 func helmReleaseParams(t *testing.T) interceptor.GitPipelineParams {
 	return interceptor.GitPipelineParams{
-		RemoteSyncer: syngit.RemoteSyncer{},
+		RemoteSyncer: syngit.RemoteSyncer{
+			Spec: syngit.RemoteSyncerSpec{
+				// Server-managed fields that must not leak into the git manifest.
+				ExcludedFields: []string{
+					".metadata.uid",
+					".metadata.resourceVersion",
+					".metadata.creationTimestamp",
+					".metadata.managedFields",
+					".status",
+				},
+			},
+		},
 		InterceptedGVR: schema.GroupVersionResource{
 			Group:    "",
 			Version:  "v1",
@@ -176,6 +183,8 @@ func clusterHelmRelease(version string) *unstructured.Unstructured {
 			"uid":             "abc-123",
 		},
 		"spec": map[string]interface{}{
+			// A non-default field that must be preserved from the live resource.
+			"interval": "1m0s",
 			"chart": map[string]interface{}{
 				"spec": map[string]interface{}{
 					"chart": "podinfo",
@@ -210,12 +219,9 @@ func TestFluxHelmReleaseProvider_Handles(t *testing.T) {
 	}
 }
 
-func TestFluxHelmReleaseProvider_RepoFound(t *testing.T) {
-	wt := newMemWorktree(t)
-	seedWorktreeFile(t, wt, "helmrelease.yaml", helmReleaseYAML)
-
+func TestFluxHelmReleaseProvider_CopiesExistingFromCluster(t *testing.T) {
 	cluster := &stubReader{servedVersion: "v2", obj: clusterHelmRelease("v2")}
-	rc := RenderContext{Ctx: context.Background(), Params: helmReleaseParams(t), Worktree: wt, Cluster: cluster}
+	rc := RenderContext{Ctx: fakeClientCtx(t), Params: helmReleaseParams(t), Worktree: newMemWorktree(t), Cluster: cluster}
 
 	out := &ArtifactSet{}
 	if err := (FluxHelmReleaseProvider{}).Render(rc, out); err != nil {
@@ -225,24 +231,38 @@ func TestFluxHelmReleaseProvider_RepoFound(t *testing.T) {
 	if len(out.Items) != 1 {
 		t.Fatalf("expected only the HelmRelease artifact, got %d", len(out.Items))
 	}
-	if cluster.listCalled {
-		t.Error("cluster should not be queried when the HelmRelease is in the repo")
+	if !cluster.listCalled {
+		t.Error("expected the cluster to be queried for the existing HelmRelease")
 	}
 
 	body := string(out.Items[0].Content)
 	if !strings.Contains(body, "kind: HelmRelease") {
 		t.Errorf("expected a HelmRelease manifest:\n%s", body)
 	}
+	// The existing chart sourceRef and custom spec are preserved from the cluster.
 	if !strings.Contains(body, "name: podinfo") || !strings.Contains(body, "namespace: flux-system") {
-		t.Errorf("expected the synthesized HelmRelease to carry the discovered sourceRef:\n%s", body)
+		t.Errorf("expected the preserved chart sourceRef:\n%s", body)
+	}
+	if !strings.Contains(body, "interval: 1m0s") {
+		t.Errorf("expected the existing spec.interval to be preserved:\n%s", body)
+	}
+	// spec.values is overridden with the secret's user-supplied values.
+	if !strings.Contains(body, "replicaCount: 2") {
+		t.Errorf("expected the secret's values to override spec.values:\n%s", body)
+	}
+	// The RemoteSyncer's excluded (server-managed) fields are stripped.
+	for _, field := range []string{"uid:", "resourceVersion:", "status:", "creationTimestamp:"} {
+		if strings.Contains(body, field) {
+			t.Errorf("expected the excluded field %q to be removed:\n%s", field, body)
+		}
 	}
 }
 
-func TestFluxHelmReleaseProvider_ClusterFallback(t *testing.T) {
-	wt := newMemWorktree(t) // no HelmRelease in repo
-
+func TestFluxHelmReleaseProvider_ClusterVersionProbing(t *testing.T) {
+	// The served apiVersion is not known upfront; the provider probes v2, then the
+	// beta versions. Here only v2beta2 is served.
 	cluster := &stubReader{servedVersion: "v2beta2", obj: clusterHelmRelease("v2beta2")}
-	rc := RenderContext{Ctx: context.Background(), Params: helmReleaseParams(t), Worktree: wt, Cluster: cluster}
+	rc := RenderContext{Ctx: fakeClientCtx(t), Params: helmReleaseParams(t), Worktree: newMemWorktree(t), Cluster: cluster}
 
 	out := &ArtifactSet{}
 	if err := (FluxHelmReleaseProvider{}).Render(rc, out); err != nil {
@@ -253,7 +273,7 @@ func TestFluxHelmReleaseProvider_ClusterFallback(t *testing.T) {
 		t.Fatalf("expected only the synthesized HelmRelease artifact, got %d", len(out.Items))
 	}
 	if !cluster.listCalled {
-		t.Error("expected the cluster to be queried when the HelmRelease is not in the repo")
+		t.Error("expected the cluster to be queried")
 	}
 
 	body := string(out.Items[0].Content)
@@ -261,7 +281,7 @@ func TestFluxHelmReleaseProvider_ClusterFallback(t *testing.T) {
 		t.Errorf("expected a HelmRelease manifest:\n%s", body)
 	}
 	if !strings.Contains(body, "name: podinfo") || !strings.Contains(body, "namespace: flux-system") {
-		t.Errorf("expected the sourceRef to be copied from the cluster HelmRelease:\n%s", body)
+		t.Errorf("expected the HelmRelease to be copied from the v2beta2 cluster resource:\n%s", body)
 	}
 }
 

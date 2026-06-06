@@ -35,7 +35,7 @@ var docSeparator = []byte("\n---\n")
 type ObjectSelector struct {
 	GVR       schema.GroupVersionResource
 	Name      string
-	Namespace string // "" matches any namespace
+	Namespace string // "" matches the "default" namespace
 	// CommentPrefix, when non-empty (e.g. ResourceFinderCommentPrefix), also
 	// matches non-Kubernetes documents whose first comment line is
 	// "<CommentPrefix><namespace>/<name>".

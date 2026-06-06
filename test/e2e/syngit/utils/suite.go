@@ -156,7 +156,12 @@ func (s *Suite) startEnvtest() {
 			IgnoreSchemeConvertible: true,
 			Paths:                   []string{filepath.Join(projectRoot, "config", "webhook", "manifests.yaml")},
 		},
-		CRDDirectoryPaths:        []string{filepath.Join(projectRoot, "config", "crd", "bases")},
+		CRDDirectoryPaths: []string{
+			filepath.Join(projectRoot, "config", "crd", "bases"),
+			// Third-party CRDs needed by the mutation providers (e.g. the Flux
+			// HelmRelease the FluxHelmRelease provider lists as a donor).
+			filepath.Join(projectRoot, "test", "e2e", "crds"),
+		},
 		BinaryAssetsDirectory:    resolveBinaryAssetsDir(projectRoot),
 		CRDInstallOptions:        ctrlenvtest.CRDInstallOptions{Scheme: scheme.Scheme},
 		ControlPlaneStartTimeout: 150 * time.Second,

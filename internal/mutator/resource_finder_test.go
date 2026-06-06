@@ -22,7 +22,7 @@ func deploymentSelector(name, namespace string) ObjectSelector { // nolint:unpar
 	}
 }
 
-func TestReplaceDocInContent(t *testing.T) {
+func TestReplaceDocInContent(t *testing.T) { // nolint:gocyclo
 	const replacement = "REPLACED"
 
 	t.Run("no match returns input unchanged", func(t *testing.T) {
@@ -98,8 +98,25 @@ spec:
 		}
 	})
 
-	t.Run("empty searched namespace matches any namespace", func(t *testing.T) {
+	t.Run("empty searched namespace matches the default namespace", func(t *testing.T) {
 		in := []byte(`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo
+  namespace: default
+spec:
+  replicas: 1
+`)
+		got, found := replaceDocInContent(in, deploymentSelector("demo", ""), []byte(replacement))
+		if !found {
+			t.Fatal("expected a match against the default namespace")
+		}
+		if !strings.Contains(string(got), replacement) {
+			t.Errorf("expected replacement when searched namespace is empty, got:\n%s", got)
+		}
+
+		// A non-default namespace is not matched by an empty searched namespace.
+		other := []byte(`apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: demo
@@ -107,12 +124,8 @@ metadata:
 spec:
   replicas: 1
 `)
-		got, found := replaceDocInContent(in, deploymentSelector("demo", ""), []byte(replacement))
-		if !found {
-			t.Fatal("expected a match")
-		}
-		if !strings.Contains(string(got), replacement) {
-			t.Errorf("expected replacement when searched namespace is empty, got:\n%s", got)
+		if _, found := replaceDocInContent(other, deploymentSelector("demo", ""), []byte(replacement)); found {
+			t.Error("expected no match for a non-default namespace when searched namespace is empty")
 		}
 	})
 

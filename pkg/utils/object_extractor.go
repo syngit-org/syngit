@@ -1,4 +1,4 @@
-package interceptor
+package utils
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
-	"github.com/syngit-org/syngit/pkg/utils"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -81,7 +80,7 @@ func ConvertObjectJSONToYAMLString(
 
 	// Remove unwanted fields
 	for _, path := range paths {
-		utils.ExcludedFieldsFromJson(data, path)
+		ExcludedFieldsFromJson(data, path)
 	}
 
 	// Marshal back to YAML

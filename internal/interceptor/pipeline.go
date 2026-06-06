@@ -9,6 +9,7 @@ import (
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	se "github.com/syngit-org/syngit/pkg/errors"
 	"github.com/syngit-org/syngit/pkg/interceptor"
+	"github.com/syngit-org/syngit/pkg/utils"
 	admissionv1 "k8s.io/api/admission/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -42,7 +43,7 @@ func RunInterceptionPipeline(
 	}
 
 	// Get the intercepted object metadata
-	objectMetadata := ExtractObjectMetadataFromAdmissionRequest(admReq)
+	objectMetadata := utils.ExtractObjectMetadataFromAdmissionRequest(admReq)
 
 	// Set the targets using the user credentials
 	userRemoteTargets, err := GetUserInfoRemoteTargetsAssociation(
@@ -60,7 +61,7 @@ func RunInterceptionPipeline(
 
 	// Convert the request to get the yaml of the object
 	if operation != admissionv1.Delete {
-		manifest, err = ConvertObjectJSONToYAMLString(
+		manifest, err = utils.ConvertObjectJSONToYAMLString(
 			ctx,
 			admReq.Object.Raw,
 			managerNamespace,
@@ -73,11 +74,11 @@ func RunInterceptionPipeline(
 
 	// Check for deletion
 	if len(admReq.Object.Raw) != 0 {
-		manifestMap, err := ConvertObjectJSONToYAMLMap(admReq.Object.Raw)
+		manifestMap, err := utils.ConvertObjectJSONToYAMLMap(admReq.Object.Raw)
 		if err != nil {
 			return AdmissionReviewBuilder(ctx, err.Error(), admReq, false, true, remoteSyncer)
 		}
-		if ContainsDeletionTimestamp(manifestMap) {
+		if utils.ContainsDeletionTimestamp(manifestMap) {
 			return AdmissionReviewBuilder(
 				ctx, se.BuildInterceptorPipelineErr("object is being deleted and the interception already happened"),
 				admReq, true, false, remoteSyncer,
@@ -99,7 +100,7 @@ func RunInterceptionPipeline(
 		ObjectMetadata:        objectMetadata,
 		Operation:             operation,
 		CABundle:              caBundle,
-		Cluster:               K8sClientFromContext(ctx),
+		Cluster:               utils.K8sClientFromContext(ctx),
 	})
 	if err != nil {
 		return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, remoteSyncer)
@@ -135,7 +136,7 @@ type GitPushParameters struct {
 	YAMLManifest string
 
 	// The metadatas of the intercepted object.
-	ObjectMetadata ObjectMetadata
+	ObjectMetadata utils.ObjectMetadata
 
 	// The operation that the user made on the intercepted
 	// object (CREATE, UPDATE or DELETE).
