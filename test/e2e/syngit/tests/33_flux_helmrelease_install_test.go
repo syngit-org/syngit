@@ -103,8 +103,16 @@ var _ = Describe("33 FluxHelmRelease install synthesizes a HelmRelease", func() 
 		defaultHrPath := fmt.Sprintf("%s/helm.toolkit.fluxcd.io/v2/helmreleases/%s.yaml",
 			fx.Namespace, secretName)
 
-		By("pre-committing an existing HelmRelease that references a HelmRepository")
-		existingHR := []byte(fmt.Sprintf(`apiVersion: helm.toolkit.fluxcd.io/v2
+		By("pre-committing a file with a sentinel ConfigMap and an existing HelmRelease")
+		existingFile := []byte(fmt.Sprintf(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keep-me
+  namespace: %s
+data:
+  keep: me
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: %s
@@ -118,9 +126,9 @@ spec:
         kind: HelmRepository
         name: dummy-repo
         namespace: %s
-`, releaseName, fx.Namespace, fx.Namespace))
-		Expect(fx.Git.CommitFile(fx.Repo, "main", hrPath, existingHR,
-			"seed existing HelmRelease")).To(Succeed())
+`, fx.Namespace, releaseName, fx.Namespace, fx.Namespace))
+		Expect(fx.Git.CommitFile(fx.Repo, "main", hrPath, existingFile,
+			"seed file with a sibling ConfigMap and a HelmRelease")).To(Succeed())
 
 		By("creating the RemoteUser & RemoteUserBinding for Developer")
 		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer,
@@ -134,12 +142,18 @@ spec:
 		By("installing the dummy chart as Developer against envtest")
 		installDummyChart(ctx, fx, "data:\n  greeting: hello\n")
 
-		By("checking the existing HelmRelease file was rewritten in place with the synthesized one")
+		By("checking only the HelmRelease document was replaced and the sibling ConfigMap survived")
 		Eventually(func(g Gomega) {
 			content, err := fx.Git.ReadFile(fx.Repo, "main", hrPath)
 			g.Expect(err).NotTo(HaveOccurred(),
-				"expected the pre-committed HelmRelease %q to still exist on main", hrPath)
+				"expected the pre-committed file %q to still exist on main", hrPath)
 			body := string(content)
+			// The sibling ConfigMap document must be preserved untouched.
+			g.Expect(body).To(ContainSubstring("name: keep-me"),
+				"the sibling ConfigMap must not be erased by the in-place replacement")
+			g.Expect(body).To(ContainSubstring("keep: me"),
+				"the sibling ConfigMap data must be preserved")
+			// The HelmRelease document must now be the synthesized one.
 			g.Expect(body).To(ContainSubstring("kind: HelmRelease"))
 			g.Expect(body).To(ContainSubstring("releaseName: "+releaseName),
 				"synthesized HelmRelease must carry the release name (the donor had none)")

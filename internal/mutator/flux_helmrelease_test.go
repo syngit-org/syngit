@@ -51,7 +51,7 @@ func newMemWorktree(t *testing.T) *git.Worktree {
 	return wt
 }
 
-func writeWorktreeFile(t *testing.T, wt *git.Worktree, path, content string) {
+func seedWorktreeFile(t *testing.T, wt *git.Worktree, path, content string) {
 	t.Helper()
 	f, err := wt.Filesystem.Create(path)
 	if err != nil {
@@ -212,7 +212,7 @@ func TestFluxHelmReleaseProvider_Handles(t *testing.T) {
 
 func TestFluxHelmReleaseProvider_RepoFound(t *testing.T) {
 	wt := newMemWorktree(t)
-	writeWorktreeFile(t, wt, "helmrelease.yaml", helmReleaseYAML)
+	seedWorktreeFile(t, wt, "helmrelease.yaml", helmReleaseYAML)
 
 	cluster := &stubReader{servedVersion: "v2", obj: clusterHelmRelease("v2")}
 	rc := RenderContext{Ctx: context.Background(), Params: helmReleaseParams(t), Worktree: wt, Cluster: cluster}

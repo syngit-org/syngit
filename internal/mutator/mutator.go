@@ -156,37 +156,15 @@ func placeArtifacts(params interceptor.GitPipelineParams, artifacts ArtifactSet,
 	return claimed, nil
 }
 
-// writeArtifactAtPath writes (or deletes) an artifact at its explicit
-// TargetPath, creating any missing parent directories, and records the path in
-// claimed.
+// writeArtifactAtPath writes (or deletes) an artifact at its explicit TargetPath
+// and records the resulting path in claimed. It is a thin wrapper over
+// WriteObjectAtPath: when the file already exists only the document matching the
+// artifact's own identity is swapped, so sibling documents are preserved.
 func writeArtifactAtPath(worktree *git.Worktree, a Artifact, claimed *interceptor.ClaimedPaths) error {
-	path := filepath.Clean(a.TargetPath)
-
-	if a.IsDeletion() {
-		_ = worktree.Filesystem.Remove(path)
-		claimed.AppendDeletedPath(path)
-		return nil
-	}
-
-	dir := filepath.Dir(path)
-	if dir != "." && dir != "/" {
-		if err := worktree.Filesystem.MkdirAll(dir, 0755); err != nil {
-			return err
-		}
-	}
-
-	file, err := worktree.Filesystem.Create(path)
+	placed, err := WriteObjectAtPath(worktree, filepath.Clean(a.TargetPath), selectorFromDoc(a.Content), a.Content)
 	if err != nil {
 		return err
 	}
-	if _, err := file.Write(a.Content); err != nil {
-		_ = file.Close()
-		return err
-	}
-	if err := file.Close(); err != nil {
-		return err
-	}
-
-	claimed.AppendAddedPath(path)
+	claimed.AppendClaimedPaths(placed)
 	return nil
 }

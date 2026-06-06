@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
-	"github.com/go-git/go-git/v5"
 	fluxprovider "github.com/syngit-org/syngit-provider-flux/pkg"
 	helmprovider "github.com/syngit-org/syngit-provider-helm/pkg"
 	"github.com/syngit-org/syngit/pkg/interceptor"
@@ -13,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
-	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -70,10 +68,16 @@ func (p FluxHelmReleaseProvider) Render(rc RenderContext, out *ArtifactSet) erro
 		return nil
 	}
 
-	ref, worktreePath, ok, err := discoverSourceRef(rc, secret)
-	if err != nil {
+	rel, err := helmprovider.ExtractRelease(secret)
+	if err != nil || rel == nil || rel.Name == "" {
 		return err
 	}
+	name, namespace := rel.Name, rel.Namespace
+	if rc.Cluster == nil {
+		return fmt.Errorf("the cluster client is not set")
+	}
+
+	ref, ok, err := sourceRefInCluster(rc, name, namespace)
 	if !ok {
 		// No HelmRepository to source from: a sourceRef-less HelmRelease would be
 		// invalid for Flux, so leave the secret to other providers / the default
@@ -86,91 +90,9 @@ func (p FluxHelmReleaseProvider) Render(rc RenderContext, out *ArtifactSet) erro
 		return fmt.Errorf("failed to convert the Helm release secret to a HelmRelease: %w", err)
 	}
 
-	// When the existing HelmRelease was found in the repo, overwrite it in place at
-	// its own path: ResourceFinder cannot match it (it keys on the intercepted
-	// secret name, not the HelmRelease's release name). When it came from the
-	// cluster, fall back to the default structured placement.
-	out.Add(Artifact{GVR: helmReleaseGVR, Content: []byte(result.RawYAML), TargetPath: worktreePath})
+	out.Add(Artifact{GVR: helmReleaseGVR, Content: []byte(result.RawYAML)})
 
 	return nil
-}
-
-// discoverSourceRef finds the chart sourceRef by locating the already-existing
-// Flux HelmRelease of the same release (same name and namespace as the
-// intercepted Helm release) and copying its spec.chart.spec.sourceRef. It looks
-// in the git worktree first and, when nothing matches and a cluster reader is
-// available, falls back to the live cluster. The returned path is the
-// worktree-relative path of the matched HelmRelease when found in the repo (so
-// the caller can overwrite it in place) and empty for the cluster fallback. The
-// boolean is false when no matching HelmRelease (with a sourceRef) can be found.
-func discoverSourceRef(rc RenderContext, secret *corev1.Secret) (helmv2.CrossNamespaceObjectReference, string, bool, error) {
-	rel, err := helmprovider.ExtractRelease(secret)
-	if err != nil || rel == nil || rel.Name == "" {
-		return helmv2.CrossNamespaceObjectReference{}, "", false, nil
-	}
-	name, namespace := rel.Name, rel.Namespace
-
-	// Repo first
-	ref, path, found, err := sourceRefInWorktree(rc.Worktree, name, namespace)
-	if err != nil {
-		return helmv2.CrossNamespaceObjectReference{}, "", false, err
-	}
-	if found {
-		return ref, path, true, nil
-	}
-
-	// Cluster fallback
-	if rc.Cluster == nil {
-		return helmv2.CrossNamespaceObjectReference{}, "", false, nil
-	}
-
-	ref, found, err = sourceRefInCluster(rc, name, namespace)
-	return ref, "", found, err
-}
-
-// sourceRefInWorktree walks the worktree for a HelmRelease matching name (and
-// namespace, when set on the manifest) and returns its sourceRef together with
-// the worktree-relative path of the file that holds it.
-func sourceRefInWorktree(worktree *git.Worktree, name, namespace string) (helmv2.CrossNamespaceObjectReference, string, bool, error) {
-	if worktree == nil {
-		return helmv2.CrossNamespaceObjectReference{}, "", false, nil
-	}
-
-	var (
-		ref   helmv2.CrossNamespaceObjectReference
-		path  string
-		found bool
-	)
-
-	root := worktree.Filesystem.Root()
-	err := WalkWorktreeYAML(worktree, root, func(docPath string, content []byte) (bool, bool, error) {
-		doc := map[string]interface{}{}
-		if uerr := yaml.Unmarshal(content, &doc); uerr != nil {
-			return false, true, uerr
-		}
-		if !fluxprovider.IsCorrectHelmRelease(doc, name, namespace) {
-			return false, true, nil
-		}
-		if r, ok := fluxprovider.ExtractSourceRefFromHelmRelease(doc); ok {
-			ref, found = r, true
-			path = relativeWorktreePath(root, docPath)
-			return true, false, nil
-		}
-		return false, false, nil
-	})
-	if err != nil {
-		return helmv2.CrossNamespaceObjectReference{}, "", false, err
-	}
-
-	return ref, path, found, nil
-}
-
-// relativeWorktreePath turns a path produced by the worktree walk into one
-// relative to the worktree root, mirroring how the placement phase records
-// claimed paths (no leading slash).
-func relativeWorktreePath(root, path string) string {
-	rel := strings.TrimPrefix(path, root)
-	return strings.TrimPrefix(rel, "/")
 }
 
 // sourceRefInCluster lists HelmReleases from the cluster (probing the served
