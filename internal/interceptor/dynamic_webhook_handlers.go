@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	"github.com/syngit-org/syngit/pkg/utils"
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -35,7 +36,7 @@ func (s *WebhookInterceptsAll) Start() {
 	ctx := context.Background()
 	_ = log.FromContext(ctx)
 
-	ctx = context.WithValue(ctx, k8sClientCtxKey{}, s.K8sClient)
+	ctx = context.WithValue(ctx, utils.K8sClientCtxKey{}, s.K8sClient)
 
 	s.pathHandlers = make(map[string]*DynamicWebhookHandler)
 
@@ -105,8 +106,6 @@ func (s *WebhookInterceptsAll) Register(interceptor syngit.RemoteSyncer, path st
 
 	return handler
 }
-
-type k8sClientCtxKey struct{}
 
 // Handle processes the incoming dynamic webhook request
 func (dwc *DynamicWebhookHandler) Handle(ctx context.Context, w http.ResponseWriter, r *http.Request) {

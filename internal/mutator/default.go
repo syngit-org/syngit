@@ -128,16 +128,9 @@ func (dt DefaultWorktreeCustomizer) writeFile(params interceptor.GitPipelinePara
 		return fullFilePath, nil
 	}
 
-	file, err := w.Filesystem.Create(fullFilePath)
-	if err != nil {
-		return fullFilePath, fmt.Errorf("failed to create file %s: %v", fullFilePath, err)
-	}
-
-	_, err = file.Write(content)
-	if err != nil {
+	if err := writeWorktreeFile(w, fullFilePath, content); err != nil {
 		return fullFilePath, fmt.Errorf("failed to write to file %s: %v", fullFilePath, err)
 	}
-	err = file.Close()
 
-	return fullFilePath, err
+	return fullFilePath, nil
 }

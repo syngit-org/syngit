@@ -9,6 +9,7 @@ import (
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	"github.com/syngit-org/syngit/pkg/interceptor"
+	"github.com/syngit-org/syngit/pkg/utils"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -41,7 +42,7 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		return userTargetsMap, err
 	}
 
-	k8sClient := K8sClientFromContext(ctx)
+	k8sClient := utils.K8sClientFromContext(ctx)
 
 	if remoteUserBinding != nil {
 		// User-specific RemoteTargets are now pre-created by the UserSpecificPolicyReconciler.
@@ -182,7 +183,7 @@ func GetRemoteUserBindingByUsername(
 	remoteSyncer syngit.RemoteSyncer,
 	username, fqdn string,
 ) (*syngit.RemoteUserBinding, error) {
-	k8sClient := K8sClientFromContext(ctx)
+	k8sClient := utils.K8sClientFromContext(ctx)
 
 	var remoteUserBindings = &syngit.RemoteUserBindingList{}
 	listOps := &client.ListOptions{
@@ -246,7 +247,7 @@ func GetGitUserInfoByRemoteUserBinding(
 ) (*interceptor.GitUserInfo, error) {
 	remoteUserCount := 0
 
-	k8sClient := K8sClientFromContext(ctx)
+	k8sClient := utils.K8sClientFromContext(ctx)
 
 	var gitUser *interceptor.GitUserInfo
 
@@ -289,7 +290,7 @@ func GetGitUserInfoByRemoteUser(
 	remoteUser syngit.RemoteUser,
 	namespace string,
 ) (*interceptor.GitUserInfo, error) {
-	k8sClient := K8sClientFromContext(ctx)
+	k8sClient := utils.K8sClientFromContext(ctx)
 
 	secretNamespacedName := &types.NamespacedName{
 		Namespace: namespace,

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	"github.com/syngit-org/syngit/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -54,7 +55,7 @@ func FindCABundle(ctx context.Context, namespace string, name string) ([]byte, e
 	globalNamespacedName := types.NamespacedName{Namespace: namespace, Name: name}
 	caBundleSecret := &corev1.Secret{}
 
-	k8sClient := K8sClientFromContext(ctx)
+	k8sClient := utils.K8sClientFromContext(ctx)
 
 	err := k8sClient.Get(ctx, globalNamespacedName, caBundleSecret)
 	if err != nil {
