@@ -1,4 +1,4 @@
-package mutator
+package walker
 
 import (
 	"strings"
@@ -119,7 +119,7 @@ metadata:
 spec:
   replicas: 5
 `)
-	claimed, err := WriteObjectAtPath(wt, "multi.yaml", selectorFromDoc(newDoc), newDoc)
+	claimed, err := WriteObjectAtPath(wt, "multi.yaml", SelectorFromDoc(newDoc), newDoc)
 	if err != nil {
 		t.Fatalf("WriteObjectAtPath: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestWriteObjectAtPath_NewFileAndDeletion(t *testing.T) {
 	wt := newMemWorktree(t)
 
 	doc := []byte(demoDeploymentYAML)
-	if _, err := WriteObjectAtPath(wt, "nested/dir/deploy.yaml", selectorFromDoc(doc), doc); err != nil {
+	if _, err := WriteObjectAtPath(wt, "nested/dir/deploy.yaml", SelectorFromDoc(doc), doc); err != nil {
 		t.Fatalf("WriteObjectAtPath create: %v", err)
 	}
 	if _, err := wt.Filesystem.Stat("nested/dir/deploy.yaml"); err != nil {

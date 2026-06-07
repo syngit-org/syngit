@@ -4,13 +4,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/syngit-org/syngit/internal/walker"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // deploymentSelector mirrors how ResourceFinder.place builds its selector: a
 // Kubernetes identity plus the resource-finder comment marker.
-func deploymentSelector(name, namespace string) ObjectSelector { // nolint:unparam
-	return ObjectSelector{
+func deploymentSelector(name, namespace string) walker.ObjectSelector { // nolint:unparam
+	return walker.ObjectSelector{
 		GVR: schema.GroupVersionResource{
 			Group:    "apps",
 			Version:  "v1",
@@ -34,7 +35,7 @@ metadata:
 spec:
   replicas: 1
 `)
-		got, found := replaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
+		got, found := walker.ReplaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
 		if found {
 			t.Error("expected no match")
 		}
@@ -52,7 +53,7 @@ metadata:
 spec:
   replicas: 1
 `)
-		got, found := replaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
+		got, found := walker.ReplaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
 		if !found {
 			t.Fatal("expected a match")
 		}
@@ -82,7 +83,7 @@ metadata:
 spec:
   replicas: 1
 `)
-		got, found := replaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
+		got, found := walker.ReplaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
 		if !found {
 			t.Fatal("expected a match")
 		}
@@ -107,7 +108,7 @@ metadata:
 spec:
   replicas: 1
 `)
-		got, found := replaceDocInContent(in, deploymentSelector("demo", ""), []byte(replacement))
+		got, found := walker.ReplaceDocInContent(in, deploymentSelector("demo", ""), []byte(replacement))
 		if !found {
 			t.Fatal("expected a match against the default namespace")
 		}
@@ -124,7 +125,7 @@ metadata:
 spec:
   replicas: 1
 `)
-		if _, found := replaceDocInContent(other, deploymentSelector("demo", ""), []byte(replacement)); found {
+		if _, found := walker.ReplaceDocInContent(other, deploymentSelector("demo", ""), []byte(replacement)); found {
 			t.Error("expected no match for a non-default namespace when searched namespace is empty")
 		}
 	})
@@ -140,7 +141,7 @@ metadata:
 spec:
   replicas: 1
 `)
-		got, found := replaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
+		got, found := walker.ReplaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
 		if !found {
 			t.Fatal("expected a version-agnostic match")
 		}
@@ -164,7 +165,7 @@ metadata:
   name: keeper
   namespace: default
 `)
-		got, found := replaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
+		got, found := walker.ReplaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
 		if !found {
 			t.Fatal("expected a match")
 		}
@@ -189,7 +190,7 @@ service:
   type: ClusterIP
   port: 80
 `)
-		got, found := replaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
+		got, found := walker.ReplaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
 		if found {
 			t.Error("expected no match")
 		}
@@ -205,7 +206,7 @@ image:
   repository: nginx
   tag: latest
 `)
-		got, found := replaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
+		got, found := walker.ReplaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
 		if !found {
 			t.Fatal("expected a comment-marker match")
 		}
@@ -224,7 +225,7 @@ replicaCount: 3
 image:
   repository: nginx
 `)
-		got, found := replaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
+		got, found := walker.ReplaceDocInContent(in, deploymentSelector("demo", "default"), []byte(replacement))
 		if found {
 			t.Error("expected no match")
 		}
@@ -234,7 +235,7 @@ image:
 	})
 
 	t.Run("core resource without group uses bare version as apiVersion", func(t *testing.T) {
-		sel := ObjectSelector{
+		sel := walker.ObjectSelector{
 			GVR: schema.GroupVersionResource{
 				Group:    "",
 				Version:  "v1",
@@ -252,7 +253,7 @@ metadata:
 data:
   foo: bar
 `)
-		got, found := replaceDocInContent(in, sel, []byte(replacement))
+		got, found := walker.ReplaceDocInContent(in, sel, []byte(replacement))
 		if !found {
 			t.Fatal("expected a match")
 		}
@@ -274,7 +275,7 @@ metadata:
   name: demo
   namespace: default
 `)
-		got, found := replaceDocInContent(in, deploymentSelector("demo", "default"), nil)
+		got, found := walker.ReplaceDocInContent(in, deploymentSelector("demo", "default"), nil)
 		if !found {
 			t.Fatal("expected a match")
 		}

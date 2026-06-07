@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/syngit-org/syngit/internal/walker"
 	features "github.com/syngit-org/syngit/pkg/feature"
 	"github.com/syngit-org/syngit/pkg/interceptor"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -161,7 +162,7 @@ func placeArtifacts(params interceptor.GitPipelineParams, artifacts ArtifactSet,
 // WriteObjectAtPath: when the file already exists only the document matching the
 // artifact's own identity is swapped, so sibling documents are preserved.
 func writeArtifactAtPath(worktree *git.Worktree, a Artifact, claimed *interceptor.ClaimedPaths) error {
-	placed, err := WriteObjectAtPath(worktree, filepath.Clean(a.TargetPath), selectorFromDoc(a.Content), a.Content)
+	placed, err := walker.WriteObjectAtPath(worktree, filepath.Clean(a.TargetPath), walker.SelectorFromDoc(a.Content), a.Content)
 	if err != nil {
 		return err
 	}
