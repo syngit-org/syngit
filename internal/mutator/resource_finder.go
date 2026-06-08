@@ -2,6 +2,7 @@ package mutator
 
 import (
 	"github.com/go-git/go-git/v5"
+	"github.com/syngit-org/syngit/internal/walker"
 	"github.com/syngit-org/syngit/pkg/interceptor"
 )
 
@@ -16,14 +17,14 @@ func (rf ResourceFinder) place(params interceptor.GitPipelineParams, artifacts A
 	claimed := interceptor.NewClaimedPaths()
 
 	for _, a := range artifacts.Items {
-		sel := ObjectSelector{
+		sel := walker.ObjectSelector{
 			GVR:           a.GVR,
 			Name:          params.InterceptedName,
 			Namespace:     params.RemoteSyncer.Namespace,
 			CommentPrefix: ResourceFinderCommentPrefix,
 		}
 
-		found, err := ReplaceObject(worktree, sel, a.Content)
+		found, err := walker.ReplaceObject(worktree, sel, a.Content)
 		if err != nil {
 			return interceptor.NewClaimedPaths(), err
 		}

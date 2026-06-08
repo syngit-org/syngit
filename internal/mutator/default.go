@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/syngit-org/syngit/internal/walker"
 	"github.com/syngit-org/syngit/pkg/interceptor"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -128,7 +129,7 @@ func (dt DefaultWorktreeCustomizer) writeFile(params interceptor.GitPipelinePara
 		return fullFilePath, nil
 	}
 
-	if err := writeWorktreeFile(w, fullFilePath, content); err != nil {
+	if err := walker.WriteWorktreeFile(w, fullFilePath, content); err != nil {
 		return fullFilePath, fmt.Errorf("failed to write to file %s: %v", fullFilePath, err)
 	}
 

@@ -38,20 +38,6 @@ func newMemWorktree(t *testing.T) *git.Worktree {
 	return wt
 }
 
-func seedWorktreeFile(t *testing.T, wt *git.Worktree, path, content string) {
-	t.Helper()
-	f, err := wt.Filesystem.Create(path)
-	if err != nil {
-		t.Fatalf("create %s: %v", path, err)
-	}
-	if _, err := f.Write([]byte(content)); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
-	if err := f.Close(); err != nil {
-		t.Fatalf("close %s: %v", path, err)
-	}
-}
-
 // fakeClientCtx returns a context carrying a fake k8s client, as the webhook
 // handler does at runtime. The provider's excluded-fields cleaning reads the
 // client from the context (utils.K8sClientFromContext), which panics otherwise.
