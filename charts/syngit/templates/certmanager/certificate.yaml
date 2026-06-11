@@ -28,7 +28,7 @@ metadata:
 spec:
   dnsNames:
   - syngit-webhook-service.{{ .Release.Namespace }}.svc
-  - syngit-webhook-service.{{ .Release.Namespace }}.svc.local
+  - syngit-webhook-service.{{ .Release.Namespace }}.svc.cluster.local
   issuerRef:
     kind: Issuer
     name: {{ .Release.Name }}-selfsigned-issuer
