@@ -1,9 +1,5 @@
 package controller
 
-import "time"
-
-const requeueAfter = time.Second
-
 const (
 	WebhookServiceName = "syngit-webhook-service"
 	certificateName    = "syngit-webhook-cert"

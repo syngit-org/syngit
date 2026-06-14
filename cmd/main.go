@@ -214,33 +214,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.AssociationPolicyReconciler{
-		Client:    mgr.GetClient(),
-		APIReader: mgr.GetAPIReader(),
-		Scheme:    mgr.GetScheme(),
-		Recorder:  mgr.GetEventRecorder("association-policy-controller"),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "AssociationPolicy")
-		os.Exit(1)
-	}
-
-	if err = (&controller.BranchTargetPolicyReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorder("branchtarget-policy-controller"),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "BranchTargetPolicy")
-		os.Exit(1)
-	}
-
-	if err = (&controller.UserSpecificPolicyReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorder("userspecific-policy-controller"),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "UserSpecificPolicy")
-		os.Exit(1)
-	}
+	// One controller per CRD: the association policy now runs inside
+	// RemoteUserReconciler, and the branch-target and user-specific policies run
+	// inside RemoteSyncerReconciler, so none are registered as separate
+	// controllers anymore.
 
 	// nolint:goconst
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {

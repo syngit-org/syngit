@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/syngit-org/syngit/internal/policy"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	"github.com/syngit-org/syngit/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -37,12 +38,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// RemoteUserReconciler reconciles a RemoteUser object
+// RemoteUserReconciler reconciles a RemoteUser object. It is the single
+// controller that owns RemoteUser: it reflects the referenced Secret in status
+// and runs the RemoteUser-scoped policies (currently the association policy).
 type RemoteUserReconciler struct {
 	client.Client
 	Scheme    *runtime.Scheme
 	Recorder  events.EventRecorder
 	Namespace string
+
+	associationPolicy *policy.AssociationPolicy
 }
 
 // +kubebuilder:rbac:groups=syngit.io,resources=remoteusers,verbs=get;list;watch;create;update;patch;delete
@@ -51,6 +56,8 @@ type RemoteUserReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=create;patch
+
+// +kubebuilder:rbac:groups=syngit.io,resources=remotetargets,verbs=get;list;watch
 
 func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
@@ -68,6 +75,22 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		"name", remoteUser.Name,
 	)
 
+	// Core: validate the referenced Secret and reflect it in status. Skipped
+	// while the object is being deleted, where only policy cleanup must run.
+	if remoteUser.DeletionTimestamp.IsZero() {
+		r.reconcileSecretStatus(ctx, &remoteUser)
+	}
+
+	// Policies: each self-gates on its own condition (the managed annotation for
+	// the association policy) and is finalizer-guarded by the runner.
+	return policy.RunPolicies(ctx, r.Client, &remoteUser,
+		[]policy.Policy[*syngit.RemoteUser]{r.associationPolicy})
+}
+
+// reconcileSecretStatus validates the referenced Secret and writes the binding
+// state into the RemoteUser status. Status-update errors are intentionally
+// ignored (best-effort), matching the previous behavior.
+func (r *RemoteUserReconciler) reconcileSecretStatus(ctx context.Context, remoteUser *syngit.RemoteUser) {
 	condition := &v1.Condition{
 		LastTransitionTime: v1.Now(),
 		Type:               "SecretBound",
@@ -76,7 +99,7 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	// Get the referenced Secret
 	var secret corev1.Secret
-	namespacedNameSecret := types.NamespacedName{Namespace: req.Namespace, Name: remoteUser.Spec.SecretRef.Name}
+	namespacedNameSecret := types.NamespacedName{Namespace: remoteUser.Namespace, Name: remoteUser.Spec.SecretRef.Name}
 	if err := r.Get(ctx, namespacedNameSecret, &secret); err != nil {
 		remoteUser.Status.SecretBoundStatus = syngit.SecretNotFound
 		remoteUser.Status.ConnexionStatus.Status = ""
@@ -84,9 +107,9 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		condition.Reason = "SecretNotFound"
 		condition.Status = v1.ConditionFalse
 		condition.Message = string(syngit.SecretNotFound)
-		_ = r.updateStatus(ctx, &remoteUser, *condition)
+		_ = r.updateStatus(ctx, remoteUser, *condition)
 
-		return ctrl.Result{}, nil
+		return
 	}
 
 	remoteUser.Status.SecretBoundStatus = syngit.SecretFound
@@ -100,9 +123,9 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 		condition.Reason = "SecretWrongType"
 		condition.Message = string(syngit.SecretWrongType)
-		_ = r.updateStatus(ctx, &remoteUser, *condition)
+		_ = r.updateStatus(ctx, remoteUser, *condition)
 
-		return ctrl.Result{}, nil
+		return
 	}
 
 	remoteUser.Status.SecretBoundStatus = syngit.SecretBound
@@ -112,9 +135,7 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	condition.Status = v1.ConditionTrue
 
 	// Update the status of RemoteUser
-	_ = r.updateStatus(ctx, &remoteUser, *condition)
-
-	return ctrl.Result{}, nil
+	_ = r.updateStatus(ctx, remoteUser, *condition)
 }
 
 func (r *RemoteUserReconciler) updateStatus(ctx context.Context, remoteUser *syngit.RemoteUser, condition v1.Condition) error {
@@ -150,6 +171,38 @@ func (r *RemoteUserReconciler) findObjectsForSecret(ctx context.Context, secret 
 	return requests
 }
 
+// findRemoteUsersForRemoteTarget maps a managed one-or-many-branches RemoteTarget
+// change to reconcile requests for every managed RemoteUser in its namespace, so
+// the association policy can (re)associate the target with their RUBs.
+func (r *RemoteUserReconciler) findRemoteUsersForRemoteTarget(ctx context.Context, obj client.Object) []reconcile.Request {
+	rt, ok := obj.(*syngit.RemoteTarget)
+	if !ok {
+		return nil
+	}
+
+	if rt.Labels[syngit.RtLabelKeyPolicy] != syngit.RtLabelValueOneOrManyBranches {
+		return nil
+	}
+
+	ruList := &syngit.RemoteUserList{}
+	if err := r.List(ctx, ruList, &client.ListOptions{Namespace: rt.Namespace}); err != nil {
+		return nil
+	}
+
+	var requests []reconcile.Request
+	for _, ru := range ruList.Items {
+		if ru.Annotations[syngit.RubAnnotationKeyManaged] == "true" { // nolint:goconst
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      ru.Name,
+					Namespace: ru.Namespace,
+				},
+			})
+		}
+	}
+	return requests
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *RemoteUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &syngit.RemoteUser{}, syngit.SecretRefField, func(rawObj client.Object) []string {
@@ -170,11 +223,20 @@ func (r *RemoteUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	managerNamespace := os.Getenv("MANAGER_NAMESPACE")
 	r.Namespace = managerNamespace
 
+	// The association policy is run inline by this controller instead of being a
+	// separate controller that also watches RemoteUser (which would race us).
+	r.associationPolicy = &policy.AssociationPolicy{Client: r.Client}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&syngit.RemoteUser{}).
 		Watches(
 			&corev1.Secret{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSecret),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&syngit.RemoteTarget{},
+			handler.EnqueueRequestsFromMapFunc(r.findRemoteUsersForRemoteTarget),
 			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Complete(r)

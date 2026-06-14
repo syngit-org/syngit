@@ -19,6 +19,9 @@ package controller
 import (
 	"context"
 
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	"github.com/syngit-org/syngit/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -30,8 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 )
 
 // RemoteUserBindingReconciler reconciles a RemoteUserBinding object
@@ -62,10 +63,13 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		"name", remoteUserBinding.Name,
 	)
 
+	isManaged := remoteUserBinding.Labels[syngit.ManagedByLabelKey] == syngit.ManagedByLabelValue
+
 	// Get the referenced RemoteUsers
 	var isGloballyBound = true
 
 	gitUserHosts := []syngit.RemoteUserHost{}
+	missingRefs := []string{}
 	for _, remoteUserRef := range remoteUserBinding.Spec.RemoteUserRefs {
 
 		// Set already known values about this RemoteUser
@@ -77,6 +81,7 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 		// Get the concerned RemoteUser
 		if err := r.Get(ctx, retrievedRemoteUser, &remoteUser); err != nil {
+			missingRefs = append(missingRefs, remoteUserRef.Name)
 			gitUserHost.State = syngit.NotBound
 			r.Recorder.Eventf(&remoteUserBinding, nil, "Warning", "NotBound", gitUserHost.RemoteUserUsed+" not bound", "")
 			isGloballyBound = false
@@ -90,6 +95,38 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		gitUserHosts = append(gitUserHosts, gitUserHost)
 
 	}
+
+	// For managed RUBs this controller is the leveler: prune refs to RemoteUsers
+	// that no longer exist. This makes the association self-healing. If a stale
+	// reconcile re-added a ref to a since-deleted RemoteUser, it is removed here
+	// on the next pass (this controller is re-triggered on RemoteUser deletes via
+	// findObjectsForRemoteUser). It is safe because all controllers share one
+	// informer cache, so a ref only ever reads as missing once its RemoteUser is
+	// genuinely gone, never for a freshly-created one. Unmanaged RUBs are left
+	// untouched: the user listed those refs explicitly, so they stay NotBound.
+	if isManaged && len(missingRefs) > 0 {
+		missing := make(map[string]bool, len(missingRefs))
+		for _, name := range missingRefs {
+			missing[name] = true
+		}
+		if err := utils.MutateOrDeleteManagedRemoteUserBinding(ctx, r.Client, req.NamespacedName,
+			func(fresh *syngit.RemoteUserBinding) error {
+				kept := make([]corev1.ObjectReference, 0, len(fresh.Spec.RemoteUserRefs))
+				for _, ref := range fresh.Spec.RemoteUserRefs {
+					if !missing[ref.Name] {
+						kept = append(kept, ref)
+					}
+				}
+				fresh.Spec.RemoteUserRefs = kept
+				return nil
+			}); err != nil {
+			return ctrl.Result{}, client.IgnoreNotFound(err)
+		}
+		// The spec change (or RUB deletion when it becomes empty) re-triggers
+		// this controller, which recomputes status from the pruned set.
+		return ctrl.Result{}, nil
+	}
+
 	remoteUserBinding.Status.RemoteUserHosts = gitUserHosts
 
 	if !isGloballyBound {
