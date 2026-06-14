@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/syngit-org/syngit/internal/controller"
+	"github.com/syngit-org/syngit/internal/pusher"
 	webhooksyngitv1beta4 "github.com/syngit-org/syngit/internal/webhook/v1beta4"
 	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	syngitv1beta4 "github.com/syngit-org/syngit/pkg/api/v1beta4"
@@ -67,6 +68,7 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var featureGatesFlag string
+	var repoCacheSize int
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -79,6 +81,8 @@ func main() {
 	flag.StringVar(&featureGatesFlag, "feature-gates", "",
 		"A comma-separated list of key=value pairs that describe feature gates. "+
 			fmt.Sprintf("Example: %s=true", features.ResourceFinder))
+	flag.IntVar(&repoCacheSize, "git-repo-cache-size", 0,
+		"Maximum number of git repositories to keep cached in memory (0 disables caching).")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -93,6 +97,12 @@ func main() {
 	}
 
 	setupLog.Info("Feature gates", "loaded", features.LoadedFeatureGates.String())
+
+	// Configure the in-memory git repository cache (no-op when size <= 0).
+	pusher.InitRepoCache(repoCacheSize)
+	if repoCacheSize > 0 {
+		setupLog.Info("Git repository cache enabled", "maxRepos", repoCacheSize)
+	}
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will

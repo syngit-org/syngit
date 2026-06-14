@@ -41,6 +41,7 @@ spec:
         - "--health-probe-bind-address=:8081"
         - "--metrics-bind-address=:8443"
         - "--feature-gates={{ .Values.controller.featureGates }}"
+        - "--git-repo-cache-size={{ .Values.controller.gitRepoCacheSize }}"
         image: {{ .Values.controller.image.prefix }}/{{ .Values.controller.image.name }}:{{ default $.Chart.AppVersion .Values.controller.image.tag }}
         env:
         - name: MANAGER_NAMESPACE
