@@ -18,11 +18,13 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
 
 	interceptor "github.com/syngit-org/syngit/internal/interceptor"
+	"github.com/syngit-org/syngit/internal/policy"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	"github.com/syngit-org/syngit/pkg/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -40,7 +42,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// RemoteSyncerReconciler reconciles a RemoteSyncer object
+// RemoteSyncerReconciler reconciles a RemoteSyncer object. It is the single
+// controller that owns RemoteSyncer: it manages the dynamic webhook
+// configuration and runs the RemoteSyncer-scoped policies (branch-target and
+// user-specific).
 type RemoteSyncerReconciler struct {
 	client.Client
 	Scheme             *runtime.Scheme
@@ -52,6 +57,9 @@ type RemoteSyncerReconciler struct {
 	devWebhookCert     string
 	devWebhookPort     string
 	Recorder           events.EventRecorder
+
+	branchTargetPolicy *policy.BranchTargetPolicy
+	userSpecificPolicy *policy.UserSpecificPolicy
 }
 
 // +kubebuilder:rbac:groups=syngit.io,resources=remotesyncers,verbs=get;list;watch;create;update;patch;delete
@@ -66,6 +74,27 @@ type RemoteSyncerReconciler struct {
 // +kubebuilder:rbac:groups=helm.toolkit.fluxcd.io,resources=helmreleases,verbs=get;list;watch
 
 func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	// Core: reconcile the dynamic webhook configuration. This also handles the
+	// already-deleted case (Get returns NotFound) by removing the syncer's
+	// webhook entry.
+	coreResult, coreErr := r.reconcileWebhook(ctx, req)
+
+	// Policies run only while the object still exists. Once it is fully gone
+	// (NotFound), its finalizers are already removed, so there is nothing to do.
+	var remoteSyncer syngit.RemoteSyncer
+	if err := r.Get(ctx, req.NamespacedName, &remoteSyncer); err != nil {
+		return coreResult, coreErr
+	}
+
+	polResult, polErr := policy.RunPolicies(ctx, r.Client, &remoteSyncer,
+		[]policy.Policy[*syngit.RemoteSyncer]{r.branchTargetPolicy, r.userSpecificPolicy})
+
+	return utils.MergeResults(coreResult, polResult), errors.Join(coreErr, polErr)
+}
+
+// reconcileWebhook manages the dynamic ValidatingWebhookConfiguration for this
+// RemoteSyncer (and removes its entry when the object no longer exists).
+func (r *RemoteSyncerReconciler) reconcileWebhook(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 	isDeleted := false
 
@@ -280,6 +309,39 @@ func (r *RemoteSyncerReconciler) findObjectsForDynamicWebhook(ctx context.Contex
 	return requests
 }
 
+// findRemoteSyncersForRUB maps a managed RemoteUserBinding change to reconcile
+// requests for every user-specific RemoteSyncer in its namespace, so the
+// user-specific policy can (re)create per-user RemoteTargets.
+func (r *RemoteSyncerReconciler) findRemoteSyncersForRUB(ctx context.Context, obj client.Object) []reconcile.Request {
+	rub, ok := obj.(*syngit.RemoteUserBinding)
+	if !ok {
+		return nil
+	}
+
+	// Only care about managed RUBs
+	if rub.Labels[syngit.ManagedByLabelKey] != syngit.ManagedByLabelValue {
+		return nil
+	}
+
+	rsList := &syngit.RemoteSyncerList{}
+	if err := r.List(ctx, rsList, &client.ListOptions{Namespace: rub.Namespace}); err != nil {
+		return nil
+	}
+
+	var requests []reconcile.Request
+	for _, rs := range rsList.Items {
+		if rs.Annotations[syngit.RtAnnotationKeyUserSpecific] != "" {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      rs.Name,
+					Namespace: rs.Namespace,
+				},
+			})
+		}
+	}
+	return requests
+}
+
 func (r *RemoteSyncerReconciler) webhookNamePredicate(name string) predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
@@ -314,12 +376,23 @@ func (r *RemoteSyncerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 	r.webhookServer.Start()
 
+	// The branch-target and user-specific policies are run inline by this
+	// controller instead of being separate controllers that also watch
+	// RemoteSyncer (which would race us).
+	r.branchTargetPolicy = &policy.BranchTargetPolicy{Client: r.Client}
+	r.userSpecificPolicy = &policy.UserSpecificPolicy{Client: r.Client}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&syngit.RemoteSyncer{}).
 		Watches(
 			&admissionv1.ValidatingWebhookConfiguration{},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDynamicWebhook),
 			builder.WithPredicates(r.webhookNamePredicate(r.dynamicWebhookName)),
+		).
+		Watches(
+			&syngit.RemoteUserBinding{},
+			handler.EnqueueRequestsFromMapFunc(r.findRemoteSyncersForRUB),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Complete(r)
 }

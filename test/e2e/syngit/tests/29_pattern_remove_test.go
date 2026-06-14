@@ -61,8 +61,6 @@ var _ = Describe("29 Add & remove policies tests", func() {
 				client.InNamespace(fx.Namespace)); err != nil {
 				return false
 			}
-			fmt.Println("DEBUG")
-			fmt.Println(rubList)
 			for _, rub := range rubList.Items {
 				if rub.Labels[syngit.ManagedByLabelKey] == syngit.ManagedByLabelValue {
 					return len(rub.Spec.RemoteTargetRefs) >= 3
@@ -102,8 +100,6 @@ var _ = Describe("29 Add & remove policies tests", func() {
 				client.InNamespace(fx.Namespace)); err != nil {
 				return false
 			}
-			fmt.Println("DEBUG")
-			fmt.Println("rub.Spec.RemoteTargetRefs")
 			for _, rub := range rubList.Items {
 				if rub.Labels[syngit.ManagedByLabelKey] == syngit.ManagedByLabelValue {
 					return len(rub.Spec.RemoteTargetRefs) == 1
@@ -192,21 +188,40 @@ var _ = Describe("29 Add & remove policies tests", func() {
 			if err != nil {
 				return false
 			}
-			fmt.Println("DEBUG")
-			fmt.Println(getRemoteUser.Annotations[syngit.RubAnnotationKeyManaged])
 			return getRemoteUser.Annotations[syngit.RubAnnotationKeyManaged] == "false"
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
 
+		// Unmanaging the RemoteUser empties the managed RUB's RemoteUserRefs, but
+		// that reconcile is asynchronous and the interceptor reads the RUB from a
+		// cache: until the cache reflects the empty refs, a push still resolves the
+		// (still-existing) RemoteUser and succeeds. Wait for the binding to actually
+		// become unusable using throwaway object names, so a push that wins this
+		// convergence race lands harmless junk instead of poisoning the assertion
+		// below. Only once a push is rejected do we know the system has converged.
+		probeIdx := 0
+		Eventually(func() bool {
+			probeIdx++
+			probe := &corev1.ConfigMap{
+				TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
+				ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("test-cm29-probe-%d", probeIdx), Namespace: fx.Namespace},
+				Data:       map[string]string{"test": "oui"},
+			}
+			_, err := fx.Users.KAs(utils.Developer).CoreV1().ConfigMaps(fx.Namespace).
+				Create(ctx, probe, metav1.CreateOptions{})
+			return err != nil && syngiterrors.Is(err, syngiterrors.ErrRemoteUserNotFound)
+		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
+
+		// The binding is now unusable: a concrete object is rejected outright and
+		// therefore never reaches any branch.
 		cm2 := &corev1.ConfigMap{
 			TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
 			ObjectMeta: metav1.ObjectMeta{Name: "test-cm29-5", Namespace: fx.Namespace},
 			Data:       map[string]string{"test": "oui"},
 		}
-		Eventually(func() bool {
-			_, err := fx.Users.KAs(utils.Developer).CoreV1().ConfigMaps(fx.Namespace).
-				Create(ctx, cm2, metav1.CreateOptions{})
-			return err != nil && syngiterrors.Is(err, syngiterrors.ErrRemoteUserNotFound)
-		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(BeTrue())
+		_, err := fx.Users.KAs(utils.Developer).CoreV1().ConfigMaps(fx.Namespace).
+			Create(ctx, cm2, metav1.CreateOptions{})
+		Expect(err).To(HaveOccurred())
+		Expect(syngiterrors.Is(err, syngiterrors.ErrRemoteUserNotFound)).To(BeTrue())
 
 		ExpectNotOnBranch(fx, string(utils.Developer), cm2)
 	})

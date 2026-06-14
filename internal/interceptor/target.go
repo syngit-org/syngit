@@ -45,8 +45,9 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 	k8sClient := utils.K8sClientFromContext(ctx)
 
 	if remoteUserBinding != nil {
-		// User-specific RemoteTargets are now pre-created by the UserSpecificPolicyReconciler.
-		// The RUB already contains all the necessary RemoteTarget refs.
+		// User-specific RemoteTargets are now pre-created by the user-specific policy
+		// (run inside RemoteSyncerReconciler). The RUB already contains all the
+		// necessary RemoteTarget refs.
 
 		// Search for RemoteTargets
 		remoteTargetRefNames := make([]string, 0, len(remoteUserBinding.Spec.RemoteTargetRefs))

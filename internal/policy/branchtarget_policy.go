@@ -1,4 +1,4 @@
-package controller
+package policy
 
 import (
 	"context"
@@ -11,96 +11,41 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/events"
-	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const branchTargetPolicyFinalizer = "syngit.io/branchtarget-policy"
 
-// BranchTargetPolicyReconciler creates and manages RemoteTargets
-// for RemoteSyncers that have the one-or-many-branches annotation.
-type BranchTargetPolicyReconciler struct {
-	client.Client
-	Scheme   *runtime.Scheme
-	Recorder events.EventRecorder
-}
-
-// +kubebuilder:rbac:groups=syngit.io,resources=remotesyncers,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=syngit.io,resources=remotesyncers/finalizers,verbs=update
 // +kubebuilder:rbac:groups=syngit.io,resources=remotetargets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=syngit.io,resources=remoteuserbindings,verbs=get;list;watch;update;patch
 
-func (r *BranchTargetPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
+// BranchTargetPolicy creates and manages the RemoteTargets of a RemoteSyncer that
+// carries the one-or-many-branches annotation. It implements
+// policy.Policy[*syngit.RemoteSyncer] and is run by RemoteSyncerReconciler, the
+// single controller that owns RemoteSyncer.
+type BranchTargetPolicy struct {
+	client.Client
+}
+
+func (p *BranchTargetPolicy) Name() string { return "branchtarget-policy" }
+
+func (p *BranchTargetPolicy) Finalizer() string { return branchTargetPolicyFinalizer }
+
+func (p *BranchTargetPolicy) Applies(remoteSyncer *syngit.RemoteSyncer) bool {
+	return len(utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationKeyOneOrManyBranches])) > 0
+}
+
+func (p *BranchTargetPolicy) Reconcile(ctx context.Context, remoteSyncer *syngit.RemoteSyncer) (ctrl.Result, error) {
 	rdm := time.Duration(rand.Intn(5)) * time.Second
 
-	var remoteSyncer syngit.RemoteSyncer
-	if err := r.Get(ctx, req.NamespacedName, &remoteSyncer); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	logger.Info("Reconcile request",
-		"resource", "branchtarget-policy",
-		"namespace", remoteSyncer.Namespace,
-		"name", remoteSyncer.Name,
-	)
-
-	annotation := remoteSyncer.Annotations[syngit.RtAnnotationKeyOneOrManyBranches]
-	desiredBranches := utils.GetBranchesFromAnnotation(annotation)
-
-	// Handle deletion or annotation removal
-	if !remoteSyncer.DeletionTimestamp.IsZero() || len(desiredBranches) == 0 {
-		if err := r.cleanupBranchTargets(ctx, &remoteSyncer); err != nil {
-			return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
-		}
-		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			var rs syngit.RemoteSyncer
-			if err := r.Get(ctx, req.NamespacedName, &rs); err != nil {
-				return client.IgnoreNotFound(err)
-			}
-			if !controllerutil.RemoveFinalizer(&rs, branchTargetPolicyFinalizer) {
-				return nil
-			}
-			return r.Update(ctx, &rs)
-		}); err != nil {
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{}, nil
-	}
-
-	// Ensure finalizer is present
-	added := false
-	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		var rs syngit.RemoteSyncer
-		if err := r.Get(ctx, req.NamespacedName, &rs); err != nil {
-			return err
-		}
-		if !controllerutil.AddFinalizer(&rs, branchTargetPolicyFinalizer) {
-			added = false
-			return nil
-		}
-		if err := r.Update(ctx, &rs); err != nil {
-			return err
-		}
-		added = true
-		return nil
-	}); err != nil {
-		return ctrl.Result{}, err
-	}
-	if added {
-		return ctrl.Result{RequeueAfter: requeueAfter + rdm}, nil
-	}
+	desiredBranches := utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationKeyOneOrManyBranches])
 
 	upstreamRepo := remoteSyncer.Spec.RemoteRepository
 	upstreamBranch := remoteSyncer.Spec.DefaultBranch
 
 	// List existing managed RemoteTargets with one-or-many-branches label
-	existingRTs, err := r.listManagedBranchTargets(ctx, remoteSyncer.Namespace)
+	existingRTs, err := p.listManagedBranchTargets(ctx, remoteSyncer.Namespace)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -119,11 +64,11 @@ func (r *BranchTargetPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 		if _, exists := existingBranches[branch]; exists {
 			continue
 		}
-		rt, nameErr := r.buildRemoteTarget(remoteSyncer.Namespace, upstreamRepo, upstreamBranch, branch)
+		rt, nameErr := p.buildRemoteTarget(remoteSyncer.Namespace, upstreamRepo, upstreamBranch, branch)
 		if nameErr != nil {
 			return ctrl.Result{}, nameErr
 		}
-		if createErr := r.Create(ctx, rt); createErr != nil {
+		if createErr := p.Create(ctx, rt); createErr != nil {
 			if !apierrors.IsAlreadyExists(createErr) {
 				return ctrl.Result{}, createErr
 			}
@@ -131,18 +76,18 @@ func (r *BranchTargetPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// Delete orphaned RemoteTargets (only if no other RemoteSyncer depends on them)
-	otherSyncers, err := r.getOtherSyncersWithBranchPolicy(ctx, remoteSyncer.Namespace, remoteSyncer.Name)
+	otherSyncers, err := p.getOtherSyncersWithBranchPolicy(ctx, remoteSyncer.Namespace, remoteSyncer.Name)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	for branch, rt := range existingBranches {
 		if !slices.Contains(desiredBranches, branch) {
-			if !r.isBranchUsedByOtherSyncer(branch, upstreamRepo, upstreamBranch, otherSyncers) {
-				if err := r.Delete(ctx, &rt); err != nil && !apierrors.IsNotFound(err) {
+			if !p.isBranchUsedByOtherSyncer(branch, upstreamRepo, upstreamBranch, otherSyncers) {
+				if err := p.Delete(ctx, &rt); err != nil && !apierrors.IsNotFound(err) {
 					return ctrl.Result{}, err
 				}
-				if err := utils.RemoveRemoteTargetRefFromManagedRUBs(ctx, r.Client, rt.Namespace, rt.Name); err != nil {
+				if err := utils.RemoveRemoteTargetRefFromManagedRUBs(ctx, p.Client, rt.Namespace, rt.Name); err != nil {
 					return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 				}
 			}
@@ -152,8 +97,12 @@ func (r *BranchTargetPolicyReconciler) Reconcile(ctx context.Context, req ctrl.R
 	return ctrl.Result{}, nil
 }
 
+func (p *BranchTargetPolicy) Cleanup(ctx context.Context, remoteSyncer *syngit.RemoteSyncer) error {
+	return p.cleanupBranchTargets(ctx, remoteSyncer)
+}
+
 // buildRemoteTarget constructs a RemoteTarget for a branch.
-func (r *BranchTargetPolicyReconciler) buildRemoteTarget(namespace, upstreamRepo, upstreamBranch, targetBranch string) (*syngit.RemoteTarget, error) {
+func (p *BranchTargetPolicy) buildRemoteTarget(namespace, upstreamRepo, upstreamBranch, targetBranch string) (*syngit.RemoteTarget, error) {
 	name, err := utils.RemoteTargetNameConstructor(upstreamRepo, upstreamBranch, upstreamRepo, targetBranch)
 	if err != nil {
 		return nil, err
@@ -185,7 +134,7 @@ func (r *BranchTargetPolicyReconciler) buildRemoteTarget(namespace, upstreamRepo
 }
 
 // listManagedBranchTargets lists all managed one-or-many-branches RemoteTargets in a namespace.
-func (r *BranchTargetPolicyReconciler) listManagedBranchTargets(ctx context.Context, namespace string) ([]syngit.RemoteTarget, error) {
+func (p *BranchTargetPolicy) listManagedBranchTargets(ctx context.Context, namespace string) ([]syngit.RemoteTarget, error) {
 	rtList := &syngit.RemoteTargetList{}
 	listOps := &client.ListOptions{
 		Namespace: namespace,
@@ -194,7 +143,7 @@ func (r *BranchTargetPolicyReconciler) listManagedBranchTargets(ctx context.Cont
 			syngit.RtLabelKeyPolicy:  syngit.RtLabelValueOneOrManyBranches,
 		}),
 	}
-	if err := r.List(ctx, rtList, listOps); err != nil {
+	if err := p.List(ctx, rtList, listOps); err != nil {
 		return nil, err
 	}
 	return rtList.Items, nil
@@ -212,9 +161,9 @@ func filterByUpstream(rts []syngit.RemoteTarget, upstreamRepo, upstreamBranch st
 }
 
 // getOtherSyncersWithBranchPolicy returns other RemoteSyncers in the namespace that have the OMB annotation.
-func (r *BranchTargetPolicyReconciler) getOtherSyncersWithBranchPolicy(ctx context.Context, namespace, excludeName string) ([]syngit.RemoteSyncer, error) {
+func (p *BranchTargetPolicy) getOtherSyncersWithBranchPolicy(ctx context.Context, namespace, excludeName string) ([]syngit.RemoteSyncer, error) {
 	rsList := &syngit.RemoteSyncerList{}
-	if err := r.List(ctx, rsList, &client.ListOptions{Namespace: namespace}); err != nil {
+	if err := p.List(ctx, rsList, &client.ListOptions{Namespace: namespace}); err != nil {
 		return nil, err
 	}
 
@@ -228,7 +177,7 @@ func (r *BranchTargetPolicyReconciler) getOtherSyncersWithBranchPolicy(ctx conte
 }
 
 // isBranchUsedByOtherSyncer checks if another RemoteSyncer references the same upstream+branch combination.
-func (r *BranchTargetPolicyReconciler) isBranchUsedByOtherSyncer(branch, upstreamRepo, upstreamBranch string, otherSyncers []syngit.RemoteSyncer) bool {
+func (p *BranchTargetPolicy) isBranchUsedByOtherSyncer(branch, upstreamRepo, upstreamBranch string, otherSyncers []syngit.RemoteSyncer) bool {
 	for _, rs := range otherSyncers {
 		if rs.Spec.RemoteRepository == upstreamRepo && rs.Spec.DefaultBranch == upstreamBranch {
 			branches := utils.GetBranchesFromAnnotation(rs.Annotations[syngit.RtAnnotationKeyOneOrManyBranches])
@@ -241,40 +190,32 @@ func (r *BranchTargetPolicyReconciler) isBranchUsedByOtherSyncer(branch, upstrea
 }
 
 // cleanupBranchTargets removes all managed branch RemoteTargets for this syncer (with cross-dependency check).
-func (r *BranchTargetPolicyReconciler) cleanupBranchTargets(ctx context.Context, remoteSyncer *syngit.RemoteSyncer) error {
+func (p *BranchTargetPolicy) cleanupBranchTargets(ctx context.Context, remoteSyncer *syngit.RemoteSyncer) error {
 	upstreamRepo := remoteSyncer.Spec.RemoteRepository
 	upstreamBranch := remoteSyncer.Spec.DefaultBranch
 
-	existingRTs, err := r.listManagedBranchTargets(ctx, remoteSyncer.Namespace)
+	existingRTs, err := p.listManagedBranchTargets(ctx, remoteSyncer.Namespace)
 	if err != nil {
 		return err
 	}
 
 	matchingRTs := filterByUpstream(existingRTs, upstreamRepo, upstreamBranch)
 
-	otherSyncers, err := r.getOtherSyncersWithBranchPolicy(ctx, remoteSyncer.Namespace, remoteSyncer.Name)
+	otherSyncers, err := p.getOtherSyncersWithBranchPolicy(ctx, remoteSyncer.Namespace, remoteSyncer.Name)
 	if err != nil {
 		return err
 	}
 
 	for _, rt := range matchingRTs {
-		if !r.isBranchUsedByOtherSyncer(rt.Spec.TargetBranch, upstreamRepo, upstreamBranch, otherSyncers) {
-			if err := r.Delete(ctx, &rt); err != nil && !apierrors.IsNotFound(err) {
+		if !p.isBranchUsedByOtherSyncer(rt.Spec.TargetBranch, upstreamRepo, upstreamBranch, otherSyncers) {
+			if err := p.Delete(ctx, &rt); err != nil && !apierrors.IsNotFound(err) {
 				return err
 			}
-			if err := utils.RemoveRemoteTargetRefFromManagedRUBs(ctx, r.Client, rt.Namespace, rt.Name); err != nil {
+			if err := utils.RemoveRemoteTargetRefFromManagedRUBs(ctx, p.Client, rt.Namespace, rt.Name); err != nil {
 				return err
 			}
 		}
 	}
 
 	return nil
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *BranchTargetPolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&syngit.RemoteSyncer{}).
-		Named("branchtarget-policy").
-		Complete(r)
 }

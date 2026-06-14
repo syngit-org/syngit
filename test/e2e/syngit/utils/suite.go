@@ -239,15 +239,6 @@ func (s *Suite) startManager() {
 	Expect((&controllerssyngit.RemoteTargetReconciler{
 		Client: s.Manager.GetClient(), Scheme: s.Manager.GetScheme(),
 	}).SetupWithManager(s.Manager)).To(Succeed())
-	Expect((&controllerssyngit.AssociationPolicyReconciler{
-		Client: s.Manager.GetClient(), APIReader: s.Manager.GetAPIReader(), Scheme: s.Manager.GetScheme(),
-	}).SetupWithManager(s.Manager)).To(Succeed())
-	Expect((&controllerssyngit.BranchTargetPolicyReconciler{
-		Client: s.Manager.GetClient(), Scheme: s.Manager.GetScheme(),
-	}).SetupWithManager(s.Manager)).To(Succeed())
-	Expect((&controllerssyngit.UserSpecificPolicyReconciler{
-		Client: s.Manager.GetClient(), Scheme: s.Manager.GetScheme(),
-	}).SetupWithManager(s.Manager)).To(Succeed())
 
 	By("starting the manager")
 	go func() {
