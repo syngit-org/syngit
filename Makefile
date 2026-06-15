@@ -149,16 +149,24 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 ##@ Tests
 
 .PHONY: test
-test: kind-delete-cluster test-controller test-e2e kind-delete-cluster ## Run all the tests.
+test: kind-delete-cluster test-unit test-controller test-e2e kind-delete-cluster ## Run all the tests and report the merged coverage (unit + controller + e2e).
+	@$(MAKE) merge-coverage
+
+.PHONY: merge-coverage
+merge-coverage: $(GOCOVMERGE) ## Merge the unit, controller & e2e coverage profiles into coverage-merged.txt and print the total.
+	$(GOCOVMERGE) coverage-unit.txt cover.out coverage.txt > coverage-merged.txt
+	@echo "Merged coverage (unit + controller + e2e):"
+	@go tool cover -func=coverage-merged.txt | tail -1
 
 .PHONY: test-unit
 test-unit: fmt vet ## Run pure unit tests (no kind cluster, no envtest). Writes coverage-unit.txt.
 	go test -race -covermode=atomic -coverpkg=$(COVERPKG) -coverprofile=coverage-unit.txt \
 		./internal/interceptor/... ./internal/pusher/... ./internal/mutator/... ./pkg/errors/... ./pkg/feature/... ./pkg/utils/...
+	@go tool cover -func=coverage-unit.txt | tail -1
 
 .PHONY: test-controller
 test-controller: manifests generate fmt vet envtest kind-create-cluster setup-webhooks-for-run ## Run tests embeded in the controller package & webhook package.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e | grep -v /v1alpha | grep -v /v1beta1) -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e | grep -v /v1alpha | grep -v /v1beta1) -covermode=atomic -coverpkg=$(COVERPKG) -coverprofile cover.out
 	make cleanup-webhooks-for-run
 
 .PHONY: test-build-deploy
@@ -173,22 +181,22 @@ COVERPKG = $(shell go list ./... | grep -v 'test' | grep -v -E "$(DEPREACTED_API
 .PHONY: test-e2e
 test-e2e: ginkgo envtest ## Run every spec in test/e2e/syngit/tests. Writes coverage.txt.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt ./test/e2e/syngit/tests
+		$(GINKGO) -timeout 25m -v -cover -covermode=atomic -coverpkg=$(COVERPKG) -coverprofile=coverage.txt ./test/e2e/syngit/tests
 
 .PHONY: test-e2e-focus
 test-e2e-focus: ginkgo envtest ## Run only the specs matching FOCUS='regex'. Example: make test-e2e-focus FOCUS='02 CommitOnly'
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt --focus='$(FOCUS)' ./test/e2e/syngit/tests
+		$(GINKGO) -timeout 25m -v -cover -covermode=atomic -coverpkg=$(COVERPKG) -coverprofile=coverage.txt --focus='$(FOCUS)' ./test/e2e/syngit/tests
 
 .PHONY: test-e2e-file
 test-e2e-file: ginkgo envtest ## Run only the specs in a single file. Example: make test-e2e-file FILE=02_commitonly_cm
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt --focus-file='$(FILE)' ./test/e2e/syngit/tests
+		$(GINKGO) -timeout 25m -v -cover -covermode=atomic -coverpkg=$(COVERPKG) -coverprofile=coverage.txt --focus-file='$(FILE)' ./test/e2e/syngit/tests
 
 .PHONY: test-e2e-debug
 test-e2e-debug: ginkgo envtest ## Like e2e-focus but fail-fast with a full stack trace on failure.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" \
-		$(GINKGO) -timeout 25m -v -cover -coverpkg=$(COVERPKG) -coverprofile=coverage.txt --fail-fast --trace --focus='$(FOCUS)' ./test/e2e/syngit/tests
+		$(GINKGO) -timeout 25m -v -cover -covermode=atomic -coverpkg=$(COVERPKG) -coverprofile=coverage.txt --fail-fast --trace --focus='$(FOCUS)' ./test/e2e/syngit/tests
 
 .PHONY: test-chart-install
 test-chart-install: ## Run tests to install the chart.
@@ -365,6 +373,7 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
 ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 GINKGO = $(LOCALBIN)/ginkgo-$(GINKGO_VERSION)
+GOCOVMERGE = $(LOCALBIN)/gocovmerge-$(GOCOVMERGE_VERSION)
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.3.0
@@ -372,6 +381,7 @@ CONTROLLER_TOOLS_VERSION ?= v0.19.0
 ENVTEST_VERSION ?= latest
 GOLANGCI_LINT_VERSION ?= v2.11.4
 GINKGO_VERSION ?= v2.28.1
+GOCOVMERGE_VERSION ?= v0.0.0-20160331181800-b5bfa59ec0ad
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -397,6 +407,11 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 ginkgo: $(GINKGO) ## Download ginkgo locally if necessary.
 $(GINKGO): $(LOCALBIN)
 	$(call go-install-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo,$(GINKGO_VERSION))
+
+.PHONY: gocovmerge
+gocovmerge: $(GOCOVMERGE) ## Download gocovmerge locally if necessary.
+$(GOCOVMERGE): $(LOCALBIN)
+	$(call go-install-tool,$(GOCOVMERGE),github.com/wadey/gocovmerge,$(GOCOVMERGE_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
