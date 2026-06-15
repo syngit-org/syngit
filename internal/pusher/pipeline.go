@@ -13,23 +13,32 @@ import (
 func RunGitPipeline(ctx context.Context, cluster client.Reader, params interceptor.GitPipelineParams) (interceptor.GitPushResponse, error) {
 	emptyPaths := make([]string, 0)
 
-	// Get the targeted repository
-	targetRepository, err := GetTargetRepository(params)
+	// Get the targeted repository. The lease is held until the pipeline finishes
+	// because the repository is mutated through fetch, checkout, commit and push.
+	targetRepository, releaseTarget, err := GetTargetRepository(params)
 	if err != nil {
 		return ResponseBuilder(emptyPaths, "", params.RemoteTarget.Spec.TargetRepository), err
 	}
+	defer releaseTarget()
 
 	// By default, set the upstream repo the same as the target repo
 	// Considering the target branch to be the same as the upstream one
 	upstreamRepository := targetRepository
 
-	// If a merge strategy is set, then the target & upstream are different
-	if params.RemoteTarget.Spec.MergeStrategy != "" {
-		// Different target and upstream
-		upstreamRepository, err = GetUpstreamRepository(params)
+	// If a merge strategy is set and the upstream repository is a different repo
+	// than the target, clone it separately. When both point at the same
+	// repository URL (only the branch differs) they share a cache key, so we
+	// reuse the target lease to avoid acquiring the same per-entry lock twice and
+	// deadlocking. This is safe because the merge-strategy paths in GetWorkTree
+	// operate solely on the target repository.
+	if params.RemoteTarget.Spec.MergeStrategy != "" &&
+		params.RemoteTarget.Spec.UpstreamRepository != params.RemoteTarget.Spec.TargetRepository {
+		var releaseUpstream func()
+		upstreamRepository, releaseUpstream, err = GetUpstreamRepository(params)
 		if err != nil {
 			return ResponseBuilder(emptyPaths, "", params.RemoteTarget.Spec.TargetRepository), err
 		}
+		defer releaseUpstream()
 	}
 
 	// Pull the worktree
