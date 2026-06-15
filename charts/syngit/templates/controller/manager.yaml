@@ -42,6 +42,7 @@ spec:
         - "--metrics-bind-address=:8443"
         - "--feature-gates={{ .Values.controller.featureGates }}"
         - "--git-repo-cache-size={{ .Values.controller.gitRepoCacheSize }}"
+        - "--git-document-cache-size={{ .Values.controller.gitDocumentCacheSize }}"
         image: {{ .Values.controller.image.prefix }}/{{ .Values.controller.image.name }}:{{ default $.Chart.AppVersion .Values.controller.image.tag }}
         env:
         - name: MANAGER_NAMESPACE

@@ -26,42 +26,91 @@ func FindObject(wt *git.Worktree, sel ObjectSelector) (path string, doc []byte, 
 	return path, doc, found, werr
 }
 
-// ReplaceObject walks the worktree, replaces the first document matching sel with
-// content (deletes it when content is empty), writes the file back preserving
-// sibling documents, and returns the claimed paths. It claims nothing when no
-// document matches.
-func ReplaceObject(wt *git.Worktree, sel ObjectSelector, content []byte) (interceptor.ClaimedPaths, error) {
-	claimed := interceptor.NewClaimedPaths()
-	root := wt.Filesystem.Root()
+// ReplaceObject replaces the document matching sel with content (deletes it when
+// content is empty) in every worktree file that contains it, writing each file
+// back preserving its sibling documents, and returns the claimed paths. It claims
+// nothing when no document matches.
+//
+// scope is an identifier for the worktree's content. When the document path cache
+// is enabled it remembers, per (scope, sel), the single file that held the document.
+// The cached path is always validated by re-reading it. A stale entry simply falls
+// back to a full walk. Keys that have matched more than one file are never cached,
+// so duplicated resources keep being rewritten in every copy.
+func ReplaceObject(wt *git.Worktree, scope string, sel ObjectSelector, content []byte) (interceptor.ClaimedPaths, error) {
+	key := docCacheKey{Scope: scope, Sel: sel}
 
-	_, err := walkWorktreeFiles(wt, root, func(path string, fileContent []byte) (bool, error) {
-		out, found := ReplaceDocInContent(fileContent, sel, content)
-		if !found {
-			return false, nil
-		}
-
-		if string(out) != string(fileContent) {
-			if len(bytes.TrimSpace(out)) == 0 {
-				if rerr := removeWorktreeFile(wt, path); rerr != nil {
-					return true, fmt.Errorf("failed to remove %s: %w", path, rerr)
+	// Fast path: a single remembered location, validated by re-reading it.
+	if v, ok := docCache.Get(key); ok && !v.NoCache {
+		claimed := interceptor.NewClaimedPaths()
+		if fileContent, rerr := readWorktreeFile(wt, v.Path); rerr == nil {
+			found, aerr := applyReplacement(wt, v.Path, v.Path, fileContent, sel, content, &claimed)
+			if aerr != nil {
+				return interceptor.NewClaimedPaths(), aerr
+			}
+			if found {
+				if len(content) == 0 {
+					// A deletion empties the location; forget it.
+					docCache.Delete(key)
 				}
-			} else if werr := WriteWorktreeFile(wt, path, out); werr != nil {
-				return true, fmt.Errorf("failed to write %s: %w", path, werr)
+				return claimed, nil
 			}
 		}
+		// File gone or no longer matching: fall back to a full walk, which
+		// refreshes the cache below.
+	}
 
+	// Full walk: rewrite the document in every matching file.
+	claimed := interceptor.NewClaimedPaths()
+	root := wt.Filesystem.Root()
+	var matched []string
+	_, err := walkWorktreeFiles(wt, root, func(path string, fileContent []byte) (bool, error) {
 		rel := worktreeRelativePath(root, path)
-		if len(content) == 0 {
-			claimed.AppendDeletedPath(rel)
-		} else {
-			claimed.AppendAddedPath(rel)
+		found, aerr := applyReplacement(wt, path, rel, fileContent, sel, content, &claimed)
+		if aerr != nil {
+			return true, aerr
+		}
+		if found {
+			matched = append(matched, rel)
 		}
 		return false, nil // keep walking: a later file may match too
 	})
 	if err != nil {
 		return interceptor.NewClaimedPaths(), err
 	}
+
+	if len(content) == 0 {
+		docCache.Delete(key) // nothing remains to point at after a deletion
+	} else {
+		recordMatches(scope, sel, matched)
+	}
 	return claimed, nil
+}
+
+// applyReplacement replaces the document matching sel inside fileContent.
+// found reports whether a matching document was present; when false nothing
+// is written or claimed.
+func applyReplacement(wt *git.Worktree, fsPath, relPath string, fileContent []byte, sel ObjectSelector, content []byte, claimed *interceptor.ClaimedPaths) (bool, error) {
+	out, found := ReplaceDocInContent(fileContent, sel, content)
+	if !found {
+		return false, nil
+	}
+
+	if string(out) != string(fileContent) {
+		if len(bytes.TrimSpace(out)) == 0 {
+			if rerr := removeWorktreeFile(wt, fsPath); rerr != nil {
+				return true, fmt.Errorf("failed to remove %s: %w", fsPath, rerr)
+			}
+		} else if werr := WriteWorktreeFile(wt, fsPath, out); werr != nil {
+			return true, fmt.Errorf("failed to write %s: %w", fsPath, werr)
+		}
+	}
+
+	if len(content) == 0 {
+		claimed.AppendDeletedPath(relPath)
+	} else {
+		claimed.AppendAddedPath(relPath)
+	}
+	return true, nil
 }
 
 // WriteObjectAtPath writes content to an explicit worktree path. When the file

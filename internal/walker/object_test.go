@@ -59,7 +59,7 @@ func TestReplaceObject(t *testing.T) {
 	seedWorktreeFile(t, wt, "deploy.yaml", demoDeploymentYAML)
 
 	sel := ObjectSelector{GVR: deploymentGVR(), Name: "demo", Namespace: "default"}
-	claimed, err := ReplaceObject(wt, sel, []byte("REPLACED\n"))
+	claimed, err := ReplaceObject(wt, "", sel, []byte("REPLACED\n"))
 	if err != nil {
 		t.Fatalf("ReplaceObject: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestReplaceObject_Deletion(t *testing.T) {
 	seedWorktreeFile(t, wt, "deploy.yaml", demoDeploymentYAML)
 
 	sel := ObjectSelector{GVR: deploymentGVR(), Name: "demo", Namespace: "default"}
-	claimed, err := ReplaceObject(wt, sel, nil)
+	claimed, err := ReplaceObject(wt, "", sel, nil)
 	if err != nil {
 		t.Fatalf("ReplaceObject: %v", err)
 	}
