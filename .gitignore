@@ -14,6 +14,7 @@ Dockerfile.cross
 *.out
 coverage.txt
 coverage-unit.txt
+coverage-merged.txt
 
 # Go workspace file
 go.work
