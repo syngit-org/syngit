@@ -48,7 +48,7 @@ func getRepository(params GetRepositoryParams) (*git.Repository, func(), error) 
 		return repository, func() {}, err
 	}
 
-	lease := repoCache.acquire(params.cacheKey())
+	lease := acquire(params.cacheKey())
 
 	if lease.repo() == nil {
 		// Cache miss: clone and store.

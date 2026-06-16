@@ -39,6 +39,29 @@ func TestLFUDelete(t *testing.T) {
 	c.Delete("a") // deleting an absent key is a no-op
 }
 
+func TestLFULoadOrStore(t *testing.T) {
+	c := NewLFU[string, int](4)
+
+	// Store-new: value is inserted and reported as absent.
+	if got, loaded := c.LoadOrStore("a", 1); loaded || got != 1 {
+		t.Fatalf("LoadOrStore(a, 1) = (%d, %v), want (1, false)", got, loaded)
+	}
+
+	// Load-existing: the stored value is returned and the new value ignored.
+	if got, loaded := c.LoadOrStore("a", 2); !loaded || got != 1 {
+		t.Fatalf("LoadOrStore(a, 2) = (%d, %v), want (1, true)", got, loaded)
+	}
+	if got, ok := c.Get("a"); !ok || got != 1 {
+		t.Fatalf("Get(a) = (%d, %v), want (1, true) (LoadOrStore must not overwrite)", got, ok)
+	}
+
+	// Nil cache: stores nothing, returns the passed value as absent.
+	var nilCache *LFU[string, int]
+	if got, loaded := nilCache.LoadOrStore("a", 9); loaded || got != 9 {
+		t.Fatalf("nil LoadOrStore = (%d, %v), want (9, false)", got, loaded)
+	}
+}
+
 func TestLFUEvictsLeastFrequentlyUsed(t *testing.T) {
 	c := NewLFU[string, int](2)
 	c.Set("a", 1)

@@ -77,6 +77,28 @@ func (c *LFU[K, V]) Set(key K, value V) {
 	c.evictLocked(key)
 }
 
+// LoadOrStore returns the existing value for key (a load, which bumps its LFU
+// counter) if present. Otherwise it stores value, evicts the least-frequently-
+// used entries until the cache is back within capacity, and returns value. The
+// bool reports whether the value was already present. On a nil cache it stores
+// nothing and returns (value, false).
+func (c *LFU[K, V]) LoadOrStore(key K, value V) (V, bool) {
+	if c == nil {
+		return value, false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if e, ok := c.entries[key]; ok {
+		c.touchLocked(e)
+		return e.value, true
+	}
+	e := &entry[V]{value: value}
+	c.entries[key] = e
+	c.touchLocked(e)
+	c.evictLocked(key)
+	return value, false
+}
+
 // Delete removes key from the cache. It is a no-op when key is absent.
 func (c *LFU[K, V]) Delete(key K) {
 	if c == nil {
