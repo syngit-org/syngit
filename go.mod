@@ -7,7 +7,7 @@ require (
 	github.com/go-git/go-billy/v5 v5.9.0
 	github.com/go-git/go-git/v5 v5.19.1
 	github.com/gorilla/mux v1.8.1
-	github.com/onsi/ginkgo/v2 v2.29.0
+	github.com/onsi/ginkgo/v2 v2.31.0
 	github.com/onsi/gomega v1.42.0
 	github.com/sosedoff/gitkit v0.4.0
 	github.com/syngit-org/syngit-provider-flux v0.3.0
