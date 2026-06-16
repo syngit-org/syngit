@@ -16,6 +16,8 @@ type ResourceFinder struct{}
 func (rf ResourceFinder) place(params interceptor.GitPipelineParams, artifacts ArtifactSet, worktree *git.Worktree) (interceptor.ClaimedPaths, error) {
 	claimed := interceptor.NewClaimedPaths()
 
+	scope := params.RemoteTarget.Spec.TargetRepository + "#" + params.RemoteTarget.Spec.UpstreamBranch
+
 	for _, a := range artifacts.Items {
 		sel := walker.ObjectSelector{
 			GVR:           a.GVR,
@@ -24,7 +26,7 @@ func (rf ResourceFinder) place(params interceptor.GitPipelineParams, artifacts A
 			CommentPrefix: ResourceFinderCommentPrefix,
 		}
 
-		found, err := walker.ReplaceObject(worktree, sel, a.Content)
+		found, err := walker.ReplaceObject(worktree, scope, sel, a.Content)
 		if err != nil {
 			return interceptor.NewClaimedPaths(), err
 		}
