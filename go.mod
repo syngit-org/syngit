@@ -3,7 +3,7 @@ module github.com/syngit-org/syngit
 go 1.26.2
 
 require (
-	github.com/fluxcd/helm-controller/api v1.5.5
+	github.com/fluxcd/helm-controller/api v1.6.0
 	github.com/go-git/go-billy/v5 v5.9.0
 	github.com/go-git/go-git/v5 v5.19.1
 	github.com/gorilla/mux v1.8.1
@@ -54,8 +54,8 @@ require (
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fluxcd/cli-utils v1.2.1 // indirect
-	github.com/fluxcd/pkg/apis/kustomize v1.15.1 // indirect
-	github.com/fluxcd/pkg/apis/meta v1.25.1 // indirect
+	github.com/fluxcd/pkg/apis/kustomize v1.19.0 // indirect
+	github.com/fluxcd/pkg/apis/meta v1.30.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
