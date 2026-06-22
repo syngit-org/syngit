@@ -348,6 +348,8 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/syngit-org/syngit-provider-flux v0.3.0 h1:E94Db/xss3jbzeRC1O2QcylpLiMR2XyL9XwTiZSz95k=
 github.com/syngit-org/syngit-provider-flux v0.3.0/go.mod h1:JSc6VOzD+3+D7fm2p1nHO1Tk+//aHt3ITvQ5tF02iNE=
+github.com/syngit-org/syngit-provider-flux v0.3.1 h1:zL88u8aJKByQpITOUqk4Gxydm2tOATMKvfLFglQpOq4=
+github.com/syngit-org/syngit-provider-flux v0.3.1/go.mod h1:JSc6VOzD+3+D7fm2p1nHO1Tk+//aHt3ITvQ5tF02iNE=
 github.com/syngit-org/syngit-provider-helm v0.2.0 h1:w94NWk3Hf966tiMGZC1Lbrx2BP5dR/3xdNOQQzyr2ew=
 github.com/syngit-org/syngit-provider-helm v0.2.0/go.mod h1:fEDnxRmFSk80iZPJVWj4pBRkiNHXu6w35I97DnCRJW0=
 github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834 h1:ZF+QBjOI+tILZjBaFj3HgFonKXUcwgJ4djLb6i42S3Q=

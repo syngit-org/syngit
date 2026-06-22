@@ -10,7 +10,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.31.0
 	github.com/onsi/gomega v1.42.0
 	github.com/sosedoff/gitkit v0.4.0
-	github.com/syngit-org/syngit-provider-flux v0.3.0
+	github.com/syngit-org/syngit-provider-flux v0.3.1
 	github.com/syngit-org/syngit-provider-helm v0.2.0
 	helm.sh/helm/v4 v4.2.2
 	k8s.io/api v0.36.2
