@@ -8,7 +8,7 @@ require (
 	github.com/go-git/go-git/v5 v5.19.1
 	github.com/gorilla/mux v1.8.1
 	github.com/onsi/ginkgo/v2 v2.31.0
-	github.com/onsi/gomega v1.42.0
+	github.com/onsi/gomega v1.42.1
 	github.com/sosedoff/gitkit v0.4.0
 	github.com/syngit-org/syngit-provider-flux v0.3.1
 	github.com/syngit-org/syngit-provider-helm v0.2.0
@@ -144,7 +144,7 @@ require (
 	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
 	golang.org/x/mod v0.36.0 // indirect
-	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
