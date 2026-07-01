@@ -3,7 +3,7 @@ module github.com/syngit-org/syngit
 go 1.26.2
 
 require (
-	github.com/fluxcd/helm-controller/api v1.6.0
+	github.com/fluxcd/helm-controller/api v1.6.1
 	github.com/go-git/go-billy/v5 v5.9.0
 	github.com/go-git/go-git/v5 v5.19.1
 	github.com/gorilla/mux v1.8.1
@@ -54,8 +54,8 @@ require (
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fluxcd/cli-utils v1.2.1 // indirect
-	github.com/fluxcd/pkg/apis/kustomize v1.19.0 // indirect
-	github.com/fluxcd/pkg/apis/meta v1.30.0 // indirect
+	github.com/fluxcd/pkg/apis/kustomize v1.19.1 // indirect
+	github.com/fluxcd/pkg/apis/meta v1.30.1 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
@@ -161,10 +161,10 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.36.1 // indirect
-	k8s.io/apiserver v0.36.1 // indirect
+	k8s.io/apiextensions-apiserver v0.36.2 // indirect
+	k8s.io/apiserver v0.36.2 // indirect
 	k8s.io/cli-runtime v0.36.1 // indirect
-	k8s.io/component-base v0.36.1 // indirect
+	k8s.io/component-base v0.36.2 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260317180543-43fb72c5454a // indirect
 	k8s.io/kubectl v0.36.1 // indirect
