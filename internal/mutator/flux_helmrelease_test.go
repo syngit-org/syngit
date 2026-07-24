@@ -227,6 +227,13 @@ func TestFluxHelmReleaseProvider_CopiesExistingFromCluster(t *testing.T) {
 		t.Error("expected the cluster to be queried for the existing HelmRelease")
 	}
 
+	// The artifact carries the release's own identity (not the intercepted secret
+	// name), so the placement phase can locate an existing HelmRelease in the repo.
+	if out.Items[0].Name != "podinfo" || out.Items[0].Namespace != "default" {
+		t.Errorf("expected artifact identity podinfo/default, got %q/%q",
+			out.Items[0].Name, out.Items[0].Namespace)
+	}
+
 	body := string(out.Items[0].Content)
 	if !strings.Contains(body, "kind: HelmRelease") {
 		t.Errorf("expected a HelmRelease manifest:\n%s", body)
@@ -309,7 +316,8 @@ func TestFluxHelmReleaseProvider_NilCluster(t *testing.T) {
 func TestFluxHelmReleaseProvider_Deletion(t *testing.T) {
 	wt := newMemWorktree(t)
 	params := helmReleaseParams(t)
-	params.InterceptedYAML = "" // deletion
+	params.InterceptedYAML = ""            // deletion
+	params.RemoteSyncer.Namespace = "prod" // the release lives in the RemoteSyncer's namespace
 
 	rc := RenderContext{Ctx: context.Background(), Params: params, Worktree: wt}
 	out := &ArtifactSet{}
@@ -321,5 +329,11 @@ func TestFluxHelmReleaseProvider_Deletion(t *testing.T) {
 	}
 	if out.Items[0].GVR != helmReleaseGVR {
 		t.Errorf("expected the deletion artifact to carry the HelmRelease GVR, got %+v", out.Items[0].GVR)
+	}
+	// Even though the secret body is gone, the release identity is recovered from
+	// the secret name so the placement phase can find & delete the HelmRelease.
+	if out.Items[0].Name != "podinfo" || out.Items[0].Namespace != "prod" {
+		t.Errorf("expected deletion artifact identity podinfo/prod, got %q/%q",
+			out.Items[0].Name, out.Items[0].Namespace)
 	}
 }

@@ -71,7 +71,7 @@ var _ = Describe("33 FluxHelmRelease install synthesizes a HelmRelease", func() 
 				ScopedResources: syngit.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{
-							admissionv1.Create, admissionv1.Update,
+							admissionv1.Create, admissionv1.Update, admissionv1.Delete,
 						},
 						Rule: admissionv1.Rule{
 							APIGroups:   []string{""},
@@ -230,5 +230,139 @@ var _ = Describe("33 FluxHelmRelease install synthesizes a HelmRelease", func() 
 		}).WithTimeout(3*utils.DefaultInterval).
 			Should(BeFalse(),
 				"the provider found no existing HelmRelease in the cluster, so none should be pushed")
+	})
+
+	// existingHelmReleaseFile builds the HelmRelease manifest a user already
+	// manages in their GitOps repo, keyed by the release's own identity.
+	existingHelmReleaseFile := func(fx *utils.Fixture) []byte {
+		return []byte(fmt.Sprintf(`apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: %s
+  namespace: %s
+spec:
+  interval: 1h
+  values:
+    data:
+      greeting: previous
+`, releaseName, fx.Namespace))
+	}
+
+	It("overrides an existing HelmRelease file in the repo instead of writing the default path", func() {
+		ctx := context.Background()
+		fx := suite.NewFixture(ctx)
+
+		const customPath = "clusters/prod/demo.yaml"
+		defaultHrPath := fmt.Sprintf("%s/helm.toolkit.fluxcd.io/v2/helmreleases/%s.yaml",
+			fx.Namespace, secretName)
+
+		By("pre-committing an existing HelmRelease file at a custom repo path")
+		Expect(fx.Git.CommitFile(fx.Repo, "main", customPath,
+			existingHelmReleaseFile(fx), "seed existing HelmRelease")).To(Succeed())
+
+		By("creating the existing (donor) HelmRelease in the cluster")
+		Expect(fx.Users.CtrlAs(utils.Admin).Create(ctx, donorHelmRelease(fx))).To(Succeed())
+
+		By("creating the RemoteUser & RemoteUserBinding for Developer")
+		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer,
+			fx.NewRemoteUser(utils.Developer, "remoteuser-developer", true))).To(Succeed())
+
+		By("creating the RemoteSyncer scoped to Helm release secrets")
+		rs := helmReleaseSyncer(fx, "remotesyncer-test33-in-repo")
+		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer, rs)).To(Succeed())
+		fx.WaitForDynamicWebhook(rs.Name)
+
+		By("installing the dummy chart as Developer against envtest")
+		installDummyChart(fx, "data:\n  greeting: hello\n")
+
+		By("checking the existing HelmRelease file was updated in place")
+		Eventually(func(g Gomega) {
+			content, err := fx.Git.ReadFile(fx.Repo, "main", customPath)
+			g.Expect(err).NotTo(HaveOccurred(),
+				"expected the pre-existing HelmRelease at %q", customPath)
+			body := string(content)
+			g.Expect(body).To(ContainSubstring("greeting: hello"),
+				"the existing HelmRelease must carry the install-supplied values")
+			g.Expect(body).NotTo(ContainSubstring("greeting: previous"),
+				"the old values must be replaced in place")
+			// The donor's spec is still preserved through the synthesis.
+			g.Expect(body).To(ContainSubstring("name: dummy-repo"),
+				"the donor's chart sourceRef must be preserved")
+		}).WithTimeout(utils.DefaultTimeout).
+			WithPolling(utils.DefaultInterval).
+			Should(Succeed())
+
+		By("checking no HelmRelease was written at the generated default path")
+		Consistently(func() (bool, error) {
+			return fx.Git.FileExists(fx.Repo, "main", defaultHrPath)
+		}).WithTimeout(3*utils.DefaultInterval).
+			Should(BeFalse(),
+				"resource-finder must override the existing file, not duplicate it at %q", defaultHrPath)
+	})
+
+	It("removes the HelmRelease from the existing repo file on uninstall", func() {
+		ctx := context.Background()
+		fx := suite.NewFixture(ctx)
+
+		const customPath = "clusters/prod/demo.yaml"
+
+		By("pre-committing an existing HelmRelease file at a custom repo path")
+		Expect(fx.Git.CommitFile(fx.Repo, "main", customPath,
+			existingHelmReleaseFile(fx), "seed existing HelmRelease")).To(Succeed())
+
+		By("creating the existing (donor) HelmRelease in the cluster")
+		Expect(fx.Users.CtrlAs(utils.Admin).Create(ctx, donorHelmRelease(fx))).To(Succeed())
+
+		By("creating the RemoteUser & RemoteUserBinding for Developer")
+		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer,
+			fx.NewRemoteUser(utils.Developer, "remoteuser-developer", true))).To(Succeed())
+
+		By("creating the RemoteSyncer scoped to Helm release secrets")
+		rs := helmReleaseSyncer(fx, "remotesyncer-test33-uninstall")
+		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer, rs)).To(Succeed())
+		fx.WaitForDynamicWebhook(rs.Name)
+
+		By("installing the dummy chart as Developer against envtest")
+		overridePath := filepath.Join(GinkgoT().TempDir(), "values.yaml")
+		Expect(os.WriteFile(overridePath, []byte("data:\n  greeting: hello\n"), 0o600)).To(Succeed())
+		chart := testutils.LocalChart{
+			ChartPath: filepath.Join(utils.ProjectRoot(),
+				"test", "e2e", "samples", "charts"),
+			BaseChart: testutils.BaseChart{
+				ValuesPath:       overridePath,
+				ChartName:        "dummy",
+				ChartVersion:     "dummy",
+				ReleaseName:      releaseName,
+				ReleaseNamespace: fx.Namespace,
+			},
+		}
+		actionCfg, settings, err := testutils.NewEnvtestHelmActionConfig(
+			fx.Users.CfgAs(utils.Developer), fx.Namespace)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(testutils.InstallChart(chart, actionCfg, settings)).To(Succeed())
+
+		By("waiting for the existing HelmRelease file to be updated in place")
+		Eventually(func(g Gomega) {
+			content, err := fx.Git.ReadFile(fx.Repo, "main", customPath)
+			g.Expect(err).NotTo(HaveOccurred(),
+				"expected file %q on main before uninstall", customPath)
+			g.Expect(string(content)).To(ContainSubstring("greeting: hello"),
+				"file at %q must reflect the install override before uninstall", customPath)
+		}).WithTimeout(utils.DefaultTimeout).
+			WithPolling(utils.DefaultInterval).
+			Should(Succeed())
+
+		By("uninstalling the dummy chart as Developer")
+		Expect(testutils.UninstallChart(chart, actionCfg, settings)).To(Succeed())
+
+		By("checking the HelmRelease file has been removed from the repo")
+		Eventually(func(g Gomega) {
+			exists, err := fx.Git.FileExists(fx.Repo, "main", customPath)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(exists).To(BeFalse(),
+				"expected the HelmRelease file at %q to be removed after uninstall", customPath)
+		}).WithTimeout(utils.DefaultTimeout).
+			WithPolling(utils.DefaultInterval).
+			Should(Succeed())
 	})
 })

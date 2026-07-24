@@ -1,12 +1,130 @@
 package mutator
 
 import (
+	"io"
 	"strings"
 	"testing"
 
+	"github.com/go-git/go-git/v5"
 	"github.com/syngit-org/syngit/internal/walker"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	"github.com/syngit-org/syngit/pkg/interceptor"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
+
+// readWorktree reads a worktree-relative file back for assertions.
+func readWorktree(t *testing.T, wt *git.Worktree, path string) string {
+	t.Helper()
+	f, err := wt.Filesystem.Open(path)
+	if err != nil {
+		t.Fatalf("open %s: %v", path, err)
+	}
+	defer f.Close() // nolint:errcheck
+	b, err := io.ReadAll(f)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(b)
+}
+
+// TestResourceFinderPlace_OverridesExistingHelmRelease reproduces the reported
+// bug: an existing HelmRelease file living at an arbitrary repo path is updated
+// in place, keyed on the release's own identity — not the intercepted Helm secret
+// name — so no file is created at the default structured path.
+func TestResourceFinderPlace_OverridesExistingHelmRelease(t *testing.T) {
+	const existingPath = "clusters/prod/demo.yaml"
+	wt := newMemWorktree(t)
+
+	seeded := []byte(`apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: demo
+  namespace: prod
+spec:
+  interval: 1h
+  values:
+    greeting: old
+`)
+	if err := walker.WriteWorktreeFile(wt, existingPath, seeded); err != nil {
+		t.Fatalf("seed %s: %v", existingPath, err)
+	}
+
+	updated := []byte(`apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: demo
+  namespace: prod
+spec:
+  interval: 1h
+  values:
+    greeting: new
+`)
+	artifacts := ArtifactSet{Items: []Artifact{{
+		GVR:       helmReleaseGVR,
+		Name:      "demo",
+		Namespace: "prod",
+		Content:   updated,
+	}}}
+
+	params := interceptor.GitPipelineParams{
+		RemoteSyncer: syngit.RemoteSyncer{ObjectMeta: metav1.ObjectMeta{Namespace: "prod"}},
+		RemoteTarget: syngit.RemoteTarget{Spec: syngit.RemoteTargetSpec{
+			TargetRepository: "https://example.com/repo.git",
+			UpstreamBranch:   "main",
+		}},
+		// The intercepted secret name must NOT be what the finder searches by.
+		InterceptedName: "sh.helm.release.v1.demo.v1",
+	}
+
+	claimed, err := (ResourceFinder{}).place(params, artifacts, wt)
+	if err != nil {
+		t.Fatalf("place: %v", err)
+	}
+
+	if len(claimed.Add) != 1 || claimed.Add[0] != existingPath {
+		t.Fatalf("expected the existing file %q to be claimed, got add=%v delete=%v",
+			existingPath, claimed.Add, claimed.Delete)
+	}
+
+	got := readWorktree(t, wt, existingPath)
+	if !strings.Contains(got, "greeting: new") {
+		t.Errorf("expected the existing HelmRelease to be updated in place:\n%s", got)
+	}
+	if strings.Contains(got, "greeting: old") {
+		t.Errorf("expected the old values to be replaced:\n%s", got)
+	}
+}
+
+// TestResourceFinderPlace_NoMatchClaimsNothing confirms that when no file in the
+// repo matches, place claims nothing, so the caller falls back to the default
+// structured placement.
+func TestResourceFinderPlace_NoMatchClaimsNothing(t *testing.T) {
+	wt := newMemWorktree(t) // empty repo
+
+	artifacts := ArtifactSet{Items: []Artifact{{
+		GVR:       helmReleaseGVR,
+		Name:      "demo",
+		Namespace: "prod",
+		Content:   []byte("apiVersion: helm.toolkit.fluxcd.io/v2\nkind: HelmRelease\nmetadata:\n  name: demo\n  namespace: prod\n"),
+	}}}
+	params := interceptor.GitPipelineParams{
+		RemoteSyncer: syngit.RemoteSyncer{ObjectMeta: metav1.ObjectMeta{Namespace: "prod"}},
+		RemoteTarget: syngit.RemoteTarget{Spec: syngit.RemoteTargetSpec{
+			TargetRepository: "https://example.com/repo.git",
+			UpstreamBranch:   "main",
+		}},
+		InterceptedName: "sh.helm.release.v1.demo.v1",
+	}
+
+	claimed, err := (ResourceFinder{}).place(params, artifacts, wt)
+	if err != nil {
+		t.Fatalf("place: %v", err)
+	}
+	if claimed.ClaimExists() {
+		t.Fatalf("expected no claim on an empty repo, got add=%v delete=%v", claimed.Add, claimed.Delete)
+	}
+}
 
 // deploymentSelector mirrors how ResourceFinder.place builds its selector: a
 // Kubernetes identity plus the resource-finder comment marker.

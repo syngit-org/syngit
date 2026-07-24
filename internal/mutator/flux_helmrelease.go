@@ -60,11 +60,18 @@ func (FluxHelmReleaseProvider) Handles(params interceptor.GitPipelineParams) boo
 func (p FluxHelmReleaseProvider) Render(rc RenderContext, out *ArtifactSet) error {
 	params := rc.Params
 
-	// Deletion: emit an empty (deletion) HelmRelease artifact, keyed by the
-	// secret name through the placement phase. Mirrors HelmValuesMutation so the
-	// create/delete paths stay symmetric.
+	// Deletion: emit an empty (deletion) HelmRelease artifact. The secret body is
+	// gone on a delete, but its name embeds the release name, so the placement
+	// phase can still locate the HelmRelease by its real identity (the release
+	// name, not the secret name). The release lives in the same namespace as the
+	// intercepted secret.
 	if params.InterceptedYAML == "" {
-		out.Add(Artifact{GVR: helmReleaseGVR, Content: []byte("")})
+		out.Add(Artifact{
+			GVR:       helmReleaseGVR,
+			Name:      helmprovider.GetReleaseNameFromSecretName(params.InterceptedName),
+			Namespace: params.RemoteSyncer.Namespace,
+			Content:   []byte(""),
+		})
 		return nil
 	}
 
@@ -117,7 +124,12 @@ func (p FluxHelmReleaseProvider) Render(rc RenderContext, out *ArtifactSet) erro
 		return fmt.Errorf("failed to apply the excluded fields to the HelmRelease: %w", err)
 	}
 
-	out.Add(Artifact{GVR: helmReleaseGVR, Content: []byte(cleaned)})
+	out.Add(Artifact{
+		GVR:       helmReleaseGVR,
+		Name:      name,
+		Namespace: namespace,
+		Content:   []byte(cleaned),
+	})
 
 	return nil
 }

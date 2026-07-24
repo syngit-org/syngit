@@ -38,6 +38,12 @@ type Artifact struct {
 	// GVR is the logical identity of the artifact. When TargetPath is empty it
 	// drives the default structured placement and ResourceFinder matching.
 	GVR schema.GroupVersionResource
+	// Name and Namespace give the artifact a logical Kubernetes identity used by
+	// the placement phase (ResourceFinder matching) when it differs from the
+	// intercepted object's own name/namespace.
+	// eg. helm release name != helm release secret name
+	Name      string
+	Namespace string
 	// Content is the file body. An empty Content marks the artifact as a
 	// deletion (see IsDeletion).
 	Content []byte

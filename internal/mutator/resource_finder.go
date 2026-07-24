@@ -19,10 +19,16 @@ func (rf ResourceFinder) place(params interceptor.GitPipelineParams, artifacts A
 	scope := params.RemoteTarget.Spec.TargetRepository + "#" + params.RemoteTarget.Spec.UpstreamBranch
 
 	for _, a := range artifacts.Items {
+		// Search by the artifact's own logical identity when it carries one.
+		// Otherwise fall back to the intercepted object's identity.
+		name, namespace := a.Name, a.Namespace
+		if name == "" {
+			name, namespace = params.InterceptedName, params.RemoteSyncer.Namespace
+		}
 		sel := walker.ObjectSelector{
 			GVR:           a.GVR,
-			Name:          params.InterceptedName,
-			Namespace:     params.RemoteSyncer.Namespace,
+			Name:          name,
+			Namespace:     namespace,
 			CommentPrefix: ResourceFinderCommentPrefix,
 		}
 
