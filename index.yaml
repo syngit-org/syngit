@@ -2,6 +2,21 @@ apiVersion: v1
 entries:
   syngit:
   - apiVersion: v2
+    appVersion: v0.8.0
+    created: "2026-07-25T19:15:03.857058255Z"
+    description: An operator to push resources to git
+    digest: b5770f227385678749fa5e72b747f7297024da61a4ec985d2f1551ee09c5a1e5
+    home: https://github.com/syngit-org/syngit
+    icon: https://raw.githubusercontent.com/syngit-org/syngit/main/img/mini-icon.png
+    maintainers:
+    - email: dassieu.damien@gmail.com
+      name: Damien
+    name: syngit
+    type: application
+    urls:
+    - https://github.com/syngit-org/syngit/releases/download/v0.8.0/syngit-v0.8.0.tgz
+    version: v0.8.0
+  - apiVersion: v2
     appVersion: v0.7.2
     created: "2026-06-24T19:51:14.342995129Z"
     description: An operator to push resources to git
@@ -476,4 +491,4 @@ entries:
     urls:
     - https://github.com/syngit-org/syngit/releases/download/syngit-0.0.1/syngit-0.0.1.tgz
     version: 0.0.1
-generated: "2026-06-24T19:51:14.341570313Z"
+generated: "2026-07-25T19:15:03.856023652Z"
