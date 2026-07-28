@@ -29,9 +29,15 @@ jobs:
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           
+      - name: Resolve the chart version from the git tag
+        run: |
+          echo "CHART_VERSION=${GITHUB_REF#refs/tags/}" >> "$GITHUB_ENV"
+
       - name: Package chart
         run: |
-          helm package charts/syngit
+          helm package charts/syngit \
+            --version "${CHART_VERSION}" \
+            --app-version "${CHART_VERSION}"
 
       - name: Release
         uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 #v2.4.1
