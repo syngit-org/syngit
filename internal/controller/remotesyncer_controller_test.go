@@ -28,7 +28,7 @@ import (
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 )
 
 var _ = Describe("RemoteSyncer Controller", func() {
@@ -71,7 +71,7 @@ var _ = Describe("RemoteSyncer Controller", func() {
 					Spec: syngit.RemoteSyncerSpec{
 						DefaultBlockAppliedMessage:  "test",
 						DefaultBranch:               "main",
-						DefaultUnauthorizedUserMode: syngit.Block,
+						DefaultUnauthorizedUserMode: syngit.BlockDefaultUser,
 						ExcludedFields:              []string{".metadata.uid"},
 						Strategy:                    syngit.CommitOnly,
 						TargetStrategy:              syngit.OneTarget,

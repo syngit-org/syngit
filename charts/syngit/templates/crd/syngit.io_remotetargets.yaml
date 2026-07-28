@@ -35,7 +35,7 @@ spec:
   scope: Namespaced
   versions:
   - deprecated: true
-    name: v1beta3
+    name: v1beta4
     schema:
       openAPIV3Schema:
         description: RemoteTarget is the Schema for the remotetargets API.
@@ -61,6 +61,20 @@ spec:
             description: RemoteTargetSpec defines the desired state of RemoteTarget.
             properties:
               mergeStrategy:
+                description: |2-
+                   mergeStrategy defines the strategy that must be used to get
+                  the commits from the upstream. It must be empty if the target
+                  repository and branch are the same.
+                  Can be one of these values:
+                  - TryFastForwardOrDie:       Try to pull the changes from the upstream.
+                                               If it is not a fast forward, the webhook
+                                               will return an error instead of pushing the
+                                               resource.
+                  - TryHardResetOrDie:         Try to do an hard reset on the latest commit
+                                               of the upstream.
+                  - TryFastForwardOrHardReset: First try the fast forward strategy,
+                                               if there is an error, then try the hard
+                                               reset strategy.
                 enum:
                 - TryFastForwardOrDie
                 - TryFastForwardOrHardReset
@@ -68,14 +82,29 @@ spec:
                 - ""
                 type: string
               targetBranch:
+                description: |-
+                  targetBranch defines the branch where the resource
+                  should be pushed. It can be the same as the upstream branch.
                 type: string
               targetRepository:
+                description: |-
+                  targetRepository defines the repository where the
+                  resource should be pushed. It can be the same as the upstream
+                  repository.
                 example: https://git.example.com/my-target-repo.git
                 format: uri
                 type: string
               upstreamBranch:
+                description: |-
+                  upstreamBranch is used to ensure the mapping with
+                  the RemoteSyncer(s) that defines it as the default repository.
+                  It will also be used for the merge strategies.
                 type: string
               upstreamRepository:
+                description: |-
+                  upstreamRepository is used to ensure the mapping with
+                  the RemoteSyncer(s) that defines it as the default repository.
+                  It will also be used for the merge strategies.
                 example: https://git.example.com/my-upstream-repo.git
                 format: uri
                 type: string
@@ -89,6 +118,9 @@ spec:
             description: RemoteTargetStatus defines the observed state of RemoteTarget.
             properties:
               conditions:
+                description: |-
+                  conditions represents the current state of the RemoteUser resource.
+                  Each condition has a unique type and reflects the status of a specific aspect of the resource.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -147,19 +179,13 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              lastConsistencyOperationTime:
-                type: string
-              lastConsistencyOperationType:
-                type: string
-              lastObservedCommitHash:
-                type: string
             type: object
         type: object
     served: true
     storage: false
     subresources:
       status: {}
-  - name: v1beta4
+  - name: v1beta5
     schema:
       openAPIV3Schema:
         description: RemoteTarget is the Schema for the remotetargets API.

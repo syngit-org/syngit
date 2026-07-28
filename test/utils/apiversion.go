@@ -34,7 +34,7 @@ func getAPIVersions() ([]string, error) {
 }
 
 // GetLatestAPIVersion returns the latest API version by scanning the api directory
-// Returns the latest version (e.g. "v1beta3") or an error if unable to read versions
+// Returns the latest version (e.g. "v1beta5") or an error if unable to read versions
 func GetLatestAPIVersion() (string, error) {
 	versions, err := getAPIVersions()
 	return versions[len(versions)-1], err

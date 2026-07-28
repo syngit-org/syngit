@@ -1,5 +1,5 @@
 /*
-Copyright 2024.
+Copyright 2026.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1beta3 contains API Schema definitions for the syngit v1beta3 API group.
+// Package v1beta5 contains API Schema definitions for the syngit v1beta5 API group.
 // +kubebuilder:object:generate=true
 // +groupName=syngit.io
-package v1beta3
+package v1beta5
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,7 +27,7 @@ import (
 
 var (
 	// SchemeGroupVersion is group version used to register these objects.
-	SchemeGroupVersion = schema.GroupVersion{Group: "syngit.io", Version: "v1beta3"}
+	SchemeGroupVersion = schema.GroupVersion{Group: "syngit.io", Version: "v1beta5"}
 
 	// GroupVersion is an alias for SchemeGroupVersion, for backward compatibility.
 	GroupVersion = SchemeGroupVersion

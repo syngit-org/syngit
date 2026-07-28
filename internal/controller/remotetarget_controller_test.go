@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	syngitv1beta4 "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngitv1beta5 "github.com/syngit-org/syngit/pkg/api/v1beta5"
 )
 
 var _ = Describe("RemoteTarget Controller", func() {
@@ -40,18 +40,18 @@ var _ = Describe("RemoteTarget Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		remotetarget := &syngitv1beta4.RemoteTarget{}
+		remotetarget := &syngitv1beta5.RemoteTarget{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind RemoteTarget")
 			err := k8sClient.Get(ctx, typeNamespacedName, remotetarget)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &syngitv1beta4.RemoteTarget{
+				resource := &syngitv1beta5.RemoteTarget{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					Spec: syngitv1beta4.RemoteTargetSpec{
+					Spec: syngitv1beta5.RemoteTargetSpec{
 						UpstreamRepository: "https://example.com/upstream-repo.git",
 						UpstreamBranch:     "main",
 						TargetRepository:   "https://example.com/target-repo.git",
@@ -64,7 +64,7 @@ var _ = Describe("RemoteTarget Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &syngitv1beta4.RemoteTarget{}
+			resource := &syngitv1beta5.RemoteTarget{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 

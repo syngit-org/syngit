@@ -1,7 +1,7 @@
 package helpers
 
 import (
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	utils "github.com/syngit-org/syngit/test/e2e/syngit/utils"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"

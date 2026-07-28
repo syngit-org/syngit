@@ -29,7 +29,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 )
 
 var _ = Describe("RemoteUserBinding Controller", func() {

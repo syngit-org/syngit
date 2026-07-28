@@ -14,7 +14,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/storage/memory"
 	provider "github.com/syngit-org/syngit-provider-flux/pkg"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	"github.com/syngit-org/syngit/pkg/interceptor"
 	"github.com/syngit-org/syngit/pkg/utils"
 	corev1 "k8s.io/api/core/v1"

@@ -6,7 +6,7 @@ import (
 	"net/url"
 
 	"github.com/syngit-org/syngit/internal/pusher"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	se "github.com/syngit-org/syngit/pkg/errors"
 	"github.com/syngit-org/syngit/pkg/interceptor"
 	"github.com/syngit-org/syngit/pkg/utils"

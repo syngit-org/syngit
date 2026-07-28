@@ -1,5 +1,5 @@
 /*
-Copyright 2024.
+Copyright 2026.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,4 +16,55 @@ limitations under the License.
 
 package v1beta4
 
-func (*RemoteUser) Hub() {}
+import (
+	"github.com/syngit-org/syngit/pkg/api/v1beta5"
+	"sigs.k8s.io/controller-runtime/pkg/conversion"
+)
+
+func (src *RemoteUser) ConvertTo(dstRaw conversion.Hub) error {
+	dst := dstRaw.(*v1beta5.RemoteUser)
+
+	// Common conversion
+	dst.ObjectMeta = src.ObjectMeta
+
+	dst.Spec.Email = src.Spec.Email
+	gitBaseDomainFQDN := src.Spec.GitBaseDomainFQDN
+	dst.Spec.GitBaseDomainFQDN = gitBaseDomainFQDN
+	dst.Spec.SecretRef = src.Spec.SecretRef
+
+	// Status conversion - preserve existing status from hub
+	// Only convert if src has status set (for backward compatibility)
+	if len(src.Status.Conditions) > 0 || src.Status.SecretBoundStatus != "" {
+		dst.Status.Conditions = src.Status.Conditions
+		dst.Status.ConnexionStatus.Details = src.Status.ConnexionStatus.Details
+		dst.Status.ConnexionStatus.Status = v1beta5.RemoteUserConnexionStatusReason(src.Status.ConnexionStatus.Status)
+		dst.Status.GitUser = src.Status.GitUser
+		dst.Status.SecretBoundStatus = v1beta5.SecretBoundStatus(src.Status.SecretBoundStatus)
+	}
+
+	return nil
+}
+
+func (dst *RemoteUser) ConvertFrom(srcRaw conversion.Hub) error {
+	src := srcRaw.(*v1beta5.RemoteUser)
+
+	// Common conversion
+	dst.ObjectMeta = src.ObjectMeta
+
+	dst.Spec.Email = src.Spec.Email
+	gitBaseDomainFQDN := src.Spec.GitBaseDomainFQDN
+	dst.Spec.GitBaseDomainFQDN = gitBaseDomainFQDN
+	dst.Spec.SecretRef = src.Spec.SecretRef
+
+	// Status conversion - preserve existing status from hub
+	// Only convert if src has status set (for backward compatibility)
+	if len(src.Status.Conditions) > 0 || src.Status.SecretBoundStatus != "" {
+		dst.Status.Conditions = src.Status.Conditions
+		dst.Status.ConnexionStatus.Details = src.Status.ConnexionStatus.Details
+		dst.Status.ConnexionStatus.Status = RemoteUserConnexionStatusReason(src.Status.ConnexionStatus.Status)
+		dst.Status.GitUser = src.Status.GitUser
+		dst.Status.SecretBoundStatus = SecretBoundStatus(src.Status.SecretBoundStatus)
+	}
+
+	return nil
+}

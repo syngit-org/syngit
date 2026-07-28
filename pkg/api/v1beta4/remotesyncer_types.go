@@ -17,8 +17,8 @@ limitations under the License.
 package v1beta4
 
 import (
+	"github.com/syngit-org/syngit/pkg/api/v1beta5"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
-	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -164,17 +164,17 @@ type RemoteSyncerStatus struct {
 	// lastBypassedObjectState stores the resource, the time and
 	// the user info (ServiceAccount or User) of the latest resource bypassed by a subject.
 	// +optional
-	LastBypassedObjectState LastBypassedObjectState `json:"lastBypassedObjectState,omitempty" protobuf:"bytes,2,rep,name=lastBypassedObjectState"`
+	LastBypassedObjectState v1beta5.LastBypassedObjectState `json:"lastBypassedObjectState,omitempty" protobuf:"bytes,2,rep,name=lastBypassedObjectState"`
 
 	// lastBypassedObjectState stores the resource, the time and
 	// the username of the latest intercepted resource.
 	// +optional
-	LastObservedObjectState LastObservedObjectState `json:"lastObservedObjectState,omitempty" protobuf:"bytes,3,rep,name=lastObservedObjectState"`
+	LastObservedObjectState v1beta5.LastObservedObjectState `json:"lastObservedObjectState,omitempty" protobuf:"bytes,3,rep,name=lastObservedObjectState"`
 
 	// lastBypassedObjectState stores the resource, the time, the git username, the git repositories,
 	// the paths, the commit hashes and the push details of the latest intercepted resource.
 	// +optional
-	LastPushedObjectState LastPushedObjectState `json:"lastPushedObjectState,omitempty" protobuf:"bytes,4,rep,name=lastPushedObjectState"`
+	LastPushedObjectState v1beta5.LastPushedObjectState `json:"lastPushedObjectState,omitempty" protobuf:"bytes,4,rep,name=lastPushedObjectState"`
 }
 
 // +kubebuilder:resource:path=remotesyncers,shortName=rsy;rsys,categories=syngit
@@ -186,7 +186,7 @@ type RemoteSyncerStatus struct {
 // +kubebuilder:printcolumn:name="Last bypassed resource name",type=string,JSONPath=`.status.lastPushedObjectState.lastBypassObject.name`,priority=1
 // +kubebuilder:printcolumn:name="Age",type=string,JSONPath=`.metadata.creationTimestamp`,priority=0
 // +kubebuilder:subresource:status
-// +kubebuilder:storageversion
+// +kubebuilder:deprecatedversion
 
 // RemoteSyncer is the Schema for the remotesyncers API
 type RemoteSyncer struct {
@@ -304,48 +304,3 @@ const (
 	LastObservedObjectStateKey ObservedState = "LastObservedObjectState"
 	LastPushedObjectStateKey   ObservedState = "LastPushedObjectState"
 )
-
-type LastBypassedObjectState struct {
-	// +optional
-	LastBypassedObjectTime metav1.Time `json:"lastBypassObjectTime,omitempty"`
-
-	// +optional
-	LastBypassedObjectUserInfo authenticationv1.UserInfo `json:"lastBypassObjectUserInfo,omitempty"`
-
-	// +optional
-	LastBypassedObject JsonGVRN `json:"lastBypassObject,omitempty"`
-}
-
-type LastObservedObjectState struct {
-	// +optional
-	LastObservedObjectTime metav1.Time `json:"lastObservedObjectTime,omitempty"`
-
-	// +optional
-	LastObservedObjectUsername string `json:"lastObservedObjectUsername,omitempty"`
-
-	// +optional
-	LastObservedObject JsonGVRN `json:"lastObservedObject,omitempty"`
-}
-
-type LastPushedObjectState struct {
-	// +optional
-	LastPushedObjectTime metav1.Time `json:"lastPushedObjectTime,omitempty"`
-
-	// +optional
-	LastPushedGitUser string `json:"lastPushedGitUser,omitempty"`
-
-	// +optional
-	LastPushedObjectGitRepos []string `json:"lastPushedObjectGitRepo,omitempty"`
-
-	// +optional
-	LastPushedObjectGitPaths []string `json:"lastPushedObjectGitPaths,omitempty"`
-
-	// +optional
-	LastPushedObjectGitCommitHashes []string `json:"lastPushedObjectCommitHash,omitempty"`
-
-	// +optional
-	LastPushedObject JsonGVRN `json:"lastPushedObject,omitempty"`
-
-	// +optional
-	LastPushedObjectStatus string `json:"lastPushedObjectState,omitempty"`
-}

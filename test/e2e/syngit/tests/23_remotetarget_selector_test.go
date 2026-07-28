@@ -17,7 +17,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	. "github.com/syngit-org/syngit/test/e2e/syngit/helpers"
 	utils "github.com/syngit-org/syngit/test/e2e/syngit/utils"

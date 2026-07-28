@@ -27,9 +27,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	controllerssyngit "github.com/syngit-org/syngit/internal/controller"
-	webhooksyngitv1beta4 "github.com/syngit-org/syngit/internal/webhook/v1beta4"
-	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	webhooksyngitv1beta5 "github.com/syngit-org/syngit/internal/webhook/v1beta5"
+	syngitv1beta4 "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	syngitenvtest "github.com/syngit-org/syngit/pkg/envtest"
 	features "github.com/syngit-org/syngit/pkg/feature"
 )
@@ -147,7 +147,7 @@ func ProjectRoot() string {
 // startEnvtest boots the control plane and installs CRDs + webhook manifests.
 func (s *Suite) startEnvtest() {
 	By("bootstrapping envtest environment")
-	Expect(syngitv1beta3.AddToScheme(scheme.Scheme)).To(Succeed())
+	Expect(syngitv1beta4.AddToScheme(scheme.Scheme)).To(Succeed())
 	Expect(syngit.AddToScheme(scheme.Scheme)).To(Succeed())
 
 	projectRoot := ProjectRoot()
@@ -202,27 +202,27 @@ func (s *Suite) startManager() {
 	Expect(os.Setenv("DEV_WEBHOOK_CERT", opts.LocalServingCertDir+"/tls.crt")).To(Succeed())
 
 	By("registering webhook handlers")
-	Expect(webhooksyngitv1beta4.SetupRemoteUserWebhookWithManager(s.Manager)).To(Succeed())
-	Expect(webhooksyngitv1beta4.SetupRemoteSyncerWebhookWithManager(s.Manager)).To(Succeed())
-	Expect(webhooksyngitv1beta4.SetupRemoteUserBindingWebhookWithManager(s.Manager)).To(Succeed())
-	Expect(webhooksyngitv1beta4.SetupRemoteTargetWebhookWithManager(s.Manager)).To(Succeed())
+	Expect(webhooksyngitv1beta5.SetupRemoteUserWebhookWithManager(s.Manager)).To(Succeed())
+	Expect(webhooksyngitv1beta5.SetupRemoteSyncerWebhookWithManager(s.Manager)).To(Succeed())
+	Expect(webhooksyngitv1beta5.SetupRemoteUserBindingWebhookWithManager(s.Manager)).To(Succeed())
+	Expect(webhooksyngitv1beta5.SetupRemoteTargetWebhookWithManager(s.Manager)).To(Succeed())
 
 	ws := s.Manager.GetWebhookServer()
 	dec := admission.NewDecoder(s.Manager.GetScheme())
-	ws.Register("/syngit-v1beta4-remoteuser-managed",
-		&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteUserManagedWebhookHandler{
+	ws.Register("/syngit-v1beta5-remoteuser-managed",
+		&webhook.Admission{Handler: &webhooksyngitv1beta5.RemoteUserManagedWebhookHandler{
 			Client: s.Manager.GetClient(), Decoder: dec,
 		}})
-	ws.Register("/syngit-v1beta4-remoteuser-permissions",
-		&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteUserPermissionsWebhookHandler{
+	ws.Register("/syngit-v1beta5-remoteuser-permissions",
+		&webhook.Admission{Handler: &webhooksyngitv1beta5.RemoteUserPermissionsWebhookHandler{
 			Client: s.Manager.GetClient(), Decoder: dec,
 		}})
-	ws.Register("/syngit-v1beta4-remoteuserbinding-permissions",
-		&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteUserBindingPermissionsWebhookHandler{
+	ws.Register("/syngit-v1beta5-remoteuserbinding-permissions",
+		&webhook.Admission{Handler: &webhooksyngitv1beta5.RemoteUserBindingPermissionsWebhookHandler{
 			Client: s.Manager.GetClient(), Decoder: dec,
 		}})
-	ws.Register("/syngit-v1beta4-remotesyncer-rules-permissions",
-		&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteSyncerWebhookHandler{
+	ws.Register("/syngit-v1beta5-remotesyncer-rules-permissions",
+		&webhook.Admission{Handler: &webhooksyngitv1beta5.RemoteSyncerWebhookHandler{
 			Client: s.Manager.GetClient(), Decoder: dec,
 		}})
 

@@ -3,7 +3,7 @@ package interceptor
 import (
 	"testing"
 
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	"k8s.io/apimachinery/pkg/types"
 )
 

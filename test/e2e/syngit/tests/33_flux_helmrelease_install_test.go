@@ -22,7 +22,7 @@ import (
 	fluxprovider "github.com/syngit-org/syngit-provider-flux/pkg"
 	helmprovider "github.com/syngit-org/syngit-provider-helm/pkg"
 	"github.com/syngit-org/syngit/internal/mutator"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	utils "github.com/syngit-org/syngit/test/e2e/syngit/utils"
 	testutils "github.com/syngit-org/syngit/test/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -53,7 +53,7 @@ var _ = Describe("33 FluxHelmRelease install synthesizes a HelmRelease", func() 
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               "main",
-				DefaultUnauthorizedUserMode: syngit.Block,
+				DefaultUnauthorizedUserMode: syngit.BlockDefaultUser,
 				Strategy:                    syngit.CommitApply,
 				TargetStrategy:              syngit.OneTarget,
 				RemoteRepository:            fx.RepoURL(),
