@@ -30,6 +30,14 @@ func RunInterceptionPipeline(
 		)
 	}
 
+	// Check if ServiceAccounts are bypassable
+	if remoteSyncer.Spec.BypassAllServiceAccounts && IsServiceAccount(userInfo) {
+		return AdmissionReviewBuilder(
+			ctx, se.BuildInterceptorPipelineErr("service account bypasses the interception"),
+			admReq, true, false, remoteSyncer,
+		)
+	}
+
 	// Check if is bypass user (SA of argo, flux, etc..)
 	isBypassUser, err := IsBypassSubject(userInfo, remoteSyncer)
 	if err != nil {
