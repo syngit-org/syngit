@@ -1,7 +1,7 @@
 package helpers
 
 import (
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	"github.com/syngit-org/syngit/test/e2e/syngit/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -20,7 +20,7 @@ func BuildDefaultCmRemoteSyncer(name, ns, branch, repoURL string) *syngit.Remote
 		Spec: syngit.RemoteSyncerSpec{
 			InsecureSkipTlsVerify:       true,
 			DefaultBranch:               branch,
-			DefaultUnauthorizedUserMode: syngit.Block,
+			DefaultUnauthorizedUserMode: syngit.BlockDefaultUser,
 			ExcludedFields:              []string{".metadata.uid"},
 			Strategy:                    syngit.CommitApply,
 			TargetStrategy:              syngit.OneTarget,
@@ -50,7 +50,7 @@ func BuildTLSRemoteSyncer(fx *utils.Fixture, name string, caSecretRef *corev1.Se
 		},
 		Spec: syngit.RemoteSyncerSpec{
 			DefaultBranch:               "main",
-			DefaultUnauthorizedUserMode: syngit.Block,
+			DefaultUnauthorizedUserMode: syngit.BlockDefaultUser,
 			ExcludedFields:              []string{".metadata.uid"},
 			Strategy:                    syngit.CommitApply,
 			TargetStrategy:              syngit.OneTarget,
@@ -84,7 +84,7 @@ func BuildBranchRemoteSyncer(fx *utils.Fixture, name string, annotations map[str
 		Spec: syngit.RemoteSyncerSpec{
 			InsecureSkipTlsVerify:       true,
 			DefaultBranch:               "main",
-			DefaultUnauthorizedUserMode: syngit.Block,
+			DefaultUnauthorizedUserMode: syngit.BlockDefaultUser,
 			Strategy:                    syngit.CommitApply,
 			TargetStrategy:              strategy,
 			RemoteRepository:            fx.RepoURL(),
@@ -113,7 +113,7 @@ func BuildRemoteTargetSelectorRS(fx *utils.Fixture, name string, selector *metav
 		Spec: syngit.RemoteSyncerSpec{
 			InsecureSkipTlsVerify:       true,
 			DefaultBranch:               "main",
-			DefaultUnauthorizedUserMode: syngit.Block,
+			DefaultUnauthorizedUserMode: syngit.BlockDefaultUser,
 			ExcludedFields:              []string{".metadata.uid"},
 			Strategy:                    syngit.CommitApply,
 			TargetStrategy:              strategy,
@@ -141,7 +141,7 @@ func BuildBranchRS(fx *utils.Fixture, name, upstream, targetBranch string) *syng
 		Spec: syngit.RemoteSyncerSpec{
 			InsecureSkipTlsVerify:       true,
 			DefaultBranch:               upstream,
-			DefaultUnauthorizedUserMode: syngit.Block,
+			DefaultUnauthorizedUserMode: syngit.BlockDefaultUser,
 			Strategy:                    syngit.CommitApply,
 			TargetStrategy:              syngit.OneTarget,
 			RemoteRepository:            fx.RepoURL(),

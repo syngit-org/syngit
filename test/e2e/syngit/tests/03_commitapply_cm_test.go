@@ -17,7 +17,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	. "github.com/syngit-org/syngit/test/e2e/syngit/helpers"
 	utils "github.com/syngit-org/syngit/test/e2e/syngit/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
@@ -48,7 +48,7 @@ var _ = Describe("03 CommitApply a ConfigMap", func() {
 			Spec: syngit.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
 				DefaultBranch:               "main",
-				DefaultUnauthorizedUserMode: syngit.Block,
+				DefaultUnauthorizedUserMode: syngit.BlockDefaultUser,
 				ExcludedFields:              []string{".metadata.uid"},
 				Strategy:                    syngit.CommitApply,
 				TargetStrategy:              syngit.OneTarget,

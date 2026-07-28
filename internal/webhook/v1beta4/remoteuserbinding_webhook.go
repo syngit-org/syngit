@@ -40,8 +40,6 @@ func SetupRemoteUserBindingWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/validate-syngit-io-v1beta4-remoteuserbinding,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remoteuserbindings,verbs=create;update,versions=v1beta4,name=vremoteuserbinding-v1beta4.kb.io,admissionReviewVersions=v1
-
 type RemoteUserBindingCustomValidator struct {
 }
 

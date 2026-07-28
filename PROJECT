@@ -105,4 +105,40 @@ resources:
     conversion: true
     validation: true
     webhookVersion: v1
+- domain: io
+  group: syngit
+  kind: RemoteUser
+  path: github.com/syngit-org/syngit/api/v1beta5
+  version: v1beta5
+  webhooks:
+    conversion: true
+    validation: true
+    webhookVersion: v1
+- domain: io
+  group: syngit
+  kind: RemoteUserBinding
+  path: github.com/syngit-org/syngit/api/v1beta5
+  version: v1beta5
+  webhooks:
+    conversion: true
+    validation: true
+    webhookVersion: v1
+- domain: io
+  group: syngit
+  kind: RemoteSyncer
+  path: github.com/syngit-org/syngit/api/v1beta5
+  version: v1beta5
+  webhooks:
+    conversion: true
+    validation: true
+    webhookVersion: v1
+- domain: io
+  group: syngit
+  kind: RemoteTarget
+  path: github.com/syngit-org/syngit/api/v1beta5
+  version: v1beta5
+  webhooks:
+    conversion: true
+    validation: true
+    webhookVersion: v1
 version: "3"

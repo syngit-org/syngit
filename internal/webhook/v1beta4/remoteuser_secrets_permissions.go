@@ -22,8 +22,6 @@ type RemoteUserPermissionsWebhookHandler struct {
 	Decoder admission.Decoder
 }
 
-// +kubebuilder:webhook:path=/syngit-v1beta4-remoteuser-permissions,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remoteusers,verbs=create;update;delete,versions=v1beta4,admissionReviewVersions=v1,name=vremoteusers-permissions.v1beta4.syngit.io
-
 func (ruwh *RemoteUserPermissionsWebhookHandler) Handle(ctx context.Context, req admission.Request) admission.Response {
 
 	user := req.DeepCopy().UserInfo

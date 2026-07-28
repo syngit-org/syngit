@@ -16,8 +16,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
 	syngitv1beta4 "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngitv1beta5 "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	utils "github.com/syngit-org/syngit/test/e2e/syngit/utils"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -32,12 +32,12 @@ var _ = Describe("15 conversion webhook test", func() {
 		fx := suite.NewFixture(ctx)
 
 		By("creating a old API RemoteUser")
-		ruOld := &syngitv1beta3.RemoteUser{
+		ruOld := &syngitv1beta4.RemoteUser{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "remoteuser-developer",
 				Namespace: fx.Namespace,
 			},
-			Spec: syngitv1beta3.RemoteUserSpec{
+			Spec: syngitv1beta4.RemoteUserSpec{
 				Email:             utils.DefaultEmail(utils.Developer),
 				GitBaseDomainFQDN: fx.FQDN(),
 				SecretRef:         corev1.SecretReference{Name: "developer-creds"},
@@ -49,16 +49,16 @@ var _ = Describe("15 conversion webhook test", func() {
 		Eventually(func() error {
 			return fx.Users.CtrlAs(utils.Developer).Get(ctx,
 				types.NamespacedName{Name: "remoteuser-developer", Namespace: fx.Namespace},
-				&syngitv1beta4.RemoteUser{})
+				&syngitv1beta5.RemoteUser{})
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(Succeed())
 
 		By("creating a old API RemoteUserBinding")
-		rubOld := &syngitv1beta3.RemoteUserBinding{
+		rubOld := &syngitv1beta4.RemoteUserBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "remoteuserbinding-developer",
 				Namespace: fx.Namespace,
 			},
-			Spec: syngitv1beta3.RemoteUserBindingSpec{
+			Spec: syngitv1beta4.RemoteUserBindingSpec{
 				RemoteUserRefs: []corev1.ObjectReference{{Name: "fake-remoteuser"}},
 			},
 		}
@@ -68,28 +68,28 @@ var _ = Describe("15 conversion webhook test", func() {
 		Eventually(func() error {
 			return fx.Users.CtrlAs(utils.Developer).Get(ctx,
 				types.NamespacedName{Name: "remoteuserbinding-developer", Namespace: fx.Namespace},
-				&syngitv1beta4.RemoteUserBinding{})
+				&syngitv1beta5.RemoteUserBinding{})
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(Succeed())
 
 		By("creating a old API RemoteSyncer")
-		rsOld := &syngitv1beta3.RemoteSyncer{
+		rsOld := &syngitv1beta4.RemoteSyncer{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "remotesyncer-test15",
 				Namespace: fx.Namespace,
 				Annotations: map[string]string{
-					syngitv1beta3.RtAnnotationKeyOneOrManyBranches: "main",
+					syngitv1beta4.RtAnnotationKeyOneOrManyBranches: "main",
 				},
 			},
-			Spec: syngitv1beta3.RemoteSyncerSpec{
+			Spec: syngitv1beta4.RemoteSyncerSpec{
 				InsecureSkipTlsVerify:       true,
 				DefaultBlockAppliedMessage:  utils.DefaultDeniedMessage,
 				DefaultBranch:               "main",
-				DefaultUnauthorizedUserMode: syngitv1beta3.Block,
+				DefaultUnauthorizedUserMode: syngitv1beta4.Block,
 				ExcludedFields:              []string{".metadata.uid"},
-				Strategy:                    syngitv1beta3.CommitOnly,
-				TargetStrategy:              syngitv1beta3.OneTarget,
+				Strategy:                    syngitv1beta4.CommitOnly,
+				TargetStrategy:              syngitv1beta4.OneTarget,
 				RemoteRepository:            "https://fake-repo.com/my_repo.git",
-				ScopedResources: syngitv1beta3.ScopedResources{
+				ScopedResources: syngitv1beta4.ScopedResources{
 					Rules: []admissionv1.RuleWithOperations{{
 						Operations: []admissionv1.OperationType{admissionv1.Create},
 						Rule: admissionv1.Rule{
@@ -107,7 +107,7 @@ var _ = Describe("15 conversion webhook test", func() {
 		Eventually(func() error {
 			return fx.Users.CtrlAs(utils.Developer).Get(ctx,
 				types.NamespacedName{Name: "remotesyncer-test15", Namespace: fx.Namespace},
-				&syngitv1beta4.RemoteSyncer{})
+				&syngitv1beta5.RemoteSyncer{})
 		}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(Succeed())
 	})
 })

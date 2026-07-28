@@ -1,4 +1,4 @@
-apiVersion: syngit.io/v1beta4
+apiVersion: syngit.io/v1beta5
 kind: RemoteSyncer
 metadata:
   labels:

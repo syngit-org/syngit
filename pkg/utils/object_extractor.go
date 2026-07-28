@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -65,11 +65,11 @@ func ConvertObjectJSONToYAMLString(
 	excludedFieldsFromRsy := remoteSyncer.Spec.ExcludedFields
 	paths = append(paths, excludedFieldsFromRsy...)
 
-	// Check if the excludedFields ConfigMap exists
-	if remoteSyncer.Spec.ExcludedFieldsConfigMapRef != nil && remoteSyncer.Spec.ExcludedFieldsConfigMapRef.Name != "" {
+	// Loop over the excluded fields ConfigMaps
+	for _, ref := range remoteSyncer.Spec.ExcludedFieldsConfigMapsRef {
 		excludedFieldsFromCm, err := GetExcludedFieldsFromConfigMap(
 			ctx,
-			remoteSyncer.Spec.ExcludedFieldsConfigMapRef.Name,
+			ref.Name,
 			remoteSyncer.Namespace,
 		)
 		if err != nil {

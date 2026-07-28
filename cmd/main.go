@@ -42,9 +42,9 @@ import (
 	"github.com/syngit-org/syngit/internal/controller"
 	"github.com/syngit-org/syngit/internal/pusher"
 	"github.com/syngit-org/syngit/internal/walker"
-	webhooksyngitv1beta4 "github.com/syngit-org/syngit/internal/webhook/v1beta4"
-	syngitv1beta3 "github.com/syngit-org/syngit/pkg/api/v1beta3"
+	webhooksyngitv1beta5 "github.com/syngit-org/syngit/internal/webhook/v1beta5"
 	syngitv1beta4 "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngitv1beta5 "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	features "github.com/syngit-org/syngit/pkg/feature"
 	// +kubebuilder:scaffold:imports
 )
@@ -57,8 +57,8 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(syngitv1beta3.AddToScheme(scheme))
 	utilruntime.Must(syngitv1beta4.AddToScheme(scheme))
+	utilruntime.Must(syngitv1beta5.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -241,44 +241,72 @@ func main() {
 
 	// nolint:goconst
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
-		if err = webhooksyngitv1beta4.SetupRemoteUserWebhookWithManager(mgr); err != nil {
+		if err = webhooksyngitv1beta5.SetupRemoteUserWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUser")
 			os.Exit(1)
 		}
-		if err = webhooksyngitv1beta4.SetupRemoteSyncerWebhookWithManager(mgr); err != nil {
+		if err = webhooksyngitv1beta5.SetupRemoteSyncerWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteSyncer")
 			os.Exit(1)
 		}
-		if err = webhooksyngitv1beta4.SetupRemoteUserBindingWebhookWithManager(mgr); err != nil {
+		if err = webhooksyngitv1beta5.SetupRemoteUserBindingWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUserBinding")
 			os.Exit(1)
 		}
-		if err = webhooksyngitv1beta4.SetupRemoteTargetWebhookWithManager(mgr); err != nil {
+		if err = webhooksyngitv1beta5.SetupRemoteTargetWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteTarget")
 			os.Exit(1)
 		}
-		mgr.GetWebhookServer().Register("/syngit-v1beta4-remoteuser-permissions",
-			&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteUserPermissionsWebhookHandler{
+		mgr.GetWebhookServer().Register("/syngit-v1beta5-remoteuser-permissions",
+			&webhook.Admission{Handler: &webhooksyngitv1beta5.RemoteUserPermissionsWebhookHandler{
 				Client:  mgr.GetClient(),
 				Decoder: admission.NewDecoder(mgr.GetScheme()),
 			}})
-		mgr.GetWebhookServer().Register("/syngit-v1beta4-remoteuserbinding-permissions",
-			&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteUserBindingPermissionsWebhookHandler{
+		mgr.GetWebhookServer().Register("/syngit-v1beta5-remoteuserbinding-permissions",
+			&webhook.Admission{Handler: &webhooksyngitv1beta5.RemoteUserBindingPermissionsWebhookHandler{
 				Client:  mgr.GetClient(),
 				Decoder: admission.NewDecoder(mgr.GetScheme()),
 			}})
-		mgr.GetWebhookServer().Register("/syngit-v1beta4-remotesyncer-rules-permissions",
-			&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteSyncerWebhookHandler{
+		mgr.GetWebhookServer().Register("/syngit-v1beta5-remotesyncer-rules-permissions",
+			&webhook.Admission{Handler: &webhooksyngitv1beta5.RemoteSyncerWebhookHandler{
 				Client:  mgr.GetClient(),
 				Decoder: admission.NewDecoder(mgr.GetScheme()),
 			}})
-		mgr.GetWebhookServer().Register("/syngit-v1beta4-remoteuser-managed",
-			&webhook.Admission{Handler: &webhooksyngitv1beta4.RemoteUserManagedWebhookHandler{
+		mgr.GetWebhookServer().Register("/syngit-v1beta5-remoteuser-managed",
+			&webhook.Admission{Handler: &webhooksyngitv1beta5.RemoteUserManagedWebhookHandler{
 				Client:  mgr.GetClient(),
 				Decoder: admission.NewDecoder(mgr.GetScheme()),
 			}})
 	}
 
+	// nolint:goconst
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = webhooksyngitv1beta5.SetupRemoteUserWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUser")
+			os.Exit(1)
+		}
+	}
+	// nolint:goconst
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = webhooksyngitv1beta5.SetupRemoteUserBindingWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteUserBinding")
+			os.Exit(1)
+		}
+	}
+	// nolint:goconst
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = webhooksyngitv1beta5.SetupRemoteSyncerWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteSyncer")
+			os.Exit(1)
+		}
+	}
+	// nolint:goconst
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err = webhooksyngitv1beta5.SetupRemoteTargetWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "RemoteTarget")
+			os.Exit(1)
+		}
+	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

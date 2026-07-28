@@ -21,8 +21,6 @@ type RemoteSyncerWebhookHandler struct {
 	Decoder admission.Decoder
 }
 
-// +kubebuilder:webhook:path=/syngit-v1beta4-remotesyncer-rules-permissions,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remotesyncers,verbs=create;update;delete,versions=v1beta4,admissionReviewVersions=v1,name=vremotesyncers-rules-permissions.v1beta4.syngit.io
-
 func (rswh *RemoteSyncerWebhookHandler) Handle(ctx context.Context, req admission.Request) admission.Response {
 
 	user := req.DeepCopy().UserInfo

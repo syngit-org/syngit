@@ -41,8 +41,6 @@ func SetupRemoteTargetWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// +kubebuilder:webhook:path=/validate-syngit-io-v1beta4-remotetarget,mutating=false,failurePolicy=fail,sideEffects=None,groups=syngit.io,resources=remotetargets,verbs=create;update,versions=v1beta4,name=vremotetarget-v1beta4.kb.io,admissionReviewVersions=v1
-
 type RemoteTargetCustomValidator struct {
 	// TODO(user): Add more fields as needed for validation
 }

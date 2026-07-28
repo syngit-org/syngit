@@ -1,7 +1,7 @@
 package interceptor
 
 import (
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	admissionv1 "k8s.io/api/admission/v1"

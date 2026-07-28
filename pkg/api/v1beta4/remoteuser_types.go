@@ -78,7 +78,7 @@ type RemoteUserStatus struct {
 // +kubebuilder:printcolumn:name="Credential status",type=string,JSONPath=`.status.secretBoundStatus`,priority=0
 // +kubebuilder:printcolumn:name="Age",type=string,JSONPath=`.metadata.creationTimestamp`,priority=0
 // +kubebuilder:subresource:status
-// +kubebuilder:storageversion
+// +kubebuilder:deprecatedversion
 
 // RemoteUser is the Schema for the remoteusers API
 type RemoteUser struct {

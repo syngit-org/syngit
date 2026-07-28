@@ -18,7 +18,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
+	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	. "github.com/syngit-org/syngit/test/e2e/syngit/helpers"
 	utils "github.com/syngit-org/syngit/test/e2e/syngit/utils"
@@ -46,7 +46,7 @@ func makeSelectorRemoteSyncer(fx *utils.Fixture, name string, selector *metav1.L
 		Spec: syngit.RemoteSyncerSpec{
 			InsecureSkipTlsVerify:       true,
 			DefaultBranch:               "main",
-			DefaultUnauthorizedUserMode: syngit.Block,
+			DefaultUnauthorizedUserMode: syngit.BlockDefaultUser,
 			ExcludedFields:              []string{".metadata.uid"},
 			Strategy:                    syngit.CommitApply,
 			TargetStrategy:              syngit.OneTarget,
