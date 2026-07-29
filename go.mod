@@ -5,7 +5,7 @@ go 1.26.2
 require (
 	github.com/fluxcd/helm-controller/api v1.6.3
 	github.com/go-git/go-billy/v5 v5.9.1
-	github.com/go-git/go-git/v5 v5.19.1
+	github.com/go-git/go-git/v5 v5.19.2
 	github.com/gorilla/mux v1.8.1
 	github.com/onsi/ginkgo/v2 v2.32.0
 	github.com/onsi/gomega v1.42.1
