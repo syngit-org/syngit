@@ -126,6 +126,75 @@ func TestReadOnlyUserCannotPush(t *testing.T) {
 	}
 }
 
+func TestPushAttemptsAreCounted(t *testing.T) {
+	gs := startServer(t)
+
+	user := envtest.GitUser{Username: "carol", Password: "pwd"}
+	repo := envtest.RepoRef{Owner: "syngituser", Name: "push-attempts"}
+	gs.AddUser(user)
+	if err := gs.CreateRepo(repo, "main"); err != nil {
+		t.Fatalf("CreateRepo: %v", err)
+	}
+	gs.SetPermission(user.Username, repo, envtest.ReadWrite)
+
+	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+		URL:             gs.RepoURL(repo),
+		ReferenceName:   plumbing.NewBranchReferenceName("main"),
+		SingleBranch:    true,
+		Auth:            basicAuth(user),
+		InsecureSkipTLS: true,
+	})
+	if err != nil {
+		t.Fatalf("clone: %v", err)
+	}
+	if got := gs.PushAttempts(repo); got != 0 {
+		t.Fatalf("clone should not count as a push attempt, got %d", got)
+	}
+
+	push := func() error {
+		return r.Push(&git.PushOptions{
+			RemoteName: "origin",
+			RefSpecs:   []config.RefSpec{"refs/heads/main:refs/heads/main"},
+			Auth:       basicAuth(user),
+		})
+	}
+
+	// An accepted push counts once.
+	wt, _ := r.Worktree()
+	f, _ := wt.Filesystem.Create("counted.txt")
+	_, _ = f.Write([]byte("counted"))
+	_ = f.Close()
+	_, _ = wt.Add("counted.txt")
+	if _, err := wt.Commit("counted", &git.CommitOptions{}); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+	if err := push(); err != nil {
+		t.Fatalf("push: %v", err)
+	}
+	if got := gs.PushAttempts(repo); got != 1 {
+		t.Fatalf("PushAttempts after one push = %d, want 1", got)
+	}
+
+	// A rejected push counts too, so retries are observable.
+	gs.ResetPushAttempts()
+	gs.SetPermission(user.Username, repo, envtest.ReadOnly)
+	f, _ = wt.Filesystem.Create("rejected.txt")
+	_, _ = f.Write([]byte("rejected"))
+	_ = f.Close()
+	_, _ = wt.Add("rejected.txt")
+	if _, err := wt.Commit("rejected", &git.CommitOptions{}); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+	for i := 0; i < 3; i++ {
+		if err := push(); err == nil {
+			t.Fatalf("push %d should have been rejected", i)
+		}
+	}
+	if got := gs.PushAttempts(repo); got != 3 {
+		t.Fatalf("PushAttempts after three rejected pushes = %d, want 3", got)
+	}
+}
+
 func TestNoAccessUserCannotClone(t *testing.T) {
 	gs := startServer(t)
 	user := envtest.GitUser{Username: "eve", Password: "pwd"}

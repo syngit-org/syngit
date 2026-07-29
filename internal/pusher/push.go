@@ -38,6 +38,25 @@ func Push(params interceptor.GitPipelineParams, targetRepository *git.Repository
 	if params.CABundle != nil {
 		pushOptions.CABundle = params.CABundle
 	}
+	err := push(targetRepository, pushOptions, verboseOutput, variables)
+	if err != nil {
+		for range params.RemoteSyncer.Spec.PushErrorRetryNumber {
+			err = push(targetRepository, pushOptions, verboseOutput, variables)
+			if err == nil {
+				break
+			}
+		}
+	}
+
+	return err
+}
+
+func push(
+	targetRepository *git.Repository,
+	pushOptions *git.PushOptions,
+	verboseOutput bytes.Buffer,
+	variables string,
+) error {
 	err := targetRepository.Push(pushOptions)
 	if err != nil {
 		if strings.Contains(err.Error(), "already up-to-date") {
@@ -45,6 +64,5 @@ func Push(params interceptor.GitPipelineParams, targetRepository *git.Repository
 		}
 		return fmt.Errorf("failed to push changes: %v\nVerbose output:%s\nVariables: %s", err, verboseOutput.String(), variables)
 	}
-
 	return nil
 }

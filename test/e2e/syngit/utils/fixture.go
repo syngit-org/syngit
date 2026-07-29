@@ -235,6 +235,13 @@ func (f *Fixture) AltRepo(suffix string) syngitenvtest.RepoRef {
 	return repo
 }
 
+// DenyPush downgrades user to read-only on the fixture's repo. Cloning and
+// fetching keep working, so the interception pipeline runs up to the push
+// and fails there.
+func (f *Fixture) DenyPush(user TestUser) {
+	f.Git.SetPermission(string(user), f.Repo, syngitenvtest.ReadOnly)
+}
+
 // CreateBranch creates branchName on the primary repo off sourceBranch.
 func (f *Fixture) CreateBranch(branchName, sourceBranch string) {
 	GinkgoHelper()
