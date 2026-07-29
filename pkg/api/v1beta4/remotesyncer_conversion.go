@@ -73,7 +73,9 @@ func (dst *RemoteSyncer) ConvertFrom(srcRaw conversion.Hub) error {
 	dst.Spec.RemoteTargetSelector = src.Spec.RemoteTargetSelector
 	dst.Spec.DefaultBlockAppliedMessage = src.Spec.DefaultBlockAppliedMessage
 	dst.Spec.ExcludedFields = src.Spec.ExcludedFields
-	dst.Spec.ExcludedFieldsConfigMapRef = src.Spec.ExcludedFieldsConfigMapsRef[0]
+	if len(src.Spec.ExcludedFieldsConfigMapsRef) > 0 {
+		dst.Spec.ExcludedFieldsConfigMapRef = src.Spec.ExcludedFieldsConfigMapsRef[0]
+	}
 	dst.Spec.RootPath = src.Spec.RootPath
 	dst.Spec.RemoteUserBindingSelector = src.Spec.RemoteUserBindingSelector
 	dst.Spec.BypassInterceptionSubjects = src.Spec.BypassInterceptionSubjects

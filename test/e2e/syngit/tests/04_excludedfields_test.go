@@ -143,15 +143,26 @@ var _ = Describe("04 RemoteSyncer with excluded fields", func() {
 		Expect(fx.Users.CreateOrUpdate(ctx, utils.Developer,
 			fx.NewRemoteUser(utils.Developer, "remoteuser-developer", true))).To(Succeed())
 
-		excludedCM := &corev1.ConfigMap{
+		excludedCM1 := &corev1.ConfigMap{
 			TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
-			ObjectMeta: metav1.ObjectMeta{Name: "excluded-fields", Namespace: fx.Namespace},
+			ObjectMeta: metav1.ObjectMeta{Name: "excluded-fields-1", Namespace: fx.Namespace},
 			Data: map[string]string{
-				"excludedFields": `["metadata.uid", "metadata.managedFields", "metadata.annotations[` + annotation1Key + `]", "metadata.annotations.[` + annotation2Key + `]"]`, // nolint:lll
+				"excludedFields": `["metadata.uid", "metadata.managedFields"]`, // nolint:lll
 			},
 		}
 		_, err := fx.Users.KAs(utils.Developer).CoreV1().ConfigMaps(fx.Namespace).
-			Create(ctx, excludedCM, metav1.CreateOptions{})
+			Create(ctx, excludedCM1, metav1.CreateOptions{})
+		Expect(err).NotTo(HaveOccurred())
+
+		excludedCM2 := &corev1.ConfigMap{
+			TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
+			ObjectMeta: metav1.ObjectMeta{Name: "excluded-fields-2", Namespace: fx.Namespace},
+			Data: map[string]string{
+				"excludedFields": `["metadata.annotations[` + annotation1Key + `]", "metadata.annotations.[` + annotation2Key + `]"]`, // nolint:lll
+			},
+		}
+		_, err = fx.Users.KAs(utils.Developer).CoreV1().ConfigMaps(fx.Namespace).
+			Create(ctx, excludedCM2, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
 		rs := &syngit.RemoteSyncer{
@@ -167,10 +178,16 @@ var _ = Describe("04 RemoteSyncer with excluded fields", func() {
 				DefaultBlockAppliedMessage:  utils.DefaultDeniedMessage,
 				DefaultBranch:               "main",
 				DefaultUnauthorizedUserMode: syngit.BlockDefaultUser,
-				ExcludedFieldsConfigMapsRef: []*corev1.ObjectReference{{
-					Name:      "excluded-fields",
-					Namespace: fx.Namespace,
-				}},
+				ExcludedFieldsConfigMapsRef: []*corev1.ObjectReference{
+					{
+						Name:      "excluded-fields-1",
+						Namespace: fx.Namespace,
+					},
+					{
+						Name:      "excluded-fields-2",
+						Namespace: fx.Namespace,
+					},
+				},
 				Strategy:         syngit.CommitOnly,
 				TargetStrategy:   syngit.OneTarget,
 				RemoteRepository: fx.RepoURL(),
