@@ -111,6 +111,10 @@ func RunInterceptionPipeline(
 		Cluster:               utils.K8sClientFromContext(ctx),
 	})
 	if err != nil {
+		if remoteSyncer.Spec.Strategy == syngit.CommitApply &&
+			remoteSyncer.Spec.DefaultPushErrorBehavior == syngit.Pass {
+			return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, true, true, remoteSyncer)
+		}
 		return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, remoteSyncer)
 	}
 

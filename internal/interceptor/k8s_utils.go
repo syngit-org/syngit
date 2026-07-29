@@ -68,23 +68,29 @@ func (updater RemoteSyncerStatusUpdater) UpdateRemoteSyncerState(
 		}
 	}
 
+	var mutate func(status *syngit.RemoteSyncerStatus)
+
 	switch kind {
 	case syngit.LastBypassedObjectStateKey:
-		lastBypassedObjectState := &syngit.LastBypassedObjectState{
+		lastBypassedObjectState := syngit.LastBypassedObjectState{
 			LastBypassedObjectTime:     v1.Now(),
 			LastBypassedObjectUserInfo: updater.userInfo,
 			LastBypassedObject:         *gvrn,
 		}
-		updater.remoteSyncer.Status.LastBypassedObjectState = *lastBypassedObjectState
+		mutate = func(status *syngit.RemoteSyncerStatus) {
+			status.LastBypassedObjectState = lastBypassedObjectState
+		}
 	case syngit.LastObservedObjectStateKey:
-		lastObservedObjectState := &syngit.LastObservedObjectState{
+		lastObservedObjectState := syngit.LastObservedObjectState{
 			LastObservedObjectTime:     v1.Now(),
 			LastObservedObjectUsername: updater.userInfo.Username,
 			LastObservedObject:         *gvrn,
 		}
-		updater.remoteSyncer.Status.LastObservedObjectState = *lastObservedObjectState
+		mutate = func(status *syngit.RemoteSyncerStatus) {
+			status.LastObservedObjectState = lastObservedObjectState
+		}
 	case syngit.LastPushedObjectStateKey:
-		lastPushedObjectState := &syngit.LastPushedObjectState{
+		lastPushedObjectState := syngit.LastPushedObjectState{
 			LastPushedObjectTime:            v1.Now(),
 			LastPushedObject:                *gvrn,
 			LastPushedObjectGitPaths:        repoPaths,
@@ -93,10 +99,14 @@ func (updater RemoteSyncerStatusUpdater) UpdateRemoteSyncerState(
 			LastPushedGitUser:               updater.userInfo.Username,
 			LastPushedObjectStatus:          lastPushDetails,
 		}
-		updater.remoteSyncer.Status.LastPushedObjectState = *lastPushedObjectState
+		mutate = func(status *syngit.RemoteSyncerStatus) {
+			status.LastPushedObjectState = lastPushedObjectState
+		}
+	default:
+		return
 	}
 
-	updateRemoteSyncerStatus(ctx, updater.remoteSyncer)
+	updateRemoteSyncerStatus(ctx, updater.remoteSyncer, mutate)
 }
 
 type RemoteSyncerConditionUpdater struct {
@@ -132,15 +142,18 @@ func BuildSuccessCondition(details string) v1.Condition {
 }
 
 func (updater RemoteSyncerConditionUpdater) UpdateRemoteSyncerConditions(ctx context.Context, condition v1.Condition) {
-	conditions := utils.TypeBasedConditionUpdater(updater.remoteSyncer.Status.DeepCopy().Conditions, condition)
-	updater.remoteSyncer.Status.Conditions = conditions
-
-	updateRemoteSyncerStatus(ctx, updater.remoteSyncer)
+	updateRemoteSyncerStatus(ctx, updater.remoteSyncer, func(status *syngit.RemoteSyncerStatus) {
+		status.Conditions = utils.TypeBasedConditionUpdater(status.Conditions, condition)
+	})
 }
 
+// updateRemoteSyncerStatus applies mutate to the live status of the RemoteSyncer.
+// Only the fields touched by mutate are written: the interception pipeline
+// updates the conditions and the observed states in separate calls.
 func updateRemoteSyncerStatus(
 	ctx context.Context,
 	remoteSyncer syngit.RemoteSyncer,
+	mutate func(status *syngit.RemoteSyncerStatus),
 ) {
 	_ = log.FromContext(ctx)
 	k8sClient := utils.K8sClientFromContext(ctx)
@@ -159,9 +172,10 @@ func updateRemoteSyncerStatus(
 		var rsy syngit.RemoteSyncer
 		if err := k8sClient.Get(ctx, namespacedName, &rsy); err != nil {
 			log.Log.Error(err, "can't get the remote syncer "+remoteSyncer.Namespace+"/"+remoteSyncer.Name)
+			return err
 		}
 
-		rsy.Status = *remoteSyncer.Status.DeepCopy()
+		mutate(&rsy.Status)
 		return k8sClient.Status().Update(ctx, &rsy)
 	})
 	if err != nil {
