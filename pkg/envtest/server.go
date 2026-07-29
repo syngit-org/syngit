@@ -54,9 +54,10 @@ type GitServer struct {
 	httpServer *httptest.Server
 	tlsServer  *httptest.Server
 
-	mu          sync.RWMutex
-	users       map[string]GitUser
-	permissions map[string]AccessLevel // key: "username|owner/name"
+	mu           sync.RWMutex
+	users        map[string]GitUser
+	permissions  map[string]AccessLevel // key: "username|owner/name"
+	pushAttempts map[string]int         // key: "owner/name"
 }
 
 // NewGitServer creates, starts, and returns a GitServer ready to serve git
@@ -69,9 +70,10 @@ func NewGitServer() (*GitServer, error) {
 	}
 
 	gs := &GitServer{
-		dir:         dir,
-		users:       make(map[string]GitUser),
-		permissions: make(map[string]AccessLevel),
+		dir:          dir,
+		users:        make(map[string]GitUser),
+		permissions:  make(map[string]AccessLevel),
+		pushAttempts: make(map[string]int),
 	}
 
 	cfg := gitkit.Config{
@@ -87,8 +89,8 @@ func NewGitServer() (*GitServer, error) {
 		return nil, fmt.Errorf("failed to setup gitkit: %w", err)
 	}
 
-	gs.httpServer = httptest.NewServer(gs.handler)
-	gs.tlsServer = httptest.NewTLSServer(gs.handler)
+	gs.httpServer = httptest.NewServer(gs.countingHandler())
+	gs.tlsServer = httptest.NewTLSServer(gs.countingHandler())
 
 	return gs, nil
 }
@@ -194,6 +196,43 @@ func (gs *GitServer) GetPermission(username string, repo RepoRef) AccessLevel {
 		return NoAccess
 	}
 	return level
+}
+
+// PushAttempts returns how many pushes have been attempted on repo since the
+// server started or since the last ResetPushAttempts. Attempts are counted
+// before authorization is decided, so a push rejected by the permission
+// matrix counts just like an accepted one. Use it to assert on retry
+// behavior.
+func (gs *GitServer) PushAttempts(repo RepoRef) int {
+	gs.mu.RLock()
+	defer gs.mu.RUnlock()
+	return gs.pushAttempts[repo.String()]
+}
+
+// ResetPushAttempts zeroes the push attempt counters of every repository.
+func (gs *GitServer) ResetPushAttempts() {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+	gs.pushAttempts = make(map[string]int)
+}
+
+// countingHandler wraps the gitkit handler to record push attempts before
+// delegating to it. The unit counted is the reference advertisement that
+// opens a push (GET /{owner}/{name}.git/info/refs?service=git-receive-pack):
+// git issues exactly one per push, whether or not the push then goes
+// through, which the git-receive-pack POST does not.
+func (gs *GitServer) countingHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("service") == "git-receive-pack" {
+			path := strings.Trim(strings.TrimSuffix(r.URL.Path, "/info/refs"), "/")
+			if repo, err := parseRepoName(path); err == nil {
+				gs.mu.Lock()
+				gs.pushAttempts[repo.String()]++
+				gs.mu.Unlock()
+			}
+		}
+		gs.handler.ServeHTTP(w, r)
+	})
 }
 
 // authFunc is the gitkit AuthFunc. It validates credentials, looks up the

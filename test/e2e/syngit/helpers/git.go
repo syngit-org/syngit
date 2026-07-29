@@ -53,3 +53,17 @@ func ExpectOnCluster(ctx context.Context, fx *utils.Fixture, name string) {
 			types.NamespacedName{Name: name, Namespace: fx.Namespace}, &corev1.ConfigMap{})
 	}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).Should(Succeed())
 }
+
+// ExpectNotOnCluster asserts the ConfigMap does not exist on the cluster.
+func ExpectNotOnCluster(ctx context.Context, fx *utils.Fixture, name string) {
+	GinkgoHelper()
+	Eventually(func() string {
+		err := fx.Users.CtrlAs(utils.Developer).Get(ctx,
+			types.NamespacedName{Name: name, Namespace: fx.Namespace}, &corev1.ConfigMap{})
+		if err == nil {
+			return ""
+		}
+		return err.Error()
+	}).WithTimeout(utils.DefaultTimeout).WithPolling(utils.DefaultInterval).
+		Should(ContainSubstring(utils.NotFoundMessage))
+}

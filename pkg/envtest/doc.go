@@ -12,6 +12,10 @@
 // service in the URL: git-upload-pack is a read operation, git-receive-pack
 // is a write operation.
 //
+// Push attempts are counted per repository (PushAttempts,
+// ResetPushAttempts), including the ones the access levels reject, so tests
+// can assert on how many times a client retried a failing push.
+//
 // Two GitServers are intended to be started once in BeforeSuite and
 // shared across parallel tests. Some are testing the target against
 // two different url. Test isolation comes from each test creating
