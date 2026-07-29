@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -44,6 +45,28 @@ const (
 // to create per-namespace basic-auth secrets.
 var AllUsers = []TestUser{Admin, Developer, Restricted}
 
+// saUsernamePrefix is the username prefix the apiserver reserves for
+// ServiceAccounts: system:serviceaccount:<namespace>:<name>.
+const saUsernamePrefix = "system:serviceaccount:"
+
+func ServiceAccountUser(namespace, name string) TestUser {
+	return TestUser(saUsernamePrefix + namespace + ":" + name)
+}
+
+// serviceAccountGroups returns the groups the apiserver attaches to a
+// ServiceAccount token, or nil when user is not a ServiceAccount identity.
+func serviceAccountGroups(user TestUser) []string {
+	nsAndName, isSA := strings.CutPrefix(string(user), saUsernamePrefix)
+	if !isSA {
+		return nil
+	}
+	ns, _, hasName := strings.Cut(nsAndName, ":")
+	if !hasName {
+		return nil
+	}
+	return []string{"system:serviceaccounts", "system:serviceaccounts:" + ns}
+}
+
 // DefaultPassword returns the password registered on the git server for user.
 func DefaultPassword(user TestUser) string { return string(user) + "-pwd" }
 
@@ -71,6 +94,7 @@ func (u *UserClient) cfgAs(user TestUser) *rest.Config {
 	if user == Admin {
 		groups = append(groups, "system:masters")
 	}
+	groups = append(groups, serviceAccountGroups(user)...)
 	cfg.Impersonate = rest.ImpersonationConfig{
 		UserName: string(user),
 		Groups:   groups,

@@ -13,6 +13,7 @@ import (
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -129,6 +130,34 @@ func grantBaseline(gs *syngitenvtest.GitServer, repo syngitenvtest.RepoRef) {
 	gs.SetPermission(string(Admin), repo, syngitenvtest.ReadWrite)
 	gs.SetPermission(string(Developer), repo, syngitenvtest.ReadWrite)
 	gs.SetPermission(string(Restricted), repo, syngitenvtest.ReadWrite)
+}
+
+// Creates a ServiceAccount, binds it to cluster-admin within that namespace.
+func (f *Fixture) NewServiceAccount(ctx context.Context, name string) TestUser {
+	GinkgoHelper()
+	c := f.Users.CtrlAs(Admin)
+
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: f.Namespace},
+	}
+	if err := c.Create(ctx, sa); err != nil && !apierrors.IsAlreadyExists(err) {
+		Fail(fmt.Sprintf("create service account %s/%s: %v", f.Namespace, name, err))
+	}
+
+	rb := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: name + "-admin", Namespace: f.Namespace},
+		Subjects: []rbacv1.Subject{{
+			Kind: "ServiceAccount", Name: name, Namespace: f.Namespace,
+		}},
+		RoleRef: rbacv1.RoleRef{
+			Kind: "ClusterRole", Name: "cluster-admin", APIGroup: "rbac.authorization.k8s.io",
+		},
+	}
+	if err := c.Create(ctx, rb); err != nil && !apierrors.IsAlreadyExists(err) {
+		Fail(fmt.Sprintf("create role binding for service account %s/%s: %v", f.Namespace, name, err))
+	}
+
+	return ServiceAccountUser(f.Namespace, name)
 }
 
 // NewBogusCredsSecret builds a kubernetes.io/basic-auth secret with

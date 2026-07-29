@@ -52,3 +52,63 @@ func TestIsBypassSubject(t *testing.T) {
 		})
 	}
 }
+
+func TestIsServiceAccount(t *testing.T) {
+	tests := []struct {
+		name     string
+		userInfo authenticationv1.UserInfo
+		want     bool
+	}{
+		{
+			name:     "regular user",
+			userInfo: authenticationv1.UserInfo{Username: "alice"},
+			want:     false,
+		},
+		{
+			name: "service account",
+			userInfo: authenticationv1.UserInfo{
+				Username: "system:serviceaccount:syngit:the-controller",
+				Groups:   []string{"system:serviceaccounts", "system:serviceaccounts:syngit"},
+			},
+			want: true,
+		},
+		{
+			name:     "service account of another namespace",
+			userInfo: authenticationv1.UserInfo{Username: "system:serviceaccount:cert-manager:cert-manager"},
+			want:     true,
+		},
+		{
+			name:     "empty username",
+			userInfo: authenticationv1.UserInfo{},
+			want:     false,
+		},
+		{
+			name:     "user impersonating the group but not the username",
+			userInfo: authenticationv1.UserInfo{Username: "alice", Groups: []string{"system:serviceaccounts"}},
+			want:     false,
+		},
+		{
+			name:     "user named like the prefix without being one",
+			userInfo: authenticationv1.UserInfo{Username: "system:serviceaccount"},
+			want:     false,
+		},
+		{
+			name:     "prefix in the middle of the username",
+			userInfo: authenticationv1.UserInfo{Username: "not-system:serviceaccount:syngit:the-controller"},
+			want:     false,
+		},
+		{
+			name:     "system user that is not a service account",
+			userInfo: authenticationv1.UserInfo{Username: "system:kube-controller-manager"},
+			want:     false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := IsServiceAccount(tc.userInfo); got != tc.want {
+				t.Errorf("IsServiceAccount(%q)=%v, want %v", tc.userInfo.Username, got, tc.want)
+			}
+		})
+	}
+}

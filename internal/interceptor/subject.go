@@ -2,6 +2,7 @@ package interceptor
 
 import (
 	"fmt"
+	"strings"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
@@ -31,4 +32,12 @@ func IsBypassSubject(
 	}
 
 	return isBypassSubject, nil
+}
+
+// The prefix of the username of every Kubernetes ServiceAccount.
+// The full username is system:serviceaccount:<namespace>:<name>.
+const serviceAccountUsernamePrefix = "system:serviceaccount:"
+
+func IsServiceAccount(userInfo authenticationv1.UserInfo) bool {
+	return strings.HasPrefix(userInfo.Username, serviceAccountUsernamePrefix)
 }
