@@ -39,26 +39,19 @@ func (ruwh *RemoteUserPermissionsWebhookHandler) Handle(ctx context.Context, req
 		namespace = ru.Spec.SecretRef.Namespace
 	}
 
-	sar := &authv1.SubjectAccessReview{
-		Spec: authv1.SubjectAccessReviewSpec{
-			User:   user.Username,
-			Groups: user.Groups,
-			ResourceAttributes: &authv1.ResourceAttributes{
-				Namespace: namespace,
-				Verb:      "get",
-				Group:     "",
-				Version:   "v1",
-				Resource:  "secrets",
-				Name:      ru.Spec.SecretRef.Name,
-			},
-		},
-	}
-	err := ruwh.Client.Create(context.Background(), sar)
+	allowed, err := utils.CheckAccess(ctx, ruwh.Client, user, authv1.ResourceAttributes{
+		Namespace: namespace,
+		Verb:      "get",
+		Group:     "",
+		Version:   "v1",
+		Resource:  "secrets",
+		Name:      ru.Spec.SecretRef.Name,
+	})
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	if !sar.Status.Allowed {
+	if !allowed {
 		return admission.Denied(syngiterrors.NewCredentialsNotFound(
 			fmt.Sprintf("the user %s is not allowed to get the secret for its own remote user", user),
 			ru.Spec.SecretRef.Name,

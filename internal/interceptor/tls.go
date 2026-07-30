@@ -11,6 +11,7 @@ import (
 	"github.com/syngit-org/syngit/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 func CABundleBuilder(
@@ -24,11 +25,18 @@ func CABundleBuilder(
 		return nil, err
 	}
 
-	// Step 2: Search for a specific CA Bundle located in the current namespace
+	// Step 2: Search for a specific CA Bundle, by default in the current namespace
 	caBundleSecretRef := remoteSyncer.Spec.CABundleSecretRef
-	ns := caBundleSecretRef.Namespace
-	if ns == "" {
-		ns = remoteSyncer.Namespace
+	if caBundleSecretRef.Name == "" {
+		return caBundle, nil
+	}
+	ns, err := utils.ResolveNamespace(
+		caBundleSecretRef.Namespace,
+		remoteSyncer.Namespace,
+		field.NewPath("spec", "caBundleSecretRef"),
+	)
+	if err != nil {
+		return nil, err
 	}
 	caBundleRsy, err := FindCABundle(ctx, ns, caBundleSecretRef.Name)
 	if err != nil {

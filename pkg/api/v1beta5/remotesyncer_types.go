@@ -87,6 +87,9 @@ type RemoteSyncerSpec struct {
 	// excludedFieldsConfigMapsRef is an array of references to ConfigMaps.
 	// The configuration will be loaded from the "excludedFields" key of
 	// the ConfigMaps.
+	// If the namespace is not set, it defaults to the namespace of the RemoteSyncer.
+	// Referencing another namespace requires the user to be allowed to get the
+	// referenced object in that namespace.
 	// +kubebuilder:validation:Optional
 	ExcludedFieldsConfigMapsRef []*corev1.ObjectReference `json:"excludedFieldsConfigMapsRef,omitempty" protobuf:"bytes,opt,9,name=excludedFieldsConfigMapsRef"` // Ref to ConfigMap(s)
 
@@ -151,6 +154,9 @@ type RemoteSyncerSpec struct {
 	// AND if the defaultUnauthorizedUserMode is set to 'UseDefaultUser'.
 	// The resource will be pushed to the target specified by the
 	// .spec.defaultRemoteTargetRef field.
+	// If the namespace is not set, it defaults to the namespace of the RemoteSyncer.
+	// Referencing another namespace requires the user to be allowed to get the
+	// referenced object in that namespace.
 	// +kubebuilder:validation:Optional
 	DefaultRemoteUserRef *corev1.ObjectReference `json:"defaultRemoteUserRef,omitempty" protobuf:"bytes,opt,18,name=defaultRemoteUserRef"` // Ref to a RemoteUser object
 
@@ -158,8 +164,11 @@ type RemoteSyncerSpec struct {
 	// It will be used in the same condition as the defaultRemoteUserRef field.
 	// If the defaultRemoteUserRef field is defined, then the .spec.defaultRemoteTargetRef
 	// must be defined as well.
+	// If the namespace is not set, it defaults to the namespace of the RemoteSyncer.
+	// Referencing another namespace requires the user to be allowed to get the
+	// referenced object in that namespace.
 	// +kubebuilder:validation:Optional
-	DefaultRemoteTargetRef *corev1.ObjectReference `json:"defaultRemoteTargetRef,omitempty" protobuf:"bytes,opt,19,name=defaultRemoteTargetRef"` // Ref to a RemoteUser object
+	DefaultRemoteTargetRef *corev1.ObjectReference `json:"defaultRemoteTargetRef,omitempty" protobuf:"bytes,opt,19,name=defaultRemoteTargetRef"` // Ref to a RemoteTarget object
 
 	// insecureSkipTlsVerify skip TLS verification when set to true
 	// +kubebuilder:validation:Optional
@@ -167,6 +176,9 @@ type RemoteSyncerSpec struct {
 
 	// The caBundleSecretRef is a reference to a secret of type kubernetes.io/tls that stores the
 	// certificate of the remote git server stored in a Secret object.
+	// If the namespace is not set, it defaults to the namespace of the RemoteSyncer.
+	// Referencing another namespace requires the user to be allowed to get the
+	// referenced object in that namespace.
 	// +kubebuilder:validation:Optional
 	CABundleSecretRef corev1.SecretReference `json:"caBundleSecretRef,omitempty" protobuf:"bytes,opt,21,name=caBundleSecretRef"`
 }

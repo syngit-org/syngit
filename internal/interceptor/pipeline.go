@@ -50,6 +50,25 @@ func RunInterceptionPipeline(
 		)
 	}
 
+	// The author of the intercepted change must be allowed to get every object that
+	// the RemoteSyncer references outside of its own namespace. References into the
+	// manager namespace are exempt.
+	refs, err := utils.RemoteSyncerRefs(remoteSyncer.Spec, remoteSyncer.Namespace)
+	if err != nil {
+		return AdmissionReviewBuilder(ctx, err.Error(), admReq, false, true, remoteSyncer)
+	}
+	denied, err := utils.AuthorizeCrossNamespaceRefs(
+		ctx, utils.K8sClientFromContext(ctx), userInfo, refs, remoteSyncer.Namespace, managerNamespace,
+	)
+	if err != nil {
+		return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, remoteSyncer)
+	}
+	if denied != nil {
+		return AdmissionReviewBuilder(ctx, se.NewCrossNamespaceRefDenied(
+			userInfo, denied.FieldPath.String(), denied.Resource, denied.Namespace, denied.Name,
+		).Error(), admReq, false, true, remoteSyncer)
+	}
+
 	// Get the intercepted object metadata
 	objectMetadata := utils.ExtractObjectMetadataFromAdmissionRequest(admReq)
 
