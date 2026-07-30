@@ -41,10 +41,17 @@ func MutateOrDeleteManagedRemoteUserBinding(
 	})
 }
 
+// Reports whether a RemoteTarget reference held by rub designates the
+// RemoteTarget named rtName in the RUB's own namespace. Managed references never
+// carry a namespace, so an explicit one always designates a different object.
+func refersTo(rub *syngit.RemoteUserBinding, ref corev1.ObjectReference, rtName string) bool {
+	return ref.Name == rtName && (ref.Namespace == "" || ref.Namespace == rub.Namespace)
+}
+
 // AddRemoteTargetRef appends a RemoteTarget reference to the RUB if not already present.
 func AddRemoteTargetRef(rub *syngit.RemoteUserBinding, rtName string) {
 	for _, ref := range rub.Spec.RemoteTargetRefs {
-		if ref.Name == rtName {
+		if refersTo(rub, ref, rtName) {
 			return
 		}
 	}
@@ -55,7 +62,7 @@ func AddRemoteTargetRef(rub *syngit.RemoteUserBinding, rtName string) {
 func RemoveRemoteTargetRef(rub *syngit.RemoteUserBinding, rtName string) {
 	newRefs := make([]corev1.ObjectReference, 0, len(rub.Spec.RemoteTargetRefs))
 	for _, ref := range rub.Spec.RemoteTargetRefs {
-		if ref.Name != rtName {
+		if !refersTo(rub, ref, rtName) {
 			newRefs = append(newRefs, ref)
 		}
 	}

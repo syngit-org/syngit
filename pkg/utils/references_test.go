@@ -15,6 +15,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+// ownerNs is the namespace of the referencing object in every case below.
+const ownerNs = "owner-ns"
+
 func TestResolveNamespace(t *testing.T) {
 	path := field.NewPath("spec", "someRef")
 
@@ -28,13 +31,13 @@ func TestResolveNamespace(t *testing.T) {
 		{
 			name:           "empty ref namespace falls back to the owner namespace",
 			refNamespace:   "",
-			ownerNamespace: "owner-ns",
-			want:           "owner-ns",
+			ownerNamespace: ownerNs,
+			want:           ownerNs,
 		},
 		{
 			name:           "explicit ref namespace wins over the owner namespace",
 			refNamespace:   "other-ns",
-			ownerNamespace: "owner-ns",
+			ownerNamespace: ownerNs,
 			want:           "other-ns",
 		},
 		{
@@ -88,15 +91,15 @@ func fullRemoteSyncerSpec() syngit.RemoteSyncerSpec {
 }
 
 func TestRemoteSyncerRefs(t *testing.T) {
-	refs, err := RemoteSyncerRefs(fullRemoteSyncerSpec(), "owner-ns")
+	refs, err := RemoteSyncerRefs(fullRemoteSyncerSpec(), ownerNs)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	want := []ObjectRef{
-		{Namespace: "owner-ns", Name: "default-ru", Group: "syngit.io", Version: "v1beta5", Resource: "remoteusers"},
+		{Namespace: ownerNs, Name: "default-ru", Group: "syngit.io", Version: "v1beta5", Resource: "remoteusers"},
 		{Namespace: "rt-ns", Name: "default-rt", Group: "syngit.io", Version: "v1beta5", Resource: "remotetargets"},
-		{Namespace: "owner-ns", Name: "cm-local", Group: "", Version: "v1", Resource: "configmaps"},
+		{Namespace: ownerNs, Name: "cm-local", Group: "", Version: "v1", Resource: "configmaps"},
 		{Namespace: "cm-ns", Name: "cm-remote", Group: "", Version: "v1", Resource: "configmaps"},
 		{Namespace: "ca-ns", Name: "ca", Group: "", Version: "v1", Resource: "secrets"},
 	}
@@ -146,7 +149,7 @@ func TestRemoteSyncerRefsSkipsUnsetRefs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			refs, err := RemoteSyncerRefs(tt.spec, "owner-ns")
+			refs, err := RemoteSyncerRefs(tt.spec, ownerNs)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -183,6 +186,121 @@ func TestRemoteSyncerRefsClusterScopedOwner(t *testing.T) {
 	}
 }
 
+func TestRemoteUserRefs(t *testing.T) {
+	t.Run("the secret ref is enumerated with its resolved namespace", func(t *testing.T) {
+		refs, err := RemoteUserRefs(
+			syngit.RemoteUserSpec{SecretRef: corev1.SecretReference{Name: "creds"}}, ownerNs,
+		)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(refs) != 1 {
+			t.Fatalf("got %d refs, want 1: %+v", len(refs), refs)
+		}
+		got := refs[0]
+		if got.Namespace != ownerNs || got.Name != "creds" ||
+			got.Group != "" || got.Version != "v1" || got.Resource != "secrets" {
+			t.Errorf("got %+v, want %s/creds as a core v1 secret", got, ownerNs)
+		}
+		if p := got.FieldPath.String(); p != "spec.secretRef" {
+			t.Errorf("got field path %q, want spec.secretRef", p)
+		}
+	})
+
+	t.Run("an explicit namespace wins", func(t *testing.T) {
+		refs, err := RemoteUserRefs(syngit.RemoteUserSpec{
+			SecretRef: corev1.SecretReference{Name: "creds", Namespace: "vault-ns"},
+		}, ownerNs)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(refs) != 1 || refs[0].Namespace != "vault-ns" {
+			t.Fatalf("got %+v, want a single ref in vault-ns", refs)
+		}
+	})
+
+	t.Run("an unset secret ref yields no ref", func(t *testing.T) {
+		refs, err := RemoteUserRefs(syngit.RemoteUserSpec{}, ownerNs)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(refs) != 0 {
+			t.Errorf("got %d refs, want 0: %+v", len(refs), refs)
+		}
+	})
+}
+
+func TestRemoteUserBindingRefs(t *testing.T) {
+	spec := syngit.RemoteUserBindingSpec{
+		RemoteUserRefs: []corev1.ObjectReference{
+			{Name: "ru-local"},
+			{Name: "ru-remote", Namespace: "other-ns"},
+		},
+		RemoteTargetRefs: []corev1.ObjectReference{
+			{Name: "rt-remote", Namespace: "target-ns"},
+			{Name: "rt-local"},
+		},
+	}
+
+	refs, err := RemoteUserBindingRefs(spec, ownerNs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := []ObjectRef{
+		{Namespace: ownerNs, Name: "ru-local", Group: "syngit.io", Version: "v1beta5", Resource: "remoteusers"},
+		{Namespace: "other-ns", Name: "ru-remote", Group: "syngit.io", Version: "v1beta5", Resource: "remoteusers"},
+		{Namespace: "target-ns", Name: "rt-remote", Group: "syngit.io", Version: "v1beta5", Resource: "remotetargets"},
+		{Namespace: ownerNs, Name: "rt-local", Group: "syngit.io", Version: "v1beta5", Resource: "remotetargets"},
+	}
+
+	if len(refs) != len(want) {
+		t.Fatalf("got %d refs, want %d: %+v", len(refs), len(want), refs)
+	}
+	for i, w := range want {
+		got := refs[i]
+		if got.Namespace != w.Namespace || got.Name != w.Name ||
+			got.Group != w.Group || got.Version != w.Version || got.Resource != w.Resource {
+			t.Errorf("ref %d: got %+v, want %+v", i, got, w)
+		}
+	}
+
+	if p := refs[1].FieldPath.String(); p != "spec.remoteUserRefs[1]" {
+		t.Errorf("got field path %q, want spec.remoteUserRefs[1]", p)
+	}
+	if p := refs[3].FieldPath.String(); p != "spec.remoteTargetRefs[1]" {
+		t.Errorf("got field path %q, want spec.remoteTargetRefs[1]", p)
+	}
+}
+
+// A namespace set on one reference must not bleed onto the following ones.
+func TestRemoteUserBindingRefsDoesNotLeakNamespace(t *testing.T) {
+	spec := syngit.RemoteUserBindingSpec{
+		RemoteUserRefs: []corev1.ObjectReference{
+			{Name: "first", Namespace: "other-ns"},
+			{Name: "second"},
+		},
+		RemoteTargetRefs: []corev1.ObjectReference{{Name: "third"}},
+	}
+
+	refs, err := RemoteUserBindingRefs(spec, ownerNs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(refs) != 3 {
+		t.Fatalf("got %d refs, want 3: %+v", len(refs), refs)
+	}
+	if refs[0].Namespace != "other-ns" {
+		t.Errorf("first ref: got namespace %q, want other-ns", refs[0].Namespace)
+	}
+	if refs[1].Namespace != ownerNs {
+		t.Errorf("second ref: got namespace %q, want owner-ns", refs[1].Namespace)
+	}
+	if refs[2].Namespace != ownerNs {
+		t.Errorf("third ref: got namespace %q, want owner-ns", refs[2].Namespace)
+	}
+}
+
 // sarRecorder is a client that answers SubjectAccessReviews from a fixed allow-list
 // and records every namespace it was asked about.
 type sarRecorder struct {
@@ -214,7 +332,7 @@ func newSARRecorder(allowed map[string]bool) *sarRecorder {
 func TestAuthorizeCrossNamespaceRefs(t *testing.T) {
 	user := authenticationv1.UserInfo{Username: "alice", Groups: []string{"devs"}}
 	refs := []ObjectRef{
-		{Namespace: "owner-ns", Name: "local", Resource: "configmaps", Version: "v1", FieldPath: field.NewPath("a")},
+		{Namespace: ownerNs, Name: "local", Resource: "configmaps", Version: "v1", FieldPath: field.NewPath("a")},
 		{Namespace: "manager-ns", Name: "shared", Resource: "secrets", Version: "v1", FieldPath: field.NewPath("b")},
 		{Namespace: "other-ns", Name: "remote", Resource: "secrets", Version: "v1", FieldPath: field.NewPath("c")},
 	}
@@ -223,7 +341,7 @@ func TestAuthorizeCrossNamespaceRefs(t *testing.T) {
 		c := newSARRecorder(map[string]bool{"other-ns/remote": true})
 
 		denied, err := AuthorizeCrossNamespaceRefs(
-			context.Background(), c, user, refs, "owner-ns", "manager-ns",
+			context.Background(), c, user, refs, ownerNs, "manager-ns",
 		)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -240,7 +358,7 @@ func TestAuthorizeCrossNamespaceRefs(t *testing.T) {
 		c := newSARRecorder(map[string]bool{"other-ns/remote": false})
 
 		denied, err := AuthorizeCrossNamespaceRefs(
-			context.Background(), c, user, refs, "owner-ns", "manager-ns",
+			context.Background(), c, user, refs, ownerNs, "manager-ns",
 		)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -257,7 +375,7 @@ func TestAuthorizeCrossNamespaceRefs(t *testing.T) {
 		c := newSARRecorder(map[string]bool{"other-ns/remote": true, "manager-ns/shared": false})
 
 		denied, err := AuthorizeCrossNamespaceRefs(
-			context.Background(), c, user, refs, "owner-ns",
+			context.Background(), c, user, refs, ownerNs,
 		)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -281,6 +399,60 @@ func TestAuthorizeCrossNamespaceRefs(t *testing.T) {
 		}
 		if len(c.asked) != 3 {
 			t.Errorf("expected 3 SARs, got %v", c.asked)
+		}
+	})
+}
+
+// AuthorizeRefs is the counterpart of AuthorizeCrossNamespaceRefs: it must check
+// every reference, including the ones resolving in the owner's own namespace.
+// RemoteUser and RemoteUserBinding rely on that, because being allowed to write
+// one of them must never imply being allowed to use what it points at.
+func TestAuthorizeRefs(t *testing.T) {
+	user := authenticationv1.UserInfo{Username: "alice", Groups: []string{"devs"}}
+	refs := []ObjectRef{
+		{Namespace: ownerNs, Name: "local", Resource: "secrets", Version: "v1", FieldPath: field.NewPath("a")},
+		{Namespace: "other-ns", Name: "remote", Resource: "secrets", Version: "v1", FieldPath: field.NewPath("b")},
+	}
+
+	t.Run("every ref is checked, same namespace included", func(t *testing.T) {
+		c := newSARRecorder(map[string]bool{"owner-ns/local": true, "other-ns/remote": true})
+
+		denied, err := AuthorizeRefs(context.Background(), c, user, refs)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if denied != nil {
+			t.Fatalf("expected no denial, got %+v", denied)
+		}
+		if len(c.asked) != 2 {
+			t.Errorf("expected 2 SARs, got %v", c.asked)
+		}
+	})
+
+	t.Run("a forbidden same-namespace ref is returned", func(t *testing.T) {
+		c := newSARRecorder(map[string]bool{"owner-ns/local": false, "other-ns/remote": true})
+
+		denied, err := AuthorizeRefs(context.Background(), c, user, refs)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if denied == nil {
+			t.Fatal("expected a denial on the same-namespace ref")
+		}
+		if denied.Namespace != ownerNs || denied.Name != "local" {
+			t.Errorf("got denial for %s/%s, want owner-ns/local", denied.Namespace, denied.Name)
+		}
+	})
+
+	t.Run("no refs means nothing to check", func(t *testing.T) {
+		c := newSARRecorder(nil)
+
+		denied, err := AuthorizeRefs(context.Background(), c, user, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if denied != nil || len(c.asked) != 0 {
+			t.Errorf("expected no denial and no SAR, got %+v / %v", denied, c.asked)
 		}
 	})
 }

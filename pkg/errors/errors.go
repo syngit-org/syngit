@@ -66,6 +66,35 @@ func (e *denyGetRemoteUser) Unwrap() error {
 // The user is not allowed to get its own RemoteUser.
 var ErrRemoteUserDenied = &denyGetRemoteUser{}
 
+// This error should be used when the user is not allowed to get a RemoteTarget
+// that it references.
+func NewRemoteTargetDenied(user authv1.UserInfo, remoteTargetRef v1.ObjectReference) *denyGetRemoteTarget {
+	return &denyGetRemoteTarget{User: user, RemoteTargetRef: remoteTargetRef}
+}
+
+type denyGetRemoteTarget struct {
+	User            authv1.UserInfo
+	RemoteTargetRef v1.ObjectReference
+}
+
+func (e *denyGetRemoteTarget) Error() string {
+	return fmt.Sprintf("get remote target denied: the user %s is not allowed to get the referenced remotetarget: %s",
+		e.User,
+		e.RemoteTargetRef.Name,
+	)
+}
+
+func (e *denyGetRemoteTarget) ShouldContains(err error) bool {
+	return strings.Contains(err.Error(), "get remote target denied")
+}
+
+func (e *denyGetRemoteTarget) Unwrap() error {
+	return ErrRemoteTargetDenied
+}
+
+// The user is not allowed to get a RemoteTarget that it references.
+var ErrRemoteTargetDenied = &denyGetRemoteTarget{}
+
 // This error should be used when there is no RemoteUserBinding
 // corresponding to the specs (no reference to the user as the
 // subject, no default found, ...).

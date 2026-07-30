@@ -26,6 +26,9 @@ type RemoteUserSpec struct {
 
 	// secretRef is the reference to the secret that stores the Personal Access Token to the git account.
 	// The Secret must be of 'kubernetes.io/basic-auth' type.
+	// A reference without a namespace resolves in the namespace of this RemoteUser.
+	// Whoever creates or updates this RemoteUser must be allowed to get the referenced
+	// Secret, wherever it resolves.
 	// +kubebuilder:validation:Required
 	SecretRef corev1.SecretReference `json:"secretRef" protobuf:"bytes,1,name=secretRef"`
 
@@ -132,5 +135,8 @@ const (
 )
 
 const (
-	SecretRefField = "spec.secretRef.name"
+	// SecretRefField indexes RemoteUsers by the Secret they reference, keyed
+	// "<resolved namespace>/<name>" because the Secret may live outside of the
+	// RemoteUser's own namespace.
+	SecretRefField = "spec.secretRef"
 )

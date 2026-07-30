@@ -229,6 +229,9 @@ spec:
                 description: |-
                   secretRef is the reference to the secret that stores the Personal Access Token to the git account.
                   The Secret must be of 'kubernetes.io/basic-auth' type.
+                  A reference without a namespace resolves in the namespace of this RemoteUser.
+                  Whoever creates or updates this RemoteUser must be allowed to get the referenced
+                  Secret, wherever it resolves.
                 properties:
                   name:
                     description: name is unique within a namespace to reference a

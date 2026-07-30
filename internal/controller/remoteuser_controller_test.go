@@ -147,4 +147,112 @@ var _ = Describe("RemoteUser Controller", func() {
 
 	})
 
+	// A RemoteUser may keep its credentials in another namespace. The controller
+	// must read the Secret where the reference resolves, and must stay
+	// level-triggered on it: the indexer is keyed on the resolved namespace, so a
+	// change to a Secret living elsewhere still re-triggers this RemoteUser.
+	Context("When the secretRef points to another namespace", func() {
+		const secretNamespace = "remoteuser-credentials"
+		const resourceName = "test-remoteuser-cross-namespace"
+		const secretRefName = "cross-namespace-secret"
+
+		ctx := context.Background()
+
+		remoteUserKey := types.NamespacedName{Name: resourceName, Namespace: userNamespace}
+		secretKey := types.NamespacedName{Name: secretRefName, Namespace: secretNamespace}
+
+		BeforeEach(func() {
+			By("Creating the namespace that holds the credentials")
+			ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: secretNamespace}}
+			err := k8sClient.Create(ctx, ns)
+			if err != nil && !errors.IsAlreadyExists(err) {
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			By("Creating the secret credentials in that other namespace")
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretRefName,
+					Namespace: secretNamespace,
+				},
+				StringData: map[string]string{
+					"username": "username",
+					"password": "password",
+				},
+				Type: "kubernetes.io/basic-auth",
+			}
+			err = k8sClient.Create(ctx, secret)
+			if err != nil && !errors.IsAlreadyExists(err) {
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			By("Creating a RemoteUser referencing the secret across namespaces")
+			remoteUser := &syngit.RemoteUser{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName,
+					Namespace: userNamespace,
+				},
+				Spec: syngit.RemoteUserSpec{
+					Email:             "sample@email.com",
+					GitBaseDomainFQDN: "sample-git-server.com",
+					SecretRef: corev1.SecretReference{
+						Name:      secretRefName,
+						Namespace: secretNamespace,
+					},
+				},
+			}
+			err = k8sClient.Create(ctx, remoteUser)
+			if err != nil && !errors.IsAlreadyExists(err) {
+				Expect(err).NotTo(HaveOccurred())
+			}
+		})
+
+		AfterEach(func() {
+			remoteUser := &syngit.RemoteUser{}
+			if err := k8sClient.Get(ctx, remoteUserKey, remoteUser); err == nil {
+				Expect(k8sClient.Delete(ctx, remoteUser)).To(Succeed())
+			}
+
+			secret := &corev1.Secret{}
+			if err := k8sClient.Get(ctx, secretKey, secret); err == nil {
+				Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+			}
+		})
+
+		It("Should bind to the secret of the referenced namespace", func() {
+			createdRemoteUser := &syngit.RemoteUser{}
+
+			Eventually(func() syngit.SecretBoundStatus {
+				if err := k8sClient.Get(ctx, remoteUserKey, createdRemoteUser); err != nil {
+					return ""
+				}
+				return createdRemoteUser.Status.SecretBoundStatus
+			}, timeout, interval).Should(Equal(syngit.SecretBound))
+		})
+
+		It("Should react to a change of that secret in the other namespace", func() {
+			createdRemoteUser := &syngit.RemoteUser{}
+			Eventually(func() syngit.SecretBoundStatus {
+				if err := k8sClient.Get(ctx, remoteUserKey, createdRemoteUser); err != nil {
+					return ""
+				}
+				return createdRemoteUser.Status.SecretBoundStatus
+			}, timeout, interval).Should(Equal(syngit.SecretBound))
+
+			By("Retyping the secret so that it is no longer a basic-auth one")
+			secret := &corev1.Secret{}
+			Expect(k8sClient.Get(ctx, secretKey, secret)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+
+			// Only the cross-namespace watch mapping can carry this change back
+			// to a RemoteUser that lives in another namespace.
+			Eventually(func() syngit.SecretBoundStatus {
+				if err := k8sClient.Get(ctx, remoteUserKey, createdRemoteUser); err != nil {
+					return ""
+				}
+				return createdRemoteUser.Status.SecretBoundStatus
+			}, timeout, interval).Should(Equal(syngit.SecretNotFound))
+		})
+	})
+
 })

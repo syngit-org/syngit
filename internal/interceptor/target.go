@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"slices"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
@@ -14,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,62 +49,56 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		// User-specific RemoteTargets are now pre-created by the user-specific policy
 		// (run inside RemoteSyncerReconciler). The RUB already contains all the
 		// necessary RemoteTarget refs.
+		//
+		// Both ref lists are resolved one by one instead of being listed and
+		// intersected by name: a reference may point outside of the binding's
+		// namespace, which a namespaced List would never surface. A reference
+		// that does not resolve to an existing object is skipped.
 
 		// Search for RemoteTargets
-		remoteTargetRefNames := make([]string, 0, len(remoteUserBinding.Spec.RemoteTargetRefs))
-		for _, remoteTargetRef := range remoteUserBinding.Spec.RemoteTargetRefs {
-			remoteTargetRefNames = append(remoteTargetRefNames, remoteTargetRef.Name)
-		}
-		var remoteTargetList = &syngit.RemoteTargetList{}
-		listOps := &client.ListOptions{
-			Namespace: remoteSyncer.Namespace,
-		}
+		var labelSelector labels.Selector
 		if remoteSyncer.Spec.RemoteTargetSelector != nil {
-			labelSelector, err := v1.LabelSelectorAsSelector(remoteSyncer.Spec.RemoteTargetSelector)
+			selector, err := v1.LabelSelectorAsSelector(remoteSyncer.Spec.RemoteTargetSelector)
 			if err != nil {
 				return userTargetsMap, syngiterrors.NewWrongLabelParsing(fmt.Sprintf("error parsing the LabelSelector for the remoteTargetSelector: %v", err))
 			}
-			listOps.LabelSelector = labelSelector
+			labelSelector = selector
 		}
-		err := k8sClient.List(ctx, remoteTargetList, listOps)
+
+		remoteTargets, err := resolveRefs(ctx, remoteUserBinding.Spec.RemoteTargetRefs,
+			remoteUserBinding.Namespace, "remoteTargetRefs",
+			func() *syngit.RemoteTarget { return &syngit.RemoteTarget{} })
 		if err != nil {
 			return userTargetsMap, err
 		}
 
 		// Search for RemoteUsers
-		remoteUserRefNames := make([]string, 0, len(remoteUserBinding.Spec.RemoteUserRefs))
-		for _, remoteUserRef := range remoteUserBinding.Spec.RemoteUserRefs {
-			remoteUserRefNames = append(remoteUserRefNames, remoteUserRef.Name)
-		}
-
-		listOps = &client.ListOptions{
-			Namespace: remoteSyncer.Namespace,
-		}
-		var remoteUserList = &syngit.RemoteUserList{}
-		err = k8sClient.List(ctx, remoteUserList, listOps)
+		remoteUsers, err := resolveRefs(ctx, remoteUserBinding.Spec.RemoteUserRefs,
+			remoteUserBinding.Namespace, "remoteUserRefs",
+			func() *syngit.RemoteUser { return &syngit.RemoteUser{} })
 		if err != nil {
 			return userTargetsMap, err
 		}
 
 		// Associate RemoteUser with RemoteTarget
-		rtUrl := &url.URL{}
-		for _, remoteTarget := range remoteTargetList.Items {
-			rtUrl, err = url.Parse(remoteTarget.Spec.TargetRepository)
+		for _, remoteTarget := range remoteTargets {
+			// The selector was applied by the API server before; now that the
+			// targets are fetched by name it has to be applied here.
+			if labelSelector != nil && !labelSelector.Matches(labels.Set(remoteTarget.Labels)) {
+				continue
+			}
+			rtUrl, err := url.Parse(remoteTarget.Spec.TargetRepository)
 			if err != nil {
 				return userTargetsMap, err
 			}
-			if slices.Contains(remoteTargetRefNames, remoteTarget.Name) {
-				if remoteTarget.Spec.UpstreamRepository == remoteSyncer.Spec.RemoteRepository && remoteTarget.Spec.UpstreamBranch == remoteSyncer.Spec.DefaultBranch {
-					for _, remoteUser := range remoteUserList.Items {
-						if slices.Contains(remoteUserRefNames, remoteUser.Name) {
-							if rtUrl.Host == remoteUser.Spec.GitBaseDomainFQDN {
-								gitUserInfo, err := GetGitUserInfoByRemoteUser(ctx, remoteUser, remoteSyncer.Namespace)
-								if err != nil {
-									return userTargetsMap, err
-								}
-								userTargetsMap[*gitUserInfo] = append(userTargetsMap[*gitUserInfo], remoteTarget)
-							}
+			if remoteTarget.Spec.UpstreamRepository == remoteSyncer.Spec.RemoteRepository && remoteTarget.Spec.UpstreamBranch == remoteSyncer.Spec.DefaultBranch {
+				for _, remoteUser := range remoteUsers {
+					if rtUrl.Host == remoteUser.Spec.GitBaseDomainFQDN {
+						gitUserInfo, err := GetGitUserInfoByRemoteUser(ctx, *remoteUser)
+						if err != nil {
+							return userTargetsMap, err
 						}
+						userTargetsMap[*gitUserInfo] = append(userTargetsMap[*gitUserInfo], *remoteTarget)
 					}
 				}
 			}
@@ -152,9 +146,7 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		if remoteUser.Spec.GitBaseDomainFQDN != remoteSyncerRemoteRepoUrl.Host {
 			return userTargetsMap, syngiterrors.NewWrongRemoteTargetConfig(remoteSyncer, *remoteUser)
 		}
-		// The credentials of a RemoteUser always live alongside it, which is not
-		// necessarily the namespace of the RemoteSyncer that references it.
-		gitUserInfo, err := GetGitUserInfoByRemoteUser(ctx, *remoteUser, remoteUser.Namespace)
+		gitUserInfo, err := GetGitUserInfoByRemoteUser(ctx, *remoteUser)
 		if err != nil {
 			return userTargetsMap, err
 		}
@@ -273,21 +265,27 @@ func GetGitUserInfoByRemoteUserBinding(
 
 	var gitUser *interceptor.GitUserInfo
 
-	namespace := remoteSyncer.Namespace
-	for _, ref := range rub.Spec.RemoteUserRefs {
+	// Each reference resolves against the binding that holds it, not against the
+	// RemoteSyncer that led us here.
+	for i, ref := range rub.Spec.RemoteUserRefs {
+		namespace, err := utils.ResolveNamespace(
+			ref.Namespace, rub.Namespace, field.NewPath("spec", "remoteUserRefs").Index(i),
+		)
+		if err != nil {
+			return nil, err
+		}
 		namespacedName := &types.NamespacedName{
 			Namespace: namespace,
 			Name:      ref.Name,
 		}
 		remoteUser := &syngit.RemoteUser{}
-		err := k8sClient.Get(ctx, *namespacedName, remoteUser)
-		if err != nil {
+		if err := k8sClient.Get(ctx, *namespacedName, remoteUser); err != nil {
 			continue
 		}
 
 		if remoteUser.Spec.GitBaseDomainFQDN == fqdn {
 			remoteUserCount++
-			gitUser, err = GetGitUserInfoByRemoteUser(ctx, *remoteUser, namespace)
+			gitUser, err = GetGitUserInfoByRemoteUser(ctx, *remoteUser)
 			if err != nil {
 				return nil, err
 			}
@@ -307,20 +305,28 @@ func GetGitUserInfoByRemoteUserBinding(
 	return gitUser, nil
 }
 
+// Reads the credentials of a RemoteUser.
 func GetGitUserInfoByRemoteUser(
 	ctx context.Context,
 	remoteUser syngit.RemoteUser,
-	namespace string,
 ) (*interceptor.GitUserInfo, error) {
 	k8sClient := utils.K8sClientFromContext(ctx)
 
+	secretNamespace, err := utils.ResolveNamespace(
+		remoteUser.Spec.SecretRef.Namespace,
+		remoteUser.Namespace,
+		field.NewPath("spec", "secretRef"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	secretNamespacedName := &types.NamespacedName{
-		Namespace: namespace,
+		Namespace: secretNamespace,
 		Name:      remoteUser.Spec.SecretRef.Name,
 	}
 	secret := &corev1.Secret{}
-	err := k8sClient.Get(ctx, *secretNamespacedName, secret)
-	if err != nil {
+	if err := k8sClient.Get(ctx, *secretNamespacedName, secret); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, syngiterrors.NewCredentialsNotFound("secret not found for remote user: "+remoteUser.Name, secretNamespacedName.Name)
 		}
