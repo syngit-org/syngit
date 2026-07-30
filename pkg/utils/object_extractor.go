@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
@@ -66,11 +67,22 @@ func ConvertObjectJSONToYAMLString(
 	paths = append(paths, excludedFieldsFromRsy...)
 
 	// Loop over the excluded fields ConfigMaps
-	for _, ref := range remoteSyncer.Spec.ExcludedFieldsConfigMapsRef {
+	for i, ref := range remoteSyncer.Spec.ExcludedFieldsConfigMapsRef {
+		if ref == nil {
+			continue
+		}
+		cmNamespace, err := ResolveNamespace(
+			ref.Namespace,
+			remoteSyncer.Namespace,
+			field.NewPath("spec", "excludedFieldsConfigMapsRef").Index(i),
+		)
+		if err != nil {
+			return "", err
+		}
 		excludedFieldsFromCm, err := GetExcludedFieldsFromConfigMap(
 			ctx,
 			ref.Name,
-			remoteSyncer.Namespace,
+			cmNamespace,
 		)
 		if err != nil {
 			return "", err

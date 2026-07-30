@@ -38,18 +38,37 @@ func (rswh *RemoteSyncerWebhookHandler) Handle(ctx context.Context, req admissio
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	if authorized, forbiddenResources, err := rswh.hasRightResourcesPermissions(*rs, user); err != nil {
+	if authorized, forbiddenResources, err := rswh.hasRightResourcesPermissions(ctx, *rs, user); err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
-	} else {
-		if authorized {
-			return admission.Allowed(fmt.Sprintf("The user %s is allowed to scope all of the listed resources", user))
-		} else {
-			return admission.Denied(syngiterrors.NewResourceScopeForbidden(user, forbiddenResources).Error())
-		}
+	} else if !authorized {
+		return admission.Denied(syngiterrors.NewResourceScopeForbidden(user, forbiddenResources).Error())
 	}
+
+	// The user must be allowed to get every object that the RemoteSyncer references
+	// outside of its own namespace. This runs on update as well, so a RemoteSyncer
+	// cannot be edited to point at a namespace the editor cannot read.
+	refs, err := utils.RemoteSyncerRefs(rs.Spec, rs.Namespace)
+	if err != nil {
+		return admission.Errored(http.StatusBadRequest, err)
+	}
+	denied, err := utils.AuthorizeCrossNamespaceRefs(ctx, rswh.Client, user, refs, rs.Namespace)
+	if err != nil {
+		return admission.Errored(http.StatusInternalServerError, err)
+	}
+	if denied != nil {
+		return admission.Denied(syngiterrors.NewCrossNamespaceRefDenied(
+			user, denied.FieldPath.String(), denied.Resource, denied.Namespace, denied.Name,
+		).Error())
+	}
+
+	return admission.Allowed(fmt.Sprintf("The user %s is allowed to scope all of the listed resources", user))
 }
 
-func (rswh *RemoteSyncerWebhookHandler) hasRightResourcesPermissions(rs syngit.RemoteSyncer, user v1.UserInfo) (bool, []string, error) {
+func (rswh *RemoteSyncerWebhookHandler) hasRightResourcesPermissions(
+	ctx context.Context,
+	rs syngit.RemoteSyncer,
+	user v1.UserInfo,
+) (bool, []string, error) {
 	forbiddenResourcesMap := map[string]string{}
 
 	for _, rule := range rs.Spec.ScopedResources.Rules {
@@ -68,21 +87,13 @@ func (rswh *RemoteSyncerWebhookHandler) hasRightResourcesPermissions(rs syngit.R
 						allowed := false
 
 						for _, verb := range verbs {
-							// Create a SubjectAccessReview
-							sar := &authv1.SubjectAccessReview{
-								Spec: authv1.SubjectAccessReviewSpec{
-									User:   user.Username,
-									Groups: user.Groups,
-									ResourceAttributes: &authv1.ResourceAttributes{
-										Namespace: rs.Namespace,
-										Verb:      verb,
-										Group:     group,
-										Version:   version,
-										Resource:  resource,
-									},
-								},
-							}
-							err := rswh.Client.Create(context.Background(), sar)
+							verbAllowed, err := utils.CheckAccess(ctx, rswh.Client, user, authv1.ResourceAttributes{
+								Namespace: rs.Namespace,
+								Verb:      verb,
+								Group:     group,
+								Version:   version,
+								Resource:  resource,
+							})
 							if err != nil {
 
 								if rswh.isInvalidCombinationError(err) {
@@ -95,7 +106,7 @@ func (rswh *RemoteSyncerWebhookHandler) hasRightResourcesPermissions(rs syngit.R
 								return false, nil, err
 							}
 
-							if sar.Status.Allowed {
+							if verbAllowed {
 								allowed = true
 								break
 							}

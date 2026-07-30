@@ -851,6 +851,9 @@ spec:
                 description: |-
                   The caBundleSecretRef is a reference to a secret of type kubernetes.io/tls that stores the
                   certificate of the remote git server stored in a Secret object.
+                  If the namespace is not set, it defaults to the namespace of the RemoteSyncer.
+                  Referencing another namespace requires the user to be allowed to get the
+                  referenced object in that namespace.
                 properties:
                   name:
                     description: name is unique within a namespace to reference a
@@ -889,6 +892,9 @@ spec:
                   It will be used in the same condition as the defaultRemoteUserRef field.
                   If the defaultRemoteUserRef field is defined, then the .spec.defaultRemoteTargetRef
                   must be defined as well.
+                  If the namespace is not set, it defaults to the namespace of the RemoteSyncer.
+                  Referencing another namespace requires the user to be allowed to get the
+                  referenced object in that namespace.
                 properties:
                   apiVersion:
                     description: API version of the referent.
@@ -941,6 +947,9 @@ spec:
                   AND if the defaultUnauthorizedUserMode is set to 'UseDefaultUser'.
                   The resource will be pushed to the target specified by the
                   .spec.defaultRemoteTargetRef field.
+                  If the namespace is not set, it defaults to the namespace of the RemoteSyncer.
+                  Referencing another namespace requires the user to be allowed to get the
+                  referenced object in that namespace.
                 properties:
                   apiVersion:
                     description: API version of the referent.
@@ -1007,6 +1016,9 @@ spec:
                   excludedFieldsConfigMapsRef is an array of references to ConfigMaps.
                   The configuration will be loaded from the "excludedFields" key of
                   the ConfigMaps.
+                  If the namespace is not set, it defaults to the namespace of the RemoteSyncer.
+                  Referencing another namespace requires the user to be allowed to get the
+                  referenced object in that namespace.
                 items:
                   description: ObjectReference contains enough information to let
                     you inspect or modify the referred object.

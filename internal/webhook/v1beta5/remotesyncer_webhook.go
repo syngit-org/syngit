@@ -96,13 +96,8 @@ func validateRemoteSyncerSpec(r *syngitv1beta5.RemoteSyncerSpec) field.ErrorList
 		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultBranch"), "must be set when the defaultUnauthorizedUserMode is set to UseDefaultUser"))
 	}
 
-	// Validate that no namespaces are referenced
-	if r.DefaultRemoteUserRef != nil && r.DefaultRemoteUserRef.Namespace != "" {
-		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultRemoteUserRef").Child("namespace"), r.DefaultRemoteUserRef.Namespace, "should not be set as it is not supported in this version of syngit"))
-	}
-	if r.DefaultRemoteTargetRef != nil && r.DefaultRemoteTargetRef.Namespace != "" {
-		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultRemoteTargetRef").Child("namespace"), r.DefaultRemoteTargetRef.Namespace, "should not be set as it is not supported in this version of syngit"))
-	}
+	// Referencing another namespace is allowed, but the user must be allowed to get
+	// the referenced object. This is enforced by the RemoteSyncer rules permissions webhook.
 
 	return errors
 }

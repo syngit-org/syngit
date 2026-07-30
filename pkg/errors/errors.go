@@ -444,3 +444,77 @@ func (e *interceptorPipeline) Unwrap() error {
 
 // The interceptor pipeline process has errored.
 var ErrInterceptorPipeline = &interceptorPipeline{}
+
+// This error should be used when a user is not allowed to reach an object
+// referenced in another namespace than the one of the referencing object.
+func NewCrossNamespaceRefDenied(
+	user authv1.UserInfo,
+	fieldPath, resource, namespace, name string,
+) *crossNamespaceRefDenied {
+	return &crossNamespaceRefDenied{
+		User:      user,
+		FieldPath: fieldPath,
+		Resource:  resource,
+		Namespace: namespace,
+		Name:      name,
+	}
+}
+
+type crossNamespaceRefDenied struct {
+	User      authv1.UserInfo
+	FieldPath string
+	Resource  string
+	Namespace string
+	Name      string
+}
+
+func (e *crossNamespaceRefDenied) Error() string {
+	return fmt.Sprintf(
+		"cross-namespace reference denied: the user %s is not allowed to get the %s %s/%s referenced by %s",
+		e.User,
+		e.Resource,
+		e.Namespace,
+		e.Name,
+		e.FieldPath,
+	)
+}
+
+func (e *crossNamespaceRefDenied) ShouldContains(err error) bool {
+	return strings.Contains(err.Error(), "cross-namespace reference denied")
+}
+
+func (e *crossNamespaceRefDenied) Unwrap() error {
+	return ErrCrossNamespaceRefDenied
+}
+
+// The user is not allowed to get an object referenced in another namespace.
+var ErrCrossNamespaceRefDenied = &crossNamespaceRefDenied{}
+
+// This error should be used when a reference held by a cluster-scoped object
+// does not carry a namespace. Such an object has no namespace to fall back to,
+// so the reference cannot be resolved.
+func NewMissingRefNamespace(fieldPath string) *missingRefNamespace {
+	return &missingRefNamespace{FieldPath: fieldPath}
+}
+
+type missingRefNamespace struct {
+	FieldPath string
+}
+
+func (e *missingRefNamespace) Error() string {
+	return fmt.Sprintf(
+		"missing reference namespace: %s must set a namespace because the referencing object is cluster-scoped",
+		e.FieldPath,
+	)
+}
+
+func (e *missingRefNamespace) ShouldContains(err error) bool {
+	return strings.Contains(err.Error(), "missing reference namespace")
+}
+
+func (e *missingRefNamespace) Unwrap() error {
+	return ErrMissingRefNamespace
+}
+
+// A reference of a cluster-scoped object does not carry a namespace.
+var ErrMissingRefNamespace = &missingRefNamespace{}

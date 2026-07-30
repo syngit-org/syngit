@@ -15,6 +15,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -131,27 +132,47 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		}
 
 		// Search for the default RemoteUser object
+		userNamespace, err := utils.ResolveNamespace(
+			remoteSyncer.Spec.DefaultRemoteUserRef.Namespace,
+			remoteSyncer.Namespace,
+			field.NewPath("spec", "defaultRemoteUserRef"),
+		)
+		if err != nil {
+			return userTargetsMap, err
+		}
 		userNamespacedName := &types.NamespacedName{
-			Namespace: remoteSyncer.Namespace,
+			Namespace: userNamespace,
 			Name:      remoteSyncer.Spec.DefaultRemoteUserRef.Name,
 		}
 		remoteUser := &syngit.RemoteUser{}
-		err := k8sClient.Get(ctx, *userNamespacedName, remoteUser)
-		if err != nil {
+		if err := k8sClient.Get(ctx, *userNamespacedName, remoteUser); err != nil {
 			return userTargetsMap, syngiterrors.NewRemoteUserNotFound("the default RemoteUser is not found")
 		}
 
 		if remoteUser.Spec.GitBaseDomainFQDN != remoteSyncerRemoteRepoUrl.Host {
 			return userTargetsMap, syngiterrors.NewWrongRemoteTargetConfig(remoteSyncer, *remoteUser)
 		}
-		gitUserInfo, err := GetGitUserInfoByRemoteUser(ctx, *remoteUser, remoteSyncer.Namespace)
+		// The credentials of a RemoteUser always live alongside it, which is not
+		// necessarily the namespace of the RemoteSyncer that references it.
+		gitUserInfo, err := GetGitUserInfoByRemoteUser(ctx, *remoteUser, remoteUser.Namespace)
 		if err != nil {
 			return userTargetsMap, err
 		}
 
 		// Search for the default RemoteTarget
+		if remoteSyncer.Spec.DefaultRemoteTargetRef == nil || remoteSyncer.Spec.DefaultRemoteTargetRef.Name == "" {
+			return userTargetsMap, syngiterrors.NewRemoteTargetNotFound("no default remote target is set")
+		}
+		targetNamespace, err := utils.ResolveNamespace(
+			remoteSyncer.Spec.DefaultRemoteTargetRef.Namespace,
+			remoteSyncer.Namespace,
+			field.NewPath("spec", "defaultRemoteTargetRef"),
+		)
+		if err != nil {
+			return userTargetsMap, err
+		}
 		targetNamespacedName := &types.NamespacedName{
-			Namespace: remoteSyncer.Namespace,
+			Namespace: targetNamespace,
 			Name:      remoteSyncer.Spec.DefaultRemoteTargetRef.Name,
 		}
 		remoteTarget := &syngit.RemoteTarget{}

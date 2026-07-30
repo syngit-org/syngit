@@ -39,27 +39,19 @@ func (rubwh RemoteUserBindingPermissionsWebhookHandler) Handle(ctx context.Conte
 		if ru.Namespace != "" {
 			namespace = ru.Namespace
 		}
-		sar := &authv1.SubjectAccessReview{
-			Spec: authv1.SubjectAccessReviewSpec{
-				User:   user.Username,
-				Groups: user.Groups,
-				ResourceAttributes: &authv1.ResourceAttributes{
-					Namespace: namespace,
-					Verb:      "get",
-					Group:     "syngit.io",
-					Version:   "v1beta5",
-					Resource:  "remoteusers",
-					Name:      ru.Name,
-				},
-			},
-		}
-
-		err := rubwh.Client.Create(context.Background(), sar)
+		allowed, err := utils.CheckAccess(ctx, rubwh.Client, user, authv1.ResourceAttributes{
+			Namespace: namespace,
+			Verb:      "get",
+			Group:     "syngit.io",
+			Version:   "v1beta5",
+			Resource:  "remoteusers",
+			Name:      ru.Name,
+		})
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
 
-		if !sar.Status.Allowed {
+		if !allowed {
 			return admission.Denied(syngiterrors.NewRemoteUserDenied(user, ru).Error())
 		}
 
