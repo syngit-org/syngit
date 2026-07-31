@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 )
@@ -133,6 +134,97 @@ var _ = Describe("RemoteUserBinding Controller", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			Expect(createdRemoteUserBinding.Status.UserKubernetesID).Should(Equal(dummyUser))
+		})
+	})
+
+	// A binding may reference a RemoteUser living in another namespace. It must
+	// be bound like any other, and a reference that omits the namespace must
+	// keep resolving in the binding's own namespace even when a preceding
+	// reference named one.
+	Context("When a remoteUserRef points to another namespace", func() {
+		const (
+			remoteUserNamespace = "remoteuserbinding-users"
+			resourceName        = "test-rub-cross-namespace"
+			remoteUserRemote    = "sample-remoteuser-remote"
+			remoteUserLocal     = "sample-remoteuser-local"
+			dummySecret         = "dummy-secret"
+			dummyUser           = "cross-namespace-user"
+		)
+
+		ctx := context.Background()
+		bindingKey := types.NamespacedName{Name: resourceName, Namespace: userNamespace}
+
+		newRemoteUser := func(name, namespace, fqdn string) *syngit.RemoteUser {
+			return &syngit.RemoteUser{
+				ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+				Spec: syngit.RemoteUserSpec{
+					Email:             "sample@email.com",
+					GitBaseDomainFQDN: fqdn,
+					SecretRef:         corev1.SecretReference{Name: dummySecret},
+				},
+			}
+		}
+
+		create := func(object client.Object) {
+			err := k8sClient.Create(ctx, object)
+			if err != nil && !errors.IsAlreadyExists(err) {
+				Expect(err).NotTo(HaveOccurred())
+			}
+		}
+
+		BeforeEach(func() {
+			By("Creating the namespace that holds the remote RemoteUser")
+			create(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: remoteUserNamespace}})
+
+			By("Creating one RemoteUser in each namespace")
+			create(newRemoteUser(remoteUserRemote, remoteUserNamespace, "remote-git-server.com"))
+			create(newRemoteUser(remoteUserLocal, userNamespace, "local-git-server.com"))
+
+			By("Creating a RemoteUserBinding whose first ref is cross-namespace and second is not")
+			create(&syngit.RemoteUserBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: resourceName, Namespace: userNamespace},
+				Spec: syngit.RemoteUserBindingSpec{
+					RemoteUserRefs: []corev1.ObjectReference{
+						{Name: remoteUserRemote, Namespace: remoteUserNamespace},
+						{Name: remoteUserLocal},
+					},
+					Subject: rbacv1.Subject{Kind: rbacv1.UserKind, Name: dummyUser},
+				},
+			})
+		})
+
+		AfterEach(func() {
+			for _, object := range []client.Object{
+				&syngit.RemoteUserBinding{ObjectMeta: metav1.ObjectMeta{Name: resourceName, Namespace: userNamespace}},
+				newRemoteUser(remoteUserRemote, remoteUserNamespace, ""),
+				newRemoteUser(remoteUserLocal, userNamespace, ""),
+			} {
+				_ = k8sClient.Delete(ctx, object)
+			}
+		})
+
+		It("Should bind both refs and resolve each namespace independently", func() {
+			createdRemoteUserBinding := &syngit.RemoteUserBinding{}
+
+			Eventually(func() int {
+				if err := k8sClient.Get(ctx, bindingKey, createdRemoteUserBinding); err != nil {
+					return 0
+				}
+				return len(createdRemoteUserBinding.Status.RemoteUserHosts)
+			}, timeout, interval).Should(Equal(2))
+
+			hosts := createdRemoteUserBinding.Status.RemoteUserHosts
+			Expect(hosts[0].State).To(Equal(syngit.Bound))
+			Expect(hosts[0].GitFQDN).To(Equal("remote-git-server.com"))
+
+			// The second ref carries no namespace: it must resolve in the
+			// binding's namespace, not in the one named by the first ref.
+			Expect(hosts[1].State).To(Equal(syngit.Bound))
+			Expect(hosts[1].GitFQDN).To(Equal("local-git-server.com"))
+
+			By("Reporting where each secret actually lives")
+			Expect(hosts[0].SecretRef.Namespace).To(Equal(remoteUserNamespace))
+			Expect(hosts[1].SecretRef.Namespace).To(Equal(userNamespace))
 		})
 	})
 })

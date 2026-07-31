@@ -26,7 +26,11 @@ import (
 const (
 	RubNamePrefix           = "associated-rub"
 	RubAnnotationKeyManaged = "syngit.io/remoteuserbinding.managed"
-	RemoteRefsField         = "spec.remoteRefs"
+
+	// RemoteRefsField indexes RemoteUserBindings by the RemoteUsers they
+	// reference, keyed "<resolved namespace>/<name>" because a referenced
+	// RemoteUser may live outside of the binding's own namespace.
+	RemoteRefsField = "spec.remoteRefs"
 )
 
 type RemoteUserBindingSpec struct {
@@ -36,10 +40,16 @@ type RemoteUserBindingSpec struct {
 	Subject rbacv1.Subject `json:"subject" protobuf:"bytes,1,name=subject"`
 
 	// remoteUserRefs is a list of reference to RemoteUser(s) that are bound to the subject.
+	// A reference without a namespace resolves in the namespace of this RemoteUserBinding.
+	// Whoever creates or updates this RemoteUserBinding must be allowed to get every
+	// referenced RemoteUser, wherever it resolves.
 	// +kubebuilder:validation:Required
 	RemoteUserRefs []corev1.ObjectReference `json:"remoteUserRefs" protobuf:"bytes,2,name=remoteUserRefs"` // Ref to the listed RemoteUser objects
 
 	// remoteTargetRefs is a list of reference to RemoteTarget(s) that are bound to the subject.
+	// A reference without a namespace resolves in the namespace of this RemoteUserBinding.
+	// Whoever creates or updates this RemoteUserBinding must be allowed to get every
+	// referenced RemoteTarget, wherever it resolves.
 	// +kubebuilder:validation:Optional
 	RemoteTargetRefs []corev1.ObjectReference `json:"remoteTargetRefs" protobuf:"bytes,3,name=remoteTargetRefs"` // Ref to the listed RemoteTarget objects
 }

@@ -331,8 +331,11 @@ spec:
           spec:
             properties:
               remoteTargetRefs:
-                description: remoteTargetRefs is a list of reference to RemoteTarget(s)
-                  that are bound to the subject.
+                description: |-
+                  remoteTargetRefs is a list of reference to RemoteTarget(s) that are bound to the subject.
+                  A reference without a namespace resolves in the namespace of this RemoteUserBinding.
+                  Whoever creates or updates this RemoteUserBinding must be allowed to get every
+                  referenced RemoteTarget, wherever it resolves.
                 items:
                   description: ObjectReference contains enough information to let
                     you inspect or modify the referred object.
@@ -379,8 +382,11 @@ spec:
                   x-kubernetes-map-type: atomic
                 type: array
               remoteUserRefs:
-                description: remoteUserRefs is a list of reference to RemoteUser(s)
-                  that are bound to the subject.
+                description: |-
+                  remoteUserRefs is a list of reference to RemoteUser(s) that are bound to the subject.
+                  A reference without a namespace resolves in the namespace of this RemoteUserBinding.
+                  Whoever creates or updates this RemoteUserBinding must be allowed to get every
+                  referenced RemoteUser, wherever it resolves.
                 items:
                   description: ObjectReference contains enough information to let
                     you inspect or modify the referred object.

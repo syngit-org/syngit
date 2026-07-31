@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -97,9 +98,28 @@ func (r *RemoteUserReconciler) reconcileSecretStatus(ctx context.Context, remote
 		Status:             v1.ConditionFalse,
 	}
 
-	// Get the referenced Secret
+	// Get the referenced Secret. It does not necessarily live alongside the
+	// RemoteUser: the admission webhook has already checked that whoever wrote
+	// this RemoteUser is allowed to get the Secret wherever it resolves.
+	secretNamespace, err := utils.ResolveNamespace(
+		remoteUser.Spec.SecretRef.Namespace,
+		remoteUser.Namespace,
+		field.NewPath("spec", "secretRef"),
+	)
+	if err != nil {
+		remoteUser.Status.SecretBoundStatus = syngit.SecretNotFound
+		remoteUser.Status.ConnexionStatus.Status = ""
+
+		condition.Reason = "SecretNotFound"
+		condition.Status = v1.ConditionFalse
+		condition.Message = err.Error()
+		_ = r.updateStatus(ctx, remoteUser, *condition)
+
+		return
+	}
+
 	var secret corev1.Secret
-	namespacedNameSecret := types.NamespacedName{Namespace: remoteUser.Namespace, Name: remoteUser.Spec.SecretRef.Name}
+	namespacedNameSecret := types.NamespacedName{Namespace: secretNamespace, Name: remoteUser.Spec.SecretRef.Name}
 	if err := r.Get(ctx, namespacedNameSecret, &secret); err != nil {
 		remoteUser.Status.SecretBoundStatus = syngit.SecretNotFound
 		remoteUser.Status.ConnexionStatus.Status = ""
@@ -148,11 +168,16 @@ func (r *RemoteUserReconciler) updateStatus(ctx context.Context, remoteUser *syn
 	return nil
 }
 
+// findObjectsForSecret maps a Secret change to every RemoteUser that references
+// it. The index is keyed on the resolved namespace, so the lookup is
+// cluster-wide: a RemoteUser can reference a Secret from another namespace.
 func (r *RemoteUserReconciler) findObjectsForSecret(ctx context.Context, secret client.Object) []reconcile.Request {
 	attachedRemoteUsers := &syngit.RemoteUserList{}
 	listOps := &client.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector(syngit.SecretRefField, secret.GetName()),
-		Namespace:     secret.GetNamespace(),
+		FieldSelector: fields.OneTermEqualSelector(
+			syngit.SecretRefField,
+			secret.GetNamespace()+"/"+secret.GetName(),
+		),
 	}
 	err := r.List(ctx, attachedRemoteUsers, listOps)
 	if err != nil {
@@ -203,16 +228,28 @@ func (r *RemoteUserReconciler) findRemoteUsersForRemoteTarget(ctx context.Contex
 	return requests
 }
 
+func remoteUserValueExtractor(rawObj client.Object) []string {
+	// Extract the referenced Secret from the RemoteUser Spec, if one is
+	// provided. The key carries the resolved namespace because the Secret
+	// may live outside of the RemoteUser's own namespace.
+	remoteUser := rawObj.(*syngit.RemoteUser)
+	if remoteUser.Spec.SecretRef.Name == "" {
+		return nil
+	}
+	namespace, err := utils.ResolveNamespace(
+		remoteUser.Spec.SecretRef.Namespace,
+		remoteUser.Namespace,
+		field.NewPath("spec", "secretRef"),
+	)
+	if err != nil {
+		return nil
+	}
+	return []string{namespace + "/" + remoteUser.Spec.SecretRef.Name}
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *RemoteUserReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &syngit.RemoteUser{}, syngit.SecretRefField, func(rawObj client.Object) []string {
-		// Extract the Secret name from the RemoteUser Spec, if one is provided
-		remoteUser := rawObj.(*syngit.RemoteUser)
-		if remoteUser.Spec.SecretRef.Name == "" {
-			return nil
-		}
-		return []string{remoteUser.Spec.SecretRef.Name}
-	}); err != nil {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &syngit.RemoteUser{}, syngit.SecretRefField, remoteUserValueExtractor); err != nil {
 		return err
 	}
 

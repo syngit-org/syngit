@@ -60,76 +60,120 @@ func CheckAccess(
 	return sar.Status.Allowed, nil
 }
 
+// The GVRs that syngit objects can reference. A reference site names one of
+// them; nothing else in this package needs to know about group versions.
+var (
+	remoteUsersGVR   = [3]string{syngit.GroupVersion.Group, syngit.GroupVersion.Version, "remoteusers"}
+	remoteTargetsGVR = [3]string{syngit.GroupVersion.Group, syngit.GroupVersion.Version, "remotetargets"}
+	configMapsGVR    = [3]string{"", "v1", "configmaps"}
+	secretsGVR       = [3]string{"", "v1", "secrets"}
+)
+
+// refCollector accumulates the references of a single object, resolving each
+// namespace against the same owner namespace. It exists so that every
+// enumerator below is a flat list of "this field points at that kind".
+type refCollector struct {
+	ownerNamespace string
+	specPath       *field.Path
+	refs           []ObjectRef
+	err            error
+}
+
+func newRefCollector(ownerNamespace string) *refCollector {
+	return &refCollector{
+		ownerNamespace: ownerNamespace,
+		specPath:       field.NewPath("spec"),
+		refs:           []ObjectRef{},
+	}
+}
+
+// add records one reference. An unset reference (empty name) contributes
+// nothing: every reference site handled here is optional at the API level.
+// The first error is kept and short-circuits every later call, so that
+// enumerators can stay branch-free and check err once at the end.
+func (c *refCollector) add(refNamespace, name string, gvr [3]string, path *field.Path) {
+	if c.err != nil || name == "" {
+		return
+	}
+	namespace, err := ResolveNamespace(refNamespace, c.ownerNamespace, path)
+	if err != nil {
+		c.err = err
+		return
+	}
+	c.refs = append(c.refs, ObjectRef{
+		Namespace: namespace,
+		Name:      name,
+		Group:     gvr[0],
+		Version:   gvr[1],
+		Resource:  gvr[2],
+		FieldPath: path,
+	})
+}
+
+func (c *refCollector) result() ([]ObjectRef, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	return c.refs, nil
+}
+
 // Enumerates every namespace-bearing reference of a RemoteSyncer
 // spec, with each namespace already resolved against ownerNamespace. Pass an
 // empty ownerNamespace for a cluster-scoped referencing object.
 func RemoteSyncerRefs(spec syngit.RemoteSyncerSpec, ownerNamespace string) ([]ObjectRef, error) {
-	specPath := field.NewPath("spec")
-	refs := []ObjectRef{}
-
-	appendRef := func(refNamespace, name string, gvr [3]string, path *field.Path) error {
-		if name == "" {
-			return nil
-		}
-		namespace, err := ResolveNamespace(refNamespace, ownerNamespace, path)
-		if err != nil {
-			return err
-		}
-		refs = append(refs, ObjectRef{
-			Namespace: namespace,
-			Name:      name,
-			Group:     gvr[0],
-			Version:   gvr[1],
-			Resource:  gvr[2],
-			FieldPath: path,
-		})
-		return nil
-	}
-
-	syngitGVR := func(resource string) [3]string {
-		return [3]string{syngit.GroupVersion.Group, syngit.GroupVersion.Version, resource}
-	}
-	coreGVR := func(resource string) [3]string {
-		return [3]string{"", "v1", resource}
-	}
+	c := newRefCollector(ownerNamespace)
 
 	if ref := spec.DefaultRemoteUserRef; ref != nil {
-		if err := appendRef(
-			ref.Namespace, ref.Name, syngitGVR("remoteusers"), specPath.Child("defaultRemoteUserRef"),
-		); err != nil {
-			return nil, err
-		}
+		c.add(ref.Namespace, ref.Name, remoteUsersGVR, c.specPath.Child("defaultRemoteUserRef"))
 	}
 
 	if ref := spec.DefaultRemoteTargetRef; ref != nil {
-		if err := appendRef(
-			ref.Namespace, ref.Name, syngitGVR("remotetargets"), specPath.Child("defaultRemoteTargetRef"),
-		); err != nil {
-			return nil, err
-		}
+		c.add(ref.Namespace, ref.Name, remoteTargetsGVR, c.specPath.Child("defaultRemoteTargetRef"))
 	}
 
 	for i, ref := range spec.ExcludedFieldsConfigMapsRef {
 		if ref == nil {
 			continue
 		}
-		if err := appendRef(
-			ref.Namespace, ref.Name, coreGVR("configmaps"), specPath.Child("excludedFieldsConfigMapsRef").Index(i),
-		); err != nil {
-			return nil, err
-		}
+		c.add(ref.Namespace, ref.Name, configMapsGVR, c.specPath.Child("excludedFieldsConfigMapsRef").Index(i))
 	}
 
-	if err := appendRef(
-		spec.CABundleSecretRef.Namespace,
-		spec.CABundleSecretRef.Name,
-		coreGVR("secrets"),
-		specPath.Child("caBundleSecretRef"),
-	); err != nil {
-		return nil, err
+	// CABundleSecretRef is a value, not a pointer: it is never nil, and an
+	// unset one is the zero struct. Testing its name keeps this site visibly
+	// guarded like the pointer refs above.
+	if ref := spec.CABundleSecretRef; ref.Name != "" {
+		c.add(ref.Namespace, ref.Name, secretsGVR, c.specPath.Child("caBundleSecretRef"))
 	}
 
-	return refs, nil
+	return c.result()
+}
+
+// Enumerates every namespace-bearing reference of a RemoteUser spec, with each
+// namespace already resolved against ownerNamespace.
+func RemoteUserRefs(spec syngit.RemoteUserSpec, ownerNamespace string) ([]ObjectRef, error) {
+	c := newRefCollector(ownerNamespace)
+
+	if ref := spec.SecretRef; ref.Name != "" {
+		c.add(ref.Namespace, ref.Name, secretsGVR, c.specPath.Child("secretRef"))
+	}
+
+	return c.result()
+}
+
+// Enumerates every namespace-bearing reference of a RemoteUserBinding spec,
+// with each namespace already resolved against ownerNamespace.
+func RemoteUserBindingRefs(spec syngit.RemoteUserBindingSpec, ownerNamespace string) ([]ObjectRef, error) {
+	c := newRefCollector(ownerNamespace)
+
+	for i, ref := range spec.RemoteUserRefs {
+		c.add(ref.Namespace, ref.Name, remoteUsersGVR, c.specPath.Child("remoteUserRefs").Index(i))
+	}
+
+	for i, ref := range spec.RemoteTargetRefs {
+		c.add(ref.Namespace, ref.Name, remoteTargetsGVR, c.specPath.Child("remoteTargetRefs").Index(i))
+	}
+
+	return c.result()
 }
 
 // Checks that user is allowed to get every reference that resolves outside of
@@ -151,11 +195,33 @@ func AuthorizeCrossNamespaceRefs(
 	ownerNamespace string,
 	exempt ...string,
 ) (*ObjectRef, error) {
+	crossNamespace := make([]ObjectRef, 0, len(refs))
 	for _, ref := range refs {
 		if ref.Namespace == ownerNamespace || slices.Contains(exempt, ref.Namespace) {
 			continue
 		}
+		crossNamespace = append(crossNamespace, ref)
+	}
 
+	return AuthorizeRefs(ctx, c, user, crossNamespace)
+}
+
+// Checks that user is allowed to get every one of the given references,
+// wherever they resolve. Callers that must not pay for same-namespace
+// references use AuthorizeCrossNamespaceRefs instead; callers that gate access
+// to the referenced object itself (a RemoteUser's credentials, the RemoteUsers
+// a RemoteUserBinding grants) use this one, so that authority over the
+// referencing object never implies authority over what it points at.
+//
+// It returns the first reference the user is not allowed to get, or nil when all
+// of them are allowed.
+func AuthorizeRefs(
+	ctx context.Context,
+	c client.Client,
+	user authenticationv1.UserInfo,
+	refs []ObjectRef,
+) (*ObjectRef, error) {
+	for _, ref := range refs {
 		allowed, err := CheckAccess(ctx, c, user, authv1.ResourceAttributes{
 			Namespace: ref.Namespace,
 			Verb:      "get",

@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/tools/events"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -70,17 +71,30 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	gitUserHosts := []syngit.RemoteUserHost{}
 	missingRefs := []string{}
-	for _, remoteUserRef := range remoteUserBinding.Spec.RemoteUserRefs {
+	for i, remoteUserRef := range remoteUserBinding.Spec.RemoteUserRefs {
 
 		// Set already known values about this RemoteUser
 		var gitUserHost = syngit.RemoteUserHost{}
 		gitUserHost.RemoteUserUsed = remoteUserRef.Name
 
+		// A reference may point outside of the binding's namespace. The
+		// admission webhook has already checked that whoever wrote this binding
+		// is allowed to get the RemoteUser wherever it resolves.
 		var remoteUser syngit.RemoteUser
-		retrievedRemoteUser := types.NamespacedName{Namespace: req.Namespace, Name: remoteUserRef.Name}
+		remoteUserNamespace, err := utils.ResolveNamespace(
+			remoteUserRef.Namespace,
+			remoteUserBinding.Namespace,
+			field.NewPath("spec", "remoteUserRefs").Index(i),
+		)
+		if err == nil {
+			// Get the concerned RemoteUser
+			err = r.Get(ctx,
+				types.NamespacedName{Namespace: remoteUserNamespace, Name: remoteUserRef.Name},
+				&remoteUser,
+			)
+		}
 
-		// Get the concerned RemoteUser
-		if err := r.Get(ctx, retrievedRemoteUser, &remoteUser); err != nil {
+		if err != nil {
 			missingRefs = append(missingRefs, remoteUserRef.Name)
 			gitUserHost.State = syngit.NotBound
 			r.Recorder.Eventf(&remoteUserBinding, nil, "Warning", "NotBound", gitUserHost.RemoteUserUsed+" not bound", "")
@@ -88,6 +102,10 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		} else {
 			gitUserHost.GitFQDN = remoteUser.Spec.GitBaseDomainFQDN
 			gitUserHost.SecretRef = remoteUser.Spec.SecretRef
+			// Report where the Secret actually is.
+			if gitUserHost.SecretRef.Namespace == "" {
+				gitUserHost.SecretRef.Namespace = remoteUser.Namespace
+			}
 			gitUserHost.State = syngit.Bound
 			r.Recorder.Eventf(&remoteUserBinding, nil, "Normal", "Bound", gitUserHost.RemoteUserUsed+" bound", "")
 		}
@@ -143,11 +161,17 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	return ctrl.Result{}, nil
 }
 
+// findObjectsForRemoteUser maps a RemoteUser change to every RemoteUserBinding
+// that references it. The index is keyed on the resolved namespace, so the
+// lookup is cluster-wide: a binding can reference a RemoteUser from another
+// namespace.
 func (r *RemoteUserBindingReconciler) findObjectsForRemoteUser(ctx context.Context, remoteUser client.Object) []reconcile.Request {
 	attachedRemoteUserBindings := &syngit.RemoteUserBindingList{}
 	listOps := &client.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector(syngit.RemoteRefsField, remoteUser.GetName()),
-		Namespace:     remoteUser.GetNamespace(),
+		FieldSelector: fields.OneTermEqualSelector(
+			syngit.RemoteRefsField,
+			remoteUser.GetNamespace()+"/"+remoteUser.GetName(),
+		),
 	}
 	err := r.List(ctx, attachedRemoteUserBindings, listOps)
 	if err != nil {
@@ -166,24 +190,35 @@ func (r *RemoteUserBindingReconciler) findObjectsForRemoteUser(ctx context.Conte
 	return requests
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *RemoteUserBindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &syngit.RemoteUserBinding{}, syngit.RemoteRefsField, func(rawObj client.Object) []string {
+func remoteTargetValueExtractor(rawObj client.Object) []string {
+	remoteUserKeys := []string{}
 
-		remoteUserRefsName := []string{}
-
-		remoteUserBinding := rawObj.(*syngit.RemoteUserBinding)
-		if len(remoteUserBinding.Spec.RemoteUserRefs) == 0 {
+	remoteUserBinding := rawObj.(*syngit.RemoteUserBinding)
+	if len(remoteUserBinding.Spec.RemoteUserRefs) == 0 {
+		return nil
+	}
+	// Each key carries the resolved namespace because a referenced
+	// RemoteUser may live outside of the binding's own namespace.
+	for i, remoteUserRef := range remoteUserBinding.Spec.RemoteUserRefs {
+		if remoteUserRef.Name == "" {
 			return nil
 		}
-		for _, remoteUserRef := range remoteUserBinding.Spec.RemoteUserRefs {
-			if remoteUserRef.Name == "" {
-				return nil
-			}
-			remoteUserRefsName = append(remoteUserRefsName, remoteUserRef.DeepCopy().Name)
+		namespace, err := utils.ResolveNamespace(
+			remoteUserRef.Namespace,
+			remoteUserBinding.Namespace,
+			field.NewPath("spec", "remoteUserRefs").Index(i),
+		)
+		if err != nil {
+			continue
 		}
-		return remoteUserRefsName
-	}); err != nil {
+		remoteUserKeys = append(remoteUserKeys, namespace+"/"+remoteUserRef.Name)
+	}
+	return remoteUserKeys
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *RemoteUserBindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &syngit.RemoteUserBinding{}, syngit.RemoteRefsField, remoteTargetValueExtractor); err != nil {
 		return err
 	}
 	recorder := mgr.GetEventRecorder("remoteuserbinding-controller")

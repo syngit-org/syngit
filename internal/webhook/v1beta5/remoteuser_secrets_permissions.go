@@ -8,7 +8,6 @@ import (
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	utils "github.com/syngit-org/syngit/pkg/utils"
-	authv1 "k8s.io/api/authorization/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -34,28 +33,23 @@ func (ruwh *RemoteUserPermissionsWebhookHandler) Handle(ctx context.Context, req
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	namespace := ru.GetNamespace()
-	if ru.Spec.SecretRef.Namespace != "" {
-		namespace = ru.Spec.SecretRef.Namespace
+	// The user must be allowed to get the referenced Secret, wherever it lives.
+	// Its own namespace is checked too: being able to create a RemoteUser must
+	// not become a way to use credentials it cannot read.
+	refs, err := utils.RemoteUserRefs(ru.Spec, ru.GetNamespace())
+	if err != nil {
+		return admission.Errored(http.StatusBadRequest, err)
 	}
-
-	allowed, err := utils.CheckAccess(ctx, ruwh.Client, user, authv1.ResourceAttributes{
-		Namespace: namespace,
-		Verb:      "get",
-		Group:     "",
-		Version:   "v1",
-		Resource:  "secrets",
-		Name:      ru.Spec.SecretRef.Name,
-	})
+	denied, err := utils.AuthorizeRefs(ctx, ruwh.Client, user, refs)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	if !allowed {
-		return admission.Denied(syngiterrors.NewCredentialsNotFound(
+	if denied != nil {
+		return denyRef(user, denied, ru.GetNamespace(), syngiterrors.NewCredentialsNotFound(
 			fmt.Sprintf("the user %s is not allowed to get the secret for its own remote user", user),
 			ru.Spec.SecretRef.Name,
-		).Error())
+		))
 	}
 
 	return admission.Allowed(fmt.Sprintf("The user %s is allowed to get the secret: %s", user, ru.Spec.SecretRef.Name))

@@ -49,17 +49,9 @@ type RemoteUserBindingCustomValidator struct {
 func validateRemoteUserBindingSpec(r *syngitv1beta5.RemoteUserBindingSpec) field.ErrorList {
 	var errors field.ErrorList
 
-	// Validate that no namespaces are referenced
-	for i, remoteUserRef := range r.RemoteUserRefs {
-		if remoteUserRef.Namespace != "" {
-			errors = append(errors, field.Invalid(field.NewPath("spec").Child("remoteUserRefs").Index(i), r.RemoteUserRefs[i].Namespace, "should not be set as it is not supported in this version of syngit"))
-		}
-	}
-	for i, remoteTargetRef := range r.RemoteTargetRefs {
-		if remoteTargetRef.Namespace != "" {
-			errors = append(errors, field.Invalid(field.NewPath("spec").Child("remoteTargetRefs").Index(i), r.RemoteTargetRefs[i].Namespace, "should not be set as it is not supported in this version of syngit"))
-		}
-	}
+	// Referencing another namespace is allowed, but the user must be allowed to
+	// get the referenced object. This is enforced by the RemoteUserBinding
+	// permissions webhook.
 
 	return errors
 }

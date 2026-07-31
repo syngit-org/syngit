@@ -8,7 +8,7 @@ import (
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	utils "github.com/syngit-org/syngit/pkg/utils"
-	authv1 "k8s.io/api/authorization/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -34,28 +34,27 @@ func (rubwh RemoteUserBindingPermissionsWebhookHandler) Handle(ctx context.Conte
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	namespace := rub.GetNamespace()
-	for _, ru := range rub.Spec.RemoteUserRefs {
-		if ru.Namespace != "" {
-			namespace = ru.Namespace
-		}
-		allowed, err := utils.CheckAccess(ctx, rubwh.Client, user, authv1.ResourceAttributes{
-			Namespace: namespace,
-			Verb:      "get",
-			Group:     "syngit.io",
-			Version:   "v1beta5",
-			Resource:  "remoteusers",
-			Name:      ru.Name,
-		})
-		if err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-
-		if !allowed {
-			return admission.Denied(syngiterrors.NewRemoteUserDenied(user, ru).Error())
-		}
-
+	// The user must be allowed to get every referenced RemoteUser and
+	// RemoteTarget.
+	refs, err := utils.RemoteUserBindingRefs(rub.Spec, rub.GetNamespace())
+	if err != nil {
+		return admission.Errored(http.StatusBadRequest, err)
+	}
+	denied, err := utils.AuthorizeRefs(ctx, rubwh.Client, user, refs)
+	if err != nil {
+		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	return admission.Allowed(fmt.Sprintf("The user %s is allowed to get all the referenced remoteusers.", user))
+	if denied != nil {
+		ref := corev1.ObjectReference{Namespace: denied.Namespace, Name: denied.Name}
+		var sameNamespaceErr error = syngiterrors.NewRemoteUserDenied(user, ref)
+		if denied.Resource == "remotetargets" {
+			sameNamespaceErr = syngiterrors.NewRemoteTargetDenied(user, ref)
+		}
+		return denyRef(user, denied, rub.GetNamespace(), sameNamespaceErr)
+	}
+
+	return admission.Allowed(fmt.Sprintf(
+		"The user %s is allowed to get all the referenced remoteusers and remotetargets.", user,
+	))
 }
