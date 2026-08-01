@@ -107,11 +107,9 @@ func helmReleaseSecretYAML(t *testing.T) string {
 
 func helmReleaseParams(t *testing.T) interceptor.GitPipelineParams {
 	return interceptor.GitPipelineParams{
-		RemoteSyncer: syngit.RemoteSyncer{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
-					provider.HelmReleaseAnnotation: "enabled",
-				},
+		Syncer: interceptor.SyncerContext{
+			Annotations: map[string]string{
+				provider.HelmReleaseAnnotation: "enabled",
 			},
 			Spec: syngit.RemoteSyncerSpec{
 				// Server-managed fields that must not leak into the git manifest.
@@ -316,8 +314,8 @@ func TestFluxHelmReleaseProvider_NilCluster(t *testing.T) {
 func TestFluxHelmReleaseProvider_Deletion(t *testing.T) {
 	wt := newMemWorktree(t)
 	params := helmReleaseParams(t)
-	params.InterceptedYAML = ""            // deletion
-	params.RemoteSyncer.Namespace = "prod" // the release lives in the RemoteSyncer's namespace
+	params.InterceptedYAML = ""                 // deletion
+	params.Syncer.InterceptedNamespace = "prod" // the release lives in the intercepted secret's namespace
 
 	rc := RenderContext{Ctx: context.Background(), Params: params, Worktree: wt}
 	out := &ArtifactSet{}

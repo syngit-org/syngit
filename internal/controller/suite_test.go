@@ -33,6 +33,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	interceptor "github.com/syngit-org/syngit/internal/interceptor"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	// +kubebuilder:scaffold:imports
 )
@@ -99,9 +100,20 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	// One interception server shared by both syncer controllers.
+	interceptionServer := interceptor.NewWebhookInterceptsAll(k8sManager).Start()
+
 	err = (&RemoteSyncerReconciler{
-		Client: k8sManager.GetClient(),
-		Scheme: k8sManager.GetScheme(),
+		Client:        k8sManager.GetClient(),
+		Scheme:        k8sManager.GetScheme(),
+		WebhookServer: interceptionServer,
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&ClusterWideRemoteSyncerReconciler{
+		Client:        k8sManager.GetClient(),
+		Scheme:        k8sManager.GetScheme(),
+		WebhookServer: interceptionServer,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

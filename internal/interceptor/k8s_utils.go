@@ -10,14 +10,13 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type RemoteSyncerStatusUpdater struct {
-	remoteSyncer syngit.RemoteSyncer
+	syncer       interceptor.SyncerContext
 	group        string
 	version      string
 	resource     string
@@ -27,10 +26,10 @@ type RemoteSyncerStatusUpdater struct {
 
 func NewRemoteSyncerStatusUpdater(
 	admissionRequest *admissionv1.AdmissionRequest,
-	remoteSyncer syngit.RemoteSyncer,
+	sc interceptor.SyncerContext,
 ) RemoteSyncerStatusUpdater {
 	return RemoteSyncerStatusUpdater{
-		remoteSyncer: remoteSyncer,
+		syncer:       sc,
 		group:        admissionRequest.Resource.Group,
 		version:      admissionRequest.Resource.Version,
 		resource:     admissionRequest.Resource.Resource,
@@ -106,18 +105,18 @@ func (updater RemoteSyncerStatusUpdater) UpdateRemoteSyncerState(
 		return
 	}
 
-	updateRemoteSyncerStatus(ctx, updater.remoteSyncer, mutate)
+	updateRemoteSyncerStatus(ctx, updater.syncer, mutate)
 }
 
 type RemoteSyncerConditionUpdater struct {
-	remoteSyncer syngit.RemoteSyncer
+	syncer interceptor.SyncerContext
 }
 
 func NewRemoteSyncerConditionUpdater(
-	remoteSyncer syngit.RemoteSyncer,
+	sc interceptor.SyncerContext,
 ) RemoteSyncerConditionUpdater {
 	return RemoteSyncerConditionUpdater{
-		remoteSyncer: remoteSyncer,
+		syncer: sc,
 	}
 }
 
@@ -142,26 +141,23 @@ func BuildSuccessCondition(details string) v1.Condition {
 }
 
 func (updater RemoteSyncerConditionUpdater) UpdateRemoteSyncerConditions(ctx context.Context, condition v1.Condition) {
-	updateRemoteSyncerStatus(ctx, updater.remoteSyncer, func(status *syngit.RemoteSyncerStatus) {
+	updateRemoteSyncerStatus(ctx, updater.syncer, func(status *syngit.RemoteSyncerStatus) {
 		status.Conditions = utils.TypeBasedConditionUpdater(status.Conditions, condition)
 	})
 }
 
-// updateRemoteSyncerStatus applies mutate to the live status of the RemoteSyncer.
+// Applies mutate to the live status of the syncer that
+// intercepted the request, whichever kind it is. Both kinds carry a
+// RemoteSyncerStatus, so only the fetch and the write differ.
 // Only the fields touched by mutate are written: the interception pipeline
 // updates the conditions and the observed states in separate calls.
 func updateRemoteSyncerStatus(
 	ctx context.Context,
-	remoteSyncer syngit.RemoteSyncer,
+	sc interceptor.SyncerContext,
 	mutate func(status *syngit.RemoteSyncerStatus),
 ) {
 	_ = log.FromContext(ctx)
 	k8sClient := utils.K8sClientFromContext(ctx)
-
-	namespacedName := types.NamespacedName{
-		Namespace: remoteSyncer.Namespace,
-		Name:      remoteSyncer.Name,
-	}
 
 	err := retry.RetryOnConflict(wait.Backoff{
 		Steps:    5,
@@ -169,9 +165,20 @@ func updateRemoteSyncerStatus(
 		Factor:   2.0,
 		Jitter:   0.1,
 	}, func() error {
+		if sc.ClusterWide {
+			var cwrs syngit.ClusterWideRemoteSyncer
+			if err := k8sClient.Get(ctx, sc.Ref, &cwrs); err != nil {
+				log.Log.Error(err, "can't get the cluster wide remote syncer "+sc.String())
+				return err
+			}
+
+			mutate(&cwrs.Status)
+			return k8sClient.Status().Update(ctx, &cwrs)
+		}
+
 		var rsy syngit.RemoteSyncer
-		if err := k8sClient.Get(ctx, namespacedName, &rsy); err != nil {
-			log.Log.Error(err, "can't get the remote syncer "+remoteSyncer.Namespace+"/"+remoteSyncer.Name)
+		if err := k8sClient.Get(ctx, sc.Ref, &rsy); err != nil {
+			log.Log.Error(err, "can't get the remote syncer "+sc.String())
 			return err
 		}
 
@@ -179,6 +186,6 @@ func updateRemoteSyncerStatus(
 		return k8sClient.Status().Update(ctx, &rsy)
 	})
 	if err != nil {
-		log.Log.Error(err, "can't update the conditions of the remote syncer "+remoteSyncer.Namespace+"/"+remoteSyncer.Name)
+		log.Log.Error(err, "can't update the conditions of the remote syncer "+sc.String())
 	}
 }

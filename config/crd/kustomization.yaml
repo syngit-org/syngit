@@ -6,6 +6,7 @@ resources:
 - bases/syngit.io_remoteuserbindings.yaml
 - bases/syngit.io_remotesyncers.yaml
 - bases/syngit.io_remotetargets.yaml
+- bases/syngit.io_clusterwideremotesyncers.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patches:
@@ -15,6 +16,7 @@ patches:
 - path: patches/webhook_in_remoteuserbindings.yaml
 - path: patches/webhook_in_remoteusers.yaml
 - path: patches/webhook_in_remotetargets.yaml
+- path: patches/webhook_in_clusterwideremotesyncers.yaml
 #+kubebuilder:scaffold:crdkustomizewebhookpatch
 
 # [CERTMANAGER] To enable cert-manager, uncomment all the sections with [CERTMANAGER] prefix.
@@ -23,6 +25,7 @@ patches:
 #- path: patches/cainjection_in_remotesyncers.yaml
 #- path: patches/cainjection_in_remoteuserbindings.yaml
 #- path: patches/cainjection_in_remotetargets.yaml
+#- path: patches/cainjection_in_clusterwideremotesyncers.yaml
 #+kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # [WEBHOOK] To enable webhook, uncomment the following section

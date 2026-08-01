@@ -130,6 +130,9 @@ var _ = BeforeSuite(func() {
 	err = SetupRemoteTargetWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = SetupClusterWideRemoteSyncerWebhookWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
 	// +kubebuilder:scaffold:webhook
 
 	go func() {

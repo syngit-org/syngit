@@ -59,11 +59,15 @@ func Commit(params interceptor.GitPipelineParams, worktree *git.Worktree, paths 
 }
 
 func buildCommitMessage(params interceptor.GitPipelineParams, paths interceptor.ClaimedPaths) string {
+	namespacePath := params.Syncer.InterceptedNamespace
+	if namespacePath == "" {
+		namespacePath = interceptor.ClusterScopedPathSegment
+	}
 	resourceMessage := fmt.Sprintf("%s.%s/%s: %s/%s",
 		params.InterceptedGVR.Resource,
 		params.InterceptedGVR.Group,
 		params.InterceptedGVR.Version,
-		params.RemoteSyncer.Namespace,
+		namespacePath,
 		params.InterceptedName,
 	)
 

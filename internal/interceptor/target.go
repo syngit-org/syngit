@@ -28,14 +28,14 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 	ctx context.Context,
 	user authenticationv1.UserInfo,
 	remoteSyncerRemoteRepoUrl *url.URL,
-	remoteSyncer syngit.RemoteSyncer,
+	sc interceptor.SyncerContext,
 ) (map[interceptor.GitUserInfo][]syngit.RemoteTarget, error) {
 	// Set empty map of GitUserInfo/RemoteTargets
 	userTargetsMap := map[interceptor.GitUserInfo][]syngit.RemoteTarget{}
 
 	remoteUserBinding, err := GetRemoteUserBindingByUsername(
 		ctx,
-		remoteSyncer,
+		sc,
 		user.Username,
 		remoteSyncerRemoteRepoUrl.Host,
 	)
@@ -57,8 +57,8 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 
 		// Search for RemoteTargets
 		var labelSelector labels.Selector
-		if remoteSyncer.Spec.RemoteTargetSelector != nil {
-			selector, err := v1.LabelSelectorAsSelector(remoteSyncer.Spec.RemoteTargetSelector)
+		if sc.Spec.RemoteTargetSelector != nil {
+			selector, err := v1.LabelSelectorAsSelector(sc.Spec.RemoteTargetSelector)
 			if err != nil {
 				return userTargetsMap, syngiterrors.NewWrongLabelParsing(fmt.Sprintf("error parsing the LabelSelector for the remoteTargetSelector: %v", err))
 			}
@@ -91,7 +91,7 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 			if err != nil {
 				return userTargetsMap, err
 			}
-			if remoteTarget.Spec.UpstreamRepository == remoteSyncer.Spec.RemoteRepository && remoteTarget.Spec.UpstreamBranch == remoteSyncer.Spec.DefaultBranch {
+			if remoteTarget.Spec.UpstreamRepository == sc.Spec.RemoteRepository && remoteTarget.Spec.UpstreamBranch == sc.Spec.DefaultBranch {
 				for _, remoteUser := range remoteUsers {
 					if rtUrl.Host == remoteUser.Spec.GitBaseDomainFQDN {
 						gitUserInfo, err := GetGitUserInfoByRemoteUser(ctx, *remoteUser)
@@ -108,7 +108,7 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		for _, targets := range userTargetsMap {
 			totalTargets += len(targets)
 		}
-		if remoteSyncer.Spec.TargetStrategy == syngit.OneTarget && totalTargets > 1 {
+		if sc.Spec.TargetStrategy == syngit.OneTarget && totalTargets > 1 {
 			return userTargetsMap, syngiterrors.NewTooMuchRemoteTarget("multiple RemoteTargets found for OneTarget set as the TargetStrategy in the RemoteSyncer", totalTargets)
 		}
 
@@ -121,14 +121,14 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		// Fallback to default user.
 		// Check if there is a default user that we can use
 
-		if remoteSyncer.Spec.DefaultUnauthorizedUserMode != syngit.UseDefaultUser || remoteSyncer.Spec.DefaultRemoteUserRef == nil || remoteSyncer.Spec.DefaultRemoteUserRef.Name == "" {
+		if sc.Spec.DefaultUnauthorizedUserMode != syngit.UseDefaultUser || sc.Spec.DefaultRemoteUserRef == nil || sc.Spec.DefaultRemoteUserRef.Name == "" {
 			return userTargetsMap, syngiterrors.NewRemoteUserBindingNotFound(user.Username)
 		}
 
 		// Search for the default RemoteUser object
 		userNamespace, err := utils.ResolveNamespace(
-			remoteSyncer.Spec.DefaultRemoteUserRef.Namespace,
-			remoteSyncer.Namespace,
+			sc.Spec.DefaultRemoteUserRef.Namespace,
+			sc.RefOwnerNamespace,
 			field.NewPath("spec", "defaultRemoteUserRef"),
 		)
 		if err != nil {
@@ -136,7 +136,7 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		}
 		userNamespacedName := &types.NamespacedName{
 			Namespace: userNamespace,
-			Name:      remoteSyncer.Spec.DefaultRemoteUserRef.Name,
+			Name:      sc.Spec.DefaultRemoteUserRef.Name,
 		}
 		remoteUser := &syngit.RemoteUser{}
 		if err := k8sClient.Get(ctx, *userNamespacedName, remoteUser); err != nil {
@@ -144,7 +144,7 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		}
 
 		if remoteUser.Spec.GitBaseDomainFQDN != remoteSyncerRemoteRepoUrl.Host {
-			return userTargetsMap, syngiterrors.NewWrongRemoteTargetConfig(remoteSyncer, *remoteUser)
+			return userTargetsMap, syngiterrors.NewWrongRemoteTargetConfig(sc.String(), *remoteUser)
 		}
 		gitUserInfo, err := GetGitUserInfoByRemoteUser(ctx, *remoteUser)
 		if err != nil {
@@ -152,12 +152,12 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		}
 
 		// Search for the default RemoteTarget
-		if remoteSyncer.Spec.DefaultRemoteTargetRef == nil || remoteSyncer.Spec.DefaultRemoteTargetRef.Name == "" {
+		if sc.Spec.DefaultRemoteTargetRef == nil || sc.Spec.DefaultRemoteTargetRef.Name == "" {
 			return userTargetsMap, syngiterrors.NewRemoteTargetNotFound("no default remote target is set")
 		}
 		targetNamespace, err := utils.ResolveNamespace(
-			remoteSyncer.Spec.DefaultRemoteTargetRef.Namespace,
-			remoteSyncer.Namespace,
+			sc.Spec.DefaultRemoteTargetRef.Namespace,
+			sc.RefOwnerNamespace,
 			field.NewPath("spec", "defaultRemoteTargetRef"),
 		)
 		if err != nil {
@@ -165,15 +165,15 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		}
 		targetNamespacedName := &types.NamespacedName{
 			Namespace: targetNamespace,
-			Name:      remoteSyncer.Spec.DefaultRemoteTargetRef.Name,
+			Name:      sc.Spec.DefaultRemoteTargetRef.Name,
 		}
 		remoteTarget := &syngit.RemoteTarget{}
 		err = k8sClient.Get(ctx, *targetNamespacedName, remoteTarget)
 		if err != nil {
-			return userTargetsMap, syngiterrors.NewRemoteTargetNotFound("default remote target does not exist: " + remoteSyncer.Spec.DefaultRemoteTargetRef.Name)
+			return userTargetsMap, syngiterrors.NewRemoteTargetNotFound("default remote target does not exist: " + sc.Spec.DefaultRemoteTargetRef.Name)
 		}
 
-		if remoteTarget.Spec.UpstreamRepository != remoteSyncer.Spec.RemoteRepository || remoteTarget.Spec.UpstreamBranch != remoteSyncer.Spec.DefaultBranch {
+		if remoteTarget.Spec.UpstreamRepository != sc.Spec.RemoteRepository || remoteTarget.Spec.UpstreamBranch != sc.Spec.DefaultBranch {
 			return userTargetsMap, syngiterrors.NewWrongRemoteSyncerConfig(fmt.Sprintf(
 				"the RemoteSyncer's repository or branch does not match the upstream repository or branch of the default RemoteTarget. RemoteSyncer repo: %s; RemoteSyncer branch: %s; RemoteTarget upstream repo: %s; RemoteTarget upstream branch: %s", //nolint:lll
 				remoteTarget.Spec.UpstreamRepository,
@@ -194,17 +194,17 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 // set in the RemoteSyncer.
 func GetRemoteUserBindingByUsername(
 	ctx context.Context,
-	remoteSyncer syngit.RemoteSyncer,
+	sc interceptor.SyncerContext,
 	username, fqdn string,
 ) (*syngit.RemoteUserBinding, error) {
 	k8sClient := utils.K8sClientFromContext(ctx)
 
 	var remoteUserBindings = &syngit.RemoteUserBindingList{}
 	listOps := &client.ListOptions{
-		Namespace: remoteSyncer.Namespace,
+		Namespace: sc.RUBNamespace,
 	}
-	if remoteSyncer.Spec.RemoteUserBindingSelector != nil {
-		labelSelector, labelErr := v1.LabelSelectorAsSelector(remoteSyncer.Spec.RemoteUserBindingSelector)
+	if sc.Spec.RemoteUserBindingSelector != nil {
+		labelSelector, labelErr := v1.LabelSelectorAsSelector(sc.Spec.RemoteUserBindingSelector)
 		if labelErr != nil {
 			return nil, syngiterrors.NewWrongLabelParsing(fmt.Sprintf("error parsing the LabelSelector for the remoteUserBindingSelector: %v", labelErr))
 		}
@@ -223,7 +223,7 @@ func GetRemoteUserBindingByUsername(
 		// TODO: need to be studied
 		if rubItem.Spec.Subject.Name == username {
 
-			_, err = GetGitUserInfoByRemoteUserBinding(ctx, remoteSyncer, rubItem, fqdn)
+			_, err = GetGitUserInfoByRemoteUserBinding(ctx, sc, rubItem, fqdn)
 			if err != nil {
 				return nil, err
 			}
@@ -255,7 +255,7 @@ func GetRemoteUserBindingByUsername(
 
 func GetGitUserInfoByRemoteUserBinding(
 	ctx context.Context,
-	remoteSyncer syngit.RemoteSyncer,
+	sc interceptor.SyncerContext,
 	rub syngit.RemoteUserBinding,
 	fqdn string,
 ) (*interceptor.GitUserInfo, error) {

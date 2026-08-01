@@ -9,7 +9,6 @@ import (
 	"github.com/syngit-org/syngit/internal/walker"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	"github.com/syngit-org/syngit/pkg/interceptor"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -68,7 +67,7 @@ spec:
 	}}}
 
 	params := interceptor.GitPipelineParams{
-		RemoteSyncer: syngit.RemoteSyncer{ObjectMeta: metav1.ObjectMeta{Namespace: "prod"}},
+		Syncer: interceptor.SyncerContext{InterceptedNamespace: "prod"},
 		RemoteTarget: syngit.RemoteTarget{Spec: syngit.RemoteTargetSpec{
 			TargetRepository: "https://example.com/repo.git",
 			UpstreamBranch:   "main",
@@ -109,7 +108,7 @@ func TestResourceFinderPlace_NoMatchClaimsNothing(t *testing.T) {
 		Content:   []byte("apiVersion: helm.toolkit.fluxcd.io/v2\nkind: HelmRelease\nmetadata:\n  name: demo\n  namespace: prod\n"),
 	}}}
 	params := interceptor.GitPipelineParams{
-		RemoteSyncer: syngit.RemoteSyncer{ObjectMeta: metav1.ObjectMeta{Namespace: "prod"}},
+		Syncer: interceptor.SyncerContext{InterceptedNamespace: "prod"},
 		RemoteTarget: syngit.RemoteTarget{Spec: syngit.RemoteTargetSpec{
 			TargetRepository: "https://example.com/repo.git",
 			UpstreamBranch:   "main",

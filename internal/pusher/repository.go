@@ -11,16 +11,15 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	"github.com/syngit-org/syngit/pkg/interceptor"
 )
 
 type GetRepositoryParams struct {
-	GitUserInfo  interceptor.GitUserInfo
-	RemoteSyncer syngit.RemoteSyncer
-	CABundle     []byte
-	Repository   string
-	Branch       string
+	GitUserInfo interceptor.GitUserInfo
+	Syncer      interceptor.SyncerContext
+	CABundle    []byte
+	Repository  string
+	Branch      string
 }
 
 func (p GetRepositoryParams) cacheKey() string {
@@ -84,7 +83,7 @@ func cloneRepository(params GetRepositoryParams) (*git.Repository, error) {
 		ReferenceName:   plumbing.ReferenceName(params.Branch),
 		Auth:            params.basicAuth(),
 		SingleBranch:    true,
-		InsecureSkipTLS: params.RemoteSyncer.Spec.InsecureSkipTlsVerify,
+		InsecureSkipTLS: params.Syncer.Spec.InsecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput),
 	}
 	if params.CABundle != nil {
@@ -125,7 +124,7 @@ func refreshRepository(repository *git.Repository, params GetRepositoryParams) e
 		RefSpecs: []config.RefSpec{
 			config.RefSpec(fmt.Sprintf("+refs/heads/%s:refs/remotes/%s/%s", branch, originRemote, branch)),
 		},
-		InsecureSkipTLS: params.RemoteSyncer.Spec.InsecureSkipTlsVerify,
+		InsecureSkipTLS: params.Syncer.Spec.InsecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput),
 		Force:           true,
 	}
@@ -199,20 +198,20 @@ func pruneStaleState(repository *git.Repository, keepBranch plumbing.ReferenceNa
 
 func GetUpstreamRepository(params interceptor.GitPipelineParams) (*git.Repository, func(), error) {
 	return getRepository(GetRepositoryParams{
-		RemoteSyncer: params.RemoteSyncer,
-		CABundle:     params.CABundle,
-		GitUserInfo:  params.GitUserInfo,
-		Repository:   params.RemoteTarget.Spec.UpstreamRepository,
-		Branch:       params.RemoteTarget.Spec.UpstreamBranch,
+		Syncer:      params.Syncer,
+		CABundle:    params.CABundle,
+		GitUserInfo: params.GitUserInfo,
+		Repository:  params.RemoteTarget.Spec.UpstreamRepository,
+		Branch:      params.RemoteTarget.Spec.UpstreamBranch,
 	})
 }
 
 func GetTargetRepository(params interceptor.GitPipelineParams) (*git.Repository, func(), error) {
 	return getRepository(GetRepositoryParams{
-		RemoteSyncer: params.RemoteSyncer,
-		CABundle:     params.CABundle,
-		GitUserInfo:  params.GitUserInfo,
-		Repository:   params.RemoteTarget.Spec.TargetRepository,
-		Branch:       params.RemoteTarget.Spec.UpstreamBranch,
+		Syncer:      params.Syncer,
+		CABundle:    params.CABundle,
+		GitUserInfo: params.GitUserInfo,
+		Repository:  params.RemoteTarget.Spec.TargetRepository,
+		Branch:      params.RemoteTarget.Spec.UpstreamBranch,
 	})
 }

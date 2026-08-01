@@ -38,6 +38,47 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-syngit-io-v1beta5-clusterwideremotesyncer
+  failurePolicy: Fail
+  name: vclusterwideremotesyncer-v1beta5.kb.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta5
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - clusterwideremotesyncers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /syngit-v1beta5-clusterwideremotesyncer-rules-permissions
+  failurePolicy: Fail
+  name: vclusterwideremotesyncers-rules-permissions.v1beta5.syngit.io
+  rules:
+  - apiGroups:
+    - syngit.io
+    apiVersions:
+    - v1beta5
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - clusterwideremotesyncers
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-syngit-io-v1beta5-remotesyncer
   failurePolicy: Fail
   name: vremotesyncer-v1beta5.kb.io

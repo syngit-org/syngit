@@ -113,6 +113,32 @@ rules:
 - apiGroups:
   - syngit.io
   resources:
+  - clusterwideremotesyncers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - syngit.io
+  resources:
+  - clusterwideremotesyncers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - syngit.io
+  resources:
+  - clusterwideremotesyncers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - syngit.io
+  resources:
   - remotetargets
   verbs:
   - create

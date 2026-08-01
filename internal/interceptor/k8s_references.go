@@ -13,8 +13,7 @@ import (
 
 // resolveRefs fetches every object a list of references points at, resolving
 // each namespace against ownerNamespace. References that do not resolve to an
-// existing object are skipped: a dangling reference simply contributes nothing,
-// which is how a name that matched nothing behaved before.
+// existing object are skipped: a dangling reference simply contributes nothing.
 func resolveRefs[T any, PT interface {
 	*T
 	client.Object

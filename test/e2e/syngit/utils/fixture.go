@@ -320,6 +320,48 @@ func (f *Fixture) WaitForDynamicWebhookToBeRemoved(rsName string) {
 		"dynamic webhook %q was never removed on %q", expectedName, DynamicWebhookName)
 }
 
+// WaitForClusterWideDynamicWebhook blocks until the controller has registered
+// the entry for a ClusterWideRemoteSyncer on the shared
+// ValidatingWebhookConfiguration. Its entry is named after the syncer alone,
+// since a cluster-scoped object has no namespace.
+func (f *Fixture) WaitForClusterWideDynamicWebhook(name string) {
+	GinkgoHelper()
+	expectedName := name + ".clusterwide.syngit.io"
+	Eventually(func() bool {
+		vwc := &admissionregistrationv1.ValidatingWebhookConfiguration{}
+		err := f.Users.CtrlAs(Admin).Get(f.Ctx,
+			types.NamespacedName{Name: DynamicWebhookName}, vwc)
+		if err != nil {
+			return false
+		}
+		for _, w := range vwc.Webhooks {
+			if w.Name == expectedName {
+				return true
+			}
+		}
+		return false
+	}).WithTimeout(DefaultTimeout).WithPolling(DefaultInterval).Should(BeTrue(),
+		"dynamic webhook %q was never registered on %q", expectedName, DynamicWebhookName)
+	time.Sleep(admissionChainSettleDelay)
+}
+
+// NewLabeledNamespace creates a namespace carrying labels and registers its
+// deletion. Used to build the set a ClusterWideRemoteSyncer's namespaceSelector
+// matches.
+func (f *Fixture) NewLabeledNamespace(suffix string, labels map[string]string) string {
+	GinkgoHelper()
+	name := f.Namespace + "-" + suffix
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels}}
+	Expect(f.Users.CtrlAs(Admin).Create(f.Ctx, ns)).To(Succeed())
+	DeferCleanup(func() {
+		zero := int64(0)
+		_ = f.Users.CtrlAs(Admin).Delete(context.Background(), ns, &client.DeleteOptions{
+			GracePeriodSeconds: &zero,
+		})
+	})
+	return name
+}
+
 // --- Object factories ------------------------------------------------------
 
 // NewRemoteUser builds a RemoteUser object pointing at the primary git

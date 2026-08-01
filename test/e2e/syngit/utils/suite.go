@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	controllerssyngit "github.com/syngit-org/syngit/internal/controller"
+	interceptor "github.com/syngit-org/syngit/internal/interceptor"
 	webhooksyngitv1beta5 "github.com/syngit-org/syngit/internal/webhook/v1beta5"
 	syngitv1beta4 "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
@@ -206,6 +207,7 @@ func (s *Suite) startManager() {
 	Expect(webhooksyngitv1beta5.SetupRemoteSyncerWebhookWithManager(s.Manager)).To(Succeed())
 	Expect(webhooksyngitv1beta5.SetupRemoteUserBindingWebhookWithManager(s.Manager)).To(Succeed())
 	Expect(webhooksyngitv1beta5.SetupRemoteTargetWebhookWithManager(s.Manager)).To(Succeed())
+	Expect(webhooksyngitv1beta5.SetupClusterWideRemoteSyncerWebhookWithManager(s.Manager)).To(Succeed())
 
 	ws := s.Manager.GetWebhookServer()
 	dec := admission.NewDecoder(s.Manager.GetScheme())
@@ -225,6 +227,10 @@ func (s *Suite) startManager() {
 		&webhook.Admission{Handler: &webhooksyngitv1beta5.RemoteSyncerWebhookHandler{
 			Client: s.Manager.GetClient(), Decoder: dec,
 		}})
+	ws.Register("/syngit-v1beta5-clusterwideremotesyncer-rules-permissions",
+		&webhook.Admission{Handler: &webhooksyngitv1beta5.ClusterWideRemoteSyncerWebhookHandler{
+			Client: s.Manager.GetClient(), Decoder: dec,
+		}})
 
 	By("registering controllers")
 	Expect((&controllerssyngit.RemoteUserReconciler{
@@ -233,8 +239,15 @@ func (s *Suite) startManager() {
 	Expect((&controllerssyngit.RemoteUserBindingReconciler{
 		Client: s.Manager.GetClient(), Scheme: s.Manager.GetScheme(),
 	}).SetupWithManager(s.Manager)).To(Succeed())
+	// One interception server shared by both syncer controllers, as in main.go.
+	interceptionServer := interceptor.NewWebhookInterceptsAll(s.Manager).Start()
 	Expect((&controllerssyngit.RemoteSyncerReconciler{
 		Client: s.Manager.GetClient(), Scheme: s.Manager.GetScheme(),
+		WebhookServer: interceptionServer,
+	}).SetupWithManager(s.Manager)).To(Succeed())
+	Expect((&controllerssyngit.ClusterWideRemoteSyncerReconciler{
+		Client: s.Manager.GetClient(), Scheme: s.Manager.GetScheme(),
+		WebhookServer: interceptionServer,
 	}).SetupWithManager(s.Manager)).To(Succeed())
 	Expect((&controllerssyngit.RemoteTargetReconciler{
 		Client: s.Manager.GetClient(), Scheme: s.Manager.GetScheme(),
@@ -298,9 +311,12 @@ func (s *Suite) createClusterRBAC(ctx context.Context) error {
 				Resources: []string{"secrets", "remoteusers", "remoteuserbindings"},
 			},
 			{
+				// Cluster-wide syncers are granted here too, so that a denial in
+				// the specs comes from syngit's admission rather than from
+				// Kubernetes RBAC refusing the request outright.
 				Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
 				APIGroups: []string{"syngit.io"},
-				Resources: []string{"remotesyncers"},
+				Resources: []string{"remotesyncers", "clusterwideremotesyncers"},
 			},
 			{
 				Verbs:         []string{"get", "list", "watch", "update", "delete"},

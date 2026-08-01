@@ -32,20 +32,20 @@ func (p *BranchTargetPolicy) Name() string { return "branchtarget-policy" }
 
 func (p *BranchTargetPolicy) Finalizer() string { return branchTargetPolicyFinalizer }
 
-func (p *BranchTargetPolicy) Applies(remoteSyncer *syngit.RemoteSyncer) bool {
-	return len(utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationKeyOneOrManyBranches])) > 0
+func (p *BranchTargetPolicy) Applies(syncer syngit.Syncer) bool {
+	return len(utils.GetBranchesFromAnnotation(syncer.GetAnnotations()[syngit.RtAnnotationKeyOneOrManyBranches])) > 0
 }
 
-func (p *BranchTargetPolicy) Reconcile(ctx context.Context, remoteSyncer *syngit.RemoteSyncer) (ctrl.Result, error) {
+func (p *BranchTargetPolicy) Reconcile(ctx context.Context, syncer syngit.Syncer) (ctrl.Result, error) {
 	rdm := time.Duration(rand.Intn(5)) * time.Second
 
-	desiredBranches := utils.GetBranchesFromAnnotation(remoteSyncer.Annotations[syngit.RtAnnotationKeyOneOrManyBranches])
+	desiredBranches := utils.GetBranchesFromAnnotation(syncer.GetAnnotations()[syngit.RtAnnotationKeyOneOrManyBranches])
 
-	upstreamRepo := remoteSyncer.Spec.RemoteRepository
-	upstreamBranch := remoteSyncer.Spec.DefaultBranch
+	upstreamRepo := syncer.SyncerSpec().RemoteRepository
+	upstreamBranch := syncer.SyncerSpec().DefaultBranch
 
 	// List existing managed RemoteTargets with one-or-many-branches label
-	existingRTs, err := p.listManagedBranchTargets(ctx, remoteSyncer.Namespace)
+	existingRTs, err := p.listManagedBranchTargets(ctx, syncer.IdentityNamespace())
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -64,7 +64,7 @@ func (p *BranchTargetPolicy) Reconcile(ctx context.Context, remoteSyncer *syngit
 		if _, exists := existingBranches[branch]; exists {
 			continue
 		}
-		rt, nameErr := p.buildRemoteTarget(remoteSyncer.Namespace, upstreamRepo, upstreamBranch, branch)
+		rt, nameErr := p.buildRemoteTarget(syncer.IdentityNamespace(), upstreamRepo, upstreamBranch, branch)
 		if nameErr != nil {
 			return ctrl.Result{}, nameErr
 		}
@@ -76,7 +76,7 @@ func (p *BranchTargetPolicy) Reconcile(ctx context.Context, remoteSyncer *syngit
 	}
 
 	// Delete orphaned RemoteTargets (only if no other RemoteSyncer depends on them)
-	otherSyncers, err := p.getOtherSyncersWithBranchPolicy(ctx, remoteSyncer.Namespace, remoteSyncer.Name)
+	otherSyncers, err := p.getOtherSyncersWithBranchPolicy(ctx, syncer)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -97,8 +97,8 @@ func (p *BranchTargetPolicy) Reconcile(ctx context.Context, remoteSyncer *syngit
 	return ctrl.Result{}, nil
 }
 
-func (p *BranchTargetPolicy) Cleanup(ctx context.Context, remoteSyncer *syngit.RemoteSyncer) error {
-	return p.cleanupBranchTargets(ctx, remoteSyncer)
+func (p *BranchTargetPolicy) Cleanup(ctx context.Context, syncer syngit.Syncer) error {
+	return p.cleanupBranchTargets(ctx, syncer)
 }
 
 // buildRemoteTarget constructs a RemoteTarget for a branch.
@@ -160,27 +160,18 @@ func filterByUpstream(rts []syngit.RemoteTarget, upstreamRepo, upstreamBranch st
 	return filtered
 }
 
-// getOtherSyncersWithBranchPolicy returns other RemoteSyncers in the namespace that have the OMB annotation.
-func (p *BranchTargetPolicy) getOtherSyncersWithBranchPolicy(ctx context.Context, namespace, excludeName string) ([]syngit.RemoteSyncer, error) {
-	rsList := &syngit.RemoteSyncerList{}
-	if err := p.List(ctx, rsList, &client.ListOptions{Namespace: namespace}); err != nil {
-		return nil, err
-	}
-
-	var others []syngit.RemoteSyncer
-	for _, rs := range rsList.Items {
-		if rs.Name != excludeName && rs.Annotations[syngit.RtAnnotationKeyOneOrManyBranches] != "" {
-			others = append(others, rs)
-		}
-	}
-	return others, nil
+// getOtherSyncersWithBranchPolicy returns the other syncers, of either kind,
+// sharing this one's identity namespace and carrying the OMB annotation.
+func (p *BranchTargetPolicy) getOtherSyncersWithBranchPolicy(ctx context.Context, syncer syngit.Syncer) ([]syngit.Syncer, error) {
+	return getOtherSyncersWith(ctx, p.Client, syncer, syngit.RtAnnotationKeyOneOrManyBranches)
 }
 
-// isBranchUsedByOtherSyncer checks if another RemoteSyncer references the same upstream+branch combination.
-func (p *BranchTargetPolicy) isBranchUsedByOtherSyncer(branch, upstreamRepo, upstreamBranch string, otherSyncers []syngit.RemoteSyncer) bool {
+// isBranchUsedByOtherSyncer checks if another syncer references the same upstream+branch combination.
+func (p *BranchTargetPolicy) isBranchUsedByOtherSyncer(branch, upstreamRepo, upstreamBranch string, otherSyncers []syngit.Syncer) bool {
 	for _, rs := range otherSyncers {
-		if rs.Spec.RemoteRepository == upstreamRepo && rs.Spec.DefaultBranch == upstreamBranch {
-			branches := utils.GetBranchesFromAnnotation(rs.Annotations[syngit.RtAnnotationKeyOneOrManyBranches])
+		spec := rs.SyncerSpec()
+		if spec.RemoteRepository == upstreamRepo && spec.DefaultBranch == upstreamBranch {
+			branches := utils.GetBranchesFromAnnotation(rs.GetAnnotations()[syngit.RtAnnotationKeyOneOrManyBranches])
 			if slices.Contains(branches, branch) {
 				return true
 			}
@@ -190,18 +181,18 @@ func (p *BranchTargetPolicy) isBranchUsedByOtherSyncer(branch, upstreamRepo, ups
 }
 
 // cleanupBranchTargets removes all managed branch RemoteTargets for this syncer (with cross-dependency check).
-func (p *BranchTargetPolicy) cleanupBranchTargets(ctx context.Context, remoteSyncer *syngit.RemoteSyncer) error {
-	upstreamRepo := remoteSyncer.Spec.RemoteRepository
-	upstreamBranch := remoteSyncer.Spec.DefaultBranch
+func (p *BranchTargetPolicy) cleanupBranchTargets(ctx context.Context, syncer syngit.Syncer) error {
+	upstreamRepo := syncer.SyncerSpec().RemoteRepository
+	upstreamBranch := syncer.SyncerSpec().DefaultBranch
 
-	existingRTs, err := p.listManagedBranchTargets(ctx, remoteSyncer.Namespace)
+	existingRTs, err := p.listManagedBranchTargets(ctx, syncer.IdentityNamespace())
 	if err != nil {
 		return err
 	}
 
 	matchingRTs := filterByUpstream(existingRTs, upstreamRepo, upstreamBranch)
 
-	otherSyncers, err := p.getOtherSyncersWithBranchPolicy(ctx, remoteSyncer.Namespace, remoteSyncer.Name)
+	otherSyncers, err := p.getOtherSyncersWithBranchPolicy(ctx, syncer)
 	if err != nil {
 		return err
 	}

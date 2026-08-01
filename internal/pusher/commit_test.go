@@ -62,7 +62,7 @@ func TestBuildCommitMessage(t *testing.T) {
 		},
 		InterceptedName: "demo",
 	}
-	params.RemoteSyncer.Namespace = "default"
+	params.Syncer.InterceptedNamespace = "default"
 
 	tests := []struct {
 		name  string

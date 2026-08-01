@@ -9,10 +9,10 @@ import (
 )
 
 func TestIsWebhookAllowed(t *testing.T) {
-	makeRS := func(strategy syngit.Strategy) syngit.RemoteSyncer {
+	makeRS := func(strategy syngit.Strategy) interceptor.SyncerContext {
 		rs := syngit.RemoteSyncer{}
 		rs.Spec.Strategy = strategy
-		return rs
+		return interceptor.NewRemoteSyncerContext(rs, "")
 	}
 
 	tests := []struct {

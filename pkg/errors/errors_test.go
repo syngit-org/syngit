@@ -86,15 +86,13 @@ func TestNewRemoteUserBindingNotFound(t *testing.T) {
 }
 
 func TestNewWrongRemoteTargetConfig(t *testing.T) {
-	rs := syngit.RemoteSyncer{}
-	rs.Name = "my-syncer" // nolint:goconst
 	ru := syngit.RemoteUser{}
 	ru.Name = "my-user"
 
-	e := NewWrongRemoteTargetConfig(rs, ru)
+	e := NewWrongRemoteTargetConfig("my-syncer", ru) // nolint:goconst
 
-	if e.RemoteSyncer.Name != "my-syncer" || e.RemoteUser.Name != "my-user" { // nolint:goconst
-		t.Errorf("field mapping failed: syncer=%q user=%q", e.RemoteSyncer.Name, e.RemoteUser.Name)
+	if e.SyncerName != "my-syncer" || e.RemoteUser.Name != "my-user" { // nolint:goconst
+		t.Errorf("field mapping failed: syncer=%q user=%q", e.SyncerName, e.RemoteUser.Name)
 	}
 	assertErrorContract(t, e, "wrong remote target config", ErrWrongRemoteTargetConfig)
 	if !strings.Contains(e.Error(), "my-syncer") || !strings.Contains(e.Error(), "my-user") { // nolint:goconst

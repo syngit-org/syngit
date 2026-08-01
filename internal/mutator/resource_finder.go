@@ -23,7 +23,7 @@ func (rf ResourceFinder) place(params interceptor.GitPipelineParams, artifacts A
 		// Otherwise fall back to the intercepted object's identity.
 		name, namespace := a.Name, a.Namespace
 		if name == "" {
-			name, namespace = params.InterceptedName, params.RemoteSyncer.Namespace
+			name, namespace = params.InterceptedName, params.Syncer.InterceptedNamespace
 		}
 		sel := walker.ObjectSelector{
 			GVR:           a.GVR,

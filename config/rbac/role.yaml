@@ -7,6 +7,7 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - namespaces
   - secrets
   verbs:
   - get
@@ -59,6 +60,7 @@ rules:
 - apiGroups:
   - syngit.io
   resources:
+  - clusterwideremotesyncers
   - remotesyncers
   - remotetargets
   - remoteuserbindings
@@ -74,6 +76,7 @@ rules:
 - apiGroups:
   - syngit.io
   resources:
+  - clusterwideremotesyncers/finalizers
   - remotesyncers/finalizers
   - remotetargets/finalizers
   - remoteuserbindings/finalizers
@@ -83,6 +86,7 @@ rules:
 - apiGroups:
   - syngit.io
   resources:
+  - clusterwideremotesyncers/status
   - remotesyncers/status
   - remotetargets/status
   - remoteuserbindings/status

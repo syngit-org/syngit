@@ -44,7 +44,7 @@ type FluxHelmReleaseProvider struct{}
 
 // Handles matches Helm release Secrets, mirroring HelmValuesMutation.Handles.
 func (FluxHelmReleaseProvider) Handles(params interceptor.GitPipelineParams) bool {
-	if params.RemoteSyncer.Annotations[fluxprovider.HelmReleaseAnnotation] != "enabled" ||
+	if params.Syncer.Annotations[fluxprovider.HelmReleaseAnnotation] != "enabled" ||
 		params.InterceptedGVR.Group != "" ||
 		params.InterceptedGVR.Version != "v1" ||
 		params.InterceptedGVR.Resource != "secrets" {
@@ -69,7 +69,7 @@ func (p FluxHelmReleaseProvider) Render(rc RenderContext, out *ArtifactSet) erro
 		out.Add(Artifact{
 			GVR:       helmReleaseGVR,
 			Name:      helmprovider.GetReleaseNameFromSecretName(params.InterceptedName),
-			Namespace: params.RemoteSyncer.Namespace,
+			Namespace: params.Syncer.InterceptedNamespace,
 			Content:   []byte(""),
 		})
 		return nil
@@ -119,7 +119,8 @@ func (p FluxHelmReleaseProvider) Render(rc RenderContext, out *ArtifactSet) erro
 	if err != nil {
 		return fmt.Errorf("failed to marshal the generated HelmRelease: %w", err)
 	}
-	cleaned, err := utils.ConvertObjectJSONToYAMLString(rc.Ctx, raw, os.Getenv("MANAGER_NAMESPACE"), rc.Params.RemoteSyncer)
+	cleaned, err := utils.ConvertObjectJSONToYAMLString(rc.Ctx, raw, os.Getenv("MANAGER_NAMESPACE"),
+		rc.Params.Syncer.Spec, rc.Params.Syncer.RefOwnerNamespace)
 	if err != nil {
 		return fmt.Errorf("failed to apply the excluded fields to the HelmRelease: %w", err)
 	}

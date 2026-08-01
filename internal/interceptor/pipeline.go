@@ -17,56 +17,56 @@ import (
 func RunInterceptionPipeline(
 	ctx context.Context,
 	admReq *admissionv1.AdmissionRequest,
-	remoteSyncer syngit.RemoteSyncer,
+	sc interceptor.SyncerContext,
 	managerNamespace string,
 ) admissionv1.AdmissionReview {
 	userInfo := admReq.UserInfo
 
-	upstreamRemoteSyncerRepoURL, err := url.Parse(remoteSyncer.Spec.RemoteRepository)
+	upstreamRemoteSyncerRepoURL, err := url.Parse(sc.Spec.RemoteRepository)
 	if err != nil {
 		return AdmissionReviewBuilder(
 			ctx, se.BuildInterceptorPipelineErr("cannot parse the RemoteSyncer's upstream URL"),
-			admReq, false, true, remoteSyncer,
+			admReq, false, true, sc,
 		)
 	}
 
 	// Check if ServiceAccounts are bypassable
-	if remoteSyncer.Spec.BypassAllServiceAccounts && IsServiceAccount(userInfo) {
+	if sc.Spec.BypassAllServiceAccounts && IsServiceAccount(userInfo) {
 		return AdmissionReviewBuilder(
 			ctx, se.BuildInterceptorPipelineErr("service account bypasses the interception"),
-			admReq, true, false, remoteSyncer,
+			admReq, true, false, sc,
 		)
 	}
 
 	// Check if is bypass user (SA of argo, flux, etc..)
-	isBypassUser, err := IsBypassSubject(userInfo, remoteSyncer)
+	isBypassUser, err := IsBypassSubject(userInfo, sc)
 	if err != nil {
-		return AdmissionReviewBuilder(ctx, err.Error(), admReq, false, true, remoteSyncer)
+		return AdmissionReviewBuilder(ctx, err.Error(), admReq, false, true, sc)
 	}
 	if isBypassUser {
 		return AdmissionReviewBuilder(
 			ctx, se.BuildInterceptorPipelineErr("subject bypasses the interception"),
-			admReq, true, false, remoteSyncer,
+			admReq, true, false, sc,
 		)
 	}
 
 	// The author of the intercepted change must be allowed to get every object that
 	// the RemoteSyncer references outside of its own namespace. References into the
 	// manager namespace are exempt.
-	refs, err := utils.RemoteSyncerRefs(remoteSyncer.Spec, remoteSyncer.Namespace)
+	refs, err := utils.RemoteSyncerRefs(sc.Spec, sc.RefOwnerNamespace)
 	if err != nil {
-		return AdmissionReviewBuilder(ctx, err.Error(), admReq, false, true, remoteSyncer)
+		return AdmissionReviewBuilder(ctx, err.Error(), admReq, false, true, sc)
 	}
 	denied, err := utils.AuthorizeCrossNamespaceRefs(
-		ctx, utils.K8sClientFromContext(ctx), userInfo, refs, remoteSyncer.Namespace, managerNamespace,
+		ctx, utils.K8sClientFromContext(ctx), userInfo, refs, sc.RefOwnerNamespace, managerNamespace,
 	)
 	if err != nil {
-		return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, remoteSyncer)
+		return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, sc)
 	}
 	if denied != nil {
 		return AdmissionReviewBuilder(ctx, se.NewCrossNamespaceRefDenied(
 			userInfo, denied.FieldPath.String(), denied.Resource, denied.Namespace, denied.Name,
-		).Error(), admReq, false, true, remoteSyncer)
+		).Error(), admReq, false, true, sc)
 	}
 
 	// Get the intercepted object metadata
@@ -77,10 +77,10 @@ func RunInterceptionPipeline(
 		ctx,
 		userInfo,
 		upstreamRemoteSyncerRepoURL,
-		remoteSyncer,
+		sc,
 	)
 	if err != nil {
-		return AdmissionReviewBuilder(ctx, err.Error(), admReq, false, true, remoteSyncer)
+		return AdmissionReviewBuilder(ctx, err.Error(), admReq, false, true, sc)
 	}
 
 	operation := admReq.Operation
@@ -92,10 +92,11 @@ func RunInterceptionPipeline(
 			ctx,
 			admReq.Object.Raw,
 			managerNamespace,
-			remoteSyncer,
+			sc.Spec,
+			sc.RefOwnerNamespace,
 		)
 		if err != nil {
-			return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, remoteSyncer)
+			return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, sc)
 		}
 	}
 
@@ -103,26 +104,26 @@ func RunInterceptionPipeline(
 	if len(admReq.Object.Raw) != 0 {
 		manifestMap, err := utils.ConvertObjectJSONToYAMLMap(admReq.Object.Raw)
 		if err != nil {
-			return AdmissionReviewBuilder(ctx, err.Error(), admReq, false, true, remoteSyncer)
+			return AdmissionReviewBuilder(ctx, err.Error(), admReq, false, true, sc)
 		}
 		if utils.ContainsDeletionTimestamp(manifestMap) {
 			return AdmissionReviewBuilder(
 				ctx, se.BuildInterceptorPipelineErr("object is being deleted and the interception already happened"),
-				admReq, true, false, remoteSyncer,
+				admReq, true, false, sc,
 			)
 		}
 	}
 
 	// TLS constructor
-	caBundle, err := CABundleBuilder(ctx, remoteSyncer, upstreamRemoteSyncerRepoURL)
+	caBundle, err := CABundleBuilder(ctx, sc, upstreamRemoteSyncerRepoURL)
 	if err != nil {
-		return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, remoteSyncer)
+		return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, sc)
 	}
 
 	// Git push
 	responses, err := RunGitPushPipeline(ctx, GitPushParameters{
 		UserInfoRemoteTargets: userRemoteTargets,
-		RemoteSyncer:          remoteSyncer,
+		Syncer:                sc,
 		YAMLManifest:          manifest,
 		ObjectMetadata:        objectMetadata,
 		Operation:             operation,
@@ -130,27 +131,27 @@ func RunInterceptionPipeline(
 		Cluster:               utils.K8sClientFromContext(ctx),
 	})
 	if err != nil {
-		if remoteSyncer.Spec.Strategy == syngit.CommitApply &&
-			remoteSyncer.Spec.DefaultPushErrorBehavior == syngit.Pass {
-			return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, true, true, remoteSyncer)
+		if sc.Spec.Strategy == syngit.CommitApply &&
+			sc.Spec.DefaultPushErrorBehavior == syngit.Pass {
+			return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, true, true, sc)
 		}
-		return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, remoteSyncer)
+		return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, sc)
 	}
 
-	statusUpdater := NewRemoteSyncerStatusUpdater(admReq, remoteSyncer)
+	statusUpdater := NewRemoteSyncerStatusUpdater(admReq, sc)
 	statusUpdater.UpdateRemoteSyncerState(
 		ctx, responses, syngit.LastPushedObjectStateKey, "",
 	)
 
 	// Check if the webhook is allowed
-	if !IsWebhookAllowed(remoteSyncer, false) {
+	if !IsWebhookAllowed(sc, false) {
 		return AdmissionReviewBuilder(
 			ctx, se.BuildInterceptorPipelineErr("the remote syncer is in CommitOnly mode"),
-			admReq, false, false, remoteSyncer,
+			admReq, false, false, sc,
 		)
 	}
 
-	return AdmissionReviewBuilder(ctx, BuildWebhookSuccessMessage(responses), admReq, true, false, remoteSyncer)
+	return AdmissionReviewBuilder(ctx, BuildWebhookSuccessMessage(responses), admReq, true, false, sc)
 }
 
 type GitPushParameters struct {
@@ -160,8 +161,8 @@ type GitPushParameters struct {
 	// has applied or delete the intercepted object.
 	UserInfoRemoteTargets map[interceptor.GitUserInfo][]syngit.RemoteTarget
 
-	// The RemoteSyncer that has intercetped the object.
-	RemoteSyncer syngit.RemoteSyncer
+	// The syncer that has intercepted the object, resolved for this request.
+	Syncer interceptor.SyncerContext
 
 	// The yaml manifest of the intercepted object.
 	YAMLManifest string
@@ -188,7 +189,7 @@ func RunGitPushPipeline(ctx context.Context, params GitPushParameters) ([]interc
 	for userInfo, remoteTargets := range params.UserInfoRemoteTargets {
 		for _, remoteTarget := range remoteTargets {
 			params := &interceptor.GitPipelineParams{
-				RemoteSyncer:    *params.RemoteSyncer.DeepCopy(),
+				Syncer:          params.Syncer,
 				RemoteTarget:    *remoteTarget.DeepCopy(),
 				InterceptedYAML: params.YAMLManifest,
 				InterceptedGVR:  params.ObjectMetadata.GVR,
@@ -216,10 +217,10 @@ func RunGitPushPipeline(ctx context.Context, params GitPushParameters) ([]interc
 // Check if there is no error at all during the pipeline processing
 // and if the RemoteSyncer is configured to CommitApply mode.
 func IsWebhookAllowed(
-	remoteSyncer syngit.RemoteSyncer,
+	sc interceptor.SyncerContext,
 	pipelineErrored bool,
 ) bool {
-	if !pipelineErrored && remoteSyncer.Spec.Strategy == syngit.CommitApply {
+	if !pipelineErrored && sc.Spec.Strategy == syngit.CommitApply {
 		return true
 	}
 	return false

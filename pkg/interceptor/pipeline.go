@@ -14,7 +14,7 @@ type GitUserInfo struct {
 }
 
 type GitPipelineParams struct {
-	RemoteSyncer    syngit.RemoteSyncer
+	Syncer          SyncerContext
 	RemoteTarget    syngit.RemoteTarget
 	InterceptedYAML string
 	InterceptedGVR  schema.GroupVersionResource

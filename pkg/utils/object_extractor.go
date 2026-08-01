@@ -21,11 +21,13 @@ import (
 // and then convert the map into a yaml string.
 // Because the 'map' object is, by definition, not ordered
 // we cannot reorder fields.
+// refOwnerNamespace is the syncer's namespace (empty for CWRSY)
 func ConvertObjectJSONToYAMLString(
 	ctx context.Context,
 	rawObject []byte,
 	syngitNamespace string,
-	remoteSyncer syngit.RemoteSyncer,
+	spec syngit.RemoteSyncerSpec,
+	refOwnerNamespace string,
 ) (string, error) {
 	data, err := ConvertObjectJSONToYAMLMap(rawObject)
 	if err != nil {
@@ -62,18 +64,18 @@ func ConvertObjectJSONToYAMLString(
 		paths = append(paths, excludedFieldsFromCm...)
 	}
 
-	// excludedFields hardcoded in RemoteSyncer
-	excludedFieldsFromRsy := remoteSyncer.Spec.ExcludedFields
+	// excludedFields hardcoded in the syncer
+	excludedFieldsFromRsy := spec.ExcludedFields
 	paths = append(paths, excludedFieldsFromRsy...)
 
 	// Loop over the excluded fields ConfigMaps
-	for i, ref := range remoteSyncer.Spec.ExcludedFieldsConfigMapsRef {
+	for i, ref := range spec.ExcludedFieldsConfigMapsRef {
 		if ref == nil {
 			continue
 		}
 		cmNamespace, err := ResolveNamespace(
 			ref.Namespace,
-			remoteSyncer.Namespace,
+			refOwnerNamespace,
 			field.NewPath("spec", "excludedFieldsConfigMapsRef").Index(i),
 		)
 		if err != nil {
@@ -145,15 +147,19 @@ func ContainsDeletionTimestamp(data map[string]interface{}) bool {
 }
 
 type ObjectMetadata struct {
-	GVR  schema.GroupVersionResource
+	GVR schema.GroupVersionResource
+	// Name of the intercepted object.
 	Name string
+	// Namespace of the intercepted object. Empty when it is cluster-scoped.
+	Namespace string
 }
 
 func ExtractObjectMetadataFromAdmissionRequest(admissionRequest *admissionv1.AdmissionRequest) ObjectMetadata {
 	interceptedGVR := (*schema.GroupVersionResource)(admissionRequest.RequestResource.DeepCopy())
 
 	return ObjectMetadata{
-		Name: admissionRequest.Name,
-		GVR:  *interceptedGVR,
+		Name:      admissionRequest.Name,
+		Namespace: admissionRequest.Namespace,
+		GVR:       *interceptedGVR,
 	}
 }

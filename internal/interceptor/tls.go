@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
+	"github.com/syngit-org/syngit/pkg/interceptor"
 	"github.com/syngit-org/syngit/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -16,7 +16,7 @@ import (
 
 func CABundleBuilder(
 	ctx context.Context,
-	remoteSyncer syngit.RemoteSyncer,
+	sc interceptor.SyncerContext,
 	remoteSyncerRemoteRepoUrl *url.URL,
 ) ([]byte, error) {
 	// Step 1: Search for the global CA Bundle of the server located in the syngit namespace
@@ -26,13 +26,13 @@ func CABundleBuilder(
 	}
 
 	// Step 2: Search for a specific CA Bundle, by default in the current namespace
-	caBundleSecretRef := remoteSyncer.Spec.CABundleSecretRef
+	caBundleSecretRef := sc.Spec.CABundleSecretRef
 	if caBundleSecretRef.Name == "" {
 		return caBundle, nil
 	}
 	ns, err := utils.ResolveNamespace(
 		caBundleSecretRef.Namespace,
-		remoteSyncer.Namespace,
+		sc.RefOwnerNamespace,
 		field.NewPath("spec", "caBundleSecretRef"),
 	)
 	if err != nil {

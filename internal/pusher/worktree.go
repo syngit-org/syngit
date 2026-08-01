@@ -67,7 +67,7 @@ func upstreamBasedHardReset(
 ) (*git.Worktree, error) {
 	targetBranch := params.RemoteTarget.Spec.TargetBranch
 	targetBranchRef := plumbing.NewBranchReferenceName(targetBranch)
-	upstreamRemoteRef := plumbing.ReferenceName(fmt.Sprintf("refs/remotes/%s/%s", upstreamRemote, params.RemoteSyncer.Spec.DefaultBranch))
+	upstreamRemoteRef := plumbing.ReferenceName(fmt.Sprintf("refs/remotes/%s/%s", upstreamRemote, params.Syncer.Spec.DefaultBranch))
 
 	remErr := fetchUpstream(params, targetRepository)
 	if remErr != nil {
@@ -142,7 +142,7 @@ func upstreamBasedPullFastForward(
 			Username: params.GitUserInfo.User,
 			Password: params.GitUserInfo.Token,
 		},
-		InsecureSkipTLS: params.RemoteSyncer.Spec.InsecureSkipTlsVerify,
+		InsecureSkipTLS: params.Syncer.Spec.InsecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput),
 	}
 	if params.CABundle != nil {
@@ -172,7 +172,7 @@ func upstreamBasedPullFastForward(
 			Username: params.GitUserInfo.User,
 			Password: params.GitUserInfo.Token,
 		},
-		InsecureSkipTLS: params.RemoteSyncer.Spec.InsecureSkipTlsVerify,
+		InsecureSkipTLS: params.Syncer.Spec.InsecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput),
 	}
 	if params.CABundle != nil {
@@ -287,7 +287,7 @@ func checkoutToBranch(targetRepository *git.Repository, worktree *git.Worktree, 
 
 func fetchUpstream(params interceptor.GitPipelineParams, targetRepository *git.Repository) error {
 
-	upstreamURL := params.RemoteSyncer.Spec.RemoteRepository
+	upstreamURL := params.Syncer.Spec.RemoteRepository
 
 	if _, remErr := targetRepository.Remote(upstreamRemote); remErr == git.ErrRemoteNotFound {
 		_, err := targetRepository.CreateRemote(&config.RemoteConfig{
@@ -313,7 +313,7 @@ func fetchUpstream(params interceptor.GitPipelineParams, targetRepository *git.R
 			config.RefSpec("+refs/heads/*:refs/remotes/origin/*"),
 			config.RefSpec("+refs/heads/*:refs/remotes/upstream/*"),
 		},
-		InsecureSkipTLS: params.RemoteSyncer.Spec.InsecureSkipTlsVerify,
+		InsecureSkipTLS: params.Syncer.Spec.InsecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput),
 	}
 	if params.CABundle != nil {
