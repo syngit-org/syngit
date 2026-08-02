@@ -81,6 +81,10 @@ func fullRemoteSyncerSpec() syngit.RemoteSyncerSpec {
 			{Name: "cm-remote", Namespace: "cm-ns"},
 		},
 		CABundleSecretRef: corev1.SecretReference{Name: "ca", Namespace: "ca-ns"},
+		SOPS: syngit.SOPSConfig{
+			Enabled:   true,
+			SecretRef: corev1.SecretReference{Name: "sops-age", Namespace: "sops-ns"},
+		},
 	}
 }
 
@@ -96,6 +100,7 @@ func TestRemoteSyncerRefs(t *testing.T) {
 		{Namespace: ownerNs, Name: "cm-local", Group: "", Version: "v1", Resource: "configmaps"},
 		{Namespace: "cm-ns", Name: "cm-remote", Group: "", Version: "v1", Resource: "configmaps"},
 		{Namespace: "ca-ns", Name: "ca", Group: "", Version: "v1", Resource: "secrets"},
+		{Namespace: "sops-ns", Name: "sops-age", Group: "", Version: "v1", Resource: "secrets"},
 	}
 
 	if len(refs) != len(want) {
@@ -115,6 +120,12 @@ func TestRemoteSyncerRefs(t *testing.T) {
 	// The indexed ConfigMap path must identify which entry of the slice is at fault.
 	if p := refs[3].FieldPath.String(); p != "spec.excludedFieldsConfigMapsRef[1]" {
 		t.Errorf("got configmap field path %q, want spec.excludedFieldsConfigMapsRef[1]", p)
+	}
+
+	// The nested SOPS reference must report its full path, so a denial names the
+	// field the user actually set.
+	if p := refs[5].FieldPath.String(); p != "spec.sops.secretRef" {
+		t.Errorf("got sops field path %q, want spec.sops.secretRef", p)
 	}
 }
 
@@ -137,6 +148,10 @@ func TestRemoteSyncerRefsSkipsUnsetRefs(t *testing.T) {
 				DefaultRemoteUserRef:   &corev1.ObjectReference{Namespace: "ns"},
 				DefaultRemoteTargetRef: &corev1.ObjectReference{},
 				CABundleSecretRef:      corev1.SecretReference{Namespace: "ns"},
+				SOPS: syngit.SOPSConfig{
+					Enabled:   true,
+					SecretRef: corev1.SecretReference{Namespace: "ns"},
+				},
 			},
 		},
 	}

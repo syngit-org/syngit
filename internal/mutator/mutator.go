@@ -57,6 +57,18 @@ type Artifact struct {
 // empty values) is removed from the worktree rather than written.
 func (a Artifact) IsDeletion() bool { return len(a.Content) == 0 }
 
+// Returns the content transform to apply to this artifact, or
+// nil when the artifact must be written verbatim.
+//
+// Chart values are exempt: they are not Kubernetes documents, so they are
+// located by the ResourceFinderCommentPrefix marker comment alone.
+func (a Artifact) transformOrNil(transform walker.DocTransform) walker.DocTransform {
+	if a.GVR.Resource == DefaultChartValuesSubPath && a.GVR.Group == "" && a.GVR.Version == "" {
+		return nil
+	}
+	return transform
+}
+
 // ArtifactSet accumulates the artifacts produced by the providers.
 type ArtifactSet struct {
 	Items []Artifact
@@ -91,6 +103,13 @@ func GenerateFinalWorktree(
 		Cluster:  cluster,
 	}
 
+	// Built before the providers run, so that a misconfigured SOPS setup fails
+	// the pipeline before anything is written to the worktree.
+	transform, err := sopsTransform(rc)
+	if err != nil {
+		return worktree, interceptor.NewClaimedPaths(), err
+	}
+
 	artifacts := &ArtifactSet{}
 	for featureGate, provider := range providerGate {
 		if !features.LoadedFeatureGates.Enabled(featureGate) {
@@ -120,14 +139,14 @@ func GenerateFinalWorktree(
 			pathless.Add(a)
 			continue
 		}
-		if err := writeArtifactAtPath(worktree, a, &claimedPaths); err != nil {
+		if err := writeArtifactAtPath(worktree, a, transform, &claimedPaths); err != nil {
 			return worktree, interceptor.NewClaimedPaths(), err
 		}
 	}
 
 	// Path-less artifacts go through the reusable placement phase.
 	if len(pathless.Items) > 0 {
-		placed, err := placeArtifacts(params, pathless, worktree)
+		placed, err := placeArtifacts(params, pathless, worktree, transform)
 		if err != nil {
 			return worktree, interceptor.NewClaimedPaths(), err
 		}
@@ -141,11 +160,11 @@ func GenerateFinalWorktree(
 // ResourceFinder feature and the RemoteSyncer flag are both enabled it tries to
 // replace matching resources in existing files; otherwise (or when it claims
 // nothing) it falls back to the default structured placement.
-func placeArtifacts(params interceptor.GitPipelineParams, artifacts ArtifactSet, worktree *git.Worktree) (interceptor.ClaimedPaths, error) {
+func placeArtifacts(params interceptor.GitPipelineParams, artifacts ArtifactSet, worktree *git.Worktree, transform walker.DocTransform) (interceptor.ClaimedPaths, error) {
 	claimed := interceptor.NewClaimedPaths()
 
 	if features.LoadedFeatureGates.Enabled(features.ResourceFinder) && params.Syncer.Spec.ResourceFinder {
-		found, err := (ResourceFinder{}).place(params, artifacts, worktree)
+		found, err := (ResourceFinder{}).place(params, artifacts, worktree, transform)
 		if err != nil {
 			return interceptor.NewClaimedPaths(), err
 		}
@@ -153,7 +172,7 @@ func placeArtifacts(params interceptor.GitPipelineParams, artifacts ArtifactSet,
 	}
 
 	if !claimed.ClaimExists() {
-		defaulted, err := (DefaultWorktreeCustomizer{}).place(params, artifacts, worktree)
+		defaulted, err := (DefaultWorktreeCustomizer{}).place(params, artifacts, worktree, transform)
 		if err != nil {
 			return interceptor.NewClaimedPaths(), err
 		}
@@ -167,8 +186,8 @@ func placeArtifacts(params interceptor.GitPipelineParams, artifacts ArtifactSet,
 // and records the resulting path in claimed. It is a thin wrapper over
 // WriteObjectAtPath: when the file already exists only the document matching the
 // artifact's own identity is swapped, so sibling documents are preserved.
-func writeArtifactAtPath(worktree *git.Worktree, a Artifact, claimed *interceptor.ClaimedPaths) error {
-	placed, err := walker.WriteObjectAtPath(worktree, filepath.Clean(a.TargetPath), walker.SelectorFromDoc(a.Content), a.Content)
+func writeArtifactAtPath(worktree *git.Worktree, a Artifact, transform walker.DocTransform, claimed *interceptor.ClaimedPaths) error {
+	placed, err := walker.WriteObjectAtPath(worktree, filepath.Clean(a.TargetPath), walker.SelectorFromDoc(a.Content), a.Content, a.transformOrNil(transform))
 	if err != nil {
 		return err
 	}

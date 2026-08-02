@@ -36,14 +36,18 @@ func FindObject(wt *git.Worktree, sel ObjectSelector) (path string, doc []byte, 
 // The cached path is always validated by re-reading it. A stale entry simply falls
 // back to a full walk. Keys that have matched more than one file are never cached,
 // so duplicated resources keep being rewritten in every copy.
-func ReplaceObject(wt *git.Worktree, scope string, sel ObjectSelector, content []byte) (interceptor.ClaimedPaths, error) {
+//
+// transform, when non-nil, rewrites the document just before it is written, once
+// per matching file: a single object may live in several files, each of which may
+// resolve to a different transformation.
+func ReplaceObject(wt *git.Worktree, scope string, sel ObjectSelector, content []byte, transform DocTransform) (interceptor.ClaimedPaths, error) {
 	key := docCacheKey{Scope: scope, Sel: sel}
 
 	// Fast path: a single remembered location, validated by re-reading it.
 	if v, ok := docCache.Get(key); ok && !v.NoCache {
 		claimed := interceptor.NewClaimedPaths()
-		if fileContent, rerr := readWorktreeFile(wt, v.Path); rerr == nil {
-			found, aerr := applyReplacement(wt, v.Path, v.Path, fileContent, sel, content, &claimed)
+		if fileContent, rerr := ReadWorktreeFile(wt, v.Path); rerr == nil {
+			found, aerr := applyReplacement(wt, v.Path, v.Path, fileContent, sel, content, transform, &claimed)
 			if aerr != nil {
 				return interceptor.NewClaimedPaths(), aerr
 			}
@@ -65,7 +69,7 @@ func ReplaceObject(wt *git.Worktree, scope string, sel ObjectSelector, content [
 	var matched []string
 	_, err := walkWorktreeFiles(wt, root, func(path string, fileContent []byte) (bool, error) {
 		rel := worktreeRelativePath(root, path)
-		found, aerr := applyReplacement(wt, path, rel, fileContent, sel, content, &claimed)
+		found, aerr := applyReplacement(wt, path, rel, fileContent, sel, content, transform, &claimed)
 		if aerr != nil {
 			return true, aerr
 		}
@@ -89,10 +93,16 @@ func ReplaceObject(wt *git.Worktree, scope string, sel ObjectSelector, content [
 // applyReplacement replaces the document matching sel inside fileContent.
 // found reports whether a matching document was present; when false nothing
 // is written or claimed.
-func applyReplacement(wt *git.Worktree, fsPath, relPath string, fileContent []byte, sel ObjectSelector, content []byte, claimed *interceptor.ClaimedPaths) (bool, error) {
-	out, found := ReplaceDocInContent(fileContent, sel, content)
+//
+// The transform is handed relPath, not fsPath: it selects on the path as it
+// exists in the repository, which is what users write their rules against.
+func applyReplacement(wt *git.Worktree, fsPath, relPath string, fileContent []byte, sel ObjectSelector, content []byte, transform DocTransform, claimed *interceptor.ClaimedPaths) (bool, error) {
+	out, found, err := ReplaceDocInContentFunc(fileContent, sel, content, relPath, transform)
 	if !found {
 		return false, nil
+	}
+	if err != nil {
+		return true, err
 	}
 
 	if string(out) != string(fileContent) {
@@ -117,7 +127,9 @@ func applyReplacement(wt *git.Worktree, fsPath, relPath string, fileContent []by
 // already exists, the document matching sel is replaced in place (or appended
 // when none matches) so sibling documents survive; otherwise a new file is
 // created. The file is deleted when content is empty. It returns the claimed path.
-func WriteObjectAtPath(wt *git.Worktree, path string, sel ObjectSelector, content []byte) (interceptor.ClaimedPaths, error) {
+//
+// transform, when non-nil, rewrites the document just before it is written.
+func WriteObjectAtPath(wt *git.Worktree, path string, sel ObjectSelector, content []byte, transform DocTransform) (interceptor.ClaimedPaths, error) {
 	claimed := interceptor.NewClaimedPaths()
 	cleanPath := filepath.Clean(path)
 
@@ -127,12 +139,28 @@ func WriteObjectAtPath(wt *git.Worktree, path string, sel ObjectSelector, conten
 		return claimed, nil
 	}
 
-	out := content
-	if existing, err := readWorktreeFile(wt, cleanPath); err == nil {
-		if merged, found := ReplaceDocInContent(existing, sel, content); found {
-			out = merged
+	existing, readErr := ReadWorktreeFile(wt, cleanPath)
+	if readErr != nil {
+		existing = nil
+	}
+
+	// The file may hold several documents; only the one this object occupies is
+	// the transform's existing content. ReplaceDocInContentFunc isolates it, so
+	// the transform is only applied here when the document is appended or the
+	// file is new.
+	out, found, err := ReplaceDocInContentFunc(existing, sel, content, cleanPath, transform)
+	if err != nil {
+		return interceptor.NewClaimedPaths(), err
+	}
+	if !found {
+		transformed, terr := transform.Apply(cleanPath, nil, content)
+		if terr != nil {
+			return interceptor.NewClaimedPaths(), terr
+		}
+		if readErr == nil {
+			out = appendDoc(existing, transformed)
 		} else {
-			out = appendDoc(existing, content)
+			out = transformed
 		}
 	}
 

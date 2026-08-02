@@ -37,7 +37,7 @@ type ClusterWideRemoteSyncerSpec struct {
 	// Cluster-scoped resources matching .spec.scopedResources.rules are always
 	// intercepted, whatever this selector says.
 	// +kubebuilder:validation:Optional
-	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty" protobuf:"bytes,opt,22,name=namespaceSelector"`
+	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty" protobuf:"bytes,opt,23,name=namespaceSelector"`
 
 	// identityStoreNamespace is the namespace holding the RemoteUserBindings that
 	// map Kubernetes users to their git identity for this syncer. It is also where
@@ -46,7 +46,7 @@ type ClusterWideRemoteSyncerSpec struct {
 	// the RemoteUserBindings of that namespace.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	IdentityStoreNamespace string `json:"identityStoreNamespace" protobuf:"bytes,23,name=identityStoreNamespace"`
+	IdentityStoreNamespace string `json:"identityStoreNamespace" protobuf:"bytes,24,name=identityStoreNamespace"`
 }
 
 // +kubebuilder:object:root=true

@@ -15,6 +15,7 @@ const (
 	ResourceFinder     Feature = "ResourceFinder"
 	HelmValuesMutation Feature = "HelmValuesMutation"
 	FluxHelmRelease    Feature = "FluxHelmRelease"
+	SopsEncryption     Feature = "SopsEncryption"
 )
 
 var (
@@ -22,6 +23,7 @@ var (
 		ResourceFinder:     false, // Alpha: default off
 		HelmValuesMutation: false, // Alpha: default off
 		FluxHelmRelease:    false, // Alpha: default off
+		SopsEncryption:     false, // Alpha: default off
 	}
 )
 
