@@ -29,21 +29,21 @@ func (p *UserSpecificPolicy) Name() string { return "userspecific-policy" }
 
 func (p *UserSpecificPolicy) Finalizer() string { return userSpecificPolicyFinalizer }
 
-func (p *UserSpecificPolicy) Applies(remoteSyncer *syngit.RemoteSyncer) bool {
-	return remoteSyncer.Annotations[syngit.RtAnnotationKeyUserSpecific] != ""
+func (p *UserSpecificPolicy) Applies(syncer syngit.Syncer) bool {
+	return syncer.GetAnnotations()[syngit.RtAnnotationKeyUserSpecific] != ""
 }
 
-func (p *UserSpecificPolicy) Reconcile(ctx context.Context, remoteSyncer *syngit.RemoteSyncer) (ctrl.Result, error) {
+func (p *UserSpecificPolicy) Reconcile(ctx context.Context, syncer syngit.Syncer) (ctrl.Result, error) {
 	rdm := time.Duration(rand.Intn(5)) * time.Second
 
-	userSpecificAnnotation := remoteSyncer.Annotations[syngit.RtAnnotationKeyUserSpecific]
+	userSpecificAnnotation := syncer.GetAnnotations()[syngit.RtAnnotationKeyUserSpecific]
 
-	managedRUBs, err := p.listManagedRUBs(ctx, remoteSyncer.Namespace)
+	managedRUBs, err := p.listManagedRUBs(ctx, syncer.IdentityNamespace())
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	existingRTs, err := p.listUserSpecificTargets(ctx, remoteSyncer.Namespace, remoteSyncer.Spec.RemoteRepository, remoteSyncer.Spec.DefaultBranch)
+	existingRTs, err := p.listUserSpecificTargets(ctx, syncer.IdentityNamespace(), syncer.SyncerSpec().RemoteRepository, syncer.SyncerSpec().DefaultBranch)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -56,16 +56,16 @@ func (p *UserSpecificPolicy) Reconcile(ctx context.Context, remoteSyncer *syngit
 		}
 	}
 
-	activeUsers, result, err := p.reconcileUserTargets(ctx, remoteSyncer, managedRUBs, existingByUser, userSpecificAnnotation, rdm)
+	activeUsers, result, err := p.reconcileUserTargets(ctx, syncer, managedRUBs, existingByUser, userSpecificAnnotation, rdm)
 	if err != nil {
 		return result, err
 	}
 
-	return p.pruneStaleTargets(ctx, remoteSyncer, existingByUser, activeUsers, rdm)
+	return p.pruneStaleTargets(ctx, syncer, existingByUser, activeUsers, rdm)
 }
 
-func (p *UserSpecificPolicy) Cleanup(ctx context.Context, remoteSyncer *syngit.RemoteSyncer) error {
-	return p.cleanupUserSpecificTargets(ctx, remoteSyncer)
+func (p *UserSpecificPolicy) Cleanup(ctx context.Context, syncer syngit.Syncer) error {
+	return p.cleanupUserSpecificTargets(ctx, syncer)
 }
 
 // reconcileUserTargets ensures a user-specific RemoteTarget exists for each
@@ -73,14 +73,14 @@ func (p *UserSpecificPolicy) Cleanup(ctx context.Context, remoteSyncer *syngit.R
 // touched so the caller can prune stale targets.
 func (p *UserSpecificPolicy) reconcileUserTargets(
 	ctx context.Context,
-	remoteSyncer *syngit.RemoteSyncer,
+	syncer syngit.Syncer,
 	managedRUBs []syngit.RemoteUserBinding,
 	existingByUser map[string]syngit.RemoteTarget,
 	userSpecificAnnotation string,
 	rdm time.Duration,
 ) (map[string]bool, ctrl.Result, error) {
-	upstreamRepo := remoteSyncer.Spec.RemoteRepository
-	upstreamBranch := remoteSyncer.Spec.DefaultBranch
+	upstreamRepo := syncer.SyncerSpec().RemoteRepository
+	upstreamBranch := syncer.SyncerSpec().DefaultBranch
 
 	activeUsers := map[string]bool{}
 	for i := range managedRUBs {
@@ -99,7 +99,7 @@ func (p *UserSpecificPolicy) reconcileUserTargets(
 			continue
 		}
 
-		rt, err := p.buildUserSpecificTarget(remoteSyncer.Namespace, upstreamRepo, upstreamBranch, rawUsername, sanitizedUser, userSpecificAnnotation)
+		rt, err := p.buildUserSpecificTarget(syncer.IdentityNamespace(), upstreamRepo, upstreamBranch, rawUsername, sanitizedUser, userSpecificAnnotation)
 		if err != nil {
 			return activeUsers, ctrl.Result{}, err
 		}
@@ -121,12 +121,12 @@ func (p *UserSpecificPolicy) reconcileUserTargets(
 // upstream still uses them.
 func (p *UserSpecificPolicy) pruneStaleTargets(
 	ctx context.Context,
-	remoteSyncer *syngit.RemoteSyncer,
+	syncer syngit.Syncer,
 	existingByUser map[string]syngit.RemoteTarget,
 	activeUsers map[string]bool,
 	rdm time.Duration,
 ) (ctrl.Result, error) {
-	otherSyncers, err := p.getOtherSyncersWithUserSpecific(ctx, remoteSyncer.Namespace, remoteSyncer.Name)
+	otherSyncers, err := p.getOtherSyncersWithUserSpecific(ctx, syncer)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -236,26 +236,17 @@ func (p *UserSpecificPolicy) listUserSpecificTargets(ctx context.Context, namesp
 	return filtered, nil
 }
 
-// getOtherSyncersWithUserSpecific returns other RemoteSyncers with the user-specific annotation.
-func (p *UserSpecificPolicy) getOtherSyncersWithUserSpecific(ctx context.Context, namespace, excludeName string) ([]syngit.RemoteSyncer, error) {
-	rsList := &syngit.RemoteSyncerList{}
-	if err := p.List(ctx, rsList, &client.ListOptions{Namespace: namespace}); err != nil {
-		return nil, err
-	}
-
-	var others []syngit.RemoteSyncer
-	for _, rs := range rsList.Items {
-		if rs.Name != excludeName && rs.Annotations[syngit.RtAnnotationKeyUserSpecific] != "" {
-			others = append(others, rs)
-		}
-	}
-	return others, nil
+// getOtherSyncersWithUserSpecific returns the other syncers, of either kind,
+// sharing this one's identity namespace and carrying the user-specific annotation.
+func (p *UserSpecificPolicy) getOtherSyncersWithUserSpecific(ctx context.Context, syncer syngit.Syncer) ([]syngit.Syncer, error) {
+	return getOtherSyncersWith(ctx, p.Client, syncer, syngit.RtAnnotationKeyUserSpecific)
 }
 
 // isRTUsedByOtherSyncer checks if another syncer with user-specific annotation has the same upstream.
-func (p *UserSpecificPolicy) isRTUsedByOtherSyncer(rt syngit.RemoteTarget, otherSyncers []syngit.RemoteSyncer) bool {
+func (p *UserSpecificPolicy) isRTUsedByOtherSyncer(rt syngit.RemoteTarget, otherSyncers []syngit.Syncer) bool {
 	for _, rs := range otherSyncers {
-		if rs.Spec.RemoteRepository == rt.Spec.UpstreamRepository && rs.Spec.DefaultBranch == rt.Spec.UpstreamBranch {
+		spec := rs.SyncerSpec()
+		if spec.RemoteRepository == rt.Spec.UpstreamRepository && spec.DefaultBranch == rt.Spec.UpstreamBranch {
 			return true
 		}
 	}
@@ -263,16 +254,16 @@ func (p *UserSpecificPolicy) isRTUsedByOtherSyncer(rt syngit.RemoteTarget, other
 }
 
 // cleanupUserSpecificTargets removes all user-specific RemoteTargets for this syncer (with cross-dependency check).
-func (p *UserSpecificPolicy) cleanupUserSpecificTargets(ctx context.Context, remoteSyncer *syngit.RemoteSyncer) error {
-	upstreamRepo := remoteSyncer.Spec.RemoteRepository
-	upstreamBranch := remoteSyncer.Spec.DefaultBranch
+func (p *UserSpecificPolicy) cleanupUserSpecificTargets(ctx context.Context, syncer syngit.Syncer) error {
+	upstreamRepo := syncer.SyncerSpec().RemoteRepository
+	upstreamBranch := syncer.SyncerSpec().DefaultBranch
 
-	existingRTs, err := p.listUserSpecificTargets(ctx, remoteSyncer.Namespace, upstreamRepo, upstreamBranch)
+	existingRTs, err := p.listUserSpecificTargets(ctx, syncer.IdentityNamespace(), upstreamRepo, upstreamBranch)
 	if err != nil {
 		return err
 	}
 
-	otherSyncers, err := p.getOtherSyncersWithUserSpecific(ctx, remoteSyncer.Namespace, remoteSyncer.Name)
+	otherSyncers, err := p.getOtherSyncersWithUserSpecific(ctx, syncer)
 	if err != nil {
 		return err
 	}

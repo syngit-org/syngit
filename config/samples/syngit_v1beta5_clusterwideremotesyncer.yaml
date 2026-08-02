@@ -1,0 +1,49 @@
+apiVersion: syngit.io/v1beta5
+kind: ClusterWideRemoteSyncer
+metadata:
+  labels:
+    app.kubernetes.io/name: syngit
+    app.kubernetes.io/managed-by: kustomize
+  name: clusterwideremotesyncer-sample
+spec:
+  remoteRepository: https://git.example.com/my-repo.git
+  defaultBranch: main
+
+  # The namespaces whose resources are intercepted. Remove this field to
+  # intercept every namespace. Cluster-scoped resources matching the rules below
+  # are always intercepted, whatever this selector says.
+  namespaceSelector:
+    matchLabels:
+      syngit.io/managed: "true"
+
+  # Where the RemoteUserBindings mapping Kubernetes users to git identities live.
+  # Required: a cluster-scoped syncer has no namespace of its own to look in.
+  identityStoreNamespace: syngit-identities
+
+  scopedResources:
+    rules:
+      # A namespaced resource, taken from every selected namespace. It is filed
+      # in git under <its own namespace>/<group>/<version>/<resource>/.
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        resources: ["deployments"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+      # A cluster-scoped resource. It is filed under _cluster/ instead, since it
+      # has no namespace of its own.
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        apiVersions: ["v1"]
+        resources: ["clusterroles"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+
+  strategy: CommitApply
+  targetStrategy: OneTarget
+
+  # Every reference must carry an explicit namespace: a cluster-scoped object has
+  # none of its own to default to.
+  defaultUnauthorizedUserMode: UseDefaultUser
+  defaultRemoteUserRef:
+    name: remoteuser-sample
+    namespace: syngit-identities
+  defaultRemoteTargetRef:
+    name: remotetarget-sample
+    namespace: syngit-identities

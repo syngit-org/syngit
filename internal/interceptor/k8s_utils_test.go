@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
+	"github.com/syngit-org/syngit/pkg/interceptor"
 	admissionv1 "k8s.io/api/admission/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,10 +23,10 @@ func TestNewRemoteSyncerStatusUpdater(t *testing.T) {
 	rs := syngit.RemoteSyncer{}
 	rs.Name = "my-syncer" // nolint:goconst
 
-	updater := NewRemoteSyncerStatusUpdater(admReq, rs)
+	updater := NewRemoteSyncerStatusUpdater(admReq, interceptor.NewRemoteSyncerContext(rs, ""))
 
-	if updater.remoteSyncer.Name != "my-syncer" { // nolint:goconst
-		t.Errorf("remoteSyncer.Name=%q, want my-syncer", updater.remoteSyncer.Name)
+	if updater.syncer.Ref.Name != "my-syncer" { // nolint:goconst
+		t.Errorf("syncer.Ref.Name=%q, want my-syncer", updater.syncer.Ref.Name)
 	}
 	if updater.group != "apps" || updater.version != "v1" || updater.resource != "deployments" { // nolint:goconst
 		t.Errorf("GVR mismatch: %s/%s/%s", updater.group, updater.version, updater.resource)
@@ -42,9 +43,9 @@ func TestNewRemoteSyncerConditionUpdater(t *testing.T) {
 	rs := syngit.RemoteSyncer{}
 	rs.Name = "my-syncer" // nolint:goconst
 
-	updater := NewRemoteSyncerConditionUpdater(rs)
-	if updater.remoteSyncer.Name != "my-syncer" { // nolint:goconst
-		t.Errorf("remoteSyncer.Name=%q, want my-syncer", updater.remoteSyncer.Name)
+	updater := NewRemoteSyncerConditionUpdater(interceptor.NewRemoteSyncerContext(rs, ""))
+	if updater.syncer.Ref.Name != "my-syncer" { // nolint:goconst
+		t.Errorf("syncer.Ref.Name=%q, want my-syncer", updater.syncer.Ref.Name)
 	}
 }
 

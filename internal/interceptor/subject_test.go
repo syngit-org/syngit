@@ -6,17 +6,18 @@ import (
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
+	"github.com/syngit-org/syngit/pkg/interceptor"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 func TestIsBypassSubject(t *testing.T) {
-	makeRS := func(names ...string) syngit.RemoteSyncer {
+	makeRS := func(names ...string) interceptor.SyncerContext {
 		rs := syngit.RemoteSyncer{}
 		for _, n := range names {
 			rs.Spec.BypassInterceptionSubjects = append(rs.Spec.BypassInterceptionSubjects, rbacv1.Subject{Name: n})
 		}
-		return rs
+		return interceptor.NewRemoteSyncerContext(rs, "")
 	}
 
 	tests := []struct {

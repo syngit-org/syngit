@@ -18,13 +18,9 @@ package v1beta5
 
 import (
 	"context"
-	"fmt"
-	"regexp"
-	"slices"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -49,78 +45,11 @@ type RemoteSyncerCustomValidator struct {
 	// TODO(user): Add more fields as needed for validation
 }
 
-// Validate validates the RemoteSyncerSpec
-func validateRemoteSyncerSpec(r *syngitv1beta5.RemoteSyncerSpec) field.ErrorList {
-	var errors field.ErrorList
-
-	// Validate DefaultRemoteUserRef based on DefaultUnauthorizedUserMode
-	if r.DefaultUnauthorizedUserMode == syngitv1beta5.BlockDefaultUser && r.DefaultRemoteUserRef != nil {
-		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultRemoteUserRef"), r.DefaultRemoteUserRef, "should not be set when defaultUnauthorizedUserMode is set to \"Block\""))
-	} else if r.DefaultUnauthorizedUserMode == syngitv1beta5.UseDefaultUser && r.DefaultRemoteUserRef == nil {
-		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultRemoteUserRef"), "must be set when defaultUnauthorizedUserMode is set to \"UseDefaultUser\""))
-	}
-
-	// Validate DefaultRemoteUserRef and DefaultRemoteTargetRef
-	if r.DefaultRemoteUserRef != nil && r.DefaultRemoteTargetRef == nil {
-		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultRemoteTargetRef"), r.DefaultRemoteTargetRef, "should be set when defaultRemoteUserRef is set"))
-	}
-	if r.DefaultRemoteUserRef == nil && r.DefaultRemoteTargetRef != nil {
-		errors = append(errors, field.Invalid(field.NewPath("spec").Child("defaultRemoteUserRef"), r.DefaultRemoteUserRef, "should be set when defaultRemoteTargetRef is set"))
-	}
-
-	// Validate DefaultBlockAppliedMessage only exists if Strategy is set to CommitOnly
-	if r.DefaultBlockAppliedMessage != "" && r.Strategy != syngitv1beta5.CommitOnly {
-		errors = append(errors, field.Forbidden(field.NewPath("spec").Child("defaultBlockAppliedMessage"), fmt.Sprintf("should not be set if strategy is not set to \"%s\"", syngitv1beta5.CommitOnly)))
-	}
-
-	// Validate that Strategy is either CommitApply or CommitOnly
-	if r.Strategy != syngitv1beta5.CommitOnly && r.Strategy != syngitv1beta5.CommitApply {
-		errors = append(errors, field.Invalid(field.NewPath("spec").Child("strategy"), r.Strategy, fmt.Sprintf("must be set to \"%s\" or \"%s\"", syngitv1beta5.CommitApply, syngitv1beta5.CommitOnly)))
-	}
-
-	// Validate Git URI
-	gitURIPattern := regexp.MustCompile(`^(https?|git)\://[^ ]+$`)
-	if !gitURIPattern.MatchString(r.RemoteRepository) {
-		errors = append(errors, field.Invalid(field.NewPath("spec").Child("remoteRepository"), r.RemoteRepository, "invalid Git URI"))
-	}
-
-	// Validate the ExcludedFields to ensure that it is a YAML path
-	for _, fieldPath := range r.ExcludedFields {
-		if !isValidYAMLPath(fieldPath) {
-			errors = append(errors, field.Invalid(field.NewPath("spec").Child("excludedFields"), fieldPath, "must be a valid YAML path. Regex : "+`^([a-zA-Z0-9_./:-]*(\[[a-zA-Z0-9_*./:-]*\])?)*$`))
-		}
-	}
-
-	// Validate that DefaultBranch exists if DefaultUnauthorizedUser uses a default user
-	if r.DefaultUnauthorizedUserMode != syngitv1beta5.BlockDefaultUser && r.DefaultBranch == "" {
-		errors = append(errors, field.Required(field.NewPath("spec").Child("defaultBranch"), "must be set when the defaultUnauthorizedUserMode is set to UseDefaultUser"))
-	}
-
-	// Referencing another namespace is allowed, but the user must be allowed to get
-	// the referenced object. This is enforced by the RemoteSyncer rules permissions webhook.
-
-	return errors
-}
-
-// isValidYAMLPath checks if the given string is a valid YAML path
-func isValidYAMLPath(path string) bool {
-	// Regular expression to match a valid YAML path
-	yamlPathRegex := regexp.MustCompile(`^([a-zA-Z0-9_./:-]*(\[[a-zA-Z0-9_*./:-]*\])?)*$`)
-	return yamlPathRegex.MatchString(path)
-}
-
+// A namespaced RemoteSyncer adds nothing to the shared syncer validation: the
+// namespace it needs to intercept, to resolve references against and to find
+// identities in is its own.
 func validateRemoteSyncer(remoteSyncer *syngitv1beta5.RemoteSyncer) error {
-	var allErrs field.ErrorList
-	if err := validateRemoteSyncerSpec(&remoteSyncer.Spec); err != nil {
-		allErrs = append(allErrs, err...)
-	}
-
-	// Validate the TargetPolicies
-	rtAnnotationUserSpecific := remoteSyncer.Annotations[syngitv1beta5.RtAnnotationKeyUserSpecific]
-	if !slices.Contains([]syngitv1beta5.RemoteTargetUserSpecificValues{"", syngitv1beta5.RtAnnotationValueOneUserOneBranch, syngitv1beta5.RtAnnotationValueOneUserOneBranch}, syngitv1beta5.RemoteTargetUserSpecificValues(rtAnnotationUserSpecific)) {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("annotations").Child(syngitv1beta5.RtAnnotationKeyUserSpecific), rtAnnotationUserSpecific,
-			fmt.Sprintf("must be either %s or %s; got %s", string(syngitv1beta5.RtAnnotationValueOneUserOneBranch), string(syngitv1beta5.RtAnnotationValueOneUserOneBranch), rtAnnotationUserSpecific)))
-	}
+	allErrs := validateSyncer(remoteSyncer)
 
 	if len(allErrs) == 0 {
 		return nil

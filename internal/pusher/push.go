@@ -17,7 +17,7 @@ func Push(params interceptor.GitPipelineParams, targetRepository *git.Repository
 	targetBranch := params.RemoteTarget.Spec.TargetBranch
 
 	variables := fmt.Sprintf("\nRepository: %s\nReference: %s\nUsername: %s\nEmail: %s\n",
-		params.RemoteSyncer.Spec.RemoteRepository,
+		params.Syncer.Spec.RemoteRepository,
 		plumbing.ReferenceName(targetBranch),
 		params.GitUserInfo.User,
 		params.GitUserInfo.Email,
@@ -31,7 +31,7 @@ func Push(params interceptor.GitPipelineParams, targetRepository *git.Repository
 			Username: params.GitUserInfo.User,
 			Password: params.GitUserInfo.Token,
 		},
-		InsecureSkipTLS: params.RemoteSyncer.Spec.InsecureSkipTlsVerify,
+		InsecureSkipTLS: params.Syncer.Spec.InsecureSkipTlsVerify,
 		Progress:        io.MultiWriter(&verboseOutput), // Capture verbose output
 		Force:           needForcePush,
 	}
@@ -40,7 +40,7 @@ func Push(params interceptor.GitPipelineParams, targetRepository *git.Repository
 	}
 	err := push(targetRepository, pushOptions, verboseOutput, variables)
 	if err != nil {
-		for range params.RemoteSyncer.Spec.PushErrorRetryNumber {
+		for range params.Syncer.Spec.PushErrorRetryNumber {
 			err = push(targetRepository, pushOptions, verboseOutput, variables)
 			if err == nil {
 				break

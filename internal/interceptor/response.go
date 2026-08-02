@@ -20,14 +20,14 @@ func AdmissionReviewBuilder(
 	addionalMessage string,
 	admissionRequest *admissionv1.AdmissionRequest,
 	requestAllowed, processErrored bool,
-	remoteSyncer syngit.RemoteSyncer,
+	sc interceptor.SyncerContext,
 ) admissionv1.AdmissionReview {
-	statusUpdater := NewRemoteSyncerStatusUpdater(admissionRequest, remoteSyncer)
-	conditionUpdater := NewRemoteSyncerConditionUpdater(remoteSyncer)
+	statusUpdater := NewRemoteSyncerStatusUpdater(admissionRequest, sc)
+	conditionUpdater := NewRemoteSyncerConditionUpdater(sc)
 
 	successMessage := defaultSuccessMessage
-	if remoteSyncer.Spec.DefaultBlockAppliedMessage != "" {
-		successMessage = remoteSyncer.Spec.DefaultBlockAppliedMessage
+	if sc.Spec.DefaultBlockAppliedMessage != "" {
+		successMessage = sc.Spec.DefaultBlockAppliedMessage
 	}
 
 	// Set the status and the message depending of the status of the webhook

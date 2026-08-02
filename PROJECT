@@ -141,4 +141,15 @@ resources:
     conversion: true
     validation: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+  controller: true
+  domain: io
+  group: syngit
+  kind: ClusterWideRemoteSyncer
+  path: github.com/syngit-org/syngit/api/v1beta5
+  version: v1beta5
+  webhooks:
+    validation: true
+    webhookVersion: v1
 version: "3"

@@ -144,7 +144,7 @@ func GenerateFinalWorktree(
 func placeArtifacts(params interceptor.GitPipelineParams, artifacts ArtifactSet, worktree *git.Worktree) (interceptor.ClaimedPaths, error) {
 	claimed := interceptor.NewClaimedPaths()
 
-	if features.LoadedFeatureGates.Enabled(features.ResourceFinder) && params.RemoteSyncer.Spec.ResourceFinder {
+	if features.LoadedFeatureGates.Enabled(features.ResourceFinder) && params.Syncer.Spec.ResourceFinder {
 		found, err := (ResourceFinder{}).place(params, artifacts, worktree)
 		if err != nil {
 			return interceptor.NewClaimedPaths(), err

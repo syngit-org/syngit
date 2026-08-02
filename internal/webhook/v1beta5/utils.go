@@ -28,3 +28,13 @@ func denyRef(
 	}
 	return admission.Denied(sameNamespaceErr.Error())
 }
+
+// Handle wrong apiVersion/Kind combination
+func isInvalidCombinationError(err error) bool {
+	errMsg := err.Error()
+	if strings.Contains(errMsg, "no matches for kind") ||
+		strings.Contains(errMsg, "could not find the requested resource") {
+		return true
+	}
+	return false
+}

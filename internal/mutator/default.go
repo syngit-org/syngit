@@ -44,10 +44,15 @@ func (dt DefaultWorktreeCustomizer) place(params interceptor.GitPipelineParams, 
 
 func (dt DefaultWorktreeCustomizer) pathConstructor(params interceptor.GitPipelineParams, gvr schema.GroupVersionResource, worktree *git.Worktree) (string, error) {
 	tempPath := ""
-	if params.RemoteSyncer.Spec.RootPath != "" {
-		tempPath += params.RemoteSyncer.Spec.RootPath + "/"
+	if params.Syncer.Spec.RootPath != "" {
+		tempPath += params.Syncer.Spec.RootPath + "/"
 	}
-	tempPath += params.RemoteSyncer.Namespace + "/" + gvr.Group + "/" + gvr.Version + "/" + gvr.Resource + "/"
+
+	namespacePath := params.Syncer.InterceptedNamespace
+	if namespacePath == "" {
+		namespacePath = interceptor.ClusterScopedPathSegment
+	}
+	tempPath += namespacePath + "/" + gvr.Group + "/" + gvr.Version + "/" + gvr.Resource + "/"
 
 	path, err := dt.validatePath(tempPath)
 	if err != nil {
