@@ -7,7 +7,8 @@ import (
 	"os"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
-	utils "github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/naming"
+	"github.com/syngit-org/syngit/pkg/webhooks"
 	v1 "k8s.io/api/admission/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -29,7 +30,7 @@ func (ruwh *RemoteUserManagedWebhookHandler) Handle(ctx context.Context, req adm
 	user := req.DeepCopy().UserInfo
 	ru := &syngit.RemoteUser{}
 
-	if err := utils.GetObjectFromWebhookRequest(ruwh.Decoder, ru, req); err != nil {
+	if err := webhooks.DecodeObject(ruwh.Decoder, ru, req); err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 	annotations := ru.GetAnnotations()
@@ -50,7 +51,7 @@ func (ruwh *RemoteUserManagedWebhookHandler) Handle(ctx context.Context, req adm
 			}
 
 			sanitizedUsernameReceived := oldRu.Labels[syngit.K8sUserLabelKey]
-			if sanitizedUsernameReceived != utils.Sanitize(user.Username) {
+			if sanitizedUsernameReceived != naming.Sanitize(user.Username) {
 				return admission.Denied("The user is not allowed to delete the RemoteUser of another user")
 			}
 			return admission.Allowed("The user is allowed to delete its own RemoteUser")
@@ -71,7 +72,7 @@ func (ruwh *RemoteUserManagedWebhookHandler) Handle(ctx context.Context, req adm
 
 		if oldRu.Annotations[syngit.RubAnnotationKeyManaged] == "true" {
 			sanitizedUsernameReceived := oldRu.Labels[syngit.K8sUserLabelKey]
-			if sanitizedUsernameReceived != utils.Sanitize(user.Username) {
+			if sanitizedUsernameReceived != naming.Sanitize(user.Username) {
 				return admission.Denied("The user is not allowed to update the RemoteUser of another user")
 			}
 		}
@@ -85,7 +86,7 @@ func (ruwh *RemoteUserManagedWebhookHandler) Handle(ctx context.Context, req adm
 		if labels == nil {
 			labels = make(map[string]string)
 		}
-		labels[syngit.K8sUserLabelKey] = utils.Sanitize(user.Username)
+		labels[syngit.K8sUserLabelKey] = naming.Sanitize(user.Username)
 		ru.SetLabels(labels)
 
 		if annotations == nil {

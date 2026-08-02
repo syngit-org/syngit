@@ -1,14 +1,13 @@
-package utils
+package rbac
 
 import (
 	"fmt"
 
-	v1 "k8s.io/api/admission/v1"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
+// OperationToVerb maps an admission operation to the RBAC verbs that cover it.
+// An update is two verbs, because a client may reach it through either.
 func OperationToVerb(operation admissionv1.OperationType) ([]string, error) {
 	switch operation {
 	case admissionv1.Create:
@@ -22,19 +21,4 @@ func OperationToVerb(operation admissionv1.OperationType) ([]string, error) {
 	default:
 		return nil, fmt.Errorf("unsupported operation: %v", operation)
 	}
-}
-
-func GetObjectFromWebhookRequest(decoder admission.Decoder, obj runtime.Object, req admission.Request) error {
-	if req.Operation != v1.Delete {
-		err := decoder.Decode(req, obj)
-		if err != nil {
-			return err
-		}
-	} else {
-		err := decoder.DecodeRaw(req.OldObject, obj)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

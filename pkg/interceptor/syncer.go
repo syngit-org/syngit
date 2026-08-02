@@ -38,7 +38,7 @@ type SyncerContext struct {
 	RUBNamespace string
 
 	// The namespace that unqualified spec references resolve against. Empty for a
-	// cluster-wide syncer, which makes utils.ResolveNamespace reject any
+	// cluster-wide syncer, which makes refs.ResolveNamespace reject any
 	// reference that does not carry its own namespace.
 	RefOwnerNamespace string
 }

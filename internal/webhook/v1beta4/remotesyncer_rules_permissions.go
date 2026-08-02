@@ -9,7 +9,8 @@ import (
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
-	utils "github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/rbac"
+	"github.com/syngit-org/syngit/pkg/webhooks"
 	v1 "k8s.io/api/authentication/v1"
 	authv1 "k8s.io/api/authorization/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,7 +33,7 @@ func (rswh *RemoteSyncerWebhookHandler) Handle(ctx context.Context, req admissio
 
 	rs := &syngit.RemoteSyncer{}
 
-	if err := utils.GetObjectFromWebhookRequest(rswh.Decoder, rs, req); err != nil {
+	if err := webhooks.DecodeObject(rswh.Decoder, rs, req); err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
@@ -58,7 +59,7 @@ func (rswh *RemoteSyncerWebhookHandler) hasRightResourcesPermissions(rs syngit.R
 					forbiddenOperations := []string{}
 
 					for _, operation := range rule.Operations {
-						verbs, err := utils.OperationToVerb(operation)
+						verbs, err := rbac.OperationToVerb(operation)
 						if err != nil {
 							// Skipping unsupported operation
 							continue

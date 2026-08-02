@@ -8,7 +8,8 @@ import (
 	"strings"
 
 	"github.com/syngit-org/syngit/pkg/interceptor"
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/kube"
+	"github.com/syngit-org/syngit/pkg/refs"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -30,7 +31,7 @@ func CABundleBuilder(
 	if caBundleSecretRef.Name == "" {
 		return caBundle, nil
 	}
-	ns, err := utils.ResolveNamespace(
+	ns, err := refs.ResolveNamespace(
 		caBundleSecretRef.Namespace,
 		sc.RefOwnerNamespace,
 		field.NewPath("spec", "caBundleSecretRef"),
@@ -63,7 +64,7 @@ func FindCABundle(ctx context.Context, namespace string, name string) ([]byte, e
 	globalNamespacedName := types.NamespacedName{Namespace: namespace, Name: name}
 	caBundleSecret := &corev1.Secret{}
 
-	k8sClient := utils.K8sClientFromContext(ctx)
+	k8sClient := kube.ClientFromContext(ctx)
 
 	err := k8sClient.Get(ctx, globalNamespacedName, caBundleSecret)
 	if err != nil {

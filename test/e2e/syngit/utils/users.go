@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	syngitutils "github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/naming"
 )
 
 // TestUser is the impersonated Kubernetes identity. The same string is
@@ -75,7 +75,7 @@ func DefaultEmail(user TestUser) string { return string(user) + "@syngit.io" }
 
 // SanitizeUser returns the sanitized form of the username matching what
 // the syngit managed-RUB webhook appends to the RUB name.
-func SanitizeUser(user TestUser) string { return syngitutils.Sanitize(string(user)) }
+func SanitizeUser(user TestUser) string { return naming.Sanitize(string(user)) }
 
 // UserClient is an impersonation-aware wrapper around a rest.Config.
 // Methods return fresh clients each call so callers never share the

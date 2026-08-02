@@ -22,7 +22,8 @@ import (
 
 	"github.com/syngit-org/syngit/internal/policy"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/kube"
+	"github.com/syngit-org/syngit/pkg/refs"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -101,7 +102,7 @@ func (r *RemoteUserReconciler) reconcileSecretStatus(ctx context.Context, remote
 	// Get the referenced Secret. It does not necessarily live alongside the
 	// RemoteUser: the admission webhook has already checked that whoever wrote
 	// this RemoteUser is allowed to get the Secret wherever it resolves.
-	secretNamespace, err := utils.ResolveNamespace(
+	secretNamespace, err := refs.ResolveNamespace(
 		remoteUser.Spec.SecretRef.Namespace,
 		remoteUser.Namespace,
 		field.NewPath("spec", "secretRef"),
@@ -159,7 +160,7 @@ func (r *RemoteUserReconciler) reconcileSecretStatus(ctx context.Context, remote
 }
 
 func (r *RemoteUserReconciler) updateStatus(ctx context.Context, remoteUser *syngit.RemoteUser, condition v1.Condition) error {
-	conditions := utils.TypeBasedConditionUpdater(remoteUser.Status.DeepCopy().Conditions, condition)
+	conditions := kube.SetCondition(remoteUser.Status.DeepCopy().Conditions, condition)
 
 	remoteUser.Status.Conditions = conditions
 	if err := r.Status().Update(ctx, remoteUser); err != nil {
@@ -236,7 +237,7 @@ func remoteUserValueExtractor(rawObj client.Object) []string {
 	if remoteUser.Spec.SecretRef.Name == "" {
 		return nil
 	}
-	namespace, err := utils.ResolveNamespace(
+	namespace, err := refs.ResolveNamespace(
 		remoteUser.Spec.SecretRef.Namespace,
 		remoteUser.Namespace,
 		field.NewPath("spec", "secretRef"),

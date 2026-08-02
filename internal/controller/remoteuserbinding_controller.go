@@ -20,7 +20,8 @@ import (
 	"context"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/managed"
+	"github.com/syngit-org/syngit/pkg/refs"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -81,7 +82,7 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		// admission webhook has already checked that whoever wrote this binding
 		// is allowed to get the RemoteUser wherever it resolves.
 		var remoteUser syngit.RemoteUser
-		remoteUserNamespace, err := utils.ResolveNamespace(
+		remoteUserNamespace, err := refs.ResolveNamespace(
 			remoteUserRef.Namespace,
 			remoteUserBinding.Namespace,
 			field.NewPath("spec", "remoteUserRefs").Index(i),
@@ -127,7 +128,7 @@ func (r *RemoteUserBindingReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		for _, name := range missingRefs {
 			missing[name] = true
 		}
-		if err := utils.MutateOrDeleteManagedRemoteUserBinding(ctx, r.Client, req.NamespacedName,
+		if err := managed.MutateOrDeleteRemoteUserBinding(ctx, r.Client, req.NamespacedName,
 			func(fresh *syngit.RemoteUserBinding) error {
 				kept := make([]corev1.ObjectReference, 0, len(fresh.Spec.RemoteUserRefs))
 				for _, ref := range fresh.Spec.RemoteUserRefs {
@@ -203,7 +204,7 @@ func remoteTargetValueExtractor(rawObj client.Object) []string {
 		if remoteUserRef.Name == "" {
 			return nil
 		}
-		namespace, err := utils.ResolveNamespace(
+		namespace, err := refs.ResolveNamespace(
 			remoteUserRef.Namespace,
 			remoteUserBinding.Namespace,
 			field.NewPath("spec", "remoteUserRefs").Index(i),

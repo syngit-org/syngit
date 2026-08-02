@@ -1,11 +1,11 @@
-package utils
+package render
 
 import (
 	"reflect"
 	"testing"
 )
 
-func TestExcludedFieldsFromJson(t *testing.T) {
+func TestRemoveExcludedField(t *testing.T) {
 	tests := []struct {
 		name string
 		data map[string]interface{}
@@ -81,9 +81,9 @@ func TestExcludedFieldsFromJson(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ExcludedFieldsFromJson(tc.data, tc.path)
+			RemoveExcludedField(tc.data, tc.path)
 			if !reflect.DeepEqual(tc.data, tc.want) {
-				t.Errorf("after ExcludedFieldsFromJson, data=%#v, want %#v", tc.data, tc.want)
+				t.Errorf("after RemoveExcludedField, data=%#v, want %#v", tc.data, tc.want)
 			}
 		})
 	}

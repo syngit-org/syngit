@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
-	utils "github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/refs"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -17,7 +17,7 @@ func doesUserBypassWebhook(user authenticationv1.UserInfo, managerNs string) boo
 // Turns a reference the user may not get into an admission denial.
 func denyRef(
 	user authenticationv1.UserInfo,
-	denied *utils.ObjectRef,
+	denied *refs.ObjectRef,
 	ownerNamespace string,
 	sameNamespaceErr error,
 ) admission.Response {

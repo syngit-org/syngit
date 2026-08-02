@@ -7,7 +7,7 @@ import (
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta4"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
-	utils "github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/webhooks"
 	authv1 "k8s.io/api/authorization/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -28,7 +28,7 @@ func (ruwh *RemoteUserPermissionsWebhookHandler) Handle(ctx context.Context, req
 
 	ru := &syngit.RemoteUser{}
 
-	if err := utils.GetObjectFromWebhookRequest(ruwh.Decoder, ru, req); err != nil {
+	if err := webhooks.DecodeObject(ruwh.Decoder, ru, req); err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 

@@ -9,7 +9,11 @@ import (
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	se "github.com/syngit-org/syngit/pkg/errors"
 	"github.com/syngit-org/syngit/pkg/interceptor"
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/kube"
+	"github.com/syngit-org/syngit/pkg/rbac"
+	"github.com/syngit-org/syngit/pkg/refs"
+	"github.com/syngit-org/syngit/pkg/render"
+	"github.com/syngit-org/syngit/pkg/webhooks"
 	admissionv1 "k8s.io/api/admission/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -53,12 +57,12 @@ func RunInterceptionPipeline(
 	// The author of the intercepted change must be allowed to get every object that
 	// the RemoteSyncer references outside of its own namespace. References into the
 	// manager namespace are exempt.
-	refs, err := utils.RemoteSyncerRefs(sc.Spec, sc.RefOwnerNamespace)
+	objectRefs, err := refs.RemoteSyncerRefs(sc.Spec, sc.RefOwnerNamespace)
 	if err != nil {
 		return AdmissionReviewBuilder(ctx, err.Error(), admReq, false, true, sc)
 	}
-	denied, err := utils.AuthorizeCrossNamespaceRefs(
-		ctx, utils.K8sClientFromContext(ctx), userInfo, refs, sc.RefOwnerNamespace, managerNamespace,
+	denied, err := rbac.AuthorizeCrossNamespaceRefs(
+		ctx, kube.ClientFromContext(ctx), userInfo, objectRefs, sc.RefOwnerNamespace, managerNamespace,
 	)
 	if err != nil {
 		return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, sc)
@@ -70,7 +74,7 @@ func RunInterceptionPipeline(
 	}
 
 	// Get the intercepted object metadata
-	objectMetadata := utils.ExtractObjectMetadataFromAdmissionRequest(admReq)
+	objectMetadata := webhooks.ExtractObjectMetadata(admReq)
 
 	// Set the targets using the user credentials
 	userRemoteTargets, err := GetUserInfoRemoteTargetsAssociation(
@@ -88,7 +92,7 @@ func RunInterceptionPipeline(
 
 	// Convert the request to get the yaml of the object
 	if operation != admissionv1.Delete {
-		manifest, err = utils.ConvertObjectJSONToYAMLString(
+		manifest, err = render.ObjectToYAML(
 			ctx,
 			admReq.Object.Raw,
 			managerNamespace,
@@ -102,11 +106,11 @@ func RunInterceptionPipeline(
 
 	// Check for deletion
 	if len(admReq.Object.Raw) != 0 {
-		manifestMap, err := utils.ConvertObjectJSONToYAMLMap(admReq.Object.Raw)
+		manifestMap, err := render.JSONToMap(admReq.Object.Raw)
 		if err != nil {
 			return AdmissionReviewBuilder(ctx, err.Error(), admReq, false, true, sc)
 		}
-		if utils.ContainsDeletionTimestamp(manifestMap) {
+		if render.ContainsDeletionTimestamp(manifestMap) {
 			return AdmissionReviewBuilder(
 				ctx, se.BuildInterceptorPipelineErr("object is being deleted and the interception already happened"),
 				admReq, true, false, sc,
@@ -128,7 +132,7 @@ func RunInterceptionPipeline(
 		ObjectMetadata:        objectMetadata,
 		Operation:             operation,
 		CABundle:              caBundle,
-		Cluster:               utils.K8sClientFromContext(ctx),
+		Cluster:               kube.ClientFromContext(ctx),
 	})
 	if err != nil {
 		if sc.Spec.Strategy == syngit.CommitApply &&
@@ -168,7 +172,7 @@ type GitPushParameters struct {
 	YAMLManifest string
 
 	// The metadatas of the intercepted object.
-	ObjectMetadata utils.ObjectMetadata
+	ObjectMetadata webhooks.ObjectMetadata
 
 	// The operation that the user made on the intercepted
 	// object (CREATE, UPDATE or DELETE).

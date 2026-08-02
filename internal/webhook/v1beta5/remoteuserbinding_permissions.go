@@ -7,7 +7,9 @@ import (
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
-	utils "github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/rbac"
+	"github.com/syngit-org/syngit/pkg/refs"
+	"github.com/syngit-org/syngit/pkg/webhooks"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -30,17 +32,17 @@ func (rubwh RemoteUserBindingPermissionsWebhookHandler) Handle(ctx context.Conte
 
 	rub := &syngit.RemoteUserBinding{}
 
-	if err := utils.GetObjectFromWebhookRequest(rubwh.Decoder, rub, req); err != nil {
+	if err := webhooks.DecodeObject(rubwh.Decoder, rub, req); err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
 	// The user must be allowed to get every referenced RemoteUser and
 	// RemoteTarget.
-	refs, err := utils.RemoteUserBindingRefs(rub.Spec, rub.GetNamespace())
+	objectRefs, err := refs.RemoteUserBindingRefs(rub.Spec, rub.GetNamespace())
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
-	denied, err := utils.AuthorizeRefs(ctx, rubwh.Client, user, refs)
+	denied, err := rbac.AuthorizeRefs(ctx, rubwh.Client, user, objectRefs)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}

@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	syngitv1beta5 "github.com/syngit-org/syngit/pkg/api/v1beta5"
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/refs"
 )
 
 // nolint:unused
@@ -57,7 +57,7 @@ func validateClusterWideRemoteSyncer(cwrs *syngitv1beta5.ClusterWideRemoteSyncer
 	// A cluster-scoped object has no namespace of its own, so an unqualified
 	// reference has nothing to resolve against. Reject it here rather than
 	// letting every interception fail later.
-	if _, err := utils.RemoteSyncerRefs(cwrs.Spec.RemoteSyncerSpec, ""); err != nil {
+	if _, err := refs.RemoteSyncerRefs(cwrs.Spec.RemoteSyncerSpec, ""); err != nil {
 		allErrs = append(allErrs, field.Required(specPath, err.Error()))
 	}
 

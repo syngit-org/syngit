@@ -1,4 +1,4 @@
-package utils
+package kube
 
 import (
 	ctrl "sigs.k8s.io/controller-runtime"

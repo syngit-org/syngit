@@ -7,7 +7,8 @@ import (
 	"time"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/managed"
+	"github.com/syngit-org/syngit/pkg/naming"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -33,13 +34,13 @@ func (p *BranchTargetPolicy) Name() string { return "branchtarget-policy" }
 func (p *BranchTargetPolicy) Finalizer() string { return branchTargetPolicyFinalizer }
 
 func (p *BranchTargetPolicy) Applies(syncer syngit.Syncer) bool {
-	return len(utils.GetBranchesFromAnnotation(syncer.GetAnnotations()[syngit.RtAnnotationKeyOneOrManyBranches])) > 0
+	return len(managed.BranchesFromAnnotation(syncer.GetAnnotations()[syngit.RtAnnotationKeyOneOrManyBranches])) > 0
 }
 
 func (p *BranchTargetPolicy) Reconcile(ctx context.Context, syncer syngit.Syncer) (ctrl.Result, error) {
 	rdm := time.Duration(rand.Intn(5)) * time.Second
 
-	desiredBranches := utils.GetBranchesFromAnnotation(syncer.GetAnnotations()[syngit.RtAnnotationKeyOneOrManyBranches])
+	desiredBranches := managed.BranchesFromAnnotation(syncer.GetAnnotations()[syngit.RtAnnotationKeyOneOrManyBranches])
 
 	upstreamRepo := syncer.SyncerSpec().RemoteRepository
 	upstreamBranch := syncer.SyncerSpec().DefaultBranch
@@ -87,7 +88,7 @@ func (p *BranchTargetPolicy) Reconcile(ctx context.Context, syncer syngit.Syncer
 				if err := p.Delete(ctx, &rt); err != nil && !apierrors.IsNotFound(err) {
 					return ctrl.Result{}, err
 				}
-				if err := utils.RemoveRemoteTargetRefFromManagedRUBs(ctx, p.Client, rt.Namespace, rt.Name); err != nil {
+				if err := managed.RemoveRemoteTargetRefFromRUBs(ctx, p.Client, rt.Namespace, rt.Name); err != nil {
 					return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 				}
 			}
@@ -103,7 +104,7 @@ func (p *BranchTargetPolicy) Cleanup(ctx context.Context, syncer syngit.Syncer) 
 
 // buildRemoteTarget constructs a RemoteTarget for a branch.
 func (p *BranchTargetPolicy) buildRemoteTarget(namespace, upstreamRepo, upstreamBranch, targetBranch string) (*syngit.RemoteTarget, error) {
-	name, err := utils.RemoteTargetNameConstructor(upstreamRepo, upstreamBranch, upstreamRepo, targetBranch)
+	name, err := naming.RemoteTargetName(upstreamRepo, upstreamBranch, upstreamRepo, targetBranch)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +172,7 @@ func (p *BranchTargetPolicy) isBranchUsedByOtherSyncer(branch, upstreamRepo, ups
 	for _, rs := range otherSyncers {
 		spec := rs.SyncerSpec()
 		if spec.RemoteRepository == upstreamRepo && spec.DefaultBranch == upstreamBranch {
-			branches := utils.GetBranchesFromAnnotation(rs.GetAnnotations()[syngit.RtAnnotationKeyOneOrManyBranches])
+			branches := managed.BranchesFromAnnotation(rs.GetAnnotations()[syngit.RtAnnotationKeyOneOrManyBranches])
 			if slices.Contains(branches, branch) {
 				return true
 			}
@@ -202,7 +203,7 @@ func (p *BranchTargetPolicy) cleanupBranchTargets(ctx context.Context, syncer sy
 			if err := p.Delete(ctx, &rt); err != nil && !apierrors.IsNotFound(err) {
 				return err
 			}
-			if err := utils.RemoveRemoteTargetRefFromManagedRUBs(ctx, p.Client, rt.Namespace, rt.Name); err != nil {
+			if err := managed.RemoveRemoteTargetRefFromRUBs(ctx, p.Client, rt.Namespace, rt.Name); err != nil {
 				return err
 			}
 		}

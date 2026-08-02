@@ -161,7 +161,9 @@ merge-coverage: $(GOCOVMERGE) ## Merge the unit, controller & e2e coverage profi
 .PHONY: test-unit
 test-unit: fmt vet ## Run pure unit tests (no kind cluster, no envtest). Writes coverage-unit.txt.
 	go test -race -covermode=atomic -coverpkg=$(COVERPKG) -coverprofile=coverage-unit.txt \
-		./internal/interceptor/... ./internal/pusher/... ./internal/mutator/... ./pkg/errors/... ./pkg/feature/... ./pkg/utils/...
+		./internal/interceptor/... ./internal/pusher/... ./internal/mutator/... \
+		./pkg/errors/... ./pkg/feature/... ./pkg/kube/... ./pkg/refs/... ./pkg/rbac/... \
+		./pkg/webhooks/... ./pkg/naming/... ./pkg/managed/... ./pkg/render/...
 	@go tool cover -func=coverage-unit.txt | tail -1
 
 .PHONY: test-controller
