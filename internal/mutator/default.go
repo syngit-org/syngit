@@ -18,7 +18,7 @@ type DefaultWorktreeCustomizer struct{}
 // Writes the artifact to the pre-determined path:
 // ([RootPath/]<namespace>/<group>/<version>/<resource>/<name>.yaml)
 // and returns the claimed paths.
-func (dt DefaultWorktreeCustomizer) place(params interceptor.GitPipelineParams, artifacts ArtifactSet, worktree *git.Worktree) (interceptor.ClaimedPaths, error) {
+func (dt DefaultWorktreeCustomizer) place(params interceptor.GitPipelineParams, artifacts ArtifactSet, worktree *git.Worktree, transform walker.DocTransform) (interceptor.ClaimedPaths, error) {
 	claimed := interceptor.NewClaimedPaths()
 
 	for _, a := range artifacts.Items {
@@ -27,7 +27,7 @@ func (dt DefaultWorktreeCustomizer) place(params interceptor.GitPipelineParams, 
 			return interceptor.NewClaimedPaths(), err
 		}
 
-		fullFilePath, err := dt.writeFile(params, a.Content, path, worktree)
+		fullFilePath, err := dt.writeFile(params, a.Content, path, worktree, a.transformOrNil(transform))
 		if err != nil {
 			return interceptor.NewClaimedPaths(), err
 		}
@@ -114,7 +114,7 @@ func (dt DefaultWorktreeCustomizer) getFileDirName(resourceName, path, filename 
 	return strings.Join(pathArr, "/"), resourceName + ".yaml"
 }
 
-func (dt DefaultWorktreeCustomizer) writeFile(params interceptor.GitPipelineParams, content []byte, path string, w *git.Worktree) (string, error) {
+func (dt DefaultWorktreeCustomizer) writeFile(params interceptor.GitPipelineParams, content []byte, path string, w *git.Worktree, transform walker.DocTransform) (string, error) {
 	fullFilePath := path
 	dir := ""
 
@@ -132,6 +132,18 @@ func (dt DefaultWorktreeCustomizer) writeFile(params interceptor.GitPipelinePara
 
 	if content == nil { // The file has been deleted
 		return fullFilePath, nil
+	}
+
+	// This layout gives the artifact a file of its own, so whatever is already
+	// there is the previous revision of this same object: exactly the existing
+	// content the transform expects.
+	existing, err := walker.ReadWorktreeFile(w, fullFilePath)
+	if err != nil {
+		existing = nil
+	}
+	content, err = transform.Apply(fullFilePath, existing, content)
+	if err != nil {
+		return fullFilePath, err
 	}
 
 	if err := walker.WriteWorktreeFile(w, fullFilePath, content); err != nil {

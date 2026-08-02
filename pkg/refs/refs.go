@@ -118,6 +118,10 @@ func RemoteSyncerRefs(spec syngit.RemoteSyncerSpec, ownerNamespace string) ([]Ob
 		c.add(ref.Namespace, ref.Name, secretsGVR, c.specPath.Child("caBundleSecretRef"))
 	}
 
+	if ref := spec.SOPS.SecretRef; ref.Name != "" {
+		c.add(ref.Namespace, ref.Name, secretsGVR, c.specPath.Child("sops", "secretRef"))
+	}
+
 	return c.result()
 }
 

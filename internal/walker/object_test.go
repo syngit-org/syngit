@@ -59,7 +59,7 @@ func TestReplaceObject(t *testing.T) {
 	seedWorktreeFile(t, wt, "deploy.yaml", demoDeploymentYAML)
 
 	sel := ObjectSelector{GVR: deploymentGVR(), Name: "demo", Namespace: "default"}
-	claimed, err := ReplaceObject(wt, "", sel, []byte("REPLACED\n"))
+	claimed, err := ReplaceObject(wt, "", sel, []byte("REPLACED\n"), nil)
 	if err != nil {
 		t.Fatalf("ReplaceObject: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestReplaceObject(t *testing.T) {
 		t.Fatal("expected a claimed path")
 	}
 
-	got, err := readWorktreeFile(wt, "deploy.yaml")
+	got, err := ReadWorktreeFile(wt, "deploy.yaml")
 	if err != nil {
 		t.Fatalf("read back: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestReplaceObject_Deletion(t *testing.T) {
 	seedWorktreeFile(t, wt, "deploy.yaml", demoDeploymentYAML)
 
 	sel := ObjectSelector{GVR: deploymentGVR(), Name: "demo", Namespace: "default"}
-	claimed, err := ReplaceObject(wt, "", sel, nil)
+	claimed, err := ReplaceObject(wt, "", sel, nil, nil)
 	if err != nil {
 		t.Fatalf("ReplaceObject: %v", err)
 	}
@@ -119,7 +119,7 @@ metadata:
 spec:
   replicas: 5
 `)
-	claimed, err := WriteObjectAtPath(wt, "multi.yaml", SelectorFromDoc(newDoc), newDoc)
+	claimed, err := WriteObjectAtPath(wt, "multi.yaml", SelectorFromDoc(newDoc), newDoc, nil)
 	if err != nil {
 		t.Fatalf("WriteObjectAtPath: %v", err)
 	}
@@ -127,7 +127,7 @@ spec:
 		t.Fatal("expected a claimed path")
 	}
 
-	got, _ := readWorktreeFile(wt, "multi.yaml")
+	got, _ := ReadWorktreeFile(wt, "multi.yaml")
 	s := string(got)
 	if !strings.Contains(s, "name: keep") {
 		t.Errorf("sibling doc lost:\n%s", s)
@@ -141,14 +141,14 @@ func TestWriteObjectAtPath_NewFileAndDeletion(t *testing.T) {
 	wt := newMemWorktree(t)
 
 	doc := []byte(demoDeploymentYAML)
-	if _, err := WriteObjectAtPath(wt, "nested/dir/deploy.yaml", SelectorFromDoc(doc), doc); err != nil {
+	if _, err := WriteObjectAtPath(wt, "nested/dir/deploy.yaml", SelectorFromDoc(doc), doc, nil); err != nil {
 		t.Fatalf("WriteObjectAtPath create: %v", err)
 	}
 	if _, err := wt.Filesystem.Stat("nested/dir/deploy.yaml"); err != nil {
 		t.Fatalf("expected the file (and parents) to be created: %v", err)
 	}
 
-	claimed, err := WriteObjectAtPath(wt, "nested/dir/deploy.yaml", ObjectSelector{}, nil)
+	claimed, err := WriteObjectAtPath(wt, "nested/dir/deploy.yaml", ObjectSelector{}, nil, nil)
 	if err != nil {
 		t.Fatalf("WriteObjectAtPath delete: %v", err)
 	}

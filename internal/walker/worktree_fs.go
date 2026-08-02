@@ -8,8 +8,8 @@ import (
 	"github.com/go-git/go-git/v5"
 )
 
-// readWorktreeFile reads the whole content of path from the worktree filesystem.
-func readWorktreeFile(wt *git.Worktree, path string) ([]byte, error) {
+// ReadWorktreeFile reads the whole content of path from the worktree filesystem.
+func ReadWorktreeFile(wt *git.Worktree, path string) ([]byte, error) {
 	f, err := wt.Filesystem.Open(path)
 	if err != nil {
 		return nil, err

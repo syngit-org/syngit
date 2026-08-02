@@ -22,7 +22,7 @@ func deploymentWithReplicas(n int) string {
 
 func mustRead(t *testing.T, wt *git.Worktree, path string) string {
 	t.Helper()
-	content, err := readWorktreeFile(wt, path)
+	content, err := ReadWorktreeFile(wt, path)
 	if err != nil {
 		t.Fatalf("read %s: %v", path, err)
 	}
@@ -49,7 +49,7 @@ func TestReplaceObject_CacheHitSkipsWalk(t *testing.T) {
 	key := docCacheKey{Scope: docCacheScope, Sel: sel}
 	docCache.Set(key, docCacheValue{Path: "a/deploy.yaml"})
 
-	claimed, err := ReplaceObject(wt, docCacheScope, sel, []byte(deploymentWithReplicas(2)))
+	claimed, err := ReplaceObject(wt, docCacheScope, sel, []byte(deploymentWithReplicas(2)), nil)
 	if err != nil {
 		t.Fatalf("ReplaceObject: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestReplaceObject_StaleCacheFallsBackToWalk(t *testing.T) {
 	key := docCacheKey{Scope: docCacheScope, Sel: sel}
 	docCache.Set(key, docCacheValue{Path: "old/deploy.yaml"})
 
-	if _, err := ReplaceObject(wt, docCacheScope, sel, []byte(deploymentWithReplicas(2))); err != nil {
+	if _, err := ReplaceObject(wt, docCacheScope, sel, []byte(deploymentWithReplicas(2)), nil); err != nil {
 		t.Fatalf("ReplaceObject: %v", err)
 	}
 
@@ -104,7 +104,7 @@ func TestReplaceObject_MultiMatchNeverCaches(t *testing.T) {
 	key := docCacheKey{Scope: docCacheScope, Sel: sel}
 
 	// First run: a full walk matches both files and marks the key never-cache.
-	if _, err := ReplaceObject(wt, docCacheScope, sel, []byte(deploymentWithReplicas(2))); err != nil {
+	if _, err := ReplaceObject(wt, docCacheScope, sel, []byte(deploymentWithReplicas(2)), nil); err != nil {
 		t.Fatalf("ReplaceObject #1: %v", err)
 	}
 	if v, ok := docCache.Get(key); !ok || !v.NoCache {
@@ -113,7 +113,7 @@ func TestReplaceObject_MultiMatchNeverCaches(t *testing.T) {
 
 	// Second run: never-cache forces another full walk, so both copies are
 	// rewritten again.
-	if _, err := ReplaceObject(wt, docCacheScope, sel, []byte(deploymentWithReplicas(3))); err != nil {
+	if _, err := ReplaceObject(wt, docCacheScope, sel, []byte(deploymentWithReplicas(3)), nil); err != nil {
 		t.Fatalf("ReplaceObject #2: %v", err)
 	}
 	for _, p := range []string{"a.yaml", "b.yaml"} {
@@ -129,7 +129,7 @@ func TestReplaceObject_SingleMatchCachesPath(t *testing.T) {
 	seedWorktreeFile(t, wt, "x/deploy.yaml", demoDeploymentYAML)
 
 	sel := demoSelector()
-	if _, err := ReplaceObject(wt, docCacheScope, sel, []byte(deploymentWithReplicas(2))); err != nil {
+	if _, err := ReplaceObject(wt, docCacheScope, sel, []byte(deploymentWithReplicas(2)), nil); err != nil {
 		t.Fatalf("ReplaceObject: %v", err)
 	}
 	v, ok := docCache.Get(docCacheKey{Scope: docCacheScope, Sel: sel})
@@ -147,7 +147,7 @@ func TestReplaceObject_DeletionClearsKey(t *testing.T) {
 	key := docCacheKey{Scope: docCacheScope, Sel: sel}
 	docCache.Set(key, docCacheValue{Path: "x/deploy.yaml"})
 
-	claimed, err := ReplaceObject(wt, docCacheScope, sel, nil)
+	claimed, err := ReplaceObject(wt, docCacheScope, sel, nil, nil)
 	if err != nil {
 		t.Fatalf("ReplaceObject: %v", err)
 	}
@@ -172,7 +172,7 @@ func TestReplaceObject_DisabledCacheRewritesAllMatches(t *testing.T) {
 	seedWorktreeFile(t, wt, "b.yaml", demoDeploymentYAML)
 
 	sel := demoSelector()
-	if _, err := ReplaceObject(wt, docCacheScope, sel, []byte(deploymentWithReplicas(2))); err != nil {
+	if _, err := ReplaceObject(wt, docCacheScope, sel, []byte(deploymentWithReplicas(2)), nil); err != nil {
 		t.Fatalf("ReplaceObject: %v", err)
 	}
 	for _, p := range []string{"a.yaml", "b.yaml"} {

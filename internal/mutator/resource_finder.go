@@ -13,7 +13,7 @@ type ResourceFinder struct{}
 // addition/modification/deletion. It is a thin wrapper over ReplaceObject: the
 // selector matches by Kubernetes identity and, for non-Kubernetes documents (e.g.
 // Helm values), by the ResourceFinderCommentPrefix marker.
-func (rf ResourceFinder) place(params interceptor.GitPipelineParams, artifacts ArtifactSet, worktree *git.Worktree) (interceptor.ClaimedPaths, error) {
+func (rf ResourceFinder) place(params interceptor.GitPipelineParams, artifacts ArtifactSet, worktree *git.Worktree, transform walker.DocTransform) (interceptor.ClaimedPaths, error) {
 	claimed := interceptor.NewClaimedPaths()
 
 	scope := params.RemoteTarget.Spec.TargetRepository + "#" + params.RemoteTarget.Spec.UpstreamBranch
@@ -32,7 +32,7 @@ func (rf ResourceFinder) place(params interceptor.GitPipelineParams, artifacts A
 			CommentPrefix: ResourceFinderCommentPrefix,
 		}
 
-		found, err := walker.ReplaceObject(worktree, scope, sel, a.Content)
+		found, err := walker.ReplaceObject(worktree, scope, sel, a.Content, a.transformOrNil(transform))
 		if err != nil {
 			return interceptor.NewClaimedPaths(), err
 		}

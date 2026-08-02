@@ -76,7 +76,7 @@ spec:
 		InterceptedName: "sh.helm.release.v1.demo.v1",
 	}
 
-	claimed, err := (ResourceFinder{}).place(params, artifacts, wt)
+	claimed, err := (ResourceFinder{}).place(params, artifacts, wt, nil)
 	if err != nil {
 		t.Fatalf("place: %v", err)
 	}
@@ -116,7 +116,7 @@ func TestResourceFinderPlace_NoMatchClaimsNothing(t *testing.T) {
 		InterceptedName: "sh.helm.release.v1.demo.v1",
 	}
 
-	claimed, err := (ResourceFinder{}).place(params, artifacts, wt)
+	claimed, err := (ResourceFinder{}).place(params, artifacts, wt, nil)
 	if err != nil {
 		t.Fatalf("place: %v", err)
 	}

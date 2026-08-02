@@ -181,6 +181,10 @@ type RemoteSyncerSpec struct {
 	// referenced object in that namespace.
 	// +kubebuilder:validation:Optional
 	CABundleSecretRef corev1.SecretReference `json:"caBundleSecretRef,omitempty" protobuf:"bytes,opt,21,name=caBundleSecretRef"`
+
+	// The SOPS field is used to configure the SOPS provider for syngit.
+	// +kubebuilder:validation:Optional
+	SOPS SOPSConfig `json:"sops,omitempty" protobuf:"bytes,opt,22,name=sops"`
 }
 
 type RemoteSyncerStatus struct {
@@ -313,6 +317,27 @@ const (
 	Pass             PushErrorBehavior = "Pass"
 	BlockCacheCommit PushErrorBehavior = "BlockCacheCommit" // TODO
 )
+
+type SOPSConfig struct {
+	// Set enabled to true to encrypt with SOPS the manifests pushed by this
+	// Syncer. The recipients and the encryption scope are read from the
+	// .sops.yaml of the remote repository; a manifest whose path matches no
+	// creation rule is pushed in cleartext.
+	// +kubebuilder:default:value=false
+	// +kubebuilder:validation:Optional
+	Enabled bool `json:"enabled,omitempty" protobuf:"bytes,opt,1,name=enabled"`
+
+	// The secretRef is a reference to a Secret that stores the age private key
+	// used to decrypt the content, in any data entry whose key ends with
+	// ".agekey". It is only needed to reuse the ciphertext already stored in the
+	// repository: without it, every push rewrites every encrypted value.
+	// Encrypting itself only needs the .sops.yaml recipients.
+	// If the namespace is not set, it defaults to the namespace of the RemoteSyncer.
+	// Referencing another namespace requires the user to be allowed to get the
+	// referenced object in that namespace.
+	// +kubebuilder:validation:Optional
+	SecretRef corev1.SecretReference `json:"secretRef,omitempty" protobuf:"bytes,opt,2,name=secretRef"`
+}
 
 /*
 	SPEC CONVERSION EXTENSION

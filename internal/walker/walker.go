@@ -77,7 +77,7 @@ func walkWorktreeFiles(wt *git.Worktree, basePath string, visit func(path string
 			continue
 		}
 
-		content, err := readWorktreeFile(wt, path)
+		content, err := ReadWorktreeFile(wt, path)
 		if err != nil {
 			return false, fmt.Errorf("failed to read %s: %w", path, err)
 		}
