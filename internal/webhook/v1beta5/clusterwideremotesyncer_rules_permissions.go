@@ -6,7 +6,7 @@ import (
 	"os"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
-	utils "github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/webhooks"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,7 +31,7 @@ func (cwswh *ClusterWideRemoteSyncerWebhookHandler) Handle(ctx context.Context, 
 
 	cwrs := &syngit.ClusterWideRemoteSyncer{}
 
-	if err := utils.GetObjectFromWebhookRequest(cwswh.Decoder, cwrs, req); err != nil {
+	if err := webhooks.DecodeObject(cwswh.Decoder, cwrs, req); err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 

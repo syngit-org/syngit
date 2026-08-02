@@ -1,4 +1,40 @@
-package utils
+package render
+
+import (
+	"context"
+
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
+	"github.com/syngit-org/syngit/pkg/kube"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/yaml"
+)
+
+// ExcludedFieldsFromConfigMap reads the excludedFields list of a ConfigMap.
+func ExcludedFieldsFromConfigMap(
+	ctx context.Context,
+	configMapName string,
+	configMapNamespace string,
+) ([]string, error) {
+	k8sClient := kube.ClientFromContext(ctx)
+	namespacedName := types.NamespacedName{Namespace: configMapNamespace, Name: configMapName}
+
+	excludedFieldsConfig := &corev1.ConfigMap{}
+	err := k8sClient.Get(ctx, namespacedName, excludedFieldsConfig)
+	if err != nil {
+		return nil, err
+	}
+	yamlString := excludedFieldsConfig.Data["excludedFields"]
+	var excludedFields []string
+
+	// Unmarshal the YAML string into the Go array
+	err = yaml.Unmarshal([]byte(yamlString), &excludedFields)
+	if err != nil {
+		return nil, syngiterrors.NewWrongYAMLFormat("failed to convert the excludedFields from the ConfigMap")
+	}
+
+	return excludedFields, nil
+}
 
 // Remove the specified path from the json object
 // Path examples :
@@ -32,7 +68,7 @@ package utils
 //	"this.string-is:the/same*key":
 //	  test5:
 //	    test6: value
-func ExcludedFieldsFromJson(data map[string]interface{}, path string) {
+func RemoveExcludedField(data map[string]interface{}, path string) {
 	parts := make([]string, 0)
 	var current string
 	inBrackets := false

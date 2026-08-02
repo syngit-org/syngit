@@ -7,7 +7,9 @@ import (
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
-	utils "github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/rbac"
+	"github.com/syngit-org/syngit/pkg/refs"
+	"github.com/syngit-org/syngit/pkg/webhooks"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -29,18 +31,18 @@ func (ruwh *RemoteUserPermissionsWebhookHandler) Handle(ctx context.Context, req
 
 	ru := &syngit.RemoteUser{}
 
-	if err := utils.GetObjectFromWebhookRequest(ruwh.Decoder, ru, req); err != nil {
+	if err := webhooks.DecodeObject(ruwh.Decoder, ru, req); err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
 	// The user must be allowed to get the referenced Secret, wherever it lives.
 	// Its own namespace is checked too: being able to create a RemoteUser must
 	// not become a way to use credentials it cannot read.
-	refs, err := utils.RemoteUserRefs(ru.Spec, ru.GetNamespace())
+	objectRefs, err := refs.RemoteUserRefs(ru.Spec, ru.GetNamespace())
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
-	denied, err := utils.AuthorizeRefs(ctx, ruwh.Client, user, refs)
+	denied, err := rbac.AuthorizeRefs(ctx, ruwh.Client, user, objectRefs)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}

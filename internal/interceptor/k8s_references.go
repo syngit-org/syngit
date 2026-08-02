@@ -3,7 +3,8 @@ package interceptor
 import (
 	"context"
 
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/kube"
+	"github.com/syngit-org/syngit/pkg/refs"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -19,19 +20,19 @@ func resolveRefs[T any, PT interface {
 	client.Object
 }](
 	ctx context.Context,
-	refs []corev1.ObjectReference,
+	objectRefs []corev1.ObjectReference,
 	ownerNamespace string,
 	fieldName string,
 	newObject func() PT,
 ) ([]PT, error) {
-	k8sClient := utils.K8sClientFromContext(ctx)
-	resolved := make([]PT, 0, len(refs))
+	k8sClient := kube.ClientFromContext(ctx)
+	resolved := make([]PT, 0, len(objectRefs))
 
-	for i, ref := range refs {
+	for i, ref := range objectRefs {
 		if ref.Name == "" {
 			continue
 		}
-		namespace, err := utils.ResolveNamespace(
+		namespace, err := refs.ResolveNamespace(
 			ref.Namespace, ownerNamespace, field.NewPath("spec", fieldName).Index(i),
 		)
 		if err != nil {

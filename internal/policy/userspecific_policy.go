@@ -6,7 +6,8 @@ import (
 	"time"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/managed"
+	"github.com/syngit-org/syngit/pkg/naming"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -138,7 +139,7 @@ func (p *UserSpecificPolicy) pruneStaleTargets(
 		if p.isRTUsedByOtherSyncer(rt, otherSyncers) {
 			continue
 		}
-		if err := utils.RemoveRemoteTargetRefFromManagedRUBs(ctx, p.Client, rt.Namespace, rt.Name); err != nil {
+		if err := managed.RemoveRemoteTargetRefFromRUBs(ctx, p.Client, rt.Namespace, rt.Name); err != nil {
 			return ctrl.Result{RequeueAfter: requeueAfter + rdm}, err
 		}
 		if err := p.Delete(ctx, &rt); err != nil && !apierrors.IsNotFound(err) {
@@ -155,7 +156,7 @@ func (p *UserSpecificPolicy) buildUserSpecificTarget(namespace, upstreamRepo, up
 		targetRepo = ""
 	}
 
-	rtName, err := utils.RemoteTargetNameConstructor(upstreamRepo, upstreamBranch, targetRepo, sanitizedUser)
+	rtName, err := naming.RemoteTargetName(upstreamRepo, upstreamBranch, targetRepo, sanitizedUser)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +175,7 @@ func (p *UserSpecificPolicy) buildUserSpecificTarget(namespace, upstreamRepo, up
 			UpstreamRepository: upstreamRepo,
 			UpstreamBranch:     upstreamBranch,
 			TargetRepository:   targetRepo,
-			TargetBranch:       utils.SoftSanitize(rawUsername),
+			TargetBranch:       naming.SoftSanitize(rawUsername),
 			MergeStrategy:      syngit.TryFastForwardOrHardReset,
 		},
 	}
@@ -190,10 +191,10 @@ func (p *UserSpecificPolicy) buildUserSpecificTarget(namespace, upstreamRepo, up
 
 // ensureRTRefInRUB ensures the RemoteTarget is referenced in the RUB and persists the change.
 func (p *UserSpecificPolicy) ensureRTRefInRUB(ctx context.Context, rub *syngit.RemoteUserBinding, rtName string) error {
-	return utils.MutateOrDeleteManagedRemoteUserBinding(ctx, p.Client,
+	return managed.MutateOrDeleteRemoteUserBinding(ctx, p.Client,
 		types.NamespacedName{Name: rub.Name, Namespace: rub.Namespace},
 		func(fresh *syngit.RemoteUserBinding) error {
-			utils.AddRemoteTargetRef(fresh, rtName)
+			managed.AddRemoteTargetRef(fresh, rtName)
 			return nil
 		})
 }
@@ -272,7 +273,7 @@ func (p *UserSpecificPolicy) cleanupUserSpecificTargets(ctx context.Context, syn
 		if p.isRTUsedByOtherSyncer(rt, otherSyncers) {
 			continue
 		}
-		if err := utils.RemoveRemoteTargetRefFromManagedRUBs(ctx, p.Client, rt.Namespace, rt.Name); err != nil {
+		if err := managed.RemoveRemoteTargetRefFromRUBs(ctx, p.Client, rt.Namespace, rt.Name); err != nil {
 			return err
 		}
 		if err := p.Delete(ctx, &rt); err != nil && !apierrors.IsNotFound(err) {

@@ -1,16 +1,14 @@
-package utils
+package render
 
 import (
 	"context"
 	"encoding/json"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
-	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
-	admissionv1 "k8s.io/api/admission/v1"
+	"github.com/syngit-org/syngit/pkg/kube"
+	"github.com/syngit-org/syngit/pkg/refs"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -22,14 +20,14 @@ import (
 // Because the 'map' object is, by definition, not ordered
 // we cannot reorder fields.
 // refOwnerNamespace is the syncer's namespace (empty for CWRSY)
-func ConvertObjectJSONToYAMLString(
+func ObjectToYAML(
 	ctx context.Context,
 	rawObject []byte,
 	syngitNamespace string,
 	spec syngit.RemoteSyncerSpec,
 	refOwnerNamespace string,
 ) (string, error) {
-	data, err := ConvertObjectJSONToYAMLMap(rawObject)
+	data, err := JSONToMap(rawObject)
 	if err != nil {
 		return "", err
 	}
@@ -46,14 +44,14 @@ func ConvertObjectJSONToYAMLString(
 		}),
 	}
 
-	k8sClient := K8sClientFromContext(ctx)
+	k8sClient := kube.ClientFromContext(ctx)
 
 	err = k8sClient.List(ctx, &defaultExcludedFieldsCms, listOps)
 	if err != nil {
 		return "", err
 	}
 	for _, defaultExcludedFieldsCm := range defaultExcludedFieldsCms.Items {
-		excludedFieldsFromCm, err := GetExcludedFieldsFromConfigMap(
+		excludedFieldsFromCm, err := ExcludedFieldsFromConfigMap(
 			ctx,
 			defaultExcludedFieldsCm.Name,
 			defaultExcludedFieldsCm.Namespace,
@@ -73,7 +71,7 @@ func ConvertObjectJSONToYAMLString(
 		if ref == nil {
 			continue
 		}
-		cmNamespace, err := ResolveNamespace(
+		cmNamespace, err := refs.ResolveNamespace(
 			ref.Namespace,
 			refOwnerNamespace,
 			field.NewPath("spec", "excludedFieldsConfigMapsRef").Index(i),
@@ -81,7 +79,7 @@ func ConvertObjectJSONToYAMLString(
 		if err != nil {
 			return "", err
 		}
-		excludedFieldsFromCm, err := GetExcludedFieldsFromConfigMap(
+		excludedFieldsFromCm, err := ExcludedFieldsFromConfigMap(
 			ctx,
 			ref.Name,
 			cmNamespace,
@@ -94,7 +92,7 @@ func ConvertObjectJSONToYAMLString(
 
 	// Remove unwanted fields
 	for _, path := range paths {
-		ExcludedFieldsFromJson(data, path)
+		RemoveExcludedField(data, path)
 	}
 
 	// Marshal back to YAML
@@ -106,32 +104,7 @@ func ConvertObjectJSONToYAMLString(
 	return string(updatedYAML), nil
 }
 
-func GetExcludedFieldsFromConfigMap(
-	ctx context.Context,
-	configMapName string,
-	configMapNamespace string,
-) ([]string, error) {
-	k8sClient := K8sClientFromContext(ctx)
-	namespacedName := types.NamespacedName{Namespace: configMapNamespace, Name: configMapName}
-
-	excludedFieldsConfig := &corev1.ConfigMap{}
-	err := k8sClient.Get(ctx, namespacedName, excludedFieldsConfig)
-	if err != nil {
-		return nil, err
-	}
-	yamlString := excludedFieldsConfig.Data["excludedFields"]
-	var excludedFields []string
-
-	// Unmarshal the YAML string into the Go array
-	err = yaml.Unmarshal([]byte(yamlString), &excludedFields)
-	if err != nil {
-		return nil, syngiterrors.NewWrongYAMLFormat("failed to convert the excludedFields from the ConfigMap")
-	}
-
-	return excludedFields, nil
-}
-
-func ConvertObjectJSONToYAMLMap(rawObject []byte) (map[string]interface{}, error) {
+func JSONToMap(rawObject []byte) (map[string]interface{}, error) {
 	var data map[string]interface{}
 	err := json.Unmarshal(rawObject, &data)
 	if err != nil {
@@ -144,22 +117,4 @@ func ContainsDeletionTimestamp(data map[string]interface{}) bool {
 	metadata, _ := data["metadata"].(map[string]interface{})
 	_, ok := metadata["deletionTimestamp"]
 	return ok
-}
-
-type ObjectMetadata struct {
-	GVR schema.GroupVersionResource
-	// Name of the intercepted object.
-	Name string
-	// Namespace of the intercepted object. Empty when it is cluster-scoped.
-	Namespace string
-}
-
-func ExtractObjectMetadataFromAdmissionRequest(admissionRequest *admissionv1.AdmissionRequest) ObjectMetadata {
-	interceptedGVR := (*schema.GroupVersionResource)(admissionRequest.RequestResource.DeepCopy())
-
-	return ObjectMetadata{
-		Name:      admissionRequest.Name,
-		Namespace: admissionRequest.Namespace,
-		GVR:       *interceptedGVR,
-	}
 }

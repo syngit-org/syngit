@@ -25,7 +25,7 @@ import (
 	interceptor "github.com/syngit-org/syngit/internal/interceptor"
 	"github.com/syngit-org/syngit/internal/policy"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/kube"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -91,7 +91,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	polResult, polErr := policy.RunPolicies[syngit.Syncer](ctx, r.Client, &remoteSyncer,
 		[]policy.Policy[syngit.Syncer]{r.branchTargetPolicy, r.userSpecificPolicy})
 
-	return utils.MergeResults(coreResult, polResult), errors.Join(coreErr, polErr)
+	return kube.MergeResults(coreResult, polResult), errors.Join(coreErr, polErr)
 }
 
 // reconcileWebhook manages the dynamic ValidatingWebhookConfiguration for this
@@ -177,7 +177,7 @@ func rulesAreEqual(r1, r2 admissionv1.RuleWithOperations) bool {
 }
 
 func (r *RemoteSyncerReconciler) updateStatus(ctx context.Context, remoteSyncer *syngit.RemoteSyncer, condition v1.Condition) error {
-	conditions := utils.TypeBasedConditionUpdater(remoteSyncer.Status.DeepCopy().Conditions, condition)
+	conditions := kube.SetCondition(remoteSyncer.Status.DeepCopy().Conditions, condition)
 
 	remoteSyncer.Status.Conditions = conditions
 	if err := r.Status().Update(ctx, remoteSyncer); err != nil {

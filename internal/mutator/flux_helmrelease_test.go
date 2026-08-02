@@ -16,7 +16,7 @@ import (
 	provider "github.com/syngit-org/syngit-provider-flux/pkg"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	"github.com/syngit-org/syngit/pkg/interceptor"
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/kube"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -41,11 +41,11 @@ func newMemWorktree(t *testing.T) *git.Worktree {
 
 // fakeClientCtx returns a context carrying a fake k8s client, as the webhook
 // handler does at runtime. The provider's excluded-fields cleaning reads the
-// client from the context (utils.K8sClientFromContext), which panics otherwise.
+// client from the context (kube.ClientFromContext), which panics otherwise.
 func fakeClientCtx(t *testing.T) context.Context {
 	t.Helper()
 	c := fake.NewClientBuilder().Build()
-	return context.WithValue(context.Background(), utils.K8sClientCtxKey{}, client.Client(c))
+	return context.WithValue(context.Background(), kube.ClientCtxKey{}, client.Client(c))
 }
 
 // helmReleaseSecretYAML builds the YAML of a Helm release Secret

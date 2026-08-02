@@ -8,7 +8,8 @@ import (
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
-	utils "github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/rbac"
+	"github.com/syngit-org/syngit/pkg/refs"
 	v1 "k8s.io/api/authentication/v1"
 	authv1 "k8s.io/api/authorization/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,7 +46,7 @@ func authorizeSyncer(
 	// cluster-wide one names whichever namespace it likes, so that has to be
 	// earned. Comparing the two namespaces is what tells those cases apart.
 	if identityNamespace := syncer.IdentityNamespace(); identityNamespace != syncer.GetNamespace() {
-		allowed, err := utils.CheckAccess(ctx, c, user, authv1.ResourceAttributes{
+		allowed, err := rbac.CheckAccess(ctx, c, user, authv1.ResourceAttributes{
 			Namespace: identityNamespace,
 			Verb:      "list",
 			Group:     syngit.GroupVersion.Group,
@@ -72,11 +73,11 @@ func authorizeSyncer(
 	// is nothing to default to, and validation rejects the rest), and none of
 	// them is exempted as "same namespace".
 	ownNamespace := syncer.GetNamespace()
-	refs, err := utils.RemoteSyncerRefs(*spec, ownNamespace)
+	objectRefs, err := refs.RemoteSyncerRefs(*spec, ownNamespace)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
-	denied, err := utils.AuthorizeCrossNamespaceRefs(ctx, c, user, refs, ownNamespace)
+	denied, err := rbac.AuthorizeCrossNamespaceRefs(ctx, c, user, objectRefs, ownNamespace)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
@@ -109,7 +110,7 @@ func hasRightResourcesPermissions(
 					forbiddenOperations := []string{}
 
 					for _, operation := range rule.Operations {
-						verbs, err := utils.OperationToVerb(operation)
+						verbs, err := rbac.OperationToVerb(operation)
 						if err != nil {
 							// Skipping unsupported operation
 							continue
@@ -159,7 +160,7 @@ func isOperationAllowed(
 		allowedHere := false
 
 		for _, verb := range verbs {
-			verbAllowed, err := utils.CheckAccess(ctx, c, user, authv1.ResourceAttributes{
+			verbAllowed, err := rbac.CheckAccess(ctx, c, user, authv1.ResourceAttributes{
 				Namespace: namespace,
 				Verb:      verb,
 				Group:     group,

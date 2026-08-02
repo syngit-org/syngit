@@ -1,4 +1,4 @@
-package utils
+package kube
 
 import (
 	"testing"
@@ -6,10 +6,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestTypeBasedConditionUpdater(t *testing.T) {
+func TestSetCondition(t *testing.T) {
 	t.Run("nil slice gets condition appended", func(t *testing.T) {
 		c := metav1.Condition{Type: "Ready", Reason: "r1"}
-		got := TypeBasedConditionUpdater(nil, c)
+		got := SetCondition(nil, c)
 		if len(got) != 1 || got[0].Type != "Ready" || got[0].Reason != "r1" { // nolint:goconst
 			t.Errorf("got %+v, want single Ready condition", got)
 		}
@@ -20,7 +20,7 @@ func TestTypeBasedConditionUpdater(t *testing.T) {
 			{Type: "Ready", Reason: "old"},
 			{Type: "Synced", Reason: "synced"},
 		}
-		got := TypeBasedConditionUpdater(existing, metav1.Condition{Type: "Ready", Reason: "new"})
+		got := SetCondition(existing, metav1.Condition{Type: "Ready", Reason: "new"})
 		if len(got) != 2 {
 			t.Fatalf("length=%d, want 2", len(got))
 		}
@@ -44,7 +44,7 @@ func TestTypeBasedConditionUpdater(t *testing.T) {
 
 	t.Run("appends when type is absent", func(t *testing.T) {
 		existing := []metav1.Condition{{Type: "Ready", Reason: "r1"}}
-		got := TypeBasedConditionUpdater(existing, metav1.Condition{Type: "Synced", Reason: "s1"})
+		got := SetCondition(existing, metav1.Condition{Type: "Synced", Reason: "s1"})
 		if len(got) != 2 {
 			t.Fatalf("length=%d, want 2", len(got))
 		}
@@ -54,9 +54,9 @@ func TestTypeBasedConditionUpdater(t *testing.T) {
 	})
 }
 
-func TestTypeBasedConditionRemover(t *testing.T) {
+func TestRemoveCondition(t *testing.T) {
 	t.Run("nil slice returns nil", func(t *testing.T) {
-		got := TypeBasedConditionRemover(nil, "Ready")
+		got := RemoveCondition(nil, "Ready")
 		if len(got) != 0 {
 			t.Errorf("got %+v, want empty", got)
 		}
@@ -67,7 +67,7 @@ func TestTypeBasedConditionRemover(t *testing.T) {
 			{Type: "Ready", Reason: "r"},
 			{Type: "Synced", Reason: "s"},
 		}
-		got := TypeBasedConditionRemover(in, "Ready")
+		got := RemoveCondition(in, "Ready")
 		if len(got) != 1 || got[0].Type != "Synced" {
 			t.Errorf("got %+v, want single Synced", got)
 		}
@@ -75,7 +75,7 @@ func TestTypeBasedConditionRemover(t *testing.T) {
 
 	t.Run("type absent leaves list unchanged", func(t *testing.T) {
 		in := []metav1.Condition{{Type: "Ready", Reason: "r"}}
-		got := TypeBasedConditionRemover(in, "Missing")
+		got := RemoveCondition(in, "Missing")
 		if len(got) != 1 || got[0].Type != "Ready" {
 			t.Errorf("got %+v, want unchanged", got)
 		}

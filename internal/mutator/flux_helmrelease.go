@@ -10,7 +10,7 @@ import (
 	fluxprovider "github.com/syngit-org/syngit-provider-flux/pkg"
 	helmprovider "github.com/syngit-org/syngit-provider-helm/pkg"
 	"github.com/syngit-org/syngit/pkg/interceptor"
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/render"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -119,7 +119,7 @@ func (p FluxHelmReleaseProvider) Render(rc RenderContext, out *ArtifactSet) erro
 	if err != nil {
 		return fmt.Errorf("failed to marshal the generated HelmRelease: %w", err)
 	}
-	cleaned, err := utils.ConvertObjectJSONToYAMLString(rc.Ctx, raw, os.Getenv("MANAGER_NAMESPACE"),
+	cleaned, err := render.ObjectToYAML(rc.Ctx, raw, os.Getenv("MANAGER_NAMESPACE"),
 		rc.Params.Syncer.Spec, rc.Params.Syncer.RefOwnerNamespace)
 	if err != nil {
 		return fmt.Errorf("failed to apply the excluded fields to the HelmRelease: %w", err)

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/managed"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -152,7 +152,7 @@ func (p *AssociationPolicy) findOrCreateManagedRUB(ctx context.Context, remoteUs
 
 // ensureRemoteUserRef ensures the RemoteUser is in the RUB's remoteUserRefs.
 func (p *AssociationPolicy) ensureRemoteUserRef(ctx context.Context, rub *syngit.RemoteUserBinding, remoteUserName string) error {
-	return utils.MutateOrDeleteManagedRemoteUserBinding(ctx, p.Client,
+	return managed.MutateOrDeleteRemoteUserBinding(ctx, p.Client,
 		types.NamespacedName{Name: rub.Name, Namespace: rub.Namespace},
 		func(fresh *syngit.RemoteUserBinding) error {
 			for _, ref := range fresh.Spec.RemoteUserRefs {
@@ -175,7 +175,7 @@ func (p *AssociationPolicy) associateExistingRemoteTargets(ctx context.Context, 
 		}),
 	}
 
-	return utils.MutateOrDeleteManagedRemoteUserBinding(ctx, p.Client,
+	return managed.MutateOrDeleteRemoteUserBinding(ctx, p.Client,
 		types.NamespacedName{Name: rub.Name, Namespace: rub.Namespace},
 		func(fresh *syngit.RemoteUserBinding) error {
 			rtList := &syngit.RemoteTargetList{}
@@ -183,7 +183,7 @@ func (p *AssociationPolicy) associateExistingRemoteTargets(ctx context.Context, 
 				return err
 			}
 			for _, rt := range rtList.Items {
-				utils.AddRemoteTargetRef(fresh, rt.Name)
+				managed.AddRemoteTargetRef(fresh, rt.Name)
 			}
 			return nil
 		})
@@ -209,7 +209,7 @@ func (p *AssociationPolicy) cleanupAssociation(ctx context.Context, remoteUser *
 
 	for i := range rubList.Items {
 		rub := &rubList.Items[i]
-		if err := utils.MutateOrDeleteManagedRemoteUserBinding(ctx, p.Client,
+		if err := managed.MutateOrDeleteRemoteUserBinding(ctx, p.Client,
 			types.NamespacedName{Name: rub.Name, Namespace: rub.Namespace},
 			func(fresh *syngit.RemoteUserBinding) error {
 				newRefs := make([]corev1.ObjectReference, 0, len(fresh.Spec.RemoteUserRefs))

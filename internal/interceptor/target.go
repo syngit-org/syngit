@@ -8,7 +8,8 @@ import (
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	"github.com/syngit-org/syngit/pkg/interceptor"
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/kube"
+	"github.com/syngit-org/syngit/pkg/refs"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -43,7 +44,7 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		return userTargetsMap, err
 	}
 
-	k8sClient := utils.K8sClientFromContext(ctx)
+	k8sClient := kube.ClientFromContext(ctx)
 
 	if remoteUserBinding != nil {
 		// User-specific RemoteTargets are now pre-created by the user-specific policy
@@ -126,7 +127,7 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		}
 
 		// Search for the default RemoteUser object
-		userNamespace, err := utils.ResolveNamespace(
+		userNamespace, err := refs.ResolveNamespace(
 			sc.Spec.DefaultRemoteUserRef.Namespace,
 			sc.RefOwnerNamespace,
 			field.NewPath("spec", "defaultRemoteUserRef"),
@@ -155,7 +156,7 @@ func GetUserInfoRemoteTargetsAssociation( // nolint: gocyclo
 		if sc.Spec.DefaultRemoteTargetRef == nil || sc.Spec.DefaultRemoteTargetRef.Name == "" {
 			return userTargetsMap, syngiterrors.NewRemoteTargetNotFound("no default remote target is set")
 		}
-		targetNamespace, err := utils.ResolveNamespace(
+		targetNamespace, err := refs.ResolveNamespace(
 			sc.Spec.DefaultRemoteTargetRef.Namespace,
 			sc.RefOwnerNamespace,
 			field.NewPath("spec", "defaultRemoteTargetRef"),
@@ -197,7 +198,7 @@ func GetRemoteUserBindingByUsername(
 	sc interceptor.SyncerContext,
 	username, fqdn string,
 ) (*syngit.RemoteUserBinding, error) {
-	k8sClient := utils.K8sClientFromContext(ctx)
+	k8sClient := kube.ClientFromContext(ctx)
 
 	var remoteUserBindings = &syngit.RemoteUserBindingList{}
 	listOps := &client.ListOptions{
@@ -261,14 +262,14 @@ func GetGitUserInfoByRemoteUserBinding(
 ) (*interceptor.GitUserInfo, error) {
 	remoteUserCount := 0
 
-	k8sClient := utils.K8sClientFromContext(ctx)
+	k8sClient := kube.ClientFromContext(ctx)
 
 	var gitUser *interceptor.GitUserInfo
 
 	// Each reference resolves against the binding that holds it, not against the
 	// RemoteSyncer that led us here.
 	for i, ref := range rub.Spec.RemoteUserRefs {
-		namespace, err := utils.ResolveNamespace(
+		namespace, err := refs.ResolveNamespace(
 			ref.Namespace, rub.Namespace, field.NewPath("spec", "remoteUserRefs").Index(i),
 		)
 		if err != nil {
@@ -310,9 +311,9 @@ func GetGitUserInfoByRemoteUser(
 	ctx context.Context,
 	remoteUser syngit.RemoteUser,
 ) (*interceptor.GitUserInfo, error) {
-	k8sClient := utils.K8sClientFromContext(ctx)
+	k8sClient := kube.ClientFromContext(ctx)
 
-	secretNamespace, err := utils.ResolveNamespace(
+	secretNamespace, err := refs.ResolveNamespace(
 		remoteUser.Spec.SecretRef.Namespace,
 		remoteUser.Namespace,
 		field.NewPath("spec", "secretRef"),

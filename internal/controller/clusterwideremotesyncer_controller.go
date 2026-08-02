@@ -24,7 +24,7 @@ import (
 	interceptor "github.com/syngit-org/syngit/internal/interceptor"
 	"github.com/syngit-org/syngit/internal/policy"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/kube"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -81,7 +81,7 @@ func (r *ClusterWideRemoteSyncerReconciler) Reconcile(ctx context.Context, req c
 	polResult, polErr := policy.RunPolicies[syngit.Syncer](ctx, r.Client, &cwrs,
 		[]policy.Policy[syngit.Syncer]{r.branchTargetPolicy, r.userSpecificPolicy})
 
-	return utils.MergeResults(coreResult, polResult), errors.Join(coreErr, polErr)
+	return kube.MergeResults(coreResult, polResult), errors.Join(coreErr, polErr)
 }
 
 // reconcileWebhook manages this syncer's entry in the shared dynamic
@@ -147,7 +147,7 @@ func (r *ClusterWideRemoteSyncerReconciler) reconcileWebhook(ctx context.Context
 }
 
 func (r *ClusterWideRemoteSyncerReconciler) updateStatus(ctx context.Context, cwrs *syngit.ClusterWideRemoteSyncer, condition v1.Condition) error {
-	conditions := utils.TypeBasedConditionUpdater(cwrs.Status.DeepCopy().Conditions, condition)
+	conditions := kube.SetCondition(cwrs.Status.DeepCopy().Conditions, condition)
 
 	cwrs.Status.Conditions = conditions
 	return r.Status().Update(ctx, cwrs)

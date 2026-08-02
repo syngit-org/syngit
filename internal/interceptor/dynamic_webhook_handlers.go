@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	"github.com/syngit-org/syngit/pkg/interceptor"
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/kube"
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -83,7 +83,7 @@ func (s *WebhookInterceptsAll) Start() *WebhookInterceptsAll {
 	ctx := context.Background()
 	_ = log.FromContext(ctx)
 
-	ctx = context.WithValue(ctx, utils.K8sClientCtxKey{}, s.K8sClient)
+	ctx = context.WithValue(ctx, kube.ClientCtxKey{}, s.K8sClient)
 
 	s.Lock()
 	if s.pathHandlers == nil {

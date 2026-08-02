@@ -6,7 +6,7 @@ import (
 	"os"
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
-	utils "github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/webhooks"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -29,7 +29,7 @@ func (rswh *RemoteSyncerWebhookHandler) Handle(ctx context.Context, req admissio
 
 	rs := &syngit.RemoteSyncer{}
 
-	if err := utils.GetObjectFromWebhookRequest(rswh.Decoder, rs, req); err != nil {
+	if err := webhooks.DecodeObject(rswh.Decoder, rs, req); err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 

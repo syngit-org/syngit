@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/kube"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -77,7 +77,7 @@ func RunPolicies[T client.Object](ctx context.Context, c client.Client, obj T, p
 			if err != nil {
 				errs = append(errs, err)
 			}
-			result = utils.MergeResults(result, res)
+			result = kube.MergeResults(result, res)
 			continue
 		}
 

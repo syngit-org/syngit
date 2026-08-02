@@ -1,4 +1,4 @@
-package utils
+package naming
 
 import (
 	"fmt"
@@ -8,7 +8,10 @@ import (
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 )
 
-func RemoteTargetNameConstructor(
+// RemoteTargetName derives the name of the RemoteTarget that syngit manages for
+// one (upstream repo, upstream branch, target repo, target branch) tuple. An
+// empty targetRepo means the target is a fork of the upstream one.
+func RemoteTargetName(
 	upstreamRepo string,
 	upstreamBranch string,
 	targetRepo string,
@@ -41,12 +44,4 @@ func RemoteTargetNameConstructor(
 	)
 
 	return name, nil
-}
-
-func GetBranchesFromAnnotation(in string) []string {
-	out := strings.Split(strings.ReplaceAll(in, " ", ""), ",")
-	if len(out) == 1 && out[0] == "" {
-		return []string{}
-	}
-	return out
 }

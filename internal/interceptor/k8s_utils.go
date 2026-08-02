@@ -6,7 +6,7 @@ import (
 
 	syngit "github.com/syngit-org/syngit/pkg/api/v1beta5"
 	"github.com/syngit-org/syngit/pkg/interceptor"
-	"github.com/syngit-org/syngit/pkg/utils"
+	"github.com/syngit-org/syngit/pkg/kube"
 	admissionv1 "k8s.io/api/admission/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -142,7 +142,7 @@ func BuildSuccessCondition(details string) v1.Condition {
 
 func (updater RemoteSyncerConditionUpdater) UpdateRemoteSyncerConditions(ctx context.Context, condition v1.Condition) {
 	updateRemoteSyncerStatus(ctx, updater.syncer, func(status *syngit.RemoteSyncerStatus) {
-		status.Conditions = utils.TypeBasedConditionUpdater(status.Conditions, condition)
+		status.Conditions = kube.SetCondition(status.Conditions, condition)
 	})
 }
 
@@ -157,7 +157,7 @@ func updateRemoteSyncerStatus(
 	mutate func(status *syngit.RemoteSyncerStatus),
 ) {
 	_ = log.FromContext(ctx)
-	k8sClient := utils.K8sClientFromContext(ctx)
+	k8sClient := kube.ClientFromContext(ctx)
 
 	err := retry.RetryOnConflict(wait.Backoff{
 		Steps:    5,
