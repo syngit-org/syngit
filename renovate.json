@@ -3,5 +3,15 @@
   "ignorePaths": [".github/**", "config/**", "charts/**"],
   "extends": [
     "config:recommended"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update versions pinned in the Makefile and in Go constants annotated with a renovate comment",
+      "managerFilePatterns": ["/(^|/)Makefile$/", "/\\.go$/"],
+      "matchStrings": [
+        "(#|//)\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(\\s+versioning=(?<versioning>\\S+))?(\\s+extractVersion=(?<extractVersion>\\S+))?[^\\n]*\\n[^\\n=]*?=\\s*\"?(?<currentValue>[^\"\\s]+)\"?"
+      ]
+    }
   ]
 }

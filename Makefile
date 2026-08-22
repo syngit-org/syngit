@@ -3,8 +3,7 @@
 IMG ?= local/syngit-controller:dev
 DEV_CLUSTER ?= syngit-dev-cluster
 KIND_KUBECONFIG_PATH ?= /tmp/syngit-dev-cluster-kubeconfig
-# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.35.0
+
 CRD_OPTIONS ?= "crd"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -305,14 +304,11 @@ cleanup-force: ## Force cleanup of the resources (for dev purpose)
 
 # LATEST_CHART is the latest chart version listed in the charts/ folder.
 LATEST_CHART ?= $(shell find charts -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -V | tail -n 1)
-
-CERT_MANAGER_CHART_VERSION ?= v1.20.2
+# renovate: datasource=github-releases depName=cert-manager/cert-manager
+CERT_MANAGER_VERSION ?= v1.20.2
 
 .PHONY: chart-install
 chart-install: kind-create-cluster docker-build kind-load-image ## Install the latest chart version listed in the charts/ folder with 3 replicas.
-	kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_CHART_VERSION)/cert-manager.crds.yaml"
-	kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_CHART_VERSION)/cert-manager.yaml"
-	sleep 30
 	helm install syngit charts/$(LATEST_CHART) -n syngit --create-namespace \
 		--set controller.image.prefix=local \
 		--set controller.image.name=syngit-controller \
@@ -321,9 +317,6 @@ chart-install: kind-create-cluster docker-build kind-load-image ## Install the l
 
 .PHONY: chart-install-providers
 chart-install-providers: kind-create-cluster docker-build kind-load-image ## Install the latest chart version listed in the charts/ folder with 3 replicas.
-	kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_CHART_VERSION)/cert-manager.crds.yaml"
-	kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_CHART_VERSION)/cert-manager.yaml"
-	sleep 30
 	helm install syngit charts/$(LATEST_CHART) -n syngit --create-namespace \
 		--timeout 15m \
 		--set controller.image.prefix=local \
@@ -345,10 +338,15 @@ chart-uninstall: ## Uninstall the chart.
 	helm uninstall syngit -n syngit
 
 .PHONY: kind-create-cluster
-kind-create-cluster: ## Create the dev KinD cluster.
+kind-create-cluster: ## Create the dev KinD cluster & install cert-manager.
 	kind create cluster --name ${DEV_CLUSTER} || true
 	kind export kubeconfig --kubeconfig ${KIND_KUBECONFIG_PATH} --name syngit-dev-cluster # For all internal usage
 	kind export kubeconfig --kubeconfig ~/.kube/config --name ${DEV_CLUSTER} # For the user
+	$(MAKE) cert-manager-install
+
+.PHONY: cert-manager-install
+cert-manager-install: ## Install cert-manager in the dev cluster (no-op if already installed).
+	./hack/cert-manager/install.sh $(CERT_MANAGER_VERSION)
 
 .PHONY: kind-delete-cluster
 kind-delete-cluster: ## Delete the dev KinD cluster.
@@ -378,10 +376,18 @@ GINKGO = $(LOCALBIN)/ginkgo-$(GINKGO_VERSION)
 GOCOVMERGE = $(LOCALBIN)/gocovmerge-$(GOCOVMERGE_VERSION)
 
 ## Tool Versions
+# renovate: datasource=go depName=sigs.k8s.io/kustomize/kustomize/v5
 KUSTOMIZE_VERSION ?= v5.3.0
+# renovate: datasource=go depName=sigs.k8s.io/controller-tools
 CONTROLLER_TOOLS_VERSION ?= v0.19.0
-ENVTEST_VERSION ?= latest
+# renovate: datasource=go depName=sigs.k8s.io/controller-runtime/tools/setup-envtest
+ENVTEST_VERSION ?= v0.24.1
+# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+# renovate: datasource=github-releases depName=kubernetes-sigs/controller-tools extractVersion=^envtest-v(?<version>.+)$
+ENVTEST_K8S_VERSION = 1.35.0
+# renovate: datasource=go depName=github.com/golangci/golangci-lint/v2
 GOLANGCI_LINT_VERSION ?= v2.11.4
+# renovate: datasource=go depName=github.com/onsi/ginkgo/v2
 GINKGO_VERSION ?= v2.28.1
 GOCOVMERGE_VERSION ?= v0.0.0-20160331181800-b5bfa59ec0ad
 
@@ -399,6 +405,10 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
+
+.PHONY: envtest-assets
+envtest-assets: envtest ## Download the envtest kubernetes binaries locally if necessary.
+	$(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN)
 
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
