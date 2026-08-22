@@ -11,11 +11,13 @@ import (
 )
 
 const (
+	// renovate: datasource=github-releases depName=prometheus-operator/prometheus-operator
 	prometheusOperatorVersion = "v0.68.0"
 	prometheusOperatorURL     = "https://github.com/prometheus-operator/prometheus-operator/" +
 		"releases/download/%s/bundle.yaml"
 
-	certmanagerVersion = "v1.17.2"
+	// renovate: datasource=github-releases depName=cert-manager/cert-manager
+	certmanagerVersion = "v1.20.2"
 	certmanagerCRDsURL = "https://github.com/cert-manager/cert-manager/releases/download/%s/cert-manager.crds.yaml"
 
 	certmanagerURLTmpl = "https://github.com/jetstack/cert-manager/releases/download/%s/cert-manager.yaml"

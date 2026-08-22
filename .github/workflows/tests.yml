@@ -64,8 +64,7 @@ jobs:
 
     - name: Install kubernetes binaries
       run: |
-        make envtest
-        ./bin/setup-envtest-latest use --bin-dir ./bin
+        make envtest-assets
 
     - name: Run tests
       run: make test-e2e
