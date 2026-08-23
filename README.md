@@ -1,6 +1,5 @@
 # Syngit
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/syngit-org/syngit)](https://goreportcard.com/report/github.com/syngit-org/syngit)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9889/badge)](https://www.bestpractices.dev/projects/9889)
 [![codecov](https://codecov.io/gh/syngit-org/syngit/graph/badge.svg?token=XOWZC26N62)](https://codecov.io/gh/syngit-org/syngit)
 
@@ -12,8 +11,16 @@ Syngit is a Kubernetes operator that allows you to push resources on a git repos
 
 - 😍 Intercept scoped resources and push them on Git
 - 🛡️ End-to-end RBAC management and separation of concerns
-- 🌍 Gitlab and Github external providers
+  - The commit author is the user who has applied the k8s resource
+  - User "a" cannot impersonate user "b"
+- 🌍 Gitlab, Github, Flux, Helm and SOPS providers
+  - Use the Gitlab & Github API to do platform specific actions
+  - Convert `helm install` into Flux `HelmRelease` or raw Helm values
+  - Sopsify the resources on commi
 - ✏️ Highly customizable configuration
+  - Resource finder in repo
+  - Let block or pass the request to k8s
+  - Remove unwanted fields on commit
 
 ## Demo
 
@@ -56,7 +63,7 @@ stringData:
 ```
 
 ```yaml
-apiVersion: syngit.io/v1beta4
+apiVersion: syngit.io/v1beta5
 kind: RemoteUser
 metadata:
   name: remoteuser-sample
@@ -76,7 +83,7 @@ The RemoteSyncer object contains the whole logic part of the operator.
 In this example, the RemoteSyncer will intercept all the *configmaps* of the *default* namespace. It will push them to *https://github.com/my_repo_path.git* in the branch *main* under the path `my_configmaps/`. Because the `strategy` is set to `CommitApply`, the changes will be pushed and then applied to the cluster. `CommitOnly` will only push the resource on the git server without applying it on the cluster.
 
 ```yaml
-apiVersion: syngit.io/v1beta4
+apiVersion: syngit.io/v1beta5
 kind: RemoteSyncer
 metadata:
   name: remotesyncer-sample
