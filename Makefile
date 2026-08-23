@@ -106,18 +106,32 @@ install-crds: kind-create-cluster manifests kustomize ## Install CRDs.
 uninstall-crds: manifests kustomize ## Uninstall CRDs.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f - || true
 
+# DEPLOY_PATH is the kustomize overlay deployed by the deploy targets.
+DEPLOY_PATH ?= config/default
+# ALL_FEATURE_GATES enables every feature gate declared in pkg/feature/features.go.
+ALL_FEATURE_GATES = $(shell sed -n 's/^[[:space:]]*[A-Za-z]*[[:space:]]*Feature = "\([A-Za-z]*\)".*/\1/p' pkg/feature/features.go | awk '{printf "%s%s=true", sep, $$0; sep=","}')
+FEATURE_GATES ?= $(ALL_FEATURE_GATES)
+
 .PHONY: deploy
 deploy: kind-create-cluster manifests kustomize ## Deploy the syngit pod.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+	$(KUSTOMIZE) build $(DEPLOY_PATH) | $(KUBECTL) apply -f -
 	make setup-webhooks-for-deploy
+
+.PHONY: deploy-with-features
+deploy-with-features: DEPLOY_PATH = config/features
+deploy-with-features: deploy ## deploy with all the feature gates enabled.
 
 .PHONY: deploy-all
 deploy-all: kind-create-cluster docker-build kind-load-image deploy ## Create the dev cluster, build the image, load it in the cluster and deploy syngit.
 
+.PHONY: deploy-all-with-features-gates
+deploy-all-with-features-gates: DEPLOY_PATH = config/features
+deploy-all-with-features-gates: kind-create-cluster docker-build kind-load-image deploy ## deploy-all with all the feature gates enabled.
+
 .PHONY: undeploy
 undeploy: kustomize cleanup-webhooks-for-deploy ## Undeploy the syngit pod.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	$(KUSTOMIZE) build $(DEPLOY_PATH) | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Development
 
