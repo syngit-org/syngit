@@ -1380,7 +1380,6 @@ spec:
             - defaultBranch
             - defaultUnauthorizedUserMode
             - remoteRepository
-            - resourceFinder
             - scopedResources
             - strategy
             - targetStrategy
