@@ -1,0 +1,11 @@
+# Overlay used by "make deploy-with-features": same as config/default, but the
+# manager is started with a --feature-gates flag.
+resources:
+- ../default
+
+patches:
+# The content of this patch is rendered from pkg/feature/features.go by the
+# "make feature-gates-patch" target.
+- path: manager_feature_gates_patch.yaml
+  target:
+    kind: Deployment
