@@ -714,7 +714,6 @@ spec:
             - defaultUnauthorizedUserMode
             - identityStoreNamespace
             - remoteRepository
-            - resourceFinder
             - scopedResources
             - strategy
             - targetStrategy
