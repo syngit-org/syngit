@@ -61,10 +61,11 @@ jobs:
 
           # Keyless (OIDC) signing: no private key to manage, the identity of the
           # workflow is bound to the certificate and logged in the Rekor transparency log.
+          # The Sigstore bundle carries the signature, the certificate and the Rekor
+          # inclusion proof in a single `.bundle` file.
           for file in *.tgz checksums.txt; do
             cosign sign-blob --yes \
-              --output-signature "${file}.sig" \
-              --output-certificate "${file}.pem" \
+              --bundle "${file}.bundle" \
               "${file}"
           done
 
@@ -77,21 +78,18 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: |
             *.tgz
-            *.tgz.sig
-            *.tgz.pem
+            *.tgz.bundle
             checksums.txt
-            checksums.txt.sig
-            checksums.txt.pem
+            checksums.txt.bundle
           body: |
             ### Verifying the release artifacts
 
             The artifacts are signed with [cosign](https://github.com/sigstore/cosign) keyless signing.
-            Download the chart, its `.sig` and its `.pem`, then run:
+            Download the chart and its `.bundle`, then run:
 
             ```shell
             cosign verify-blob syngit-${{ github.ref_name }}.tgz \
-              --signature syngit-${{ github.ref_name }}.tgz.sig \
-              --certificate syngit-${{ github.ref_name }}.tgz.pem \
+              --bundle syngit-${{ github.ref_name }}.tgz.bundle \
               --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}" \
               --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
             ```
