@@ -74,7 +74,7 @@ func validateRemoteTarget(remoteTarget *syngitv1beta4.RemoteTarget) error {
 	}
 
 	return apierrors.NewInvalid(
-		schema.GroupKind{Group: "syngit.io", Kind: "RemoteTarget"},
+		schema.GroupKind{Group: syngitv1beta4.SchemeGroupVersion.Group, Kind: "RemoteTarget"},
 		remoteTarget.Name, allErrs)
 }
 

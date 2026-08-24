@@ -36,6 +36,10 @@ linters:
           - dupl
           - lll
         path: internal/*
+      # Repeated literals in tests and e2e helpers are fixtures, not constants.
+      - linters:
+          - goconst
+        path: (_test\.go|^test/)
     paths:
       - third_party$
       - builtin$

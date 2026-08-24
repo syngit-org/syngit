@@ -40,6 +40,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const (
+	secretBoundConditionType = "SecretBound"
+
+	secretBoundReason     = "SecretBound"
+	secretFoundReason     = "SecretFound"
+	secretNotFoundReason  = "SecretNotFound"
+	secretWrongTypeReason = "SecretWrongType"
+)
+
 // RemoteUserReconciler reconciles a RemoteUser object. It is the single
 // controller that owns RemoteUser: it reflects the referenced Secret in status
 // and runs the RemoteUser-scoped policies (currently the association policy).
@@ -95,7 +104,7 @@ func (r *RemoteUserReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 func (r *RemoteUserReconciler) reconcileSecretStatus(ctx context.Context, remoteUser *syngit.RemoteUser) {
 	condition := &v1.Condition{
 		LastTransitionTime: v1.Now(),
-		Type:               "SecretBound",
+		Type:               secretBoundConditionType,
 		Status:             v1.ConditionFalse,
 	}
 
@@ -111,7 +120,7 @@ func (r *RemoteUserReconciler) reconcileSecretStatus(ctx context.Context, remote
 		remoteUser.Status.SecretBoundStatus = syngit.SecretNotFound
 		remoteUser.Status.ConnexionStatus.Status = ""
 
-		condition.Reason = "SecretNotFound"
+		condition.Reason = secretNotFoundReason
 		condition.Status = v1.ConditionFalse
 		condition.Message = err.Error()
 		_ = r.updateStatus(ctx, remoteUser, *condition)
@@ -125,7 +134,7 @@ func (r *RemoteUserReconciler) reconcileSecretStatus(ctx context.Context, remote
 		remoteUser.Status.SecretBoundStatus = syngit.SecretNotFound
 		remoteUser.Status.ConnexionStatus.Status = ""
 
-		condition.Reason = "SecretNotFound"
+		condition.Reason = secretNotFoundReason
 		condition.Status = v1.ConditionFalse
 		condition.Message = string(syngit.SecretNotFound)
 		_ = r.updateStatus(ctx, remoteUser, *condition)
@@ -134,7 +143,7 @@ func (r *RemoteUserReconciler) reconcileSecretStatus(ctx context.Context, remote
 	}
 
 	remoteUser.Status.SecretBoundStatus = syngit.SecretFound
-	condition.Reason = "SecretFound"
+	condition.Reason = secretFoundReason
 	condition.Message = string(syngit.SecretFound)
 
 	// Check if the referenced Secret is a basic-auth type
@@ -142,7 +151,7 @@ func (r *RemoteUserReconciler) reconcileSecretStatus(ctx context.Context, remote
 
 		remoteUser.Status.SecretBoundStatus = syngit.SecretWrongType
 
-		condition.Reason = "SecretWrongType"
+		condition.Reason = secretWrongTypeReason
 		condition.Message = string(syngit.SecretWrongType)
 		_ = r.updateStatus(ctx, remoteUser, *condition)
 
@@ -151,8 +160,8 @@ func (r *RemoteUserReconciler) reconcileSecretStatus(ctx context.Context, remote
 
 	remoteUser.Status.SecretBoundStatus = syngit.SecretBound
 	condition.Message = string(syngit.SecretBound)
-	condition.Type = "SecretBound"
-	condition.Reason = "SecretBound"
+	condition.Type = secretBoundConditionType
+	condition.Reason = secretBoundReason
 	condition.Status = v1.ConditionTrue
 
 	// Update the status of RemoteUser

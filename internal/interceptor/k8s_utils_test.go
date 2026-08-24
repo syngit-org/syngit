@@ -21,14 +21,14 @@ func TestNewRemoteSyncerStatusUpdater(t *testing.T) {
 		UserInfo: authenticationv1.UserInfo{Username: "alice"},
 	}
 	rs := syngit.RemoteSyncer{}
-	rs.Name = "my-syncer" // nolint:goconst
+	rs.Name = "my-syncer"
 
 	updater := NewRemoteSyncerStatusUpdater(admReq, interceptor.NewRemoteSyncerContext(rs, ""))
 
-	if updater.syncer.Ref.Name != "my-syncer" { // nolint:goconst
+	if updater.syncer.Ref.Name != "my-syncer" {
 		t.Errorf("syncer.Ref.Name=%q, want my-syncer", updater.syncer.Ref.Name)
 	}
-	if updater.group != "apps" || updater.version != "v1" || updater.resource != "deployments" { // nolint:goconst
+	if updater.group != "apps" || updater.version != "v1" || updater.resource != "deployments" {
 		t.Errorf("GVR mismatch: %s/%s/%s", updater.group, updater.version, updater.resource)
 	}
 	if updater.resourceName != "my-object" {
@@ -41,10 +41,10 @@ func TestNewRemoteSyncerStatusUpdater(t *testing.T) {
 
 func TestNewRemoteSyncerConditionUpdater(t *testing.T) {
 	rs := syngit.RemoteSyncer{}
-	rs.Name = "my-syncer" // nolint:goconst
+	rs.Name = "my-syncer"
 
 	updater := NewRemoteSyncerConditionUpdater(interceptor.NewRemoteSyncerContext(rs, ""))
-	if updater.syncer.Ref.Name != "my-syncer" { // nolint:goconst
+	if updater.syncer.Ref.Name != "my-syncer" {
 		t.Errorf("syncer.Ref.Name=%q, want my-syncer", updater.syncer.Ref.Name)
 	}
 }
