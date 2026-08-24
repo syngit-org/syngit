@@ -1,8 +1,23 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "ignorePaths": [".github/**", "config/**", "charts/**"],
+  "ignorePaths": ["config/**", "charts/**", "Dockerfile.cross"],
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    "docker:pinDigests"
+  ],
+  "packageRules": [
+    {
+      "description": "One PR for all workflow action bumps: the pins are SHAs, so an ungrouped run opens a PR per action",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions"
+    },
+    {
+      "description": "The SLSA generator verifies its own ref to build provenance and refuses to run from a commit SHA, so it has to stay on a semver tag",
+      "matchManagers": ["github-actions"],
+      "matchDepNames": ["slsa-framework/slsa-github-generator"],
+      "pinDigests": false
+    }
   ],
   "customManagers": [
     {

@@ -8,6 +8,10 @@ on:
     tags:
       - '*'
 
+# Restrict the default GITHUB_TOKEN to read-only; jobs widen it where needed.
+permissions:
+  contents: read
+
 jobs:
   # define job to build and publish docker image
   build-and-push-docker-image:
@@ -24,7 +28,7 @@ jobs:
     steps:
       # Checkout the repository to make it available for Git commands
       - name: Checkout repository
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
 
       # cosign is used to sign the published image
       - name: Install Cosign
