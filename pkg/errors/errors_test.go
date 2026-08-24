@@ -89,13 +89,13 @@ func TestNewWrongRemoteTargetConfig(t *testing.T) {
 	ru := syngit.RemoteUser{}
 	ru.Name = "my-user"
 
-	e := NewWrongRemoteTargetConfig("my-syncer", ru) // nolint:goconst
+	e := NewWrongRemoteTargetConfig("my-syncer", ru)
 
-	if e.SyncerName != "my-syncer" || e.RemoteUser.Name != "my-user" { // nolint:goconst
+	if e.SyncerName != "my-syncer" || e.RemoteUser.Name != "my-user" {
 		t.Errorf("field mapping failed: syncer=%q user=%q", e.SyncerName, e.RemoteUser.Name)
 	}
 	assertErrorContract(t, e, "wrong remote target config", ErrWrongRemoteTargetConfig)
-	if !strings.Contains(e.Error(), "my-syncer") || !strings.Contains(e.Error(), "my-user") { // nolint:goconst
+	if !strings.Contains(e.Error(), "my-syncer") || !strings.Contains(e.Error(), "my-user") {
 		t.Errorf("Error() should include both names, got %q", e.Error())
 	}
 }
@@ -152,7 +152,7 @@ func TestNewCredentialsNotFound(t *testing.T) {
 func TestNewTooMuchRemoteTarget(t *testing.T) {
 	e := NewTooMuchRemoteTarget("details", 3)
 
-	if e.Details != "details" || e.RemoteTargetsCount != 3 { // nolint:goconst
+	if e.Details != "details" || e.RemoteTargetsCount != 3 {
 		t.Errorf("field mapping failed: details=%q count=%d", e.Details, e.RemoteTargetsCount)
 	}
 	assertErrorContract(t, e, "too much remote target found", ErrTooMuchRemoteTarget)

@@ -44,8 +44,8 @@ func (rubwh RemoteUserBindingPermissionsWebhookHandler) Handle(ctx context.Conte
 				ResourceAttributes: &authv1.ResourceAttributes{
 					Namespace: namespace,
 					Verb:      "get",
-					Group:     "syngit.io",
-					Version:   "v1beta4",
+					Group:     syngit.SchemeGroupVersion.Group,
+					Version:   syngit.SchemeGroupVersion.Version,
 					Resource:  "remoteusers",
 					Name:      ru.Name,
 				},

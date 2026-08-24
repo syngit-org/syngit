@@ -76,7 +76,7 @@ func validateClusterWideRemoteSyncer(cwrs *syngitv1beta5.ClusterWideRemoteSyncer
 	}
 
 	return apierrors.NewInvalid(
-		schema.GroupKind{Group: "syngit.io", Kind: "ClusterWideRemoteSyncer"},
+		schema.GroupKind{Group: syngitv1beta5.SchemeGroupVersion.Group, Kind: "ClusterWideRemoteSyncer"},
 		cwrs.Name, allErrs)
 }
 

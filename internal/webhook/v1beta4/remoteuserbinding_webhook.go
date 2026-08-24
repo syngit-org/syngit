@@ -73,7 +73,7 @@ func validateRemoteUserBinding(remoteUserBinding *syngitv1beta4.RemoteUserBindin
 	}
 
 	return apierrors.NewInvalid(
-		schema.GroupKind{Group: "syngit.io", Kind: "RemoteUserBinding"},
+		schema.GroupKind{Group: syngitv1beta4.SchemeGroupVersion.Group, Kind: "RemoteUserBinding"},
 		remoteUserBinding.Name, allErrs)
 }
 

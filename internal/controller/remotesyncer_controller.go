@@ -96,7 +96,7 @@ func (r *RemoteSyncerReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 // reconcileWebhook manages the dynamic ValidatingWebhookConfiguration for this
 // RemoteSyncer (and removes its entry when the object no longer exists).
-func (r *RemoteSyncerReconciler) reconcileWebhook(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *RemoteSyncerReconciler) reconcileWebhook(ctx context.Context, req ctrl.Request) (ctrl.Result, error) { // nolint:unparam
 	_ = log.FromContext(ctx)
 
 	webhookPath := interceptor.RemoteSyncerWebhookPath(req.NamespacedName)

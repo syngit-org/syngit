@@ -29,7 +29,7 @@ func TestWebhookInterceptsAll_Register(t *testing.T) {
 	s := newTestWebhookInterceptsAll()
 	rs := syngit.RemoteSyncer{}
 	rs.Namespace = "default"
-	rs.Name = "my-syncer" // nolint:goconst
+	rs.Name = "my-syncer"
 	rs.Spec.RemoteRepository = "https://example.com/repo.git"
 
 	path := RemoteSyncerWebhookPath(types.NamespacedName{Namespace: "default", Name: "my-syncer"})
@@ -45,7 +45,7 @@ func TestWebhookInterceptsAll_Register(t *testing.T) {
 	if stored != handler {
 		t.Errorf("stored handler differs from returned handler")
 	}
-	if stored.remoteSyncer.Name != "my-syncer" { // nolint:goconst
+	if stored.remoteSyncer.Name != "my-syncer" {
 		t.Errorf("stored remoteSyncer.Name=%q, want my-syncer", stored.remoteSyncer.Name)
 	}
 
@@ -60,7 +60,7 @@ func TestWebhookInterceptsAll_RegisterClusterWide(t *testing.T) {
 	s := newTestWebhookInterceptsAll()
 	cwrs := syngit.ClusterWideRemoteSyncer{}
 	cwrs.Name = "my-cluster-syncer"
-	cwrs.Spec.IdentityStoreNamespace = "identities" // nolint:goconst
+	cwrs.Spec.IdentityStoreNamespace = "identities"
 
 	path := ClusterWideRemoteSyncerWebhookPath("my-cluster-syncer")
 	handler := s.RegisterClusterWide(cwrs, path)
@@ -84,17 +84,17 @@ func TestWebhookInterceptsAll_RegisterClusterWide(t *testing.T) {
 // namespace of the object being intercepted.
 func TestDynamicWebhookHandler_SyncerContext(t *testing.T) {
 	rs := syngit.RemoteSyncer{}
-	rs.Namespace = "team-a" // nolint:goconst
+	rs.Namespace = "team-a"
 	rs.Name = "rsy"
 	nsHandler := &DynamicWebhookHandler{remoteSyncer: &rs}
 
 	// A namespaced syncer takes its identity and reference namespaces from
 	// itself, and the intercepted namespace from the request.
-	sc := nsHandler.syncerContext("team-a")                              // nolint:goconst
-	if sc.RUBNamespace != "team-a" || sc.RefOwnerNamespace != "team-a" { // nolint:goconst
+	sc := nsHandler.syncerContext("team-a")
+	if sc.RUBNamespace != "team-a" || sc.RefOwnerNamespace != "team-a" {
 		t.Errorf("namespaced context = %+v, want identity and ref namespaces to be team-a", sc)
 	}
-	if sc.InterceptedNamespace != "team-a" { // nolint:goconst
+	if sc.InterceptedNamespace != "team-a" {
 		t.Errorf("InterceptedNamespace = %q, want team-a", sc.InterceptedNamespace)
 	}
 	if sc.ClusterWide {
@@ -103,14 +103,14 @@ func TestDynamicWebhookHandler_SyncerContext(t *testing.T) {
 
 	cwrs := syngit.ClusterWideRemoteSyncer{}
 	cwrs.Name = "cwrsy"
-	cwrs.Spec.IdentityStoreNamespace = "identities" // nolint:goconst
+	cwrs.Spec.IdentityStoreNamespace = "identities"
 	cwHandler := &DynamicWebhookHandler{clusterWideRemoteSyncer: &cwrs}
 
 	sc = cwHandler.syncerContext("team-b")
 	if sc.InterceptedNamespace != "team-b" {
 		t.Errorf("InterceptedNamespace = %q, want team-b", sc.InterceptedNamespace)
 	}
-	if sc.RUBNamespace != "identities" { // nolint:goconst
+	if sc.RUBNamespace != "identities" {
 		t.Errorf("RUBNamespace = %q, want identities", sc.RUBNamespace)
 	}
 	// No namespace of its own means unqualified references must be rejected.

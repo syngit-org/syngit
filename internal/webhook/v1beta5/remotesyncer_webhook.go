@@ -56,7 +56,7 @@ func validateRemoteSyncer(remoteSyncer *syngitv1beta5.RemoteSyncer) error {
 	}
 
 	return apierrors.NewInvalid(
-		schema.GroupKind{Group: "syngit.io", Kind: "RemoteSyncer"},
+		schema.GroupKind{Group: syngitv1beta5.SchemeGroupVersion.Group, Kind: "RemoteSyncer"},
 		remoteSyncer.Name, allErrs)
 }
 

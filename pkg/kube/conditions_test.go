@@ -10,7 +10,7 @@ func TestSetCondition(t *testing.T) {
 	t.Run("nil slice gets condition appended", func(t *testing.T) {
 		c := metav1.Condition{Type: "Ready", Reason: "r1"}
 		got := SetCondition(nil, c)
-		if len(got) != 1 || got[0].Type != "Ready" || got[0].Reason != "r1" { // nolint:goconst
+		if len(got) != 1 || got[0].Type != "Ready" || got[0].Reason != "r1" {
 			t.Errorf("got %+v, want single Ready condition", got)
 		}
 	})
@@ -28,9 +28,9 @@ func TestSetCondition(t *testing.T) {
 		var ready, synced *metav1.Condition
 		for i := range got {
 			switch got[i].Type {
-			case "Ready": // nolint:goconst
+			case "Ready":
 				ready = &got[i]
-			case "Synced": // nolint:goconst
+			case "Synced":
 				synced = &got[i]
 			}
 		}

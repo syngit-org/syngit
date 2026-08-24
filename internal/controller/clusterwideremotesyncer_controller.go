@@ -86,7 +86,7 @@ func (r *ClusterWideRemoteSyncerReconciler) Reconcile(ctx context.Context, req c
 
 // reconcileWebhook manages this syncer's entry in the shared dynamic
 // ValidatingWebhookConfiguration (and removes it when the object is gone).
-func (r *ClusterWideRemoteSyncerReconciler) reconcileWebhook(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *ClusterWideRemoteSyncerReconciler) reconcileWebhook(ctx context.Context, req ctrl.Request) (ctrl.Result, error) { // nolint:unparam
 	_ = log.FromContext(ctx)
 
 	webhookPath := interceptor.ClusterWideRemoteSyncerWebhookPath(req.Name)
