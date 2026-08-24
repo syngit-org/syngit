@@ -16,7 +16,7 @@ Syngit is a Kubernetes operator that allows you to push resources on a git repos
 - 🌍 Gitlab, Github, Flux, Helm and SOPS providers
   - Use the Gitlab & Github API to do platform specific actions
   - Convert `helm install` into Flux `HelmRelease` or raw Helm values
-  - Sopsify the resources on commi
+  - Sopsify the resources on commit
 - ✏️ Highly customizable configuration
   - Resource finder in repo
   - Let block or pass the request to k8s
