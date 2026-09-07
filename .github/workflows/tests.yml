@@ -29,7 +29,7 @@ jobs:
         version: 'latest'
 
     - name: Set up KinD
-      uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3 #v1.12.0
+      uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
       with:
         version: v0.23.0
         cluster_name: syngit-dev-cluster
@@ -163,7 +163,7 @@ jobs:
         version: 'latest'
 
     - name: Set up KinD
-      uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3 #v1.12.0
+      uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
       with:
         version: v0.23.0
         cluster_name: syngit-dev-cluster
@@ -213,7 +213,7 @@ jobs:
         version: 'latest'
 
     - name: Set up KinD
-      uses: helm/kind-action@fa81e57adff234b2908110485695db0f181f3c67 #v1.7.0
+      uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
       with:
         version: v0.23.0
         cluster_name: syngit-dev-cluster
