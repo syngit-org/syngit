@@ -109,6 +109,11 @@ type RemoteTargetStatus struct {
 // +kubebuilder:resource:path=remotetargets,shortName=rt;rts,categories=syngit
 
 // +kubebuilder:object:root=true
+// +kubebuilder:printcolumn:name="Upstream Branch",type=string,JSONPath=`.spec.upstreamBranch`,priority=0
+// +kubebuilder:printcolumn:name="Target Branch",type=string,JSONPath=`.spec.targetBranch`,priority=0
+// +kubebuilder:printcolumn:name="Upstream Repository",type=string,JSONPath=`.spec.upstreamRepository`,priority=1
+// +kubebuilder:printcolumn:name="Target Repository",type=string,JSONPath=`.spec.targetRepository`,priority=1
+// +kubebuilder:printcolumn:name="Age",type=string,JSONPath=`.metadata.creationTimestamp`,priority=0
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=remotetargets,shortName=rt;rts,categories=syngit
 // +kubebuilder:storageversion

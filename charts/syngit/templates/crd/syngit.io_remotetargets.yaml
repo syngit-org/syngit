@@ -185,7 +185,25 @@ spec:
     storage: false
     subresources:
       status: {}
-  - name: v1beta5
+  - additionalPrinterColumns:
+    - jsonPath: .spec.upstreamBranch
+      name: Upstream Branch
+      type: string
+    - jsonPath: .spec.targetBranch
+      name: Target Branch
+      type: string
+    - jsonPath: .spec.upstreamRepository
+      name: Upstream Repository
+      priority: 1
+      type: string
+    - jsonPath: .spec.targetRepository
+      name: Target Repository
+      priority: 1
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: string
+    name: v1beta5
     schema:
       openAPIV3Schema:
         description: RemoteTarget is the Schema for the remotetargets API.
