@@ -231,10 +231,16 @@ github.com/fluxcd/cli-utils v1.2.1 h1:ug9CicKW7H9QXnvNDapTSKuryZvWcu4Nw7pRvQa6jD
 github.com/fluxcd/cli-utils v1.2.1/go.mod h1:cky6M6eHvTQkoPtsuFYLIgAMYdpTCSLoor4IA6vueSw=
 github.com/fluxcd/helm-controller/api v1.6.3 h1:8EvQASKKFDEj8Ub3xhMSjyNbGTEjNqlHZYm5WhRxJvg=
 github.com/fluxcd/helm-controller/api v1.6.3/go.mod h1:CaI5bHedusLcXYj1+pkd4RkSE8TtiEHI3ReHNsUySbg=
+github.com/fluxcd/helm-controller/api v1.6.4 h1:jDgB87F6RRNF0QEZDAw+8+HPU13toF5IZpPsytA0Nuo=
+github.com/fluxcd/helm-controller/api v1.6.4/go.mod h1:mYa4WKwgCCE59dMdYzOJI6B17/wofN6wtmtjWWEQesQ=
 github.com/fluxcd/pkg/apis/kustomize v1.19.1 h1:rmN3hTceBVABGbrqRXEDYoAJDBUIPFRO9zbDJ98Xt/o=
 github.com/fluxcd/pkg/apis/kustomize v1.19.1/go.mod h1:9FUs77fd/Rh5/mDgZbGBUCL0UqmXiGj8rYywG3T3x+s=
+github.com/fluxcd/pkg/apis/kustomize v1.19.2 h1:/E8Nmn1XdAGUIqxI5vK60WemyBX3pIpfmP3mr/E3p9c=
+github.com/fluxcd/pkg/apis/kustomize v1.19.2/go.mod h1:HryXaJ1GpvagUOmh5uMkVtXVlfXWdKjc3/5IlLsjyzI=
 github.com/fluxcd/pkg/apis/meta v1.30.1 h1:TRqdvb/zo9h9Ig10xHxV7jMilG+e1jOv3djI00GFr9g=
 github.com/fluxcd/pkg/apis/meta v1.30.1/go.mod h1:Gx+YRq26a+mTbCjotSXC7/6kSSyo0zXQ8JnsEXf2vVk=
+github.com/fluxcd/pkg/apis/meta v1.30.2 h1:FbSQsUqLZrnyFhGqc0uE5zJOOu42OQ8YpO0vXmj+g5o=
+github.com/fluxcd/pkg/apis/meta v1.30.2/go.mod h1:xc7Z4qD5ikDVfjMDYgmFbLJiwJQaaXLkocqmxhywXzA=
 github.com/foxcpp/go-mockdns v1.2.0 h1:omK3OrHRD1IWJz1FuFBCFquhXslXoF17OvBS6JPzZF0=
 github.com/foxcpp/go-mockdns v1.2.0/go.mod h1:IhLeSFGed3mJIAXPH2aiRQB+kqz7oqu8ld2qVbOu7Wk=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=

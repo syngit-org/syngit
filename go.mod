@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	filippo.io/age v1.3.1
-	github.com/fluxcd/helm-controller/api v1.6.3
+	github.com/fluxcd/helm-controller/api v1.6.4
 	github.com/go-git/go-billy/v5 v5.9.1
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/gorilla/mux v1.8.1
@@ -100,8 +100,8 @@ require (
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/fluxcd/cli-utils v1.2.1 // indirect
-	github.com/fluxcd/pkg/apis/kustomize v1.19.1 // indirect
-	github.com/fluxcd/pkg/apis/meta v1.30.1 // indirect
+	github.com/fluxcd/pkg/apis/kustomize v1.19.2 // indirect
+	github.com/fluxcd/pkg/apis/meta v1.30.2 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.1 // indirect
 	github.com/getsops/gopgagent v0.0.0-20241224165529-7044f28e491e // indirect
