@@ -3,7 +3,7 @@ module github.com/syngit-org/syngit
 go 1.27.0
 
 require (
-	filippo.io/age v1.3.1
+	filippo.io/age v1.3.2
 	github.com/fluxcd/helm-controller/api v1.6.4
 	github.com/go-git/go-billy/v5 v5.9.1
 	github.com/go-git/go-git/v5 v5.19.2
