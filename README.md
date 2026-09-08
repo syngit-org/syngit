@@ -2,6 +2,7 @@
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9889/badge)](https://www.bestpractices.dev/projects/9889)
 [![codecov](https://codecov.io/gh/syngit-org/syngit/graph/badge.svg?token=XOWZC26N62)](https://codecov.io/gh/syngit-org/syngit)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/syngit-org/syngit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/syngit-org/syngit)
 
 <img src="./img/wiki/conception/commitonly-proxy.png" width="700">
 
