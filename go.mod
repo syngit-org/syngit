@@ -14,7 +14,7 @@ require (
 	github.com/syngit-org/syngit-provider-flux v0.3.2
 	github.com/syngit-org/syngit-provider-helm v0.2.4
 	github.com/syngit-org/syngit-provider-sops v0.1.0
-	helm.sh/helm/v4 v4.2.3
+	helm.sh/helm/v4 v4.2.4
 	k8s.io/api v0.37.0
 	k8s.io/apimachinery v0.37.0
 	k8s.io/client-go v0.37.0
