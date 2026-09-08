@@ -319,7 +319,7 @@ cleanup-force: ## Force cleanup of the resources (for dev purpose)
 # LATEST_CHART is the latest chart version listed in the charts/ folder.
 LATEST_CHART ?= $(shell find charts -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -V | tail -n 1)
 # renovate: datasource=github-releases depName=cert-manager/cert-manager
-CERT_MANAGER_VERSION ?= v1.20.2
+CERT_MANAGER_VERSION ?= v1.21.1
 
 .PHONY: chart-install
 chart-install: kind-create-cluster docker-build kind-load-image ## Install the latest chart version listed in the charts/ folder with 3 replicas.
