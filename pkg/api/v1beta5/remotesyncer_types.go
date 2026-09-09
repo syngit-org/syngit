@@ -30,7 +30,7 @@ import (
 type RemoteSyncerSpec struct {
 
 	// remoteRepository represents the upstream repository where the RemoteTarget(s) are based on.
-	// +kubebuilder:validation:Required
+	// +required
 	// +kubebuilder:example="https://git.example.com/my-repo.git"
 	// +kubebuilder:validation:Format=uri
 	RemoteRepository string `json:"remoteRepository" protobuf:"bytes,1,name=remoteRepository"`
@@ -38,18 +38,18 @@ type RemoteSyncerSpec struct {
 	// defaultBranch represents the upstream default branch where the RemoteTarget(s) are based on.
 	// +kubebuilder:example="main"
 	// +kubebuilder:default:value="main"
-	// +kubebuilder:validation:Required
+	// +required
 	DefaultBranch string `json:"defaultBranch" protobuf:"bytes,opt,2,name=defaultBranch"`
 
 	// scopedResources defines the resources and the operations that are intercepted.
 	// +kubebuilder:default:value={}
-	// +kubebuilder:validation:Required
+	// +required
 	ScopedResources ScopedResources `json:"scopedResources" protobuf:"bytes,3,name=scopedResources,casttype=ScopedResources"`
 
 	// strategy field specify if the applied Kubernetes object must be
 	// committed and applied (CommitApply) OR only committed (CommitOnly) and blocked
 	// to the Kubernetes API.
-	// +kubebuilder:validation:Required
+	// +required
 	// +kubebuilder:default:value="CommitApply"
 	// +kubebuilder:validation:Enum=CommitOnly;CommitApply
 	Strategy Strategy `json:"strategy" protobuf:"bytes,4,name=strategy"`
@@ -62,7 +62,7 @@ type RemoteSyncerSpec struct {
 	//                   will be returned from the webhook.
 	// "MultipleTarget": Use it to push on all the RemoteTargets found (it can
 	//                   be only one or multiple).
-	// +kubebuilder:validation:Required
+	// +required
 	// +kubebuilder:default:value="OneTarget"
 	// +kubebuilder:validation:Enum=OneTarget;MultipleTarget
 	TargetStrategy TargetStrategy `json:"targetStrategy" protobuf:"bytes,5,name=targetStrategy"`
@@ -70,18 +70,18 @@ type RemoteSyncerSpec struct {
 	// remoteTargetSelector is a label selector that will be used when
 	// the search algorithm will try to find the RemoteTarget(s) that have
 	// the same upstream repo & branch
-	// +kubebuilder:validation:Optional
+	// +optional
 	RemoteTargetSelector *metav1.LabelSelector `json:"remoteTargetSelector" protobuf:"bytes,opt,6,name=remoteTargetSelector"`
 
 	// defaultBlockAppliedMessage represents the message that the webhook will
 	// output if the resource is not applied (commitProcess: CommitOnly).
-	// +kubebuilder:validation:Optional
+	// +optional
 	DefaultBlockAppliedMessage string `json:"defaultBlockAppliedMessage,omitempty" protobuf:"bytes,opt,7,name=defaultBlockAppliedMessage"`
 
 	// excludedFields is a selection of key/entry of the Kubernetes object
 	// that will not be pushed on the remote git repository. They will be removed
 	// from the final YAML file before pushing to the remote Git repository.
-	// +kubebuilder:validation:Optional
+	// +optional
 	ExcludedFields []string `json:"excludedFields,omitempty" protobuf:"bytes,opt,8,name=excludedFields"`
 
 	// excludedFieldsConfigMapsRef is an array of references to ConfigMaps.
@@ -90,35 +90,35 @@ type RemoteSyncerSpec struct {
 	// If the namespace is not set, it defaults to the namespace of the RemoteSyncer.
 	// Referencing another namespace requires the user to be allowed to get the
 	// referenced object in that namespace.
-	// +kubebuilder:validation:Optional
+	// +optional
 	ExcludedFieldsConfigMapsRef []*corev1.ObjectReference `json:"excludedFieldsConfigMapsRef,omitempty" protobuf:"bytes,opt,9,name=excludedFieldsConfigMapsRef"` // Ref to ConfigMap(s)
 
 	// rootPath specifies the absolute root path in the remote git repository
 	// where the resources scoped by this RemoteSyncer will be pushed.
-	// +kubebuilder:validation:Optional
+	// +optional
 	RootPath string `json:"rootPath,omitempty" protobuf:"bytes,opt,10,name=rootPath"`
 
 	// resourceFinder locates the resource amongst the files of the repository.
 	// When the resource is intercepted, the corresponding yaml manifest replaces
 	// the one(s) currently existing in the repository.
-	// +kubebuilder:validation:Optional
+	// +optional
 	// +kubebuilder:default:value=true
 	ResourceFinder bool `json:"resourceFinder,omitempty" protobuf:"bytes,opt,11,name=resourceFinder"`
 
 	// remoteUserBindingSelector is a label selector that will be used when
 	// the search algorithm will try to find the RemoteUserBinding that belongs
 	// to the Kubernetes user.
-	// +kubebuilder:validation:Optional
+	// +optional
 	RemoteUserBindingSelector *metav1.LabelSelector `json:"remoteUserBindingSelector" protobuf:"bytes,opt,12,name=remoteUserBindingSelector"`
 
 	// bypassInterceptionSubjects field is a list of Kubernetes subjects
 	// (ServiceAccount or User) that can apply the resource but must not commit them.
-	// +kubebuilder:validation:Optional
+	// +optional
 	BypassInterceptionSubjects []rbacv1.Subject `json:"bypassInterceptionSubjects,omitempty" protobuf:"bytes,opt,13,name=bypassInterceptionSubjects"`
 
 	// bypassAllServiceAccounts lets any ServiceAccount do the action on the
 	// kubernetes resource by bypassing the syngit git process
-	// +kubebuilder:validation:Optional
+	// +optional
 	BypassAllServiceAccounts bool `json:"bypassAllServiceAccounts,omitempty" protobuf:"bytes,opt,14,name=bypassAllServiceAccounts"`
 
 	// defaultUnauthorizedUserMode defines the behavior for an unauthorized
@@ -137,12 +137,12 @@ type RemoteSyncerSpec struct {
 	// is reached. Can be one of these values:
 	// - "Block": blocks the action on the kubernetes resource
 	// - "Pass": the action on the kubernetes resource is applied
-	// +kubebuilder:validation:Optional
+	// +optional
 	DefaultPushErrorBehavior PushErrorBehavior `json:"defaultPushErrorBehavior,omitempty" protobuf:"bytes,opt,16,name=defaultPushErrorBehavior"`
 
 	// pushErrorRetryNumber is the maximum number of push
 	// retry that will be done when a push error happens.
-	// +kubebuilder:validation:Optional
+	// +optional
 	PushErrorRetryNumber int `json:"pushErrorRetryNumber,omitempty" protobuf:"bytes,opt,17,name=pushErrorRetryNumber"`
 
 	// defaultRemoteUserRef is a reference to a RemoteUser object.
@@ -157,7 +157,7 @@ type RemoteSyncerSpec struct {
 	// If the namespace is not set, it defaults to the namespace of the RemoteSyncer.
 	// Referencing another namespace requires the user to be allowed to get the
 	// referenced object in that namespace.
-	// +kubebuilder:validation:Optional
+	// +optional
 	DefaultRemoteUserRef *corev1.ObjectReference `json:"defaultRemoteUserRef,omitempty" protobuf:"bytes,opt,18,name=defaultRemoteUserRef"` // Ref to a RemoteUser object
 
 	// defaultRemoteTargetRef  is a reference to a RemoteTarget object.
@@ -167,11 +167,11 @@ type RemoteSyncerSpec struct {
 	// If the namespace is not set, it defaults to the namespace of the RemoteSyncer.
 	// Referencing another namespace requires the user to be allowed to get the
 	// referenced object in that namespace.
-	// +kubebuilder:validation:Optional
+	// +optional
 	DefaultRemoteTargetRef *corev1.ObjectReference `json:"defaultRemoteTargetRef,omitempty" protobuf:"bytes,opt,19,name=defaultRemoteTargetRef"` // Ref to a RemoteTarget object
 
 	// insecureSkipTlsVerify skip TLS verification when set to true
-	// +kubebuilder:validation:Optional
+	// +optional
 	InsecureSkipTlsVerify bool `json:"insecureSkipTlsVerify,omitempty" protobuf:"bytes,opt,20,name=insecureSkipTlsVerify"`
 
 	// The caBundleSecretRef is a reference to a secret of type kubernetes.io/tls that stores the
@@ -179,11 +179,11 @@ type RemoteSyncerSpec struct {
 	// If the namespace is not set, it defaults to the namespace of the RemoteSyncer.
 	// Referencing another namespace requires the user to be allowed to get the
 	// referenced object in that namespace.
-	// +kubebuilder:validation:Optional
+	// +optional
 	CABundleSecretRef corev1.SecretReference `json:"caBundleSecretRef,omitempty" protobuf:"bytes,opt,21,name=caBundleSecretRef"`
 
 	// The SOPS field is used to configure the SOPS provider for syngit.
-	// +kubebuilder:validation:Optional
+	// +optional
 	SOPS SOPSConfig `json:"sops,omitempty" protobuf:"bytes,opt,22,name=sops"`
 }
 
@@ -324,7 +324,7 @@ type SOPSConfig struct {
 	// .sops.yaml of the remote repository; a manifest whose path matches no
 	// creation rule is pushed in cleartext.
 	// +kubebuilder:default:value=false
-	// +kubebuilder:validation:Optional
+	// +optional
 	Enabled bool `json:"enabled,omitempty" protobuf:"bytes,opt,1,name=enabled"`
 
 	// The secretRef is a reference to a Secret that stores the age private key
@@ -335,7 +335,7 @@ type SOPSConfig struct {
 	// If the namespace is not set, it defaults to the namespace of the RemoteSyncer.
 	// Referencing another namespace requires the user to be allowed to get the
 	// referenced object in that namespace.
-	// +kubebuilder:validation:Optional
+	// +optional
 	SecretRef corev1.SecretReference `json:"secretRef,omitempty" protobuf:"bytes,opt,2,name=secretRef"`
 }
 

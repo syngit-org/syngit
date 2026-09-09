@@ -36,7 +36,7 @@ type ClusterWideRemoteSyncerSpec struct {
 	// An empty or unset selector matches every namespace.
 	// Cluster-scoped resources matching .spec.scopedResources.rules are always
 	// intercepted, whatever this selector says.
-	// +kubebuilder:validation:Optional
+	// +optional
 	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty" protobuf:"bytes,opt,23,name=namespaceSelector"`
 
 	// identityStoreNamespace is the namespace holding the RemoteUserBindings that
@@ -44,7 +44,7 @@ type ClusterWideRemoteSyncerSpec struct {
 	// the policy-managed RemoteTargets are created.
 	// Creating a ClusterWideRemoteSyncer requires the user to be allowed to list
 	// the RemoteUserBindings of that namespace.
-	// +kubebuilder:validation:Required
+	// +required
 	// +kubebuilder:validation:MinLength=1
 	IdentityStoreNamespace string `json:"identityStoreNamespace" protobuf:"bytes,24,name=identityStoreNamespace"`
 }

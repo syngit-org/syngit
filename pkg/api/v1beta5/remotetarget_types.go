@@ -49,7 +49,7 @@ type RemoteTargetSpec struct {
 	// upstreamRepository is used to ensure the mapping with
 	// the RemoteSyncer(s) that defines it as the default repository.
 	// It will also be used for the merge strategies.
-	// +kubebuilder:validation:Required
+	// +required
 	// +kubebuilder:example="https://git.example.com/my-upstream-repo.git"
 	// +kubebuilder:validation:Format=uri
 	UpstreamRepository string `json:"upstreamRepository" protobuf:"bytes,1,name=upstreamRepository"`
@@ -57,21 +57,21 @@ type RemoteTargetSpec struct {
 	// upstreamBranch is used to ensure the mapping with
 	// the RemoteSyncer(s) that defines it as the default repository.
 	// It will also be used for the merge strategies.
-	// +kubebuilder:validation:Required
+	// +required
 	// +kubebuilder:example:"main"
 	UpstreamBranch string `json:"upstreamBranch" protobuf:"bytes,2,name=upstreamBranch"`
 
 	// targetRepository defines the repository where the
 	// resource should be pushed. It can be the same as the upstream
 	// repository.
-	// +kubebuilder:validation:Required
+	// +required
 	// +kubebuilder:example="https://git.example.com/my-target-repo.git"
 	// +kubebuilder:validation:Format=uri
 	TargetRepository string `json:"targetRepository" protobuf:"bytes,3,name=targetRepository"`
 
 	// targetBranch defines the branch where the resource
 	// should be pushed. It can be the same as the upstream branch.
-	// +kubebuilder:validation:Required
+	// +required
 	// +kubebuilder:example:"main"
 	TargetBranch string `json:"targetBranch" protobuf:"bytes,4,name=targetBranch"`
 
@@ -88,7 +88,7 @@ type RemoteTargetSpec struct {
 	// - TryFastForwardOrHardReset: First try the fast forward strategy,
 	//                              if there is an error, then try the hard
 	//                              reset strategy.
-	// +kubebuilder:validation:Optional
+	// +optional
 	// +kubebuilder:validation:Enum=TryFastForwardOrDie;TryFastForwardOrHardReset;TryHardResetOrDie;""
 	MergeStrategy MergeStrategy `json:"mergeStrategy" protobuf:"bytes,5,name=mergeStrategy"`
 }
