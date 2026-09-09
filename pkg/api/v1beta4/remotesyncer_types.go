@@ -30,7 +30,7 @@ import (
 type RemoteSyncerSpec struct {
 
 	// remoteRepository represents the upstream repository where the RemoteTarget(s) are based on.
-	// +kubebuilder:validation:Required
+	// +required
 	// +kubebuilder:example="https://git.example.com/my-repo.git"
 	// +kubebuilder:validation:Format=uri
 	RemoteRepository string `json:"remoteRepository" protobuf:"bytes,1,name=remoteRepository"`
@@ -38,18 +38,18 @@ type RemoteSyncerSpec struct {
 	// defaultBranch represents the upstream default branch where the RemoteTarget(s) are based on.
 	// +kubebuilder:example="main"
 	// +kubebuilder:default:value="main"
-	// +kubebuilder:validation:Required
+	// +required
 	DefaultBranch string `json:"defaultBranch" protobuf:"bytes,opt,2,name=defaultBranch"`
 
 	// scopedResources defines the resources and the operations that are intercepted.
 	// +kubebuilder:default:value={}
-	// +kubebuilder:validation:Required
+	// +required
 	ScopedResources ScopedResources `json:"scopedResources" protobuf:"bytes,3,name=scopedResources,casttype=ScopedResources"`
 
 	// strategy field specify if the applied Kubernetes object must be
 	// committed and applied (CommitApply) OR only committed (CommitOnly) and blocked
 	// to the Kubernetes API.
-	// +kubebuilder:validation:Required
+	// +required
 	// +kubebuilder:default:value="CommitApply"
 	// +kubebuilder:validation:Enum=CommitOnly;CommitApply
 	Strategy Strategy `json:"strategy" protobuf:"bytes,4,name=strategy"`
@@ -62,7 +62,7 @@ type RemoteSyncerSpec struct {
 	//                   will be returned from the webhook.
 	// "MultipleTarget": Use it to push on all the RemoteTargets found (it can
 	//                   be only one or multiple).
-	// +kubebuilder:validation:Required
+	// +required
 	// +kubebuilder:default:value="OneTarget"
 	// +kubebuilder:validation:Enum=OneTarget;MultipleTarget
 	TargetStrategy TargetStrategy `json:"targetStrategy" protobuf:"bytes,5,name=targetStrategy"`
@@ -70,46 +70,46 @@ type RemoteSyncerSpec struct {
 	// remoteTargetSelector is a label selector that will be used when
 	// the search algorithm will try to find the RemoteTarget(s) that have
 	// the same upstream repo & branch
-	// +kubebuilder:validation:Optional
+	// +optional
 	RemoteTargetSelector *metav1.LabelSelector `json:"remoteTargetSelector" protobuf:"bytes,opt,6,name=remoteTargetSelector"`
 
 	// defaultBlockAppliedMessage represents the message that the webhook will
 	// output if the resource is not applied (commitProcess: CommitOnly).
-	// +kubebuilder:validation:Optional
+	// +optional
 	DefaultBlockAppliedMessage string `json:"defaultBlockAppliedMessage,omitempty" protobuf:"bytes,opt,7,name=defaultBlockAppliedMessage"`
 
 	// excludedFields is a selection of key/entry of the Kubernetes object
 	// that will not be pushed on the remote git repository. They will be removed
 	// from the final YAML file before pushing to the remote Git repository.
-	// +kubebuilder:validation:Optional
+	// +optional
 	ExcludedFields []string `json:"excludedFields,omitempty" protobuf:"bytes,opt,8,name=excludedFields"`
 
 	// excludedFieldsConfig is a reference to a ConfigMap. The configuration
 	// will be loaded from the "excludedFields" key of the ConfigMap.
-	// +kubebuilder:validation:Optional
+	// +optional
 	ExcludedFieldsConfigMapRef *corev1.ObjectReference `json:"excludedFieldsConfig,omitempty" protobuf:"bytes,opt,9,name=excludedFieldsConfig"` // Ref to a ConfigMap
 
 	// rootPath specifies the absolute root path in the remote git repository
 	// where the resources scoped by this RemoteSyncer will be pushed.
-	// +kubebuilder:validation:Optional
+	// +optional
 	RootPath string `json:"rootPath,omitempty" protobuf:"bytes,opt,10,name=rootPath"`
 
 	// resourceFinder locates the resource amongst the files of the repository.
 	// When the resource is intercepted, the corresponding yaml manifest replaces
 	// the one(s) currently existing in the repository.
-	// +kubebuilder:validation:Required
+	// +required
 	// +kubebuilder:default:value=true
 	ResourceFinder bool `json:"resourceFinder,omitempty" protobuf:"bytes,opt,11,name=resourceFinder"`
 
 	// remoteUserBindingSelector is a label selector that will be used when
 	// the search algorithm will try to find the RemoteUserBinding that belongs
 	// to the Kubernetes user.
-	// +kubebuilder:validation:Optional
+	// +optional
 	RemoteUserBindingSelector *metav1.LabelSelector `json:"remoteUserBindingSelector" protobuf:"bytes,opt,12,name=remoteUserBindingSelector"`
 
 	// bypassInterceptionSubjects field is a list of Kubernetes subjects
 	// (ServiceAccount or User) that can apply the resource but must not commit them.
-	// +kubebuilder:validation:Optional
+	// +optional
 	BypassInterceptionSubjects []rbacv1.Subject `json:"bypassInterceptionSubjects,omitempty" protobuf:"bytes,opt,13,name=bypassInterceptionSubjects"`
 
 	// defaultUnauthorizedUserMode defines the behavior for an unauthorized
@@ -130,23 +130,23 @@ type RemoteSyncerSpec struct {
 	// AND if the defaultUnauthorizedUserMode is set to 'UseDefaultUser'.
 	// The resource will be pushed to the target specified by the
 	// .spec.defaultRemoteTargetRef field.
-	// +kubebuilder:validation:Optional
+	// +optional
 	DefaultRemoteUserRef *corev1.ObjectReference `json:"defaultRemoteUserRef,omitempty" protobuf:"bytes,opt,15,name=defaultRemoteUserRef"` // Ref to a RemoteUser object
 
 	// defaultRemoteTargetRef  is a reference to a RemoteTarget object.
 	// It will be used in the same condition as the defaultRemoteUserRef field.
 	// If the defaultRemoteUserRef field is defined, then the .spec.defaultRemoteTargetRef
 	// must be defined as well.
-	// +kubebuilder:validation:Optional
+	// +optional
 	DefaultRemoteTargetRef *corev1.ObjectReference `json:"defaultRemoteTargetRef,omitempty" protobuf:"bytes,opt,16,name=defaultRemoteTargetRef"` // Ref to a RemoteUser object
 
 	// insecureSkipTlsVerify skip TLS verification when set to true
-	// +kubebuilder:validation:Optional
+	// +optional
 	InsecureSkipTlsVerify bool `json:"insecureSkipTlsVerify,omitempty" protobuf:"bytes,opt,17,name=insecureSkipTlsVerify"`
 
 	// The caBundleSecretRef is a reference to a secret of type kubernetes.io/tls that stores the
 	// certificate of the remote git server stored in a Secret object.
-	// +kubebuilder:validation:Optional
+	// +optional
 	CABundleSecretRef corev1.SecretReference `json:"caBundleSecretRef,omitempty" protobuf:"bytes,opt,18,name=caBundleSecretRef"`
 }
 

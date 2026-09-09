@@ -26,16 +26,16 @@ type RemoteUserSpec struct {
 
 	// secretRef is the reference to the secret that stores the Personal Access Token to the git account.
 	// The Secret must be of 'kubernetes.io/basic-auth' type.
-	// +kubebuilder:validation:Required
+	// +required
 	SecretRef corev1.SecretReference `json:"secretRef" protobuf:"bytes,1,name=secretRef"`
 
 	// email is used to do git commit.
-	// +kubebuilder:validation:Required
+	// +required
 	Email string `json:"email" protobuf:"bytes,2,name=email"`
 
 	// gitBaseDomainFQDN is the fully qualified domain name of the git server.
 	// For example: "github.com", "gitlab.com", "my-own-git-server.io", etc...
-	// +kubebuilder:validation:Required
+	// +required
 	GitBaseDomainFQDN string `json:"gitBaseDomainFQDN" protobuf:"bytes,3,name=gitBaseDomainFQDN"`
 }
 

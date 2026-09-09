@@ -33,15 +33,15 @@ const (
 type RemoteUserBindingSpec struct {
 
 	// subject is the Kubernetes User/ServiceAccount that is bound to the listed RemoteUsers & RemoteTargets.
-	// +kubebuilder:validation:Required
+	// +required
 	Subject rbacv1.Subject `json:"subject" protobuf:"bytes,1,name=subject"`
 
 	// remoteUserRefs is a list of reference to RemoteUser(s) that are bound to the subject.
-	// +kubebuilder:validation:Required
+	// +required
 	RemoteUserRefs []corev1.ObjectReference `json:"remoteUserRefs" protobuf:"bytes,2,name=remoteUserRefs"` // Ref to the listed RemoteUser objects
 
 	// remoteTargetRefs is a list of reference to RemoteTarget(s) that are bound to the subject.
-	// +kubebuilder:validation:Optional
+	// +optional
 	RemoteTargetRefs []corev1.ObjectReference `json:"remoteTargetRefs" protobuf:"bytes,3,name=remoteTargetRefs"` // Ref to the listed RemoteTarget objects
 }
 

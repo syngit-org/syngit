@@ -29,16 +29,16 @@ type RemoteUserSpec struct {
 	// A reference without a namespace resolves in the namespace of this RemoteUser.
 	// Whoever creates or updates this RemoteUser must be allowed to get the referenced
 	// Secret, wherever it resolves.
-	// +kubebuilder:validation:Required
+	// +required
 	SecretRef corev1.SecretReference `json:"secretRef" protobuf:"bytes,1,name=secretRef"`
 
 	// email is used to do git commit.
-	// +kubebuilder:validation:Required
+	// +required
 	Email string `json:"email" protobuf:"bytes,2,name=email"`
 
 	// gitBaseDomainFQDN is the fully qualified domain name of the git server.
 	// For example: "github.com", "gitlab.com", "my-own-git-server.io", etc...
-	// +kubebuilder:validation:Required
+	// +required
 	GitBaseDomainFQDN string `json:"gitBaseDomainFQDN" protobuf:"bytes,3,name=gitBaseDomainFQDN"`
 }
 
