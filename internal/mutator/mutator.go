@@ -81,6 +81,7 @@ func (s *ArtifactSet) Add(a Artifact) { s.Items = append(s.Items, a) }
 var providerGate = map[features.Feature]Provider{
 	features.HelmValuesMutation: HelmValuesMutation{},
 	features.FluxHelmRelease:    FluxHelmReleaseProvider{},
+	features.Kustomize:          KustomizeProvider{},
 }
 
 // GenerateFinalWorktree runs every enabled provider over the intercepted
@@ -187,7 +188,25 @@ func placeArtifacts(params interceptor.GitPipelineParams, artifacts ArtifactSet,
 // WriteObjectAtPath: when the file already exists only the document matching the
 // artifact's own identity is swapped, so sibling documents are preserved.
 func writeArtifactAtPath(worktree *git.Worktree, a Artifact, transform walker.DocTransform, claimed *interceptor.ClaimedPaths) error {
-	placed, err := walker.WriteObjectAtPath(worktree, filepath.Clean(a.TargetPath), walker.SelectorFromDoc(a.Content), a.Content, a.transformOrNil(transform))
+	sel := walker.SelectorFromDoc(a.Content)
+	if !a.IsDeletion() && sel.Name == "" {
+		// A document with no Kubernetes identity (a JSON6902 patch list) cannot be
+		// located inside its file, so it replaces the file rather than being
+		// appended to the revision it supersedes.
+		path := filepath.Clean(a.TargetPath)
+		existing, _ := walker.ReadWorktreeFile(worktree, path)
+		content, err := a.transformOrNil(transform).Apply(path, existing, a.Content)
+		if err != nil {
+			return err
+		}
+		if err := walker.WriteWorktreeFile(worktree, path, content); err != nil {
+			return err
+		}
+		claimed.AppendAddedPath(path)
+		return nil
+	}
+
+	placed, err := walker.WriteObjectAtPath(worktree, filepath.Clean(a.TargetPath), sel, a.Content, a.transformOrNil(transform))
 	if err != nil {
 		return err
 	}
