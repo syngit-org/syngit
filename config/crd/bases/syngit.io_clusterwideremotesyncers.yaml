@@ -336,6 +336,28 @@ spec:
                 description: insecureSkipTlsVerify skip TLS verification when set
                   to true
                 type: boolean
+              kustomize:
+                description: The kustomize field is used to configure the Kustomize
+                  provider for syngit.
+                properties:
+                  enabled:
+                    default: false
+                    description: |-
+                      Set enabled to true to push the intercepted objects back as the files the
+                      repository holds, the kustomize base resource or the overlay patch, instead
+                      of the resources as `kustomize build` rendered them into the cluster. Each
+                      object opts in with the kustomize.syngit.io/bundle-path annotation.
+                    type: boolean
+                  override:
+                    default: Overlay
+                    description: |-
+                      Selects what an intercepted object is written back as: the base
+                      resource, or a patch in the overlay it was built from.
+                    enum:
+                    - Base
+                    - Overlay
+                    type: string
+                type: object
               namespaceSelector:
                 description: |-
                   namespaceSelector selects the namespaces whose resources are intercepted.

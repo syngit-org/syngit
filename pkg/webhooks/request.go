@@ -1,7 +1,10 @@
 package webhooks
 
 import (
+	"encoding/json"
+
 	admissionv1 "k8s.io/api/admission/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -31,6 +34,9 @@ type ObjectMetadata struct {
 	Name string
 	// Namespace of the intercepted object. Empty when it is cluster-scoped.
 	Namespace string
+	// Annotations of the intercepted object. The mutation providers read their
+	// per-object configuration from these.
+	Annotations map[string]string
 }
 
 // ExtractObjectMetadata reads the identity of the intercepted object off an
@@ -39,8 +45,22 @@ func ExtractObjectMetadata(admissionRequest *admissionv1.AdmissionRequest) Objec
 	interceptedGVR := (*schema.GroupVersionResource)(admissionRequest.RequestResource.DeepCopy())
 
 	return ObjectMetadata{
-		Name:      admissionRequest.Name,
-		Namespace: admissionRequest.Namespace,
-		GVR:       *interceptedGVR,
+		Name:        admissionRequest.Name,
+		Namespace:   admissionRequest.Namespace,
+		GVR:         *interceptedGVR,
+		Annotations: extractAnnotations(admissionRequest),
 	}
+}
+
+func extractAnnotations(admissionRequest *admissionv1.AdmissionRequest) map[string]string {
+	raw := admissionRequest.Object.Raw
+	if len(raw) == 0 {
+		raw = admissionRequest.OldObject.Raw
+	}
+
+	object := &metav1.PartialObjectMetadata{}
+	if err := json.Unmarshal(raw, object); err != nil {
+		return nil
+	}
+	return object.Annotations
 }
