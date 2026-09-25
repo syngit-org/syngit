@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta5
 
 import (
+	kustomizeprovider "github.com/syngit-org/syngit-provider-kustomize/pkg"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -185,6 +186,10 @@ type RemoteSyncerSpec struct {
 	// The SOPS field is used to configure the SOPS provider for syngit.
 	// +optional
 	SOPS SOPSConfig `json:"sops,omitempty" protobuf:"bytes,opt,22,name=sops"`
+
+	// The kustomize field is used to configure the Kustomize provider for syngit.
+	// +optional
+	Kustomize KustomizeConfig `json:"kustomize,omitempty" protobuf:"bytes,opt,23,name=kustomize"`
 }
 
 type RemoteSyncerStatus struct {
@@ -337,6 +342,23 @@ type SOPSConfig struct {
 	// referenced object in that namespace.
 	// +optional
 	SecretRef corev1.SecretReference `json:"secretRef,omitempty" protobuf:"bytes,opt,2,name=secretRef"`
+}
+
+type KustomizeConfig struct {
+	// Set enabled to true to push the intercepted objects back as the files the
+	// repository holds, the kustomize base resource or the overlay patch, instead
+	// of the resources as `kustomize build` rendered them into the cluster. Each
+	// object opts in with the kustomize.syngit.io/bundle-path annotation.
+	// +kubebuilder:default:value=false
+	// +optional
+	Enabled bool `json:"enabled,omitempty" protobuf:"bytes,opt,1,name=enabled"`
+
+	// Selects what an intercepted object is written back as: the base
+	// resource, or a patch in the overlay it was built from.
+	// +kubebuilder:validation:Enum=Base;Overlay
+	// +kubebuilder:default:value=Overlay
+	// +optional
+	Override kustomizeprovider.OverrideType `json:"override,omitempty" protobuf:"bytes,opt,2,name=override"`
 }
 
 /*

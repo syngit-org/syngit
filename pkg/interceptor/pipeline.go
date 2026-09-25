@@ -14,14 +14,15 @@ type GitUserInfo struct {
 }
 
 type GitPipelineParams struct {
-	Syncer          SyncerContext
-	RemoteTarget    syngit.RemoteTarget
-	InterceptedYAML string
-	InterceptedGVR  schema.GroupVersionResource
-	InterceptedName string
-	GitUserInfo     GitUserInfo
-	Operation       admissionv1.Operation
-	CABundle        []byte
+	Syncer                 SyncerContext
+	RemoteTarget           syngit.RemoteTarget
+	InterceptedYAML        string
+	InterceptedGVR         schema.GroupVersionResource
+	InterceptedName        string
+	InterceptedAnnotations map[string]string
+	GitUserInfo            GitUserInfo
+	Operation              admissionv1.Operation
+	CABundle               []byte
 }
 
 type ClaimedPaths struct {

@@ -193,14 +193,15 @@ func RunGitPushPipeline(ctx context.Context, params GitPushParameters) ([]interc
 	for userInfo, remoteTargets := range params.UserInfoRemoteTargets {
 		for _, remoteTarget := range remoteTargets {
 			params := &interceptor.GitPipelineParams{
-				Syncer:          params.Syncer,
-				RemoteTarget:    *remoteTarget.DeepCopy(),
-				InterceptedYAML: params.YAMLManifest,
-				InterceptedGVR:  params.ObjectMetadata.GVR,
-				InterceptedName: params.ObjectMetadata.Name,
-				GitUserInfo:     userInfo,
-				Operation:       params.Operation,
-				CABundle:        params.CABundle,
+				Syncer:                 params.Syncer,
+				RemoteTarget:           *remoteTarget.DeepCopy(),
+				InterceptedYAML:        params.YAMLManifest,
+				InterceptedGVR:         params.ObjectMetadata.GVR,
+				InterceptedName:        params.ObjectMetadata.Name,
+				InterceptedAnnotations: params.ObjectMetadata.Annotations,
+				GitUserInfo:            userInfo,
+				Operation:              params.Operation,
+				CABundle:               params.CABundle,
 			}
 			res, err := pusher.RunGitPipeline(ctx, cluster, *params)
 			if err != nil {
