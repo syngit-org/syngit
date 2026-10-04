@@ -14,9 +14,12 @@ type GitUserInfo struct {
 }
 
 type GitPipelineParams struct {
-	Syncer          SyncerContext
-	RemoteTarget    syngit.RemoteTarget
-	InterceptedYAML string
+	Syncer       SyncerContext
+	RemoteTarget syngit.RemoteTarget
+	// YAML of the intercepted object, empty on DELETE.
+	InterceptedManifest string
+	// YAML of the object removed by a DELETE.
+	DeletedManifest string
 	InterceptedGVR  schema.GroupVersionResource
 	InterceptedName string
 	GitUserInfo     GitUserInfo
