@@ -310,7 +310,7 @@ func TestGenerateFinalWorktree_EncryptsWithSops(t *testing.T) {
 
 	rc := sopsRenderContext(t, wt, identity, true)
 	params := rc.Params
-	params.InterceptedYAML = string(plainSecret("hunter2"))
+	params.InterceptedManifest = string(plainSecret("hunter2"))
 	params.InterceptedName = "db"
 	params.InterceptedGVR = schema.GroupVersionResource{Version: "v1", Resource: "secrets"}
 
@@ -340,7 +340,7 @@ func TestGenerateFinalWorktree_FailsWithoutSopsYAML(t *testing.T) {
 
 	rc := sopsRenderContext(t, wt, identity, true)
 	params := rc.Params
-	params.InterceptedYAML = string(plainSecret("hunter2"))
+	params.InterceptedManifest = string(plainSecret("hunter2"))
 	params.InterceptedName = "db"
 	params.InterceptedGVR = schema.GroupVersionResource{Version: "v1", Resource: "secrets"}
 

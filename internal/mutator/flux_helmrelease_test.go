@@ -127,8 +127,8 @@ func helmReleaseParams(t *testing.T) interceptor.GitPipelineParams {
 			Version:  "v1",
 			Resource: "secrets",
 		},
-		InterceptedName: "sh.helm.release.v1.podinfo.v1",
-		InterceptedYAML: helmReleaseSecretYAML(t),
+		InterceptedName:     "sh.helm.release.v1.podinfo.v1",
+		InterceptedManifest: helmReleaseSecretYAML(t),
 	}
 }
 
@@ -314,7 +314,7 @@ func TestFluxHelmReleaseProvider_NilCluster(t *testing.T) {
 func TestFluxHelmReleaseProvider_Deletion(t *testing.T) {
 	wt := newMemWorktree(t)
 	params := helmReleaseParams(t)
-	params.InterceptedYAML = ""                 // deletion
+	params.InterceptedManifest = ""             // deletion
 	params.Syncer.InterceptedNamespace = "prod" // the release lives in the intercepted secret's namespace
 
 	rc := RenderContext{Ctx: context.Background(), Params: params, Worktree: wt}

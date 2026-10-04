@@ -1,6 +1,9 @@
 package walker
 
-import "bytes"
+import (
+	"bytes"
+	"slices"
+)
 
 // DocTransform is given the repo-relative path of the file being written, the
 // document already stored at that location (nil when there is none), and the
@@ -66,6 +69,48 @@ func ReplaceDocInContentFunc(content []byte, sel ObjectSelector, newDoc []byte, 
 		merged = append(merged, '\n')
 	}
 	return merged, true, nil
+}
+
+// TransformChangedDocs is for content carrying the untouched documents of the
+// file over verbatim: they may already be encrypted, so only the others are transformed.
+func TransformChangedDocs(relPath string, existing, content []byte, transform DocTransform) ([]byte, error) {
+	existingDocs := splitDocs(existing)
+
+	docs := splitDocs(content)
+	for i, doc := range docs {
+		if slices.ContainsFunc(existingDocs, func(existingDoc []byte) bool { return bytes.Equal(existingDoc, doc) }) {
+			continue
+		}
+		transformed, err := transform.Apply(relPath, previousDoc(existingDocs, doc), doc)
+		if err != nil {
+			return nil, err
+		}
+		docs[i] = bytes.TrimRight(transformed, "\n")
+	}
+	return append(bytes.Join(docs, docSeparator), '\n'), nil
+}
+
+func splitDocs(content []byte) [][]byte {
+	var docs [][]byte
+	for _, doc := range bytes.Split(content, docSeparator) {
+		doc = bytes.TrimRight(bytes.TrimPrefix(doc, []byte("---\n")), "\n")
+		if len(bytes.TrimSpace(doc)) > 0 {
+			docs = append(docs, doc)
+		}
+	}
+	return docs
+}
+
+// The namespace is ignored: a kustomize overlay may inject one the file does not hold.
+func previousDoc(existingDocs [][]byte, doc []byte) []byte {
+	sel := SelectorFromDoc(doc)
+	for _, existingDoc := range existingDocs {
+		existingSel := SelectorFromDoc(existingDoc)
+		if existingSel.GVR == sel.GVR && existingSel.Name == sel.Name {
+			return existingDoc
+		}
+	}
+	return nil
 }
 
 // appendDoc appends doc as a new YAML document at the end of existing, preserving
