@@ -16,6 +16,7 @@ const (
 	HelmValuesMutation Feature = "HelmValuesMutation"
 	FluxHelmRelease    Feature = "FluxHelmRelease"
 	SopsEncryption     Feature = "SopsEncryption"
+	Kustomize          Feature = "Kustomize"
 )
 
 var (
@@ -24,6 +25,7 @@ var (
 		HelmValuesMutation: false, // Alpha: default off
 		FluxHelmRelease:    false, // Alpha: default off
 		SopsEncryption:     false, // Alpha: default off
+		Kustomize:          false, // Alpha: default off
 	}
 )
 

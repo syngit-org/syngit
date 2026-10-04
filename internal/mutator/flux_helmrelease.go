@@ -44,7 +44,7 @@ type FluxHelmReleaseProvider struct{}
 
 // Handles matches Helm release Secrets, mirroring HelmValuesMutation.Handles.
 func (FluxHelmReleaseProvider) Handles(params interceptor.GitPipelineParams) bool {
-	if params.Syncer.Annotations[fluxprovider.HelmReleaseAnnotation] != "enabled" ||
+	if params.Syncer.Annotations[fluxprovider.HelmReleaseAnnotation] != providerEnabled ||
 		params.InterceptedGVR.Group != "" ||
 		params.InterceptedGVR.Version != "v1" ||
 		params.InterceptedGVR.Resource != "secrets" {
@@ -65,7 +65,7 @@ func (p FluxHelmReleaseProvider) Render(rc RenderContext, out *ArtifactSet) erro
 	// phase can still locate the HelmRelease by its real identity (the release
 	// name, not the secret name). The release lives in the same namespace as the
 	// intercepted secret.
-	if params.InterceptedYAML == "" {
+	if params.InterceptedManifest == "" {
 		out.Add(Artifact{
 			GVR:       helmReleaseGVR,
 			Name:      helmprovider.GetReleaseNameFromSecretName(params.InterceptedName),
@@ -76,7 +76,7 @@ func (p FluxHelmReleaseProvider) Render(rc RenderContext, out *ArtifactSet) erro
 	}
 
 	secret := &corev1.Secret{}
-	if err := utilyaml.Unmarshal([]byte(params.InterceptedYAML), secret); err != nil {
+	if err := utilyaml.Unmarshal([]byte(params.InterceptedManifest), secret); err != nil {
 		return fmt.Errorf("failed to parse the Helm release secret: %w", err)
 	}
 	if !helmprovider.IsHelmSecret(secret) {

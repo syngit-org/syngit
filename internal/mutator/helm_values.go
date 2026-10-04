@@ -14,7 +14,7 @@ const DefaultChartValuesSubPath = "chart-values"
 
 // Handles matches Helm release Secrets by GVR and name.
 func (mutate HelmValuesMutation) Handles(params interceptor.GitPipelineParams) bool {
-	if params.Syncer.Annotations[provider.HelmValuesAnnotation] != "enabled" ||
+	if params.Syncer.Annotations[provider.HelmValuesAnnotation] != providerEnabled ||
 		params.InterceptedGVR.Group != "" ||
 		params.InterceptedGVR.Version != "v1" ||
 		params.InterceptedGVR.Resource != "secrets" {
@@ -30,9 +30,9 @@ func (mutate HelmValuesMutation) Render(rc RenderContext, out *ArtifactSet) erro
 	params := rc.Params
 	rawValues := ""
 
-	if params.InterceptedYAML != "" {
+	if params.InterceptedManifest != "" {
 		secret := &corev1.Secret{}
-		if err := yaml.Unmarshal([]byte(params.InterceptedYAML), secret); err != nil {
+		if err := yaml.Unmarshal([]byte(params.InterceptedManifest), secret); err != nil {
 			return err
 		}
 

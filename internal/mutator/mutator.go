@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/syngit-org/syngit/internal/walker"
+	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
 	features "github.com/syngit-org/syngit/pkg/feature"
 	"github.com/syngit-org/syngit/pkg/interceptor"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -13,6 +14,9 @@ import (
 )
 
 const ResourceFinderCommentPrefix = "syngit.resource-finder/v1: "
+
+// Value of the provider annotation on the syncer that turns a provider on.
+const providerEnabled = "enabled"
 
 // Provider turns an intercepted resource into one or more artifacts to write
 // into the git worktree. A Provider may read existing repo state and, when
@@ -31,6 +35,9 @@ type RenderContext struct {
 	Params   interceptor.GitPipelineParams
 	Worktree *git.Worktree // read existing repo state (overlays, HelmRepository, ...)
 	Cluster  client.Reader // optional cluster lookups; nil when unavailable
+	// Transform is the content transform of the syncer (SOPS), for providers
+	// emitting WholeFile artifacts; nil when there is none.
+	Transform walker.DocTransform
 }
 
 // Artifact is a single file to write into (or delete from) the worktree.
@@ -50,6 +57,10 @@ type Artifact struct {
 	// TargetPath, when set, is the explicit worktree path for the artifact. Such
 	// artifacts are written directly and bypass the placement phase.
 	TargetPath string
+	// WholeFile marks Content as the final content of the file at TargetPath:
+	// it replaces the file as is, without being merged with the documents
+	// already there nor transformed.
+	WholeFile bool
 }
 
 // IsDeletion reports whether the artifact represents a deletion. An artifact
@@ -72,6 +83,12 @@ func (a Artifact) transformOrNil(transform walker.DocTransform) walker.DocTransf
 // ArtifactSet accumulates the artifacts produced by the providers.
 type ArtifactSet struct {
 	Items []Artifact
+	// Claimed is set by a provider that handles the intercepted resource even
+	// when it produces no artifact, so that the resource is not written as is.
+	Claimed bool
+	// Denial, when set, is the reason a provider refuses the intercepted change.
+	// Nothing is written and the change is denied like a failed push.
+	Denial string
 }
 
 // Add appends an artifact to the set.
@@ -81,6 +98,7 @@ func (s *ArtifactSet) Add(a Artifact) { s.Items = append(s.Items, a) }
 var providerGate = map[features.Feature]Provider{
 	features.HelmValuesMutation: HelmValuesMutation{},
 	features.FluxHelmRelease:    FluxHelmReleaseProvider{},
+	features.Kustomize:          KustomizeProvider{},
 }
 
 // GenerateFinalWorktree runs every enabled provider over the intercepted
@@ -109,6 +127,7 @@ func GenerateFinalWorktree(
 	if err != nil {
 		return worktree, interceptor.NewClaimedPaths(), err
 	}
+	rc.Transform = transform
 
 	artifacts := &ArtifactSet{}
 	for featureGate, provider := range providerGate {
@@ -123,12 +142,16 @@ func GenerateFinalWorktree(
 		}
 	}
 
+	if artifacts.Denial != "" {
+		return worktree, interceptor.NewClaimedPaths(), syngiterrors.NewProviderDenied(artifacts.Denial)
+	}
+
 	// When no provider produced anything, seed with the original resource so the
 	// placement phase has something to act on.
-	if len(artifacts.Items) == 0 {
+	if len(artifacts.Items) == 0 && !artifacts.Claimed {
 		artifacts.Add(Artifact{
 			GVR:     params.InterceptedGVR,
-			Content: []byte(params.InterceptedYAML),
+			Content: []byte(params.InterceptedManifest),
 		})
 	}
 
@@ -187,10 +210,29 @@ func placeArtifacts(params interceptor.GitPipelineParams, artifacts ArtifactSet,
 // WriteObjectAtPath: when the file already exists only the document matching the
 // artifact's own identity is swapped, so sibling documents are preserved.
 func writeArtifactAtPath(worktree *git.Worktree, a Artifact, transform walker.DocTransform, claimed *interceptor.ClaimedPaths) error {
+	if a.WholeFile {
+		return writeWholeFile(worktree, a, claimed)
+	}
 	placed, err := walker.WriteObjectAtPath(worktree, filepath.Clean(a.TargetPath), walker.SelectorFromDoc(a.Content), a.Content, a.transformOrNil(transform))
 	if err != nil {
 		return err
 	}
 	claimed.AppendClaimedPaths(placed)
+	return nil
+}
+
+func writeWholeFile(worktree *git.Worktree, a Artifact, claimed *interceptor.ClaimedPaths) error {
+	path := filepath.Clean(a.TargetPath)
+	if a.IsDeletion() {
+		if err := worktree.Filesystem.Remove(path); err != nil {
+			return err
+		}
+		claimed.AppendDeletedPath(path)
+		return nil
+	}
+	if err := walker.WriteWorktreeFile(worktree, path, a.Content); err != nil {
+		return err
+	}
+	claimed.AppendAddedPath(path)
 	return nil
 }
