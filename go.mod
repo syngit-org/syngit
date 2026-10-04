@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	filippo.io/age v1.3.2
-	github.com/fluxcd/helm-controller/api v1.6.4
+	github.com/fluxcd/helm-controller/api v1.6.5
 	github.com/go-git/go-billy/v5 v5.9.2
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/gorilla/mux v1.8.1
