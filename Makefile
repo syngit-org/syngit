@@ -402,7 +402,7 @@ ENVTEST_K8S_VERSION = 1.37.0
 # renovate: datasource=go depName=github.com/golangci/golangci-lint/v2
 GOLANGCI_LINT_VERSION ?= v2.14.0
 # renovate: datasource=go depName=github.com/onsi/ginkgo/v2
-GINKGO_VERSION ?= v2.33.0
+GINKGO_VERSION ?= v2.33.1
 GOCOVMERGE_VERSION ?= v0.0.0-20160331181800-b5bfa59ec0ad
 
 .PHONY: kustomize
