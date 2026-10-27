@@ -119,7 +119,7 @@ func RunInterceptionPipeline(
 	}
 
 	// TLS constructor
-	caBundle, err := CABundleBuilder(ctx, sc, upstreamRemoteSyncerRepoURL)
+	caBundle, err := interceptor.CABundleBuilder(ctx, sc, upstreamRemoteSyncerRepoURL)
 	if err != nil {
 		return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, sc)
 	}
