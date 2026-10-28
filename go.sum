@@ -644,6 +644,8 @@ github.com/syngit-org/syngit-provider-flux v0.3.2 h1:vGX7CCFjGuUisRo43BqnSXgjhj7
 github.com/syngit-org/syngit-provider-flux v0.3.2/go.mod h1:JSc6VOzD+3+D7fm2p1nHO1Tk+//aHt3ITvQ5tF02iNE=
 github.com/syngit-org/syngit-provider-flux v0.3.3 h1:Emw9XooqBPWOJzW+B5/Jbk+KdiOBSHaa2+svZ0vaorQ=
 github.com/syngit-org/syngit-provider-flux v0.3.3/go.mod h1:r7XjFHi7AoqvcLue+FHX+WPcPjNyddN97SvB0gvWsTo=
+github.com/syngit-org/syngit-provider-flux v0.3.4 h1:/MaTTBE80AT8nJ9qHrYNpj1h8bDnng0lPALn1HwAW24=
+github.com/syngit-org/syngit-provider-flux v0.3.4/go.mod h1:r7XjFHi7AoqvcLue+FHX+WPcPjNyddN97SvB0gvWsTo=
 github.com/syngit-org/syngit-provider-helm v0.2.4 h1:hIB6HdFheYcQz4ZiRH48c4MMqQtDFr2Fbm/jQBtdKV0=
 github.com/syngit-org/syngit-provider-helm v0.2.4/go.mod h1:fEDnxRmFSk80iZPJVWj4pBRkiNHXu6w35I97DnCRJW0=
 github.com/syngit-org/syngit-provider-sops v0.1.0 h1:UXGZ3z2LL3IDR0Yys3IPSxu4ve2w7AArW3Wpd9O1v6c=
