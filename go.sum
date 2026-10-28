@@ -607,6 +607,8 @@ github.com/syngit-org/syngit-provider-helm v0.2.5 h1:p/Cb27FEgFMtDcqZiMfDHD063sg
 github.com/syngit-org/syngit-provider-helm v0.2.5/go.mod h1:3avnurYiEO/DVAneYApetjH8eT6193ZL6Wa8U6tXWGk=
 github.com/syngit-org/syngit-provider-sops v0.1.0 h1:UXGZ3z2LL3IDR0Yys3IPSxu4ve2w7AArW3Wpd9O1v6c=
 github.com/syngit-org/syngit-provider-sops v0.1.0/go.mod h1:YNhejdYvdosyurBMjA2J0lVerUNOCMjiISz+T3yHi0I=
+github.com/syngit-org/syngit-provider-sops v0.1.1 h1:MzppbwhEAnJ7K1l0DJJovsO7IQm1mr7d6AinNJHq4WA=
+github.com/syngit-org/syngit-provider-sops v0.1.1/go.mod h1:JjOQURC6hoet5pHsXHpdGLz2OR9Fxxo7zQ9324tOUps=
 github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834 h1:ZF+QBjOI+tILZjBaFj3HgFonKXUcwgJ4djLb6i42S3Q=
 github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834/go.mod h1:m9ymHTgNSEjuxvw8E7WWe4Pl4hZQHXONY8wE6dMLaRk=
 github.com/tetratelabs/wazero v1.12.0 h1:DuWcpNu/FzgEXgGBDp8J1Spc+CWOvvtvVyjKlaZopYU=

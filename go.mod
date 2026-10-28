@@ -1,6 +1,6 @@
 module github.com/syngit-org/syngit
 
-go 1.27.0
+go 1.27.3
 
 require (
 	filippo.io/age v1.3.2
@@ -13,7 +13,7 @@ require (
 	github.com/sosedoff/gitkit v0.4.0
 	github.com/syngit-org/syngit-provider-flux v0.3.4
 	github.com/syngit-org/syngit-provider-helm v0.2.5
-	github.com/syngit-org/syngit-provider-sops v0.1.0
+	github.com/syngit-org/syngit-provider-sops v0.1.1
 	helm.sh/helm/v4 v4.3.1
 	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
