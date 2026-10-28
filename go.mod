@@ -11,8 +11,8 @@ require (
 	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
 	github.com/sosedoff/gitkit v0.4.0
-	github.com/syngit-org/syngit-provider-flux v0.3.3
-	github.com/syngit-org/syngit-provider-helm v0.2.4
+	github.com/syngit-org/syngit-provider-flux v0.3.4
+	github.com/syngit-org/syngit-provider-helm v0.2.5
 	github.com/syngit-org/syngit-provider-sops v0.1.0
 	helm.sh/helm/v4 v4.3.1
 	k8s.io/api v0.37.1
@@ -168,7 +168,6 @@ require (
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/json-iterator/go v1.1.13-0.20220915233716-71ac16282d12 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
