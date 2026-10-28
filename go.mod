@@ -12,7 +12,7 @@ require (
 	github.com/onsi/gomega v1.44.0
 	github.com/sosedoff/gitkit v0.4.0
 	github.com/syngit-org/syngit-provider-flux v0.3.3
-	github.com/syngit-org/syngit-provider-helm v0.2.4
+	github.com/syngit-org/syngit-provider-helm v0.2.5
 	github.com/syngit-org/syngit-provider-sops v0.1.0
 	helm.sh/helm/v4 v4.3.1
 	k8s.io/api v0.37.1
