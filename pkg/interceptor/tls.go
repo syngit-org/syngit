@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/syngit-org/syngit/pkg/interceptor"
 	"github.com/syngit-org/syngit/pkg/kube"
 	"github.com/syngit-org/syngit/pkg/refs"
 	corev1 "k8s.io/api/core/v1"
@@ -17,7 +16,7 @@ import (
 
 func CABundleBuilder(
 	ctx context.Context,
-	sc interceptor.SyncerContext,
+	sc SyncerContext,
 	remoteSyncerRemoteRepoUrl *url.URL,
 ) ([]byte, error) {
 	// Step 1: Search for the global CA Bundle of the server located in the syngit namespace
