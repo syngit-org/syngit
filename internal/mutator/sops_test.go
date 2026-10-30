@@ -26,7 +26,7 @@ const (
 	sopsOwnerNamespace  = "prod"
 )
 
-// enableSopsGate turns the alpha feature gate on for the duration of a test.
+// enableSopsGate turns the feature gate on for the duration of a test.
 func enableSopsGate(t *testing.T) {
 	t.Helper()
 	previous := features.LoadedFeatureGates[features.SopsEncryption]
@@ -361,6 +361,10 @@ func TestSopsTransform_Disabled(t *testing.T) {
 	seedSopsYAML(t, wt, ".*", "^(data|stringData)$", identity.Recipient().String())
 
 	t.Run("gate off", func(t *testing.T) {
+		previous := features.LoadedFeatureGates[features.SopsEncryption]
+		features.LoadedFeatureGates[features.SopsEncryption] = false
+		t.Cleanup(func() { features.LoadedFeatureGates[features.SopsEncryption] = previous })
+
 		transform, err := sopsTransform(sopsRenderContext(t, wt, identity, true))
 		if err != nil {
 			t.Fatalf("sopsTransform: %v", err)
