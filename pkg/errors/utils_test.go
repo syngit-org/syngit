@@ -20,7 +20,7 @@ func TestIs(t *testing.T) {
 		},
 		{
 			name:   "matches by substring from different constructor of same type",
-			err:    NewGitPipeline("boom"),
+			err:    NewGitPipeline("boom", stderrors.New("cause")),
 			target: ErrGitPipeline,
 			want:   true,
 		},

@@ -222,13 +222,26 @@ func TestNewWrongYAMLFormat(t *testing.T) {
 }
 
 func TestNewGitPipeline(t *testing.T) {
-	e := NewGitPipeline("push failed")
+	cause := errors.New("connection reset")
+	e := NewGitPipeline("push failed", cause)
 
 	if e.Details != "push failed" {
 		t.Errorf("Details=%q, want %q", e.Details, "push failed")
 	}
-	assertErrorContract(t, e, "git pipeline processing error", ErrGitPipeline)
-	if want := "git pipeline processing error: push failed"; e.Error() != want {
+	// assertErrorContract expects a single Unwrap() error, not the cause alongside the sentinel.
+	if !e.ShouldContains(e) {
+		t.Errorf("ShouldContains should return true for own Error()")
+	}
+	if e.ShouldContains(errors.New("completely unrelated error")) {
+		t.Errorf("ShouldContains should return false for unrelated error")
+	}
+	if !errors.Is(e, ErrGitPipeline) {
+		t.Errorf("errors.Is should recognize the wrapped sentinel")
+	}
+	if !errors.Is(e, cause) {
+		t.Errorf("errors.Is should recognize the wrapped cause")
+	}
+	if want := "git pipeline processing error: push failed: connection reset"; e.Error() != want {
 		t.Errorf("Error()=%q, want %q", e.Error(), want)
 	}
 }
@@ -241,6 +254,18 @@ func TestNewInterceptorPipeline(t *testing.T) {
 	}
 	assertErrorContract(t, e, "interceptor pipeline processing error", ErrInterceptorPipeline)
 	if want := "interceptor pipeline processing error: broken"; e.Error() != want {
+		t.Errorf("Error()=%q, want %q", e.Error(), want)
+	}
+}
+
+func TestNewProviderDenied(t *testing.T) {
+	e := NewProviderDenied("refused")
+
+	if e.Details != "refused" {
+		t.Errorf("Details=%q, want %q", e.Details, "refused")
+	}
+	assertErrorContract(t, e, "provider denied the change", ErrProviderDenied)
+	if want := "provider denied the change: refused"; e.Error() != want {
 		t.Errorf("Error()=%q, want %q", e.Error(), want)
 	}
 }

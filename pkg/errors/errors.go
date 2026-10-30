@@ -424,24 +424,29 @@ func (e *wrongYamlFormat) Unwrap() error {
 var ErrWrongYAMLFormat = &wrongYamlFormat{}
 
 // This error should be used in the git pipeline.
-func NewGitPipeline(details string) *gitPipeline {
-	return &gitPipeline{Details: details}
+func NewGitPipeline(details string, err error) *gitPipeline {
+	return &gitPipeline{Details: details, Err: err}
 }
 
 type gitPipeline struct {
 	Details string
+	Err     error
 }
 
 func (e *gitPipeline) Error() string {
-	return fmt.Sprintf("git pipeline processing error: %s", e.Details)
+	return fmt.Sprintf("git pipeline processing error: %s: %v", e.Details, e.Err)
 }
 
 func (e *gitPipeline) ShouldContains(err error) bool {
 	return strings.Contains(err.Error(), "git pipeline processing error")
 }
 
-func (e *gitPipeline) Unwrap() error {
-	return ErrGitPipeline
+func (e *gitPipeline) Unwrap() []error {
+	// The sentinel is itself a gitPipeline: unwrapping it again would loop forever.
+	if e == ErrGitPipeline {
+		return nil
+	}
+	return []error{ErrGitPipeline, e.Err}
 }
 
 // The git pipeline process has errored.
@@ -474,6 +479,35 @@ func (e *interceptorPipeline) Unwrap() error {
 
 // The interceptor pipeline process has errored.
 var ErrInterceptorPipeline = &interceptorPipeline{}
+
+// This error should be used when a mutation provider refuses the intercepted
+// change. Unlike a provider failure, the details are meant for the user.
+func NewProviderDenied(details string) *providerDenied {
+	return &providerDenied{Details: details}
+}
+
+type providerDenied struct {
+	Details string
+}
+
+func (e *providerDenied) Error() string {
+	return fmt.Sprintf("provider denied the change: %s", e.Details)
+}
+
+func (e *providerDenied) ShouldContains(err error) bool {
+	return strings.Contains(err.Error(), "provider denied the change")
+}
+
+func (e *providerDenied) Unwrap() error {
+	// The sentinel is itself a providerDenied: unwrapping it again would loop forever.
+	if e == ErrProviderDenied {
+		return nil
+	}
+	return ErrProviderDenied
+}
+
+// A mutation provider has refused the intercepted change.
+var ErrProviderDenied = &providerDenied{}
 
 // This error should be used when a user is not allowed to reach an object
 // referenced in another namespace than the one of the referencing object.

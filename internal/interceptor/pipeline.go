@@ -16,6 +16,7 @@ import (
 	"github.com/syngit-org/syngit/pkg/webhooks"
 	admissionv1 "k8s.io/api/admission/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 )
 
 func RunInterceptionPipeline(
@@ -88,11 +89,12 @@ func RunInterceptionPipeline(
 	}
 
 	operation := admReq.Operation
-	manifest := ""
+	interceptedManifest := ""
+	deletedManifest := ""
 
 	// Convert the request to get the yaml of the object
 	if operation != admissionv1.Delete {
-		manifest, err = render.ObjectToYAML(
+		interceptedManifest, err = render.ObjectToYAML(
 			ctx,
 			admReq.Object.Raw,
 			managerNamespace,
@@ -102,6 +104,12 @@ func RunInterceptionPipeline(
 		if err != nil {
 			return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, sc)
 		}
+	} else {
+		deleted, err := yaml.JSONToYAML(admReq.OldObject.Raw)
+		if err != nil {
+			return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, sc)
+		}
+		deletedManifest = string(deleted)
 	}
 
 	// Check for deletion
@@ -128,18 +136,20 @@ func RunInterceptionPipeline(
 	responses, err := RunGitPushPipeline(ctx, GitPushParameters{
 		UserInfoRemoteTargets: userRemoteTargets,
 		Syncer:                sc,
-		YAMLManifest:          manifest,
+		InterceptedManifest:   interceptedManifest,
+		DeletedManifest:       deletedManifest,
 		ObjectMetadata:        objectMetadata,
 		Operation:             operation,
 		CABundle:              caBundle,
 		Cluster:               kube.ClientFromContext(ctx),
 	})
 	if err != nil {
+		message := se.BuildInterceptorPipelineErr(err.Error())
 		if sc.Spec.Strategy == syngit.CommitApply &&
 			sc.Spec.DefaultPushErrorBehavior == syngit.Pass {
-			return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, true, true, sc)
+			return AdmissionReviewBuilder(ctx, message, admReq, true, true, sc)
 		}
-		return AdmissionReviewBuilder(ctx, se.BuildInterceptorPipelineErr(err.Error()), admReq, false, true, sc)
+		return AdmissionReviewBuilder(ctx, message, admReq, false, true, sc)
 	}
 
 	statusUpdater := NewRemoteSyncerStatusUpdater(admReq, sc)
@@ -169,7 +179,10 @@ type GitPushParameters struct {
 	Syncer interceptor.SyncerContext
 
 	// The yaml manifest of the intercepted object.
-	YAMLManifest string
+	InterceptedManifest string
+
+	// The yaml manifest of the object removed by a DELETE, for which InterceptedManifest is empty.
+	DeletedManifest string
 
 	// The metadatas of the intercepted object.
 	ObjectMetadata webhooks.ObjectMetadata
@@ -193,14 +206,15 @@ func RunGitPushPipeline(ctx context.Context, params GitPushParameters) ([]interc
 	for userInfo, remoteTargets := range params.UserInfoRemoteTargets {
 		for _, remoteTarget := range remoteTargets {
 			params := &interceptor.GitPipelineParams{
-				Syncer:          params.Syncer,
-				RemoteTarget:    *remoteTarget.DeepCopy(),
-				InterceptedYAML: params.YAMLManifest,
-				InterceptedGVR:  params.ObjectMetadata.GVR,
-				InterceptedName: params.ObjectMetadata.Name,
-				GitUserInfo:     userInfo,
-				Operation:       params.Operation,
-				CABundle:        params.CABundle,
+				Syncer:              params.Syncer,
+				RemoteTarget:        *remoteTarget.DeepCopy(),
+				InterceptedManifest: params.InterceptedManifest,
+				DeletedManifest:     params.DeletedManifest,
+				InterceptedGVR:      params.ObjectMetadata.GVR,
+				InterceptedName:     params.ObjectMetadata.Name,
+				GitUserInfo:         userInfo,
+				Operation:           params.Operation,
+				CABundle:            params.CABundle,
 			}
 			res, err := pusher.RunGitPipeline(ctx, cluster, *params)
 			if err != nil {

@@ -2,7 +2,6 @@ package pusher
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/syngit-org/syngit/internal/mutator"
 	syngiterrors "github.com/syngit-org/syngit/pkg/errors"
@@ -45,7 +44,7 @@ func RunGitPipeline(ctx context.Context, cluster client.Reader, params intercept
 	worktree, needForcePush, err := GetWorkTree(params, targetRepository, upstreamRepository)
 	if err != nil {
 		return ResponseBuilder(emptyPaths, "", params.RemoteTarget.Spec.TargetRepository),
-			syngiterrors.NewGitPipeline(fmt.Sprintf("failed to get worktree: %v", err))
+			syngiterrors.NewGitPipeline("failed to get worktree", err)
 	}
 
 	// Pass over the transformers to generate the final worktree
@@ -53,14 +52,14 @@ func RunGitPipeline(ctx context.Context, cluster client.Reader, params intercept
 	worktree, modifiedPaths, err = mutator.GenerateFinalWorktree(ctx, cluster, params, worktree)
 	if err != nil {
 		return ResponseBuilder(emptyPaths, "", params.RemoteTarget.Spec.TargetRepository),
-			syngiterrors.NewGitPipeline(fmt.Sprintf("failed to generate the worktree: %v", err))
+			syngiterrors.NewGitPipeline("failed to generate the worktree", err)
 	}
 
 	// Commit
 	commitHash, err := Commit(params, worktree, modifiedPaths, targetRepository)
 	if err != nil {
 		return ResponseBuilder(GetPathsFromClaimedPaths(modifiedPaths), "", params.RemoteTarget.Spec.TargetRepository),
-			syngiterrors.NewGitPipeline(fmt.Sprintf("failed to generate the commit: %v", err))
+			syngiterrors.NewGitPipeline("failed to generate the commit", err)
 	}
 
 	// Push
