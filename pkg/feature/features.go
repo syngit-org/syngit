@@ -21,11 +21,11 @@ const (
 
 var (
 	LoadedFeatureGates = FeatureGates{
-		ResourceFinder:     false, // Alpha: default off
-		HelmValuesMutation: false, // Alpha: default off
-		FluxHelmRelease:    false, // Alpha: default off
-		SopsEncryption:     false, // Alpha: default off
-		Kustomize:          false, // Alpha: default off
+		ResourceFinder:     true,
+		HelmValuesMutation: true,
+		FluxHelmRelease:    true,
+		SopsEncryption:     true,
+		Kustomize:          true,
 	}
 )
 

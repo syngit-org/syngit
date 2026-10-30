@@ -16,8 +16,6 @@ controller:
 
   gitRepoCacheSize: 0
   gitDocumentCacheSize: 0
-
-  featureGates: ResourceFinder=true
   
   replicas: 1
 
