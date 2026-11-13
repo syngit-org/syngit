@@ -15,7 +15,7 @@ require (
 	github.com/syngit-org/syngit-provider-helm v0.2.5
 	github.com/syngit-org/syngit-provider-kustomize v0.1.2
 	github.com/syngit-org/syngit-provider-sops v0.1.1
-	helm.sh/helm/v4 v4.3.1
+	helm.sh/helm/v4 v4.3.2
 	k8s.io/api v0.37.2
 	k8s.io/apimachinery v0.37.2
 	k8s.io/client-go v0.37.2
@@ -206,7 +206,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
-	github.com/sirupsen/logrus v1.9.4 // indirect
+	github.com/sirupsen/logrus v1.10.2 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
 	github.com/spf13/cast v1.7.0 // indirect
 	github.com/spf13/cobra v1.10.2 // indirect
@@ -239,7 +239,7 @@ require (
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
 	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/net v0.61.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
@@ -261,13 +261,13 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.3 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
-	k8s.io/apiextensions-apiserver v0.37.1 // indirect
-	k8s.io/apiserver v0.37.1 // indirect
-	k8s.io/cli-runtime v0.37.1 // indirect
-	k8s.io/component-base v0.37.1 // indirect
+	k8s.io/apiextensions-apiserver v0.37.2 // indirect
+	k8s.io/apiserver v0.37.2 // indirect
+	k8s.io/cli-runtime v0.37.2 // indirect
+	k8s.io/component-base v0.37.2 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20261001230523-97fa35140926 // indirect
-	k8s.io/kubectl v0.37.1 // indirect
+	k8s.io/kubectl v0.37.2 // indirect
 	k8s.io/streaming v0.37.2 // indirect
 	k8s.io/utils v0.0.0-20260626114624-be93311217bd // indirect
 	oras.land/oras-go/v2 v2.6.2 // indirect
